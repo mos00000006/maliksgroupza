@@ -1,0 +1,17 @@
+MALIKS GROUP HUB - WINDOWS
+
+1. Extract the complete ZIP before opening anything.
+2. Open the extracted Maliks-Group-Hub-Independent-GitHub folder.
+3. Double-click START-MALIKS-HUB.bat.
+4. The browser opens the actual Hub automatically when it is ready.
+5. Keep the black Maliks Group Hub window open while using the Hub.
+
+The launcher automatically:
+- checks for Node.js;
+- installs the required locked packages on the first run;
+- prepares the local database without asking for confirmation;
+- starts the Hub; and
+- waits until the Hub responds before opening http://127.0.0.1:5173.
+
+The independent online deployment is separate. Follow
+GITHUB-CLOUDFLARE-SETUP.md to deploy from GitHub to Cloudflare.

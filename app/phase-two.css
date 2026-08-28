@@ -1,0 +1,308 @@
+.aiSide {
+  margin-top: auto;
+  border: 1px solid #5f4ab1;
+  background: linear-gradient(135deg, #4938a1, #265fca);
+  color: #fff;
+  border-radius: 8px;
+  padding: 11px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.aiSide + .inviteSide {
+  margin-top: 8px;
+}
+.workspaceModal {
+  width: min(1080px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 13px;
+  padding: 23px;
+}
+.workspaceModal > header,
+.sidekickModal > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 17px;
+}
+.workspaceModal h2,
+.sidekickModal h2 {
+  font-size: 20px;
+  margin: 0 0 5px;
+}
+.workspaceModal header p,
+.sidekickModal header p {
+  font-size: 10px;
+  color: var(--muted);
+  margin: 0;
+}
+.workspaceModal header > div {
+  display: flex;
+  gap: 8px;
+}
+.addStore {
+  border: 0;
+  background: var(--blue);
+  color: #fff;
+  border-radius: 7px;
+  padding: 10px 13px;
+  font-size: 9px;
+  font-weight: 700;
+}
+.closeX,
+.sidekickModal > header > button {
+  border: 0;
+  background: #f0f2f5;
+  border-radius: 50%;
+  width: 31px;
+  height: 31px;
+  font-size: 18px;
+}
+.workspaceStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 17px 0;
+}
+.workspaceStats article {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 13px;
+}
+.workspaceStats b,
+.workspaceStats span {
+  display: block;
+}
+.workspaceStats b {
+  font-size: 20px;
+}
+.workspaceStats span {
+  font-size: 8px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.workspaceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+.workspaceGrid > article {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 11px;
+}
+.workspaceGrid > article.division {
+  background: #edf4ff;
+  border-color: #d5e4fa;
+}
+.workspaceGrid > article > i {
+  font-style: normal;
+  width: 31px;
+  height: 31px;
+  border-radius: 7px;
+  background: #eaf2ff;
+  color: var(--blue);
+  display: grid;
+  place-items: center;
+}
+.workspaceGrid article span {
+  flex: 1;
+}
+.workspaceGrid b,
+.workspaceGrid small {
+  display: block;
+}
+.workspaceGrid b {
+  font-size: 9px;
+}
+.workspaceGrid small {
+  font-size: 7px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.workspaceGrid em {
+  font-style: normal;
+  font-size: 8px;
+  color: var(--blue);
+}
+.newStore {
+  position: sticky;
+  bottom: 0;
+  margin-top: 16px;
+  background: #f8f9fb;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 -8px 30px #1b2b4012;
+}
+.newStore h3 {
+  font-size: 12px;
+  margin: 0 0 12px;
+}
+.newStore > div {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 9px;
+}
+.newStore label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 8px;
+  font-weight: 700;
+}
+.newStore input,
+.newStore select {
+  border: 1px solid #dce2e9;
+  border-radius: 7px;
+  padding: 9px;
+  font-size: 9px;
+}
+.newStore footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.newStore footer button {
+  border: 1px solid #dce2e9;
+  background: #fff;
+  border-radius: 7px;
+  padding: 9px 12px;
+  font-size: 9px;
+}
+.sidekickModal {
+  width: min(850px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 15px;
+  padding: 23px;
+}
+.sidekickModal > header {
+  justify-content: flex-start;
+  gap: 11px;
+}
+.sidekickModal > header > button {
+  margin-left: auto;
+}
+.aiMark {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #5037b4, #1777dd);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+}
+.aiBody {
+  padding-top: 18px;
+}
+.aiBody h3 {
+  font-size: 12px;
+  margin: 0 0 11px;
+}
+.promptGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.promptGrid button {
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: #fafbfc;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 9px;
+  color: #344154;
+}
+.promptGrid button:hover {
+  border-color: #9cbdf0;
+  background: #f1f6ff;
+}
+.promptGrid span {
+  color: var(--blue);
+}
+.aiAnswer,
+.aiSetup {
+  margin-top: 14px;
+  border-radius: 9px;
+  padding: 15px;
+}
+.aiAnswer {
+  background: #edf4ff;
+  border: 1px solid #d3e3fb;
+}
+.aiSetup {
+  background: #fff5e4;
+  border: 1px solid #f1d59f;
+}
+.aiAnswer b,
+.aiSetup b {
+  font-size: 10px;
+}
+.aiAnswer p,
+.aiSetup p {
+  font-size: 9px;
+  line-height: 1.7;
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+}
+.aiBody > footer {
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  margin-top: 17px;
+  padding-top: 15px;
+}
+.aiBody textarea {
+  flex: 1;
+  min-height: 67px;
+  border: 1px solid #dce2e9;
+  border-radius: 8px;
+  padding: 11px;
+  font: 10px Arial;
+}
+.aiBody footer button {
+  border: 0;
+  background: var(--blue);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0 16px;
+  font-size: 9px;
+  font-weight: 700;
+}
+@media (max-width: 780px) {
+  .workspaceGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .newStore > div {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 520px) {
+  .workspaceGrid,
+  .workspaceStats,
+  .promptGrid {
+    grid-template-columns: 1fr;
+  }
+  .newStore > div {
+    grid-template-columns: 1fr;
+  }
+  .aiSide {
+    font-size: 0;
+  }
+  .aiSide:after {
+    content: "✦";
+    font-size: 16px;
+  }
+}

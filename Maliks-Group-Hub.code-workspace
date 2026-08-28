@@ -1,0 +1,16 @@
+{
+  "folders": [
+    {
+      "name": "Maliks Group Hub",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "editor.formatOnSave": true,
+    "files.exclude": {
+      "**/.wrangler": true,
+      "**/dist": true,
+      "**/node_modules": true
+    }
+  }
+}

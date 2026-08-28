@@ -1,0 +1,18 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.19.0
+2 info using node@v24.20.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\Dell 3400\Documents\Websites\Maliks-Group\Maliks-Group-Hub-Independent-GitHub\.npmrc
+5 silly config load:file:C:\Users\Dell 3400\.npmrc
+6 silly config load:file:C:\Users\Dell 3400\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm run db:migrate:local
+8 verbose argv "run" "db:migrate:local"
+9 verbose logfile logs-max:10 dir:C:\Users\Dell 3400\Documents\Websites\Maliks-Group\Maliks-Group-Hub-Independent-GitHub\.sites-runtime\npm-cache\_logs\2026-08-28T22_43_35_620Z-
+10 verbose logfile C:\Users\Dell 3400\Documents\Websites\Maliks-Group\Maliks-Group-Hub-Independent-GitHub\.sites-runtime\npm-cache\_logs\2026-08-28T22_43_35_620Z-debug-0.log
+11 silly logfile done cleaning log files
+12 verbose cwd C:\Users\Dell 3400\Documents\Websites\Maliks-Group\Maliks-Group-Hub-Independent-GitHub
+13 verbose os Windows_NT 10.0.26200
+14 verbose node v24.20.0
+15 verbose npm  v11.19.0
+16 verbose exit 0
+17 info ok

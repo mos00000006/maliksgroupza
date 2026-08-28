@@ -1,0 +1,328 @@
+.workspaceOverlay {
+  padding: 18px;
+  background: #10243ccc;
+}
+.mondayWorkspace {
+  width: min(1500px, 98vw);
+  height: calc(100vh - 36px);
+  max-height: none;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 20px 22px;
+}
+.mondayWorkspace > header {
+  flex: 0 0 auto;
+}
+.mondayWorkspace > header h2 {
+  font-size: 22px;
+}
+.boardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  border-bottom: 1px solid var(--line);
+  margin-top: 8px;
+  flex: 0 0 auto;
+}
+.boardTop nav,
+.boardTop > div {
+  display: flex;
+  gap: 4px;
+}
+.boardTop button {
+  border: 0;
+  background: none;
+  padding: 10px 12px;
+  font-size: 8px;
+  color: #637083;
+  cursor: pointer;
+}
+.boardTop nav button.active {
+  color: var(--blue);
+  font-weight: 700;
+  border-bottom: 2px solid var(--blue);
+}
+.mondayWorkspace .storeKpis {
+  grid-template-columns: repeat(4, minmax(130px, 210px));
+  margin: 12px 0;
+}
+.mondayWorkspace .storeKpis article {
+  padding: 10px 12px;
+}
+.mondayWorkspace .storeKpis b {
+  font-size: 18px;
+  margin: 4px 0;
+}
+.mondayBoard {
+  overflow: auto;
+  padding: 4px 4px 40px;
+  flex: 1;
+  background: #fafbfc;
+  border-radius: 8px;
+}
+.taskGroup {
+  margin: 14px 0 24px;
+}
+.taskGroup > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 7px;
+}
+.taskGroup > header span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.taskGroup > header i {
+  font-style: normal;
+  color: #4c98e8;
+}
+.taskGroup > header h3 {
+  font-size: 13px;
+  margin: 0;
+  color: #2893df;
+}
+.taskGroup.group1 > header h3,
+.taskGroup.group1 > header i {
+  color: #2aa673;
+}
+.taskGroup.group2 > header h3,
+.taskGroup.group2 > header i {
+  color: #f2a51b;
+}
+.taskGroup > header b {
+  font-size: 8px;
+  background: #e9eef4;
+  color: #6b7789;
+  border-radius: 10px;
+  padding: 3px 7px;
+}
+.boardTable {
+  border-left: 5px solid #46a8ec;
+  background: #fff;
+  box-shadow: 0 1px 4px #23374c12;
+  min-width: 900px;
+}
+.group1 .boardTable {
+  border-left-color: #38b889;
+}
+.group2 .boardTable {
+  border-left-color: #f1b333;
+}
+.boardRow {
+  display: grid;
+  grid-template-columns: minmax(280px, 2fr) 125px 135px 150px 115px minmax(
+      150px,
+      1fr
+    );
+  min-height: 39px;
+  border-bottom: 1px solid #e6e9ed;
+}
+.boardRow > * {
+  border: 0;
+  border-right: 1px solid #e6e9ed;
+  background: #fff;
+  padding: 8px 10px;
+  font: 9px Arial;
+  color: #334155;
+  min-width: 0;
+}
+.boardHead {
+  min-height: 30px;
+}
+.boardHead span {
+  font-size: 8px;
+  text-align: center;
+  color: #657287;
+  background: #f7f8fa;
+}
+.boardHead span:first-child {
+  text-align: left;
+}
+.itemCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+.itemCell i {
+  font-style: normal;
+  color: #a6b0bc;
+}
+.itemCell b {
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.itemCell em {
+  margin-left: auto;
+  font-style: normal;
+  color: var(--blue);
+  font-size: 7px;
+  opacity: 0;
+}
+.itemCell:hover em {
+  opacity: 1;
+}
+.boardRow input,
+.boardRow select {
+  outline: none;
+}
+.boardRow input:focus,
+.boardRow select:focus {
+  box-shadow: inset 0 0 0 2px #86b8ef;
+}
+.boardRow .statusCell {
+  text-align: center;
+  font-weight: 700;
+  color: #fff;
+  background: #9ba7b4;
+}
+.boardRow .statusCell.inprogress {
+  background: #f2b01e;
+}
+.boardRow .statusCell.blocked {
+  background: #e55241;
+}
+.boardRow .statusCell.complete {
+  background: #2fb56f;
+}
+.boardRow .priorityCell.High {
+  background: #fff0ed;
+  color: #cc402d;
+}
+.boardRow .priorityCell.Medium {
+  background: #fff8df;
+  color: #a87400;
+}
+.boardRow .priorityCell.Low {
+  background: #ecf7ff;
+  color: #2978aa;
+}
+.addBoardItem {
+  border: 0;
+  background: #fff;
+  padding: 10px 14px;
+  font-size: 8px;
+  color: #788497;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.addBoardItem:hover {
+  background: #f3f7fb;
+  color: var(--blue);
+}
+.taskComposer {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: min(940px, 92vw);
+  max-height: 88vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 25px 80px #07152655;
+  z-index: 5;
+  border: 1px solid var(--line);
+}
+.taskComposer > header {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 13px;
+}
+.taskComposer > header h3 {
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+.taskComposer > header p {
+  font-size: 8px;
+  color: var(--muted);
+  margin: 0;
+}
+.taskComposer > header button {
+  border: 0;
+  background: #eef1f5;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+.composerGrid {
+  display: grid;
+  grid-template-columns: 2fr repeat(5, 1fr);
+  gap: 9px;
+  margin-top: 16px;
+}
+.composerGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 8px;
+  font-weight: 700;
+}
+.composerGrid input,
+.composerGrid select,
+.composerGrid textarea {
+  border: 1px solid #dce2e9;
+  border-radius: 7px;
+  padding: 9px;
+  font: 9px Arial;
+}
+.composerGrid .wide {
+  grid-column: 1/-1;
+}
+.composerGrid textarea {
+  min-height: 65px;
+}
+.taskComposer footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.taskComposer footer button {
+  border: 1px solid #dce2e9;
+  background: #fff;
+  border-radius: 7px;
+  padding: 9px 13px;
+  font-size: 8px;
+}
+.taskComposer footer .primary {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+@media (max-width: 900px) {
+  .workspaceOverlay {
+    padding: 0;
+  }
+  .mondayWorkspace {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+  }
+  .composerGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .composerGrid .wide {
+    grid-column: 1/-1;
+  }
+}
+@media (max-width: 560px) {
+  .composerGrid {
+    grid-template-columns: 1fr;
+  }
+  .composerGrid .wide {
+    grid-column: auto;
+  }
+  .mondayWorkspace .storeKpis {
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "maliks-group-hub",
+  "main": "../worker/index.ts",
+  "compatibility_date": "2026-05-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "vars": {
+    "OWNER_EMAIL": "msallikutti@gmail.com",
+    "OWNER_NAME": "Sulliman Alikutti",
+    "CF_ACCESS_TEAM_DOMAIN": "https://replace-me.cloudflareaccess.com",
+    "CF_ACCESS_AUD": "replace-with-access-audience"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "maliks-group-hub-db",
+      "database_id": "00000000-0000-4000-8000-000000000000",
+      "migrations_dir": "../drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "maliks-group-hub-files"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

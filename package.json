@@ -1,0 +1,50 @@
+{
+  "name": "maliks-group-hub-independent",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "setup:local": "node scripts/setup-local.mjs && npm run db:migrate:local",
+    "dev:ready": "node scripts/ensure-dependencies.mjs && npm run setup:local && npm run dev",
+    "build": "vite build",
+    "start": "vinext start",
+    "test": "npm run build && node --experimental-loader ./scripts/cloudflare-loader.mjs --test tests/*.test.mjs",
+    "check": "npm run lint && npm run test",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "config:production": "node scripts/prepare-cloudflare-config.mjs",
+    "deploy": "npm run check && npm run config:production && wrangler deploy --config dist/server/wrangler.json",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply maliks-group-hub-db --local --config infrastructure/wrangler.jsonc",
+    "db:migrate:production": "npm run config:production && wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.2",
+    "jose": "^6.1.0",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.37.1",
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "0.5.26",
+    "drizzle-kit": "0.31.10",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.6",
+    "react-server-dom-webpack": "19.2.6",
+    "tailwindcss": "4.2.1",
+    "typescript": "5.9.3",
+    "vinext": "0.0.50",
+    "vite": "8.0.13",
+    "wrangler": "4.92.0"
+  },
+  "type": "module",
+  "displayName": "Maliks Group Hub"
+}
