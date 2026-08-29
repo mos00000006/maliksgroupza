@@ -28,9 +28,9 @@ export const metadata: Metadata = {
     "codex-preview": "development",
   },
   icons: {
-    icon: "/maliks-group-app-icon.svg",
-    shortcut: "/maliks-group-app-icon.svg",
-    apple: "/maliks-group-app-icon.svg",
+    icon: "/powerbuild-app-icon-192.png",
+    shortcut: "/powerbuild-app-icon-192.png",
+    apple: "/powerbuild-app-icon-192.png",
   },
   manifest: "/manifest.webmanifest",
   applicationName: "Maliks Group Hub",

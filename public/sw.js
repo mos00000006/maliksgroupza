@@ -1,10 +1,9 @@
-const CACHE = "maliks-group-hub-shell-v4";
+const CACHE = "maliks-group-hub-shell-v6";
 const STATIC_ASSETS = [
   "/manifest.webmanifest",
   "/favicon.svg",
-  "/maliks-group-app-icon.svg",
-  "/maliks-group-app-icon-192.png",
-  "/maliks-group-app-icon-512.png",
+  "/powerbuild-app-icon-192.png",
+  "/powerbuild-app-icon-512.png",
 ];
 
 self.addEventListener("install", (event) => {
