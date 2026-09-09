@@ -1,6 +1,6 @@
 {
-  "name": "Maliks Group Hub",
-  "short_name": "Maliks Hub",
+  "name": "PowerBuild Hub",
+  "short_name": "PowerBuild",
   "description": "Secure company operations, tasks, stores, SOPs and reporting.",
   "start_url": "/",
   "scope": "/",
@@ -33,5 +33,10 @@
       "short_name": "New Stores",
       "url": "/?view=new-stores"
     }
-  ]
+  ],
+  "id": "/",
+  "display_override": [
+    "standalone"
+  ],
+  "prefer_related_applications": false
 }

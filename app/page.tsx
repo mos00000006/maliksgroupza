@@ -271,25 +271,45 @@ export default function Home() {
     setTimeout(() => setToast(""), 2300);
   };
   const enableTaskAlerts = async (requestPermission = true) => {
-    if (!("serviceWorker" in navigator) || !("Notification" in window) || !("PushManager" in window)) {
-      if (requestPermission) flash("This browser does not support task alerts.");
+    if (!("serviceWorker" in navigator)) {
+      if (requestPermission) flash("This device cannot run background Hub alerts.");
       return false;
     }
-    let permission = Notification.permission;
-    if (permission === "default" && requestPermission) permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      if (requestPermission && permission === "denied") flash("Phone alerts are blocked in your browser settings.");
-      return false;
-    }
+
+    // Register the service worker even before notification permission. This is
+    // important for Safari Home Screen web apps because the worker owns the
+    // background push event and home-screen badge update.
     try {
-      const registration = await navigator.serviceWorker.register("/sw.js");
-      const ready = await navigator.serviceWorker.ready;
-      let subscription = await ready.pushManager.getSubscription();
+      await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    } catch (error) {
+      console.error("Service worker registration failed", error);
+      if (requestPermission) flash("Could not prepare background Hub alerts.");
+      return false;
+    }
+
+    if (!("Notification" in window) || !("PushManager" in window)) {
+      if (requestPermission) flash("Open the Hub from its Home Screen app icon to receive background alerts.");
+      return false;
+    }
+
+    let permission = Notification.permission;
+    if (permission === "default" && requestPermission) {
+      permission = await Notification.requestPermission();
+    }
+    if (permission !== "granted") {
+      if (requestPermission && permission === "denied")
+        flash("Task alerts were not allowed on this device. In-Hub popups and counts will still work.");
+      return false;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
       if (!subscription) {
         const keyResponse = await fetch("/api/push/public-key");
         if (!keyResponse.ok) throw new Error("Push key is unavailable");
         const { publicKey } = await keyResponse.json();
-        subscription = await ready.pushManager.subscribe({
+        subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
         });
@@ -302,13 +322,22 @@ export default function Home() {
       });
       if (!save.ok) throw new Error("Unable to save push subscription");
       pushReady.current = true;
-      if (requestPermission) flash("Phone and desktop task alerts are on.");
+
+      const unreadCount = notifications.filter((item) => !item.read_at).length;
+      const badgeNavigator = navigator as Navigator & {
+        setAppBadge?: (count?: number) => Promise<void>;
+        clearAppBadge?: () => Promise<void>;
+      };
+      if (unreadCount > 0) await badgeNavigator.setAppBadge?.(unreadCount);
+      else await badgeNavigator.clearAppBadge?.();
+
+      if (requestPermission) flash("Background task alerts and app badge are on.");
       void registration.update();
       return true;
     } catch (error) {
       console.error(error);
       pushReady.current = false;
-      if (requestPermission) flash("Could not enable push alerts on this device.");
+      if (requestPermission) flash("Could not activate background task alerts on this device.");
       return false;
     }
   };
@@ -328,48 +357,64 @@ export default function Home() {
         loadTeam(),
         loadWorkspaces(),
       ]).catch(() => setLoading(false));
+
+      // Always register the worker. Safari Home Screen web apps need this even
+      // before notification permission has been granted.
+      if ("serviceWorker" in navigator)
+        void navigator.serviceWorker.register("/sw.js", { scope: "/" }).then((registration) => registration.update());
+
       if ("Notification" in window && Notification.permission === "granted")
         void enableTaskAlerts(false);
     }, 0);
+
+    // iPhone/iPad and desktop browsers only allow the system permission prompt
+    // from a real user gesture. The first normal tap/click/key press in the Hub
+    // is used automatically, so users do not need to find a separate setup button.
+    const requestAlertsOnFirstInteraction = () => {
+      if (notificationPromptStarted.current) return;
+      if (!("Notification" in window) || Notification.permission !== "default") return;
+      if (window.sessionStorage.getItem("maliks-task-alert-permission-attempted") === "1") return;
+
+      const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+      const standalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        navigatorWithStandalone.standalone === true;
+      const isiOS =
+        /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+      // Web Push on iOS is exposed to Home Screen web apps, not an ordinary Safari tab.
+      if (isiOS && !standalone) return;
+
+      notificationPromptStarted.current = true;
+      window.sessionStorage.setItem("maliks-task-alert-permission-attempted", "1");
+      void enableTaskAlerts(true);
+      window.removeEventListener("pointerdown", requestAlertsOnFirstInteraction);
+      window.removeEventListener("touchend", requestAlertsOnFirstInteraction);
+      window.removeEventListener("keydown", requestAlertsOnFirstInteraction);
+    };
+    window.addEventListener("pointerdown", requestAlertsOnFirstInteraction, { passive: true });
+    window.addEventListener("touchend", requestAlertsOnFirstInteraction, { passive: true });
+    window.addEventListener("keydown", requestAlertsOnFirstInteraction);
+
     const timer = window.setInterval(() => void loadNotifications(), 10000);
     return () => {
       window.clearTimeout(starter);
       window.clearInterval(timer);
       if (popupTimer.current) window.clearTimeout(popupTimer.current);
+      window.removeEventListener("pointerdown", requestAlertsOnFirstInteraction);
+      window.removeEventListener("touchend", requestAlertsOnFirstInteraction);
+      window.removeEventListener("keydown", requestAlertsOnFirstInteraction);
       navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
     };
   }, []);
-  useEffect(() => {
-    if (!currentUser.email || accessDenied) return;
-    if (!("Notification" in window) || Notification.permission !== "default") return;
-    if (window.localStorage.getItem("maliks-task-alert-permission-asked") === "1") return;
-
-    // The browser/phone requires a real user gesture before showing its own
-    // notification permission dialog. The first normal tap/click/key press in
-    // the authenticated Hub triggers that one-time system prompt automatically.
-    const requestAlertsOnFirstInteraction = () => {
-      if (notificationPromptStarted.current) return;
-      notificationPromptStarted.current = true;
-      window.localStorage.setItem("maliks-task-alert-permission-asked", "1");
-      void enableTaskAlerts(true);
-      window.removeEventListener("pointerdown", requestAlertsOnFirstInteraction);
-      window.removeEventListener("keydown", requestAlertsOnFirstInteraction);
-    };
-
-    window.addEventListener("pointerdown", requestAlertsOnFirstInteraction, { passive: true });
-    window.addEventListener("keydown", requestAlertsOnFirstInteraction);
-    return () => {
-      window.removeEventListener("pointerdown", requestAlertsOnFirstInteraction);
-      window.removeEventListener("keydown", requestAlertsOnFirstInteraction);
-    };
-  }, [currentUser.email, accessDenied]);
   useEffect(() => {
     const count = notifications.filter((item) => !item.read_at).length;
     const badgeNavigator = navigator as Navigator & {
       setAppBadge?: (count?: number) => Promise<void>;
       clearAppBadge?: () => Promise<void>;
     };
-    document.title = count > 0 ? `(${count}) Maliks Group Hub` : "Maliks Group Hub";
+    document.title = count > 0 ? `(${count}) PowerBuild Hub` : "PowerBuild Hub";
     if (count > 0) void badgeNavigator.setAppBadge?.(count);
     else void badgeNavigator.clearAppBadge?.();
   }, [notifications]);

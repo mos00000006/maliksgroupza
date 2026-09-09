@@ -27,17 +27,26 @@ export const metadata: Metadata = {
     "Company projects, operations, approvals and performance in one place.",
   other: {
     "codex-preview": "development",
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
   },
   icons: {
-    icon: "/powerbuild-app-icon-192.png",
+    icon: [
+      { url: "/powerbuild-app-icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/powerbuild-app-icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
     shortcut: "/powerbuild-app-icon-192.png",
-    apple: "/powerbuild-app-icon-192.png",
+    apple: [
+      { url: "/powerbuild-app-icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/powerbuild-app-icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
   },
   manifest: "/manifest.webmanifest",
-  applicationName: "Maliks Group Hub",
+  applicationName: "PowerBuild Hub",
   appleWebApp: {
     capable: true,
-    title: "Maliks Group Hub",
+    title: "PowerBuild Hub",
     statusBarStyle: "black-translucent",
   },
 };

@@ -1,4 +1,4 @@
-const CACHE = "maliks-group-hub-shell-v9";
+const CACHE = "maliks-group-hub-shell-v10";
 const STATIC_ASSETS = [
   "/manifest.webmanifest",
   "/favicon.svg",
@@ -76,6 +76,34 @@ self.addEventListener("push", (event) => {
         ),
       ),
     ]),
+  );
+});
+
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const keyResponse = await fetch("/api/push/public-key", { credentials: "same-origin" });
+        if (!keyResponse.ok) return;
+        const { publicKey } = await keyResponse.json();
+        const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
+        const base64 = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const raw = atob(base64);
+        const applicationServerKey = Uint8Array.from(raw, (char) => char.charCodeAt(0));
+        const subscription = await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+        await fetch("/api/push/subscribe", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(subscription.toJSON()),
+        });
+      } catch (error) {
+        console.debug("Push subscription refresh unavailable", error);
+      }
+    })(),
   );
 });
 
