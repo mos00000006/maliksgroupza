@@ -393,3 +393,106 @@ aside > .user {
     padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
 }
+
+
+/* Hub-branded task delete confirmation. Replaces browser window.confirm so the
+   browser origin is never displayed in the confirmation dialog. */
+.deleteConfirmOverlay {
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 18, 33, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.deleteConfirmModal {
+  width: min(430px, calc(100vw - 32px));
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(2, 12, 27, 0.28);
+  padding: 28px;
+  text-align: center;
+  color: #172033;
+}
+
+.deleteConfirmIcon {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fff0f0;
+  color: #c62828;
+  font-weight: 900;
+  font-size: 24px;
+}
+
+.deleteConfirmModal h2 {
+  margin: 0 0 10px;
+  font-size: 24px;
+}
+
+.deleteConfirmModal p {
+  margin: 0 0 8px;
+  line-height: 1.5;
+  color: #354052;
+}
+
+.deleteConfirmModal small {
+  display: block;
+  color: #7a8493;
+  line-height: 1.45;
+}
+
+.deleteConfirmActions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.deleteConfirmActions button {
+  min-width: 120px;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.deleteConfirmCancel {
+  border: 1px solid #d9dfe8;
+  background: #ffffff;
+  color: #263247;
+}
+
+.deleteConfirmButton {
+  border: 1px solid #b42323;
+  background: #c62828;
+  color: #ffffff;
+}
+
+.deleteConfirmActions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 520px) {
+  .deleteConfirmOverlay {
+    padding: 16px;
+  }
+  .deleteConfirmModal {
+    padding: 24px 18px 20px;
+    border-radius: 18px;
+  }
+  .deleteConfirmActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .deleteConfirmActions button {
+    min-width: 0;
+    width: 100%;
+  }
+}

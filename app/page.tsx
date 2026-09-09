@@ -142,6 +142,8 @@ export default function Home() {
     [search, setSearch] = useState(""),
     [open, setOpen] = useState(false),
     [selected, setSelected] = useState<Task | null>(null),
+    [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null),
+    [deleteBusy, setDeleteBusy] = useState(false),
     [comments, setComments] = useState<Comment[]>([]),
     [files, setFiles] = useState<Attachment[]>([]),
     [comment, setComment] = useState(""),
@@ -590,26 +592,27 @@ export default function Home() {
     } else flash("Upload failed");
   };
   const deleteTask = async (task: Task) => {
-    const confirmed = window.confirm(
-      `Delete “${task.title}”?\n\nThis will permanently remove the task, its comments, attachments and task notifications.`,
-    );
-    if (!confirmed) return;
+    setDeleteBusy(true);
+    try {
+      const r = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        flash(j.error || "Task could not be deleted");
+        return;
+      }
 
-    const r = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
-    if (!r.ok) {
-      const j = await r.json().catch(() => ({}));
-      flash(j.error || "Task could not be deleted");
-      return;
+      setTasks((current) => current.filter((item) => item.id !== task.id));
+      setNotifications((current) =>
+        current.filter((item) => item.task_id !== task.id),
+      );
+      setDeleteConfirmTask(null);
+      setSelected(null);
+      setComments([]);
+      setFiles([]);
+      flash("Task deleted");
+    } finally {
+      setDeleteBusy(false);
     }
-
-    setTasks((current) => current.filter((item) => item.id !== task.id));
-    setNotifications((current) =>
-      current.filter((item) => item.task_id !== task.id),
-    );
-    setSelected(null);
-    setComments([]);
-    setFiles([]);
-    flash("Task deleted");
   };
 
   const copyLink = async () => {
@@ -1175,6 +1178,47 @@ export default function Home() {
           </div>
         </div>
       )}
+      {deleteConfirmTask && (
+        <div
+          className="overlay deleteConfirmOverlay"
+          onMouseDown={() => !deleteBusy && setDeleteConfirmTask(null)}
+        >
+          <div
+            className="deleteConfirmModal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-task-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="deleteConfirmIcon">!</div>
+            <h2 id="delete-task-title">Delete task?</h2>
+            <p>
+              Are you sure you want to delete <strong>“{deleteConfirmTask.title}”</strong>?
+            </p>
+            <small>
+              This will permanently remove the task, its comments, attachments and task notifications.
+            </small>
+            <div className="deleteConfirmActions">
+              <button
+                type="button"
+                className="deleteConfirmCancel"
+                disabled={deleteBusy}
+                onClick={() => setDeleteConfirmTask(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="deleteConfirmButton"
+                disabled={deleteBusy}
+                onClick={() => void deleteTask(deleteConfirmTask)}
+              >
+                {deleteBusy ? "Deleting..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {selected && (
         <div
           className="overlay taskOverlay"
@@ -1195,7 +1239,7 @@ export default function Home() {
                 {!readOnlyAccess && (
                   <button
                     className="deleteTaskBtn"
-                    onClick={() => void deleteTask(selected)}
+                    onClick={() => setDeleteConfirmTask(selected)}
                     title="Delete task"
                   >
                     Delete
