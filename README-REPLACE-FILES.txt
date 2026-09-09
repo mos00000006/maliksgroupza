@@ -1,19 +1,19 @@
-MALIKS GROUP HUB — AUTOMATIC TASK NOTIFICATIONS V2
+MALIKS GROUP HUB - BACKGROUND APP BADGE V3
 
-Replace the matching files/folders in your GitHub project with the files in this patch, then commit and push.
+Replace these files in the GitHub project using the same paths:
 
-What this version does:
-- New assigned tasks create the normal Hub Inbox notification.
-- New task notifications pop up automatically inside the Hub.
-- Inbox shows an unread number badge.
-- Installed PWA/app icon shows the unread count where the device/browser supports app badges.
-- Phone/desktop push notifications are supported.
-- There is NO separate "Enable phone alerts" button.
-- If notification permission has not yet been decided, the first normal tap/click/key press after the user signs into the Hub triggers the browser/phone's one-time system notification permission prompt.
-- Once the user approves, push alerts register automatically on that device.
-- If the device/browser has already granted permission, registration happens automatically on load.
+app/api/team/shared.ts
+app/api/push/shared.ts
+public/sw.js
 
-Important:
-The operating system/browser itself controls its Allow/Block notification permission dialog. A website/PWA cannot bypass that system permission.
+What this adds:
+- Each task-assignment push now contains the recipient's TOTAL unread task count.
+- The service worker updates the installed PWA app badge from the push event, even while the Hub window is closed, where the OS/browser supports PWA numeric badges.
+- The system notification includes the current unread task count.
+- Existing in-app Inbox count and foreground badge synchronization remain unchanged.
+- Service-worker cache bumped to v9 so devices pick up the new worker.
 
-No additional npm package is required by this patch.
+Platform note:
+- Installed PWA + notification permission are required for background push/badging.
+- iOS/iPadOS Home Screen PWAs and supported Windows/macOS Chrome/Edge PWAs can use numeric Badging API where supported.
+- Android Chromium PWAs use the Android launcher notification-badge system; the launcher controls whether it shows a number or dot.

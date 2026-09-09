@@ -88,10 +88,18 @@ export async function createAssignmentNotification({
       new Date().toISOString(),
     )
     .run();
+  const unreadRow = await env.DB.prepare(
+    "SELECT COUNT(*) AS unread_count FROM notifications WHERE recipient_email=? AND (read_at='' OR read_at IS NULL)",
+  )
+    .bind(email)
+    .first<{ unread_count: number }>();
+  const unreadCount = Number(unreadRow?.unread_count || 1);
+
   await sendPushNotification(email, {
     title: `New task: ${taskTitle}`,
     body: `${assignedBy} assigned you a task in ${workspace}.`,
     taskId,
+    unreadCount,
     url: "/",
   });
 }

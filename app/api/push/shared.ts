@@ -203,7 +203,7 @@ async function encryptPayload(payload: string, p256dh: string, auth: string) {
 
 export async function sendPushNotification(
   recipientEmail: string,
-  payload: { title: string; body: string; taskId: number; url?: string },
+  payload: { title: string; body: string; taskId: number; unreadCount?: number; url?: string },
 ) {
   try {
     await ensurePushTables();
