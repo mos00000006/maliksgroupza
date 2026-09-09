@@ -87,3 +87,55 @@ export async function PATCH(
   }
   return Response.json({ ok: true });
 }
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const member = await getHubMember();
+  const existing = await env.DB.prepare(
+    "SELECT id,project,title FROM tasks WHERE id=?",
+  )
+    .bind(id)
+    .first<{ id: number; project: string; title: string }>();
+
+  if (
+    !existing ||
+    !canWrite(member) ||
+    !canAccessWorkspace(member, existing.project)
+  )
+    return Response.json(
+      { error: "You cannot delete this task." },
+      { status: 403 },
+    );
+
+  const attachmentQuery = await env.DB.prepare(
+    "SELECT object_key FROM attachments WHERE task_id=?",
+  )
+    .bind(id)
+    .all();
+  const attachments = attachmentQuery.results as Array<{ object_key: string }>;
+
+  await Promise.all(
+    attachments
+      .map((attachment: { object_key: string }) => attachment.object_key)
+      .filter(Boolean)
+      .map((objectKey: string) => env.BUCKET.delete(objectKey)),
+  );
+
+  const statements = [
+    env.DB.prepare("DELETE FROM comments WHERE task_id=?").bind(id),
+    env.DB.prepare("DELETE FROM attachments WHERE task_id=?").bind(id),
+  ];
+
+  // Notifications are initialised by the team module. Keep deletion compatible
+  // with older databases where that table may not have been created yet.
+  try {
+    await env.DB.prepare("DELETE FROM notifications WHERE task_id=?").bind(id).run();
+  } catch {}
+
+  await env.DB.batch(statements);
+  await env.DB.prepare("DELETE FROM tasks WHERE id=?").bind(id).run();
+
+  return Response.json({ deleted: true, id: existing.id, title: existing.title });
+}

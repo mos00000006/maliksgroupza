@@ -143,6 +143,7 @@ export default function Home() {
     [workspaceTarget, setWorkspaceTarget] = useState(""),
     [workspaceCreate, setWorkspaceCreate] = useState(false),
     [sidekickOpen, setSidekickOpen] = useState(false),
+    [mobileNavOpen, setMobileNavOpen] = useState(false),
     [toast, setToast] = useState(""),
     [accessDenied, setAccessDenied] = useState(false);
   const [inviteResult, setInviteResult] = useState<HubInvitation | null>(null);
@@ -409,6 +410,29 @@ export default function Home() {
       flash("File attached to task");
     } else flash("Upload failed");
   };
+  const deleteTask = async (task: Task) => {
+    const confirmed = window.confirm(
+      `Delete “${task.title}”?\n\nThis will permanently remove the task, its comments, attachments and task notifications.`,
+    );
+    if (!confirmed) return;
+
+    const r = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      flash(j.error || "Task could not be deleted");
+      return;
+    }
+
+    setTasks((current) => current.filter((item) => item.id !== task.id));
+    setNotifications((current) =>
+      current.filter((item) => item.task_id !== task.id),
+    );
+    setSelected(null);
+    setComments([]);
+    setFiles([]);
+    flash("Task deleted");
+  };
+
   const copyLink = async () => {
     await navigator.clipboard.writeText(location.origin);
     flash("Hub link copied");
@@ -637,7 +661,7 @@ export default function Home() {
     );
   return (
     <main className="shell">
-      <aside>
+      <aside className={mobileNavOpen ? "mobileOpen" : ""}>
         <div className="brand">
           <b>P</b>
           <span>
@@ -645,7 +669,13 @@ export default function Home() {
             <small>COMPANY HUB</small>
           </span>
         </div>
-        <button className="company" onClick={() => setWorkspaceOpen(true)}>
+        <button
+          className="company"
+          onClick={() => {
+            setWorkspaceOpen(true);
+            setMobileNavOpen(false);
+          }}
+        >
           <i>PG</i>
           <span>
             <b>PowerBuild Group</b>
@@ -654,7 +684,12 @@ export default function Home() {
         </button>
         <p>WORKSPACE</p>
         <nav>
-          <button onClick={() => setWorkspaceOpen(true)}>
+          <button
+            onClick={() => {
+              setWorkspaceOpen(true);
+              setMobileNavOpen(false);
+            }}
+          >
             <i>▦</i>Company Workspaces
           </button>
           {availableNav.map((n) => {
@@ -666,6 +701,7 @@ export default function Home() {
               onClick={() => {
                 setActive(n);
                 setSearch("");
+                setMobileNavOpen(false);
               }}
             >
               <i>{["⌂", "✓", "▦", "↗", "◆", "▤", "⇄", "▥", "◇", "◫"][i]}</i>
@@ -685,11 +721,23 @@ export default function Home() {
             );
           })}
         </nav>
-        <button className="aiSide" onClick={() => setSidekickOpen(true)}>
+        <button
+          className="aiSide"
+          onClick={() => {
+            setSidekickOpen(true);
+            setMobileNavOpen(false);
+          }}
+        >
           ✦ AI Sidekick
         </button>
         {canManageTeam && (
-          <button className="inviteSide" onClick={() => setTeamOpen(true)}>
+          <button
+            className="inviteSide"
+            onClick={() => {
+              setTeamOpen(true);
+              setMobileNavOpen(false);
+            }}
+          >
             ＋ Manage user access
           </button>
         )}
@@ -701,9 +749,23 @@ export default function Home() {
           </span>
         </div>
       </aside>
+      {mobileNavOpen && (
+        <button
+          className="mobileNavBackdrop"
+          aria-label="Close navigation"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
       <section className="main">
         <header>
-          <div>
+          <button
+            className="mobileMenuBtn"
+            aria-label="Open navigation"
+            onClick={() => setMobileNavOpen(true)}
+          >
+            ☰
+          </button>
+          <div className="headerTitle">
             <h1>{active}</h1>
             <p>
               {active === "Executive Overview"
@@ -946,7 +1008,24 @@ export default function Home() {
                   {selected.project} · {selected.task_group || "Store Tasks"}
                 </p>
               </span>
-              <button onClick={() => setSelected(null)}>×</button>
+              <div className="taskHeaderActions">
+                {!readOnlyAccess && (
+                  <button
+                    className="deleteTaskBtn"
+                    onClick={() => void deleteTask(selected)}
+                    title="Delete task"
+                  >
+                    Delete
+                  </button>
+                )}
+                <button
+                  className="taskCloseBtn"
+                  onClick={() => setSelected(null)}
+                  aria-label="Close task"
+                >
+                  ×
+                </button>
+              </div>
             </header>
             <div className="detailBody">
               <section>
@@ -1487,6 +1566,13 @@ export default function Home() {
           }}
         />
       )}
+      <button
+        className="mobileAiFab"
+        onClick={() => setSidekickOpen(true)}
+        aria-label="Open AI Sidekick"
+      >
+        ✦ <span>AI</span>
+      </button>
       {sidekickOpen && (
         <SidekickModal
           close={() => setSidekickOpen(false)}

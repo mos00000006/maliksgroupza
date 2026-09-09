@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
+
 export default function SidekickModal({
   close,
   openSops,
@@ -11,6 +12,8 @@ export default function SidekickModal({
     [answer, setAnswer] = useState(""),
     [busy, setBusy] = useState(false),
     [configured, setConfigured] = useState(true);
+  const touchStartX = useRef<number | null>(null);
+
   const ask = async (text = q) => {
     if (!text.trim()) return;
     setBusy(true);
@@ -25,22 +28,42 @@ export default function SidekickModal({
     setAnswer(j.answer || j.error);
     setBusy(false);
   };
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    touchStartX.current = event.touches[0]?.clientX ?? null;
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (touchStartX.current === null) return;
+    const endX = event.changedTouches[0]?.clientX ?? touchStartX.current;
+    const distance = endX - touchStartX.current;
+    touchStartX.current = null;
+    if (distance > 70) close();
+  };
+
   const prompts = [
     "Give me today’s executive operations brief",
     "Which stores and tasks need immediate attention?",
     "Summarise blocked and overdue work",
     "Summarise our approved SOP workflows",
   ];
+
   return (
-    <div className="overlay" onMouseDown={close}>
-      <div className="sidekickModal" onMouseDown={(e) => e.stopPropagation()}>
+    <div className="overlay sidekickOverlay" onMouseDown={close}>
+      <div
+        className="sidekickModal sidekickDrawer"
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="sidekickSwipeHandle" aria-hidden="true" />
         <header>
           <div className="aiMark">✦</div>
           <span>
             <h2>Maliks Group AI Sidekick</h2>
             <p>Your operations assistant across every connected workspace</p>
           </span>
-          <button onClick={close}>×</button>
+          <button onClick={close} aria-label="Close AI Sidekick">×</button>
         </header>
         <div className="aiBody">
           <section>
@@ -51,7 +74,7 @@ export default function SidekickModal({
                   key={p}
                   onClick={() => {
                     setQ(p);
-                    ask(p);
+                    void ask(p);
                   }}
                 >
                   {p}
@@ -91,7 +114,7 @@ export default function SidekickModal({
               onChange={(e) => setQ(e.target.value)}
               placeholder="Ask about stores, overdue tasks, audits, CAPEX or wholesale…"
             />
-            <button onClick={() => ask()} disabled={busy}>
+            <button onClick={() => void ask()} disabled={busy}>
               {busy ? "Thinking…" : "Ask Sidekick"}
             </button>
           </footer>
