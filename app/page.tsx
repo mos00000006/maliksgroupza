@@ -121,6 +121,12 @@ const roleAssignees = [
   "Store Managers",
   "EXCO",
 ];
+const urlBase64ToUint8Array = (value: string) => {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(base64);
+  return Uint8Array.from(raw, (char) => char.charCodeAt(0));
+};
 export default function Home() {
   const [active, setActive] = useState("Executive Overview"),
     [tasks, setTasks] = useState<Task[]>([]),
@@ -130,6 +136,7 @@ export default function Home() {
     [currentUser, setCurrentUser] = useState<CurrentHubUser>({ name: "User", email: "" }),
     [notifications, setNotifications] = useState<HubNotification[]>([]),
     [notificationsOpen, setNotificationsOpen] = useState(false),
+    [popupNotification, setPopupNotification] = useState<{ title: string; message: string } | null>(null),
     [loading, setLoading] = useState(true),
     [mode, setMode] = useState<"table" | "board">("table"),
     [search, setSearch] = useState(""),
@@ -162,6 +169,11 @@ export default function Home() {
   const upload = useRef<HTMLInputElement>(null);
   const memberForm = useRef<HTMLDivElement>(null);
   const memberList = useRef<HTMLDivElement>(null);
+  const notificationIds = useRef<Set<number>>(new Set());
+  const notificationSyncReady = useRef(false);
+  const pushReady = useRef(false);
+  const notificationPromptStarted = useRef(false);
+  const popupTimer = useRef<number | null>(null);
   const [draft, setDraft] = useState({
     title: "",
     project: "Wholesale Division",
@@ -175,11 +187,44 @@ export default function Home() {
     task_group: "Store Tasks",
     description: "",
   });
+  const showTaskPopup = (title: string, message: string) => {
+    setPopupNotification({ title, message });
+    if (popupTimer.current) window.clearTimeout(popupTimer.current);
+    popupTimer.current = window.setTimeout(() => setPopupNotification(null), 8000);
+  };
+  const applyNotificationSnapshot = async (items: HubNotification[], announce: boolean) => {
+    const unreadItems = items.filter((item) => !item.read_at);
+    if (announce && notificationSyncReady.current) {
+      const fresh = unreadItems.filter((item) => !notificationIds.current.has(item.id));
+      if (fresh.length) {
+        const newest = fresh[0];
+        showTaskPopup(newest.title, newest.message);
+        if (
+          "Notification" in window &&
+          Notification.permission === "granted" &&
+          !pushReady.current &&
+          "serviceWorker" in navigator
+        ) {
+          const registration = await navigator.serviceWorker.ready;
+          await registration.showNotification(newest.title, {
+            body: newest.message,
+            icon: "/powerbuild-app-icon-192.png",
+            badge: "/powerbuild-app-icon-192.png",
+            tag: `task-${newest.task_id}`,
+            data: { taskId: newest.task_id, url: "/" },
+          });
+        }
+      }
+    }
+    notificationIds.current = new Set(items.map((item) => item.id));
+    notificationSyncReady.current = true;
+    setNotifications(items);
+  };
   const loadNotifications = async () => {
     const r = await fetch("/api/notifications");
     if (r.ok) {
       const j = await r.json();
-      setNotifications(j.notifications || []);
+      await applyNotificationSnapshot(j.notifications || [], true);
     }
   };
   const load = async () => {
@@ -190,7 +235,7 @@ export default function Home() {
       ]);
       const [j, nj] = await Promise.all([r.json(), n.json()]);
       setTasks(j.tasks || []);
-      setNotifications(nj.notifications || []);
+      await applyNotificationSnapshot(nj.notifications || [], false);
     } finally {
       setLoading(false);
     }
@@ -225,20 +270,109 @@ export default function Home() {
     setToast(s);
     setTimeout(() => setToast(""), 2300);
   };
+  const enableTaskAlerts = async (requestPermission = true) => {
+    if (!("serviceWorker" in navigator) || !("Notification" in window) || !("PushManager" in window)) {
+      if (requestPermission) flash("This browser does not support task alerts.");
+      return false;
+    }
+    let permission = Notification.permission;
+    if (permission === "default" && requestPermission) permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      if (requestPermission && permission === "denied") flash("Phone alerts are blocked in your browser settings.");
+      return false;
+    }
+    try {
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      const ready = await navigator.serviceWorker.ready;
+      let subscription = await ready.pushManager.getSubscription();
+      if (!subscription) {
+        const keyResponse = await fetch("/api/push/public-key");
+        if (!keyResponse.ok) throw new Error("Push key is unavailable");
+        const { publicKey } = await keyResponse.json();
+        subscription = await ready.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+        });
+      }
+      const serialized = subscription.toJSON();
+      const save = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(serialized),
+      });
+      if (!save.ok) throw new Error("Unable to save push subscription");
+      pushReady.current = true;
+      if (requestPermission) flash("Phone and desktop task alerts are on.");
+      void registration.update();
+      return true;
+    } catch (error) {
+      console.error(error);
+      pushReady.current = false;
+      if (requestPermission) flash("Could not enable push alerts on this device.");
+      return false;
+    }
+  };
   useEffect(() => {
+    const onServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data?.type === "hub-push-notification") {
+        const item = event.data.notification || {};
+        showTaskPopup(item.title || "New task", item.body || "A task was assigned to you.");
+        void loadNotifications();
+      }
+      if (event.data?.type === "hub-open-inbox") setNotificationsOpen(true);
+    };
+    navigator.serviceWorker?.addEventListener("message", onServiceWorkerMessage);
     const starter = window.setTimeout(() => {
       void Promise.all([
         load(),
         loadTeam(),
         loadWorkspaces(),
       ]).catch(() => setLoading(false));
+      if ("Notification" in window && Notification.permission === "granted")
+        void enableTaskAlerts(false);
     }, 0);
-    const timer = window.setInterval(() => void loadNotifications(), 30000);
+    const timer = window.setInterval(() => void loadNotifications(), 10000);
     return () => {
       window.clearTimeout(starter);
       window.clearInterval(timer);
+      if (popupTimer.current) window.clearTimeout(popupTimer.current);
+      navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
     };
   }, []);
+  useEffect(() => {
+    if (!currentUser.email || accessDenied) return;
+    if (!("Notification" in window) || Notification.permission !== "default") return;
+    if (window.localStorage.getItem("maliks-task-alert-permission-asked") === "1") return;
+
+    // The browser/phone requires a real user gesture before showing its own
+    // notification permission dialog. The first normal tap/click/key press in
+    // the authenticated Hub triggers that one-time system prompt automatically.
+    const requestAlertsOnFirstInteraction = () => {
+      if (notificationPromptStarted.current) return;
+      notificationPromptStarted.current = true;
+      window.localStorage.setItem("maliks-task-alert-permission-asked", "1");
+      void enableTaskAlerts(true);
+      window.removeEventListener("pointerdown", requestAlertsOnFirstInteraction);
+      window.removeEventListener("keydown", requestAlertsOnFirstInteraction);
+    };
+
+    window.addEventListener("pointerdown", requestAlertsOnFirstInteraction, { passive: true });
+    window.addEventListener("keydown", requestAlertsOnFirstInteraction);
+    return () => {
+      window.removeEventListener("pointerdown", requestAlertsOnFirstInteraction);
+      window.removeEventListener("keydown", requestAlertsOnFirstInteraction);
+    };
+  }, [currentUser.email, accessDenied]);
+  useEffect(() => {
+    const count = notifications.filter((item) => !item.read_at).length;
+    const badgeNavigator = navigator as Navigator & {
+      setAppBadge?: (count?: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    };
+    document.title = count > 0 ? `(${count}) Maliks Group Hub` : "Maliks Group Hub";
+    if (count > 0) void badgeNavigator.setAppBadge?.(count);
+    else void badgeNavigator.clearAppBadge?.();
+  }, [notifications]);
   const canManageTeam = ["Owner / Admin", "Developer / Technical Admin"].includes(
       currentUser.role || "",
     ),
@@ -1585,6 +1719,23 @@ export default function Home() {
             setActive("SOP & Manuals");
           }}
         />
+      )}
+      {popupNotification && (
+        <button
+          className="taskNotificationPopup"
+          onClick={() => {
+            setPopupNotification(null);
+            setNotificationsOpen(true);
+          }}
+        >
+          <img src="/powerbuild-app-icon-192.png" alt="" />
+          <span>
+            <small>NEW TASK ASSIGNMENT</small>
+            <b>{popupNotification.title}</b>
+            <p>{popupNotification.message}</p>
+          </span>
+          <em>View →</em>
+        </button>
       )}
       {toast && <div className="toast">✓ {toast}</div>}
     </main>

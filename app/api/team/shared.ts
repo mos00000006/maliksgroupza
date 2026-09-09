@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { sendPushNotification } from "../push/shared";
 
 export async function initTeamTables() {
   const db = env.DB;
@@ -87,4 +88,10 @@ export async function createAssignmentNotification({
       new Date().toISOString(),
     )
     .run();
+  await sendPushNotification(email, {
+    title: `New task: ${taskTitle}`,
+    body: `${assignedBy} assigned you a task in ${workspace}.`,
+    taskId,
+    url: "/",
+  });
 }
