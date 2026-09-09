@@ -83,6 +83,10 @@
   aside .brand {
     padding-left: 8px;
   }
+  aside .brandLogoMark {
+    width: 52px;
+    height: 40px;
+  }
   aside .company {
     padding: 10px;
   }

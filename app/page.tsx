@@ -663,7 +663,11 @@ export default function Home() {
     <main className="shell">
       <aside className={mobileNavOpen ? "mobileOpen" : ""}>
         <div className="brand">
-          <b>P</b>
+          <img
+            className="brandLogoMark"
+            src="/powerbuild-logo-transparent.png"
+            alt="PowerBuild logo"
+          />
           <span>
             <strong>POWERBUILD</strong>
             <small>COMPANY HUB</small>

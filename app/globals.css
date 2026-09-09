@@ -45,6 +45,13 @@ aside {
   font-size: 21px;
   background: linear-gradient(135deg, #2678ed, #00b1c9);
 }
+.brandLogoMark {
+  width: 56px;
+  height: 46px;
+  display: block;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
 .brand strong,
 .brand small,
 .company b,
