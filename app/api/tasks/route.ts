@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getAuthenticatedUser } from "../../auth";
-import { createAssignmentNotification, initTeamTables } from "../team/shared";
+import { createTaskCreatedNotifications, initTeamTables } from "../team/shared";
 import { allowedWorkspaces, canAccessWorkspace, canWrite, getHubMember } from "../access";
 const seed = [
   [
@@ -168,13 +168,14 @@ export async function POST(req: Request) {
       p.task_group || "Store Tasks",
     )
     .first<Record<string, string | number>>();
-  if (out && p.assignee_email)
-    await createAssignmentNotification({
-      recipientEmail: p.assignee_email,
+  if (out)
+    await createTaskCreatedNotifications({
       taskId: Number(out.id),
       taskTitle: String(out.title),
       workspace: String(out.project),
-      assignedBy: user?.displayName || user?.email || "Hub Owner",
+      createdBy: user?.displayName || user?.email || "Hub Owner",
+      assigneeEmail: String(out.assignee_email || ""),
+      assigneeLabel: String(out.assignee || ""),
     });
   return Response.json({ task: out }, { status: 201 });
 }
