@@ -10,6 +10,8 @@ import "./phase-six.css";
 import "./phase-seven.css";
 import "./phase-eight.css";
 import "./mobile-improvements.css";
+import "./launch-splash.css";
+import LaunchSplash from "./launch-splash";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -61,6 +63,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <LaunchSplash />
         {children}
       </body>
     </html>
