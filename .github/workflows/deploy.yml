@@ -22,6 +22,7 @@ jobs:
       MALIKS_GROUP_D1_DATABASE_ID: ${{ secrets.MALIKS_GROUP_D1_DATABASE_ID }}
       CF_ACCESS_TEAM_DOMAIN: ${{ secrets.CF_ACCESS_TEAM_DOMAIN }}
       CF_ACCESS_AUD: ${{ secrets.CF_ACCESS_AUD }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
       - name: Check out repository
@@ -41,6 +42,10 @@ jobs:
 
       - name: Prepare production configuration
         run: npm run config:production
+
+      - name: Sync AI Sidekick secret
+        if: ${{ env.OPENAI_API_KEY != '' }}
+        run: printf '%s' "$OPENAI_API_KEY" | npx wrangler secret put OPENAI_API_KEY --config .deploy/wrangler.jsonc
 
       - name: Apply database migrations
         run: npx wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc

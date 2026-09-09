@@ -1,6 +1,11 @@
 "use client";
 import { useRef, useState } from "react";
 
+type HistoryItem = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 export default function SidekickModal({
   close,
   openSops,
@@ -8,25 +13,49 @@ export default function SidekickModal({
   close: () => void;
   openSops?: () => void;
 }) {
-  const [q, setQ] = useState(""),
-    [answer, setAnswer] = useState(""),
-    [busy, setBusy] = useState(false),
-    [configured, setConfigured] = useState(true);
+  const [q, setQ] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [configured, setConfigured] = useState(true);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const touchStartX = useRef<number | null>(null);
 
   const ask = async (text = q) => {
-    if (!text.trim()) return;
+    const message = text.trim();
+    if (!message || busy) return;
+
     setBusy(true);
     setAnswer("");
-    const r = await fetch("/api/ai", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message: text }),
-    });
-    const j = await r.json();
-    setConfigured(j.configured !== false);
-    setAnswer(j.answer || j.error);
-    setBusy(false);
+    try {
+      const response = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message, history }),
+      });
+      const json = (await response.json()) as {
+        configured?: boolean;
+        answer?: string;
+        error?: string;
+      };
+
+      setConfigured(json.configured !== false);
+      const reply = json.answer || json.error || "No response was returned.";
+      setAnswer(reply);
+      if (json.answer) {
+        setHistory((current) =>
+          [
+            ...current,
+            { role: "user" as const, content: message },
+            { role: "assistant" as const, content: json.answer || "" },
+          ].slice(-8),
+        );
+        setQ("");
+      }
+    } catch {
+      setAnswer("The Sidekick could not connect. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
@@ -52,7 +81,7 @@ export default function SidekickModal({
     <div className="overlay sidekickOverlay" onMouseDown={close}>
       <div
         className="sidekickModal sidekickDrawer"
-        onMouseDown={(e) => e.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -61,23 +90,26 @@ export default function SidekickModal({
           <div className="aiMark">✦</div>
           <span>
             <h2>Maliks Group AI Sidekick</h2>
-            <p>Your operations assistant across every connected workspace</p>
+            <p>Your live operations assistant across authorised Hub data</p>
           </span>
-          <button onClick={close} aria-label="Close AI Sidekick">×</button>
+          <button onClick={close} aria-label="Close AI Sidekick">
+            ×
+          </button>
         </header>
         <div className="aiBody">
           <section>
             <h3>How can I help?</h3>
             <div className="promptGrid">
-              {prompts.map((p) => (
+              {prompts.map((prompt) => (
                 <button
-                  key={p}
+                  key={prompt}
+                  disabled={busy}
                   onClick={() => {
-                    setQ(p);
-                    void ask(p);
+                    setQ(prompt);
+                    void ask(prompt);
                   }}
                 >
-                  {p}
+                  {prompt}
                   <span>→</span>
                 </button>
               ))}
@@ -92,18 +124,18 @@ export default function SidekickModal({
               <article className="aiSetup">
                 <b>Secure AI connection required</b>
                 <p>
-                  The Sidekick interface is installed. An OpenAI API project key
-                  must be added securely to the hub’s environment before live
-                  answers can run. Never paste the key into a task or chat.
+                  The Sidekick is ready, but the OPENAI_API_KEY secret has not
+                  been activated for the production Hub yet. Add it as a GitHub
+                  repository secret; never paste the key into a task or chat.
                 </p>
               </article>
             )}
             <article className="aiCapability">
-              <b>Controlled AI actions</b>
+              <b>Live Hub intelligence · Read-only</b>
               <p>
-                The Sidekick can generate workflows and checklists from uploaded
-                SOPs. It creates tasks only after an authorised user approves
-                the workflow; it cannot secretly rewrite the Hub.
+                Sidekick can analyse authorised tasks, workspaces, SOPs, P&amp;L,
+                and relevant division data. It will not change records or create
+                tasks without a separate approved workflow.
               </p>
               <button onClick={openSops}>Open SOP &amp; Manuals →</button>
             </article>
@@ -111,10 +143,16 @@ export default function SidekickModal({
           <footer>
             <textarea
               value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Ask about stores, overdue tasks, audits, CAPEX or wholesale…"
+              onChange={(event) => setQ(event.target.value)}
+              onKeyDown={(event) => {
+                if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                  event.preventDefault();
+                  void ask();
+                }
+              }}
+              placeholder="Ask about stores, overdue tasks, P&L, SOPs, developments or wholesale…"
             />
-            <button onClick={() => void ask()} disabled={busy}>
+            <button onClick={() => void ask()} disabled={busy || !q.trim()}>
               {busy ? "Thinking…" : "Ask Sidekick"}
             </button>
           </footer>

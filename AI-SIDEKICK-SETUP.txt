@@ -1,0 +1,25 @@
+MALIKS GROUP AI SIDEKICK - LIVE CONNECTION
+
+Replace these files in GitHub:
+1. app/api/ai/route.ts
+2. app/sidekick-modal.tsx
+3. .github/workflows/deploy.yml
+
+Then add ONE GitHub Repository Secret:
+Name: OPENAI_API_KEY
+Value: your OpenAI API project key
+
+GitHub path:
+Repository > Settings > Secrets and variables > Actions > New repository secret
+
+Do not put the API key into source code, tasks, screenshots or chat messages.
+
+After the secret is added, commit/push (or re-run the deploy workflow).
+The workflow securely synchronizes OPENAI_API_KEY to the Cloudflare Worker.
+
+Sidekick behavior:
+- Uses GPT-5.6 Luna through the OpenAI Responses API.
+- Read-only: it does not alter Hub records.
+- Reads authorised task/workspace/SOP/P&L context.
+- Full-company/relevant division users can also receive wholesale/development context.
+- Keeps short in-session follow-up context.
