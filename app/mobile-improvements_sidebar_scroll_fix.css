@@ -336,3 +336,56 @@
     width: 96vw;
   }
 }
+
+/* Sidebar scrolling fix: keep the full navigation usable on short/mobile viewports. */
+aside {
+  height: 100vh;
+  max-height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+}
+
+aside > .brand,
+aside > .company,
+aside > p,
+aside > nav,
+aside > .aiSide,
+aside > .inviteSide,
+aside > .user {
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  aside {
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+
+  /* The whole drawer scrolls as one surface. Avoid a nested scroll area in nav. */
+  aside nav {
+    flex: 0 0 auto;
+    min-height: auto;
+    overflow: visible;
+    padding-bottom: 8px;
+  }
+
+  aside .aiSide {
+    margin-top: 10px;
+    min-height: 42px;
+  }
+
+  aside .inviteSide {
+    margin-top: 8px;
+    min-height: 40px;
+  }
+
+  aside .user {
+    margin-top: 14px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+}
