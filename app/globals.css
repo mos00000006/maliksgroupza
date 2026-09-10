@@ -709,3 +709,14 @@ td select {
     font-size: 15px;
   }
 }
+
+/* Returned-to-work tasks remain active until they are completed again. */
+.returned {
+  background: #fff1dc;
+  color: #a85e00;
+}
+@media (min-width: 721px) {
+  .board {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}

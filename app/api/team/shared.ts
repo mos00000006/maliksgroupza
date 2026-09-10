@@ -124,7 +124,12 @@ async function createNotificationAndPush({
   taskId: number;
   title: string;
   message: string;
-  notificationType: "Assignment" | "TaskCreated";
+  notificationType:
+    | "Assignment"
+    | "TaskCreated"
+    | "ApprovalRequested"
+    | "TaskApproved"
+    | "ReturnedToWork";
 }) {
   const email = recipientEmail.trim().toLowerCase();
   if (!email) return;
@@ -239,5 +244,111 @@ export async function createTaskCreatedNotifications({
         notificationType: isDirectAssignee ? "Assignment" : "TaskCreated",
       });
     }),
+  );
+}
+
+
+function recipientCanApprove(recipient: NotificationRecipient) {
+  return (
+    recipient.role === "Owner / Admin" ||
+    recipient.role === "Developer / Technical Admin" ||
+    (recipient.role === "Executive / EXCO" &&
+      recipient.access_scope === "Full company")
+  );
+}
+
+async function activeRecipients() {
+  const { results } = await env.DB.prepare(
+    `SELECT email,role,department,access_scope,workspace_access
+     FROM team_members
+     WHERE active=1
+       AND lower(email) NOT LIKE 'sites-screenshot-service-%@chatgpt.com'`,
+  ).all<NotificationRecipient>();
+  return results;
+}
+
+export async function createApprovalRequestedNotifications({
+  taskId,
+  taskTitle,
+  workspace,
+  completedBy,
+}: {
+  taskId: number;
+  taskTitle: string;
+  workspace: string;
+  completedBy: string;
+}) {
+  await initTeamTables();
+  const recipients = (await activeRecipients()).filter(
+    (recipient) =>
+      recipientCanApprove(recipient) &&
+      recipientCanAccessWorkspace(recipient, workspace),
+  );
+  await Promise.all(
+    recipients.map((recipient) =>
+      createNotificationAndPush({
+        recipientEmail: recipient.email,
+        taskId,
+        title: `Awaiting approval: ${taskTitle}`,
+        message: `${completedBy} marked this task complete at ${workspace}. It is now awaiting approval.`,
+        notificationType: "ApprovalRequested",
+      }),
+    ),
+  );
+}
+
+export async function createTaskApprovedNotifications({
+  taskId,
+  taskTitle,
+  workspace,
+  approvedBy,
+}: {
+  taskId: number;
+  taskTitle: string;
+  workspace: string;
+  approvedBy: string;
+}) {
+  await initTeamTables();
+  const recipients = (await activeRecipients()).filter((recipient) =>
+    recipientCanAccessWorkspace(recipient, workspace),
+  );
+  await Promise.all(
+    recipients.map((recipient) =>
+      createNotificationAndPush({
+        recipientEmail: recipient.email,
+        taskId,
+        title: `Task approved: ${taskTitle}`,
+        message: `${approvedBy} approved the completed task at ${workspace}.`,
+        notificationType: "TaskApproved",
+      }),
+    ),
+  );
+}
+
+export async function createReturnedToWorkNotifications({
+  taskId,
+  taskTitle,
+  workspace,
+  returnedBy,
+}: {
+  taskId: number;
+  taskTitle: string;
+  workspace: string;
+  returnedBy: string;
+}) {
+  await initTeamTables();
+  const recipients = (await activeRecipients()).filter((recipient) =>
+    recipientCanAccessWorkspace(recipient, workspace),
+  );
+  await Promise.all(
+    recipients.map((recipient) =>
+      createNotificationAndPush({
+        recipientEmail: recipient.email,
+        taskId,
+        title: `Task returned to work: ${taskTitle}`,
+        message: `Task returned to work at ${workspace}. ${returnedBy} requested further action.`,
+        notificationType: "ReturnedToWork",
+      }),
+    ),
   );
 }

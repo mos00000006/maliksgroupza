@@ -68,3 +68,13 @@ export function canAccessWorkspace(
 export function canManageAccess(member: HubMember | null | undefined) {
   return Boolean(member && ["Owner / Admin", "Developer / Technical Admin"].includes(member.role));
 }
+
+
+export function canApproveTasks(member: HubMember | null | undefined) {
+  return Boolean(
+    member &&
+      (member.role === "Owner / Admin" ||
+        member.role === "Developer / Technical Admin" ||
+        (member.role === "Executive / EXCO" && member.access_scope === "Full company")),
+  );
+}

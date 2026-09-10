@@ -5,7 +5,7 @@ import SidekickModal from "./sidekick-modal";
 import OperationalView, { type HubTask } from "./operational-view";
 import SopLibrary from "./sop-library";
 import PwaInstallButton from "./pwa-install-button";
-type Status = "Not started" | "In progress" | "Blocked" | "Complete";
+type Status = "Not started" | "In progress" | "Blocked" | "Returned" | "Complete";
 type Task = {
   id: number;
   title: string;
@@ -19,6 +19,7 @@ type Task = {
   description: string;
   task_type: string;
   task_group: string;
+  approval_status: string;
   created_by: string;
   created_at: string;
 };
@@ -487,8 +488,8 @@ export default function Home() {
                       : active === "Receiving & Dispatch"
                         ? ["receiving", "dispatch"].some((v) => hay.includes(v))
                         : active === "Approvals"
-                          ? x.status !== "Complete" &&
-                            (x.status === "Blocked" || x.priority === "High")
+                          ? x.status === "Complete" &&
+                            x.approval_status === "Awaiting approval"
                           : true;
         return view && hay.includes(search.toLowerCase());
       }),
@@ -506,7 +507,7 @@ export default function Home() {
     "Receiving & Dispatch":
       "Warehouse receiving and dispatch responsibilities.",
     "SOP & Manuals": "Controlled procedures, AI workflows and checklists.",
-    Approvals: "High-priority and blocked items requiring a decision.",
+    Approvals: "Completed tasks awaiting management approval.",
     Reports: "Group-wide task and completion reporting.",
   };
   const add = async () => {
@@ -524,12 +525,80 @@ export default function Home() {
     }
   };
   const status = async (id: number, value: Status) => {
-    setTasks(tasks.map((x) => (x.id === id ? { ...x, status: value } : x)));
-    await fetch(`/api/tasks/${id}`, {
+    const current = tasks.find((item) => item.id === id);
+    const nextApproval =
+      value === "Complete"
+        ? "Awaiting approval"
+        : value === "Returned"
+          ? "Returned to work"
+          : "";
+    setTasks((items) =>
+      items.map((item) =>
+        item.id === id
+          ? { ...item, status: value, approval_status: nextApproval }
+          : item,
+      ),
+    );
+    const response = await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ status: value }),
     });
+    if (!response.ok) {
+      await load();
+      if (current) setSelected((item) => (item?.id === id ? current : item));
+      return;
+    }
+    const result = await response.json();
+    if (result.task) {
+      setTasks((items) =>
+        items.map((item) => (item.id === id ? result.task : item)),
+      );
+      setSelected((item) => (item?.id === id ? result.task : item));
+    }
+    if (value === "Complete") flash("Task completed and sent to Approvals");
+  };
+  const approveTask = async (id: number) => {
+    const response = await fetch(`/api/tasks/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ approval_action: "approve" }),
+    });
+    if (!response.ok) {
+      flash("This task could not be approved");
+      await load();
+      return;
+    }
+    const result = await response.json();
+    if (result.task) {
+      setTasks((items) =>
+        items.map((item) => (item.id === id ? result.task : item)),
+      );
+      setSelected((item) => (item?.id === id ? result.task : item));
+    }
+    void loadNotifications();
+    flash("Task approved");
+  };
+  const returnTaskToWork = async (id: number) => {
+    const response = await fetch(`/api/tasks/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ approval_action: "return" }),
+    });
+    if (!response.ok) {
+      flash("This task could not be returned to work");
+      await load();
+      return;
+    }
+    const result = await response.json();
+    if (result.task) {
+      setTasks((items) =>
+        items.map((item) => (item.id === id ? result.task : item)),
+      );
+      setSelected((item) => (item?.id === id ? result.task : item));
+    }
+    void loadNotifications();
+    flash(`Task returned to work at ${result.task?.project || "the workspace"}`);
   };
   const updateTaskAssignee = async (task: Task, value: string) => {
     const member = value.startsWith("member:")
@@ -897,8 +966,8 @@ export default function Home() {
                   {
                     tasks.filter(
                       (t) =>
-                        t.status !== "Complete" &&
-                        (t.status === "Blocked" || t.priority === "High"),
+                        t.status === "Complete" &&
+                        t.approval_status === "Awaiting approval",
                     ).length
                   }
                 </em>
@@ -1004,6 +1073,8 @@ export default function Home() {
             setMode={setMode}
             openTask={(task) => void detail(task as Task)}
             setStatus={status}
+            approveTask={approveTask}
+            returnTaskToWork={returnTaskToWork}
             openWorkspaces={(name) => {
               setWorkspaceTarget(name || "");
               setWorkspaceCreate(false);
@@ -1318,6 +1389,7 @@ export default function Home() {
                       <option>Not started</option>
                       <option>In progress</option>
                       <option>Blocked</option>
+                      <option value="Returned" disabled>Returned</option>
                       <option>Complete</option>
                     </select>
                   </span>
@@ -1727,7 +1799,7 @@ export default function Home() {
               <span>
                 <h2>My Hub Inbox</h2>
                 <p>
-                  Task assignments sent directly to {currentUser.name || "you"}
+                  Tasks, approvals and workflow alerts for {currentUser.name || "you"}
                 </p>
               </span>
               <div>
@@ -1762,7 +1834,7 @@ export default function Home() {
                 <div className="moduleEmpty">
                   <i>◇</i>
                   <b>Your inbox is clear</b>
-                  <p>New tasks assigned to your email will appear here.</p>
+                  <p>New tasks, approvals and returned-to-work alerts will appear here.</p>
                 </div>
               )}
             </div>
@@ -1819,7 +1891,7 @@ export default function Home() {
         >
           <img src="/powerbuild-app-icon-192.png" alt="" />
           <span>
-            <small>NEW TASK ASSIGNMENT</small>
+            <small>POWERBUILD HUB ALERT</small>
             <b>{popupNotification.title}</b>
             <p>{popupNotification.message}</p>
           </span>

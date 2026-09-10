@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getAuthenticatedUser } from "../../auth";
-import { createTaskCreatedNotifications, initTeamTables } from "../team/shared";
+import { createApprovalRequestedNotifications, createTaskCreatedNotifications, initTeamTables } from "../team/shared";
 import { allowedWorkspaces, canAccessWorkspace, canWrite, getHubMember } from "../access";
 const seed = [
   [
@@ -62,7 +62,7 @@ async function init() {
   const db = env.DB;
   await db.batch([
     db.prepare(
-      `CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,project TEXT NOT NULL,owner TEXT NOT NULL,assignee TEXT NOT NULL,assignee_email TEXT NOT NULL DEFAULT '',due TEXT NOT NULL,priority TEXT NOT NULL,status TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',created_by TEXT NOT NULL,created_at TEXT NOT NULL,task_type TEXT NOT NULL DEFAULT 'General',task_group TEXT NOT NULL DEFAULT 'Store Tasks')`,
+      `CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,project TEXT NOT NULL,owner TEXT NOT NULL,assignee TEXT NOT NULL,assignee_email TEXT NOT NULL DEFAULT '',due TEXT NOT NULL,priority TEXT NOT NULL,status TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',created_by TEXT NOT NULL,created_at TEXT NOT NULL,task_type TEXT NOT NULL DEFAULT 'General',task_group TEXT NOT NULL DEFAULT 'Store Tasks',approval_status TEXT NOT NULL DEFAULT '')`,
     ),
     db.prepare(
       `CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT,task_id INTEGER NOT NULL,body TEXT NOT NULL,author TEXT NOT NULL,created_at TEXT NOT NULL)`,
@@ -89,6 +89,13 @@ async function init() {
     await db
       .prepare(
         "ALTER TABLE tasks ADD COLUMN task_group TEXT NOT NULL DEFAULT 'Store Tasks'",
+      )
+      .run();
+  } catch {}
+  try {
+    await db
+      .prepare(
+        "ALTER TABLE tasks ADD COLUMN approval_status TEXT NOT NULL DEFAULT ''",
       )
       .run();
   } catch {}
@@ -127,7 +134,7 @@ export async function GET() {
   const member = await getHubMember();
   if (!member) return Response.json({ error: "Hub access is not active." }, { status: 403 });
   const { results } = await env.DB.prepare(
-    "SELECT * FROM tasks ORDER BY CASE status WHEN 'Blocked' THEN 0 WHEN 'In progress' THEN 1 WHEN 'Not started' THEN 2 ELSE 3 END, id DESC",
+    "SELECT * FROM tasks ORDER BY CASE status WHEN 'Returned' THEN 0 WHEN 'Blocked' THEN 1 WHEN 'In progress' THEN 2 WHEN 'Not started' THEN 3 ELSE 4 END, id DESC",
   ).all();
   const allowed = allowedWorkspaces(member);
   return Response.json({
@@ -168,7 +175,7 @@ export async function POST(req: Request) {
       p.task_group || "Store Tasks",
     )
     .first<Record<string, string | number>>();
-  if (out)
+  if (out) {
     await createTaskCreatedNotifications({
       taskId: Number(out.id),
       taskTitle: String(out.title),
@@ -177,5 +184,20 @@ export async function POST(req: Request) {
       assigneeEmail: String(out.assignee_email || ""),
       assigneeLabel: String(out.assignee || ""),
     });
+    if (String(out.status) === "Complete") {
+      await env.DB.prepare(
+        "UPDATE tasks SET approval_status='Awaiting approval' WHERE id=?",
+      )
+        .bind(out.id)
+        .run();
+      out.approval_status = "Awaiting approval";
+      await createApprovalRequestedNotifications({
+        taskId: Number(out.id),
+        taskTitle: String(out.title),
+        workspace: String(out.project),
+        completedBy: user?.displayName || user?.email || "Hub User",
+      });
+    }
+  }
   return Response.json({ task: out }, { status: 201 });
 }

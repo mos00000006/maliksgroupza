@@ -17,7 +17,7 @@ export type WorkspaceTask = {
   assignee_email: string;
   due: string;
   priority: "High" | "Medium" | "Low";
-  status: "Not started" | "In progress" | "Blocked" | "Complete";
+  status: "Not started" | "In progress" | "Blocked" | "Returned" | "Complete";
   description: string;
   task_type: string;
   task_group: string;
@@ -205,6 +205,8 @@ export default function WorkspacesModal({
     : [];
   const complete = workspaceTasks.filter((t) => t.status === "Complete").length;
   const blocked = workspaceTasks.filter((t) => t.status === "Blocked").length;
+  const returnedTasks = workspaceTasks.filter((t) => t.status === "Returned");
+  const returned = returnedTasks.length;
   const openItems = workspaceTasks.length - complete;
   const update = async (id: number, key: string, value: string) => {
     setTasks((current) =>
@@ -315,7 +317,7 @@ export default function WorkspacesModal({
 
   if (selected) {
     const statusData = (
-      ["Not started", "In progress", "Blocked", "Complete"] as const
+      ["Not started", "In progress", "Blocked", "Returned", "Complete"] as const
     ).map((name) => ({
       name,
       count: workspaceTasks.filter((t) => t.status === name).length,
@@ -394,8 +396,8 @@ export default function WorkspacesModal({
             </article>
             <article>
               <small>Needs attention</small>
-              <b>{blocked}</b>
-              <em>Blocked items</em>
+              <b>{blocked + returned}</b>
+              <em>{blocked} blocked · {returned} returned</em>
             </article>
             <article>
               <small>Completion</small>
@@ -408,6 +410,16 @@ export default function WorkspacesModal({
               <em>Workspace progress</em>
             </article>
           </div>
+          {returnedTasks.length > 0 && (
+            <div className="returnedWorkspaceAlert" role="status">
+              <i>↩</i>
+              <span>
+                <b>{returnedTasks.length} task{returnedTasks.length === 1 ? "" : "s"} returned to work in {selected.name}</b>
+                <small>Latest: {returnedTasks[0].title}. Review the task and complete the required rework before submitting it for approval again.</small>
+              </span>
+              <button onClick={() => onOpenTask?.(returnedTasks[0])}>Open returned task</button>
+            </div>
+          )}
           {tab === "table" && (
             <div className="mondayBoard">
               {groups.map((group, index) => {
@@ -459,6 +471,7 @@ export default function WorkspacesModal({
                             <option>Not started</option>
                             <option>In progress</option>
                             <option>Blocked</option>
+                            <option value="Returned" disabled>Returned</option>
                             <option>Complete</option>
                           </select>
                           <select
