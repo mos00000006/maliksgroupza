@@ -28,6 +28,109 @@ const emptyDraft: CatalogueDraft = {
   category: "General",
 };
 
+
+const MAX_SOURCE_IMAGE_BYTES = 30 * 1024 * 1024;
+const TARGET_UPLOAD_BYTES = 700 * 1024;
+const MAX_IMAGE_DIMENSION = 1600;
+
+const apiResult = async (response: Response) => {
+  const text = await response.text();
+  let result: Record<string, unknown> = {};
+  if (text) {
+    try {
+      result = JSON.parse(text);
+    } catch {
+      if (response.status === 413 || /payload too large/i.test(text)) {
+        throw new Error("The product picture is too large. The Hub will optimise catalogue pictures automatically; please select the picture again and retry.");
+      }
+      throw new Error(response.ok ? "The server returned an invalid response." : text.slice(0, 180));
+    }
+  }
+  if (!response.ok) {
+    throw new Error(String(result.error || `Request failed (${response.status}).`));
+  }
+  return result as {
+    error?: string;
+    products?: CatalogueProduct[];
+    page?: number;
+    pages?: number;
+    total?: number;
+    can_manage?: boolean;
+    product?: CatalogueProduct | null;
+    ok?: boolean;
+  };
+};
+
+const canvasBlob = (canvas: HTMLCanvasElement, quality: number) =>
+  new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("Could not optimise the product picture."))),
+      "image/webp",
+      quality,
+    );
+  });
+
+const loadBrowserImage = (file: File) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("This picture format could not be read. Please use PNG, JPG or WebP."));
+    };
+    img.src = url;
+  });
+
+async function optimiseCatalogueImage(file: File) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Catalogue pictures must be image files.");
+  }
+  if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+    throw new Error("This picture is too large to process. Please use an image smaller than 30MB.");
+  }
+
+  // Already comfortably below the upload target: keep the original file unchanged.
+  if (file.size <= TARGET_UPLOAD_BYTES) return file;
+
+  const img = await loadBrowserImage(file);
+  const originalWidth = img.naturalWidth || img.width;
+  const originalHeight = img.naturalHeight || img.height;
+  if (!originalWidth || !originalHeight) throw new Error("Could not read the product picture dimensions.");
+
+  let scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(originalWidth, originalHeight));
+  let width = Math.max(1, Math.round(originalWidth * scale));
+  let height = Math.max(1, Math.round(originalHeight * scale));
+  let quality = 0.88;
+  let blob: Blob | null = null;
+
+  for (let attempt = 0; attempt < 7; attempt += 1) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("This browser could not optimise the product picture.");
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(img, 0, 0, width, height);
+    blob = await canvasBlob(canvas, quality);
+    if (blob.size <= TARGET_UPLOAD_BYTES) break;
+    quality = Math.max(0.62, quality - 0.07);
+    width = Math.max(1, Math.round(width * 0.86));
+    height = Math.max(1, Math.round(height * 0.86));
+  }
+
+  if (!blob || blob.size > 900 * 1024) {
+    throw new Error("The picture is still too large after optimisation. Please use a smaller image.");
+  }
+
+  const baseName = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]+/g, "-") || "catalogue-product";
+  return new File([blob], `${baseName}.webp`, { type: "image/webp", lastModified: Date.now() });
+}
+
 export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?: string }) {
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
   const [page, setPage] = useState(1);
@@ -64,8 +167,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       });
       if (search.trim()) params.set("q", search.trim());
       const response = await fetch(`/api/catalogue?${params.toString()}`);
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Could not load the catalogue.");
+      const result = await apiResult(response);
       if (id !== requestId.current) return;
       setProducts(result.products || []);
       setPage(result.page || 1);
@@ -119,19 +221,19 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     }
     setSaving(true);
     setError("");
-    const form = new FormData();
-    form.append("code", draft.code.trim());
-    form.append("name", draft.name.trim());
-    form.append("description", draft.description.trim());
-    form.append("category", draft.category.trim() || "General");
-    if (image) form.append("image", image);
     try {
+      const uploadImage = image ? await optimiseCatalogueImage(image) : null;
+      const form = new FormData();
+      form.append("code", draft.code.trim());
+      form.append("name", draft.name.trim());
+      form.append("description", draft.description.trim());
+      form.append("category", draft.category.trim() || "General");
+      if (uploadImage) form.append("image", uploadImage);
       const response = await fetch(editing ? `/api/catalogue/${editing.id}` : "/api/catalogue", {
         method: editing ? "PATCH" : "POST",
         body: form,
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "The product could not be saved.");
+      await apiResult(response);
       setEditorOpen(false);
       setEditing(null);
       setDraft(emptyDraft);
@@ -152,8 +254,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     setError("");
     try {
       const response = await fetch(`/api/catalogue/${deleteProduct.id}`, { method: "DELETE" });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || "The product could not be removed.");
+      await apiResult(response);
       setDeleteProduct(null);
       setSuccess("Catalogue product removed.");
       window.setTimeout(() => setSuccess(""), 2600);
@@ -296,10 +397,20 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                 Product picture
                 <input
                   type="file"
-                  accept="image/*"
-                  onChange={(event) => setImage(event.target.files?.[0] || null)}
+                  accept="image/png,image/jpeg,image/webp,image/*"
+                  onChange={(event) => {
+                    const selected = event.target.files?.[0] || null;
+                    if (selected && selected.size > MAX_SOURCE_IMAGE_BYTES) {
+                      setImage(null);
+                      setError("Please choose a product picture smaller than 30MB. Larger images cannot be processed safely on the device.");
+                      event.currentTarget.value = "";
+                      return;
+                    }
+                    setImage(selected);
+                    setError("");
+                  }}
                 />
-                <small>{image ? image.name : editing?.image_name || "PNG/JPG/WebP · max 8MB"}</small>
+                <small>{image ? `${image.name} · ${(image.size / 1024 / 1024).toFixed(1)}MB · optimised automatically on upload` : editing?.image_name || "PNG/JPG/WebP · large pictures are optimised automatically"}</small>
               </label>
               <label className="wide">
                 Description
