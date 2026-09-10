@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 export const CATALOGUE_MANAGERS = new Set([
   "moyanamoses006@icloud.com",
   "moyanamoses006@icloud",
-  "msallikuti@gmail.com",
+  "msallikutti@gmail.com",
 ]);
 
 export const canManageCatalogue = (email?: string | null) =>

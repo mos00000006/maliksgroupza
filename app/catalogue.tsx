@@ -49,7 +49,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   const pageSize = 12;
 
   const expectedManager = useMemo(
-    () => ["moyanamoses006@icloud.com", "moyanamoses006@icloud", "msallikuti@gmail.com"].includes(currentUserEmail.toLowerCase()),
+    () => ["moyanamoses006@icloud.com", "moyanamoses006@icloud", "msallikutti@gmail.com"].includes(currentUserEmail.toLowerCase()),
     [currentUserEmail],
   );
 
