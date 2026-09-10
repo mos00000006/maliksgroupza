@@ -732,25 +732,26 @@ td select {
   gap: 24px;
   padding: 26px 28px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 18px;
   background: linear-gradient(135deg, #172438 0%, #20334e 100%);
   color: #fff;
-  box-shadow: 0 12px 30px #17243816;
+  box-shadow: 0 14px 34px rgba(23, 36, 56, .12);
 }
 .catalogueHero small {
-  color: #f0c82d;
+  color: #f4cf24;
   font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1.7px;
+  font-weight: 900;
+  letter-spacing: 1.8px;
 }
 .catalogueHero h2 {
-  margin: 5px 0 5px;
-  font-size: 29px;
+  margin: 5px 0;
+  font-size: 30px;
+  letter-spacing: -.4px;
 }
 .catalogueHero p {
   margin: 0;
   max-width: 600px;
-  color: #c4cfdd;
+  color: #c8d2df;
   font-size: 13px;
 }
 .catalogueHeroActions {
@@ -761,14 +762,19 @@ td select {
 }
 .catalogueHeroActions label {
   min-width: 285px;
-  height: 42px;
+  height: 44px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 13px;
-  border: 1px solid #52637a;
-  border-radius: 9px;
-  background: #ffffff10;
+  padding: 0 14px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 11px;
+  background: rgba(255,255,255,.08);
+  box-shadow: inset 0 1px rgba(255,255,255,.05);
+}
+.catalogueHeroActions label:focus-within {
+  border-color: #f4cf24;
+  box-shadow: 0 0 0 3px rgba(244,207,36,.12);
 }
 .catalogueHeroActions label span { color: #dbe5f1; }
 .catalogueHeroActions input {
@@ -780,7 +786,12 @@ td select {
   font: inherit;
 }
 .catalogueHeroActions input::placeholder { color: #aab8ca; }
-.catalogueHeroActions .primary { white-space: nowrap; }
+.catalogueHeroActions .primary {
+  min-height: 44px;
+  white-space: nowrap;
+  border-radius: 11px;
+  font-weight: 800;
+}
 .catalogueSummary {
   display: flex;
   align-items: center;
@@ -794,52 +805,70 @@ td select {
   gap: 7px;
   padding: 10px 13px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 11px;
   background: #fff;
+  box-shadow: 0 3px 10px rgba(23,36,56,.035);
 }
 .catalogueSummary b { font-size: 18px; }
 .catalogueSummary small { color: var(--muted); font-size: 10px; }
 .catalogueSummary em {
   margin-left: auto;
-  padding: 7px 10px;
+  padding: 7px 11px;
+  border: 1px solid #f3df7a;
   border-radius: 999px;
-  background: #fff5c8;
-  color: #80650a;
+  background: #fff8d7;
+  color: #725b00;
   font-size: 10px;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 900;
 }
 .catalogueGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  align-items: start;
+  gap: 18px;
 }
 .catalogueCard {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  border: 1px solid #dde4ed;
+  border-radius: 18px;
   background: #fff;
-  box-shadow: 0 6px 18px #1724380c;
-  transition: transform .16s ease, box-shadow .16s ease;
+  box-shadow: 0 7px 22px rgba(23, 36, 56, .07);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
 .catalogueCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 26px #17243816;
+  transform: translateY(-4px);
+  border-color: #c8d5e6;
+  box-shadow: 0 16px 34px rgba(23, 36, 56, .12);
 }
 .catalogueImage {
   position: relative;
-  height: 185px;
+  height: 220px;
   display: grid;
   place-items: center;
-  padding: 16px;
-  background: #f7f9fc;
-  border-bottom: 1px solid var(--line);
+  padding: 14px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 80% 15%, rgba(47, 136, 255, .09), transparent 34%),
+    linear-gradient(145deg, #fbfcfe 0%, #f2f6fb 100%);
+  border-bottom: 1px solid #e8edf3;
+}
+.catalogueImage::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(25, 111, 232, .08);
+  border-radius: 14px;
+  pointer-events: none;
 }
 .catalogueImage img {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   object-fit: contain;
+  filter: drop-shadow(0 8px 9px rgba(19,33,52,.09));
 }
 .catalogueImage > div {
   display: grid;
@@ -851,77 +880,114 @@ td select {
 .catalogueImage > div small { font-size: 10px; }
 .catalogueImage > b {
   position: absolute;
-  left: 12px;
-  bottom: 10px;
-  max-width: calc(100% - 24px);
+  z-index: 3;
+  left: 14px;
+  bottom: 14px;
+  max-width: calc(100% - 28px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #172438;
+  color: #ffd91a;
+  box-shadow: 0 5px 13px rgba(10,21,38,.22);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .55px;
+}
+.catalogueCardBody {
+  display: flex;
+  min-height: 190px;
+  flex-direction: column;
+  padding: 16px 17px 15px;
+}
+.catalogueCardBody > small {
+  align-self: flex-start;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 5px 8px;
-  border-radius: 6px;
-  background: #172438e8;
-  color: #f1ce35;
-  font-size: 10px;
-  letter-spacing: .5px;
-}
-.catalogueCardBody { padding: 15px 16px 14px; }
-.catalogueCardBody > small {
-  color: #1769e8;
+  border-radius: 999px;
+  background: #eaf3ff;
+  color: #1264d9;
   font-size: 9px;
-  font-weight: 800;
-  letter-spacing: .7px;
+  font-weight: 900;
+  letter-spacing: .75px;
   text-transform: uppercase;
 }
 .catalogueCardBody h3 {
-  min-height: 34px;
-  margin: 5px 0 7px;
-  font-size: 14px;
-  line-height: 1.22;
+  min-height: 0;
+  margin: 10px 0 7px;
+  color: #132039;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -.1px;
 }
 .catalogueCardBody p {
   display: -webkit-box;
-  min-height: 47px;
+  min-height: 0;
   margin: 0;
   overflow: hidden;
-  color: var(--muted);
+  color: #718096;
   font-size: 11px;
-  line-height: 1.45;
+  line-height: 1.5;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
 .catalogueManageActions {
   display: flex;
   gap: 8px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid #edf0f4;
 }
 .catalogueManageActions button {
-  border: 0;
-  background: transparent;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid #cddcf0;
+  border-radius: 9px;
+  background: #f6f9fd;
   color: #1769e8;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 900;
   cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
 }
-.catalogueManageActions .dangerText { color: #c73535; }
+.catalogueManageActions button:hover {
+  background: #eaf3ff;
+  border-color: #a9c6eb;
+}
+.catalogueManageActions .dangerText {
+  border-color: #f2cece;
+  background: #fff8f8;
+  color: #c73535;
+}
+.catalogueManageActions .dangerText:hover {
+  border-color: #e8b2b2;
+  background: #fff0f0;
+}
 .cataloguePager {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16px;
-  margin-top: 24px;
+  margin-top: 26px;
 }
 .cataloguePager button {
-  min-width: 110px;
-  padding: 9px 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  min-width: 112px;
+  padding: 10px 14px;
+  border: 1px solid #d5dde7;
+  border-radius: 10px;
   background: #fff;
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
+  box-shadow: 0 3px 10px rgba(23,36,56,.04);
 }
+.cataloguePager button:hover:not(:disabled) { border-color: #aac0dd; background: #f8fbff; }
 .cataloguePager button:disabled { opacity: .45; cursor: default; }
 .cataloguePager span { color: var(--muted); font-size: 11px; }
 .cataloguePager span b { color: var(--ink); }
