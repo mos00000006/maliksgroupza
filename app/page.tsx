@@ -5,6 +5,7 @@ import SidekickModal from "./sidekick-modal";
 import OperationalView, { type HubTask } from "./operational-view";
 import SopLibrary from "./sop-library";
 import PwaInstallButton from "./pwa-install-button";
+import Catalogue from "./catalogue";
 type Status = "Not started" | "In progress" | "Blocked" | "Returned" | "Complete";
 type Task = {
   id: number;
@@ -91,6 +92,7 @@ const nav = [
   "SOP & Manuals",
   "Approvals",
   "Reports",
+  "Our Catalogue",
 ];
 const navigationForUser = (user: CurrentHubUser) => {
   let workspaceAccess: string[] = [];
@@ -142,6 +144,7 @@ export default function Home() {
     [mode, setMode] = useState<"table" | "board">("table"),
     [search, setSearch] = useState(""),
     [open, setOpen] = useState(false),
+    [mainTaskSaving, setMainTaskSaving] = useState(false),
     [selected, setSelected] = useState<Task | null>(null),
     [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null),
     [deleteBusy, setDeleteBusy] = useState(false),
@@ -152,6 +155,7 @@ export default function Home() {
     [workspaceOpen, setWorkspaceOpen] = useState(false),
     [workspaceTarget, setWorkspaceTarget] = useState(""),
     [workspaceCreate, setWorkspaceCreate] = useState(false),
+    [returnWorkspaceAfterTask, setReturnWorkspaceAfterTask] = useState(""),
     [sidekickOpen, setSidekickOpen] = useState(false),
     [mobileNavOpen, setMobileNavOpen] = useState(false),
     [toast, setToast] = useState(""),
@@ -177,6 +181,8 @@ export default function Home() {
   const pushReady = useRef(false);
   const notificationPromptStarted = useRef(false);
   const popupTimer = useRef<number | null>(null);
+  const lastPopup = useRef<{ key: string; at: number }>({ key: "", at: 0 });
+  const suppressedTaskPopupTitles = useRef<Map<string, number>>(new Map());
   const [draft, setDraft] = useState({
     title: "",
     project: "Wholesale Division",
@@ -191,6 +197,15 @@ export default function Home() {
     description: "",
   });
   const showTaskPopup = (title: string, message: string) => {
+    const now = Date.now();
+    const normalizedTitle = title.trim().toLowerCase();
+    for (const [taskTitle, until] of suppressedTaskPopupTitles.current) {
+      if (until < now) suppressedTaskPopupTitles.current.delete(taskTitle);
+      else if (normalizedTitle.includes(taskTitle)) return;
+    }
+    const key = `${normalizedTitle}|${message.trim().toLowerCase()}`;
+    if (lastPopup.current.key === key && now - lastPopup.current.at < 15000) return;
+    lastPopup.current = { key, at: now };
     setPopupNotification({ title, message });
     if (popupTimer.current) window.clearTimeout(popupTimer.current);
     popupTimer.current = window.setTimeout(() => setPopupNotification(null), 8000);
@@ -428,6 +443,15 @@ export default function Home() {
       currentUser.role === "Read only" || currentUser.access_scope === "Read only",
     availableNav = navigationForUser(currentUser);
   useEffect(() => {
+    const saved = window.localStorage.getItem("powerbuild-active-view");
+    if (!saved || !nav.includes(saved)) return;
+    const timer = window.setTimeout(() => setActive(saved), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    if (nav.includes(active)) window.localStorage.setItem("powerbuild-active-view", active);
+  }, [active]);
+  useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("invite");
     if (!token) return;
     const accept = async () => {
@@ -509,19 +533,32 @@ export default function Home() {
     "SOP & Manuals": "Controlled procedures, AI workflows and checklists.",
     Approvals: "Completed tasks awaiting management approval.",
     Reports: "Group-wide task and completion reporting.",
+    "Our Catalogue": "PowerBuild group product catalogue, codes, pictures and descriptions.",
   };
   const add = async () => {
-    if (!draft.title.trim()) return;
-    const r = await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(draft),
-    });
-    if (r.ok) {
+    if (!draft.title.trim() || mainTaskSaving) return;
+    const createdTitle = draft.title.trim().toLowerCase();
+    suppressedTaskPopupTitles.current.set(createdTitle, Date.now() + 15000);
+    setMainTaskSaving(true);
+    try {
+      const r = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      const result = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        suppressedTaskPopupTitles.current.delete(createdTitle);
+        flash(result.error || "Task could not be created");
+        return;
+      }
       setOpen(false);
       setDraft({ ...draft, title: "", description: "" });
-      await load();
-      flash("Task created and assigned");
+      if (result.task) setTasks((current) => [result.task, ...current.filter((item) => item.id !== result.task.id)]);
+      void load();
+      flash("Task created");
+    } finally {
+      setMainTaskSaving(false);
     }
   };
   const status = async (id: number, value: Status) => {
@@ -634,6 +671,17 @@ export default function Home() {
     setComments(j.comments || []);
     setFiles(j.attachments || []);
   };
+  const closeTaskDetail = () => {
+    setSelected(null);
+    setComments([]);
+    setFiles([]);
+    if (returnWorkspaceAfterTask) {
+      setWorkspaceTarget(returnWorkspaceAfterTask);
+      setWorkspaceCreate(false);
+      setWorkspaceOpen(true);
+      setReturnWorkspaceAfterTask("");
+    }
+  };
   const addComment = async () => {
     if (!selected || !comment.trim()) return;
     const r = await fetch(`/api/tasks/${selected.id}/comments`, {
@@ -675,9 +723,7 @@ export default function Home() {
         current.filter((item) => item.task_id !== task.id),
       );
       setDeleteConfirmTask(null);
-      setSelected(null);
-      setComments([]);
-      setFiles([]);
+      closeTaskDetail();
       flash("Task deleted");
     } finally {
       setDeleteBusy(false);
@@ -840,7 +886,10 @@ export default function Home() {
     });
     setNotificationsOpen(false);
     const task = tasks.find((t) => t.id === item.task_id);
-    if (task) await detail(task);
+    if (task) {
+      setReturnWorkspaceAfterTask("");
+      await detail(task);
+    }
     await loadNotifications();
   };
   const markAllRead = async () => {
@@ -959,7 +1008,7 @@ export default function Home() {
                 setMobileNavOpen(false);
               }}
             >
-              <i>{["⌂", "✓", "▦", "↗", "◆", "▤", "⇄", "▥", "◇", "◫"][i]}</i>
+              <i>{["⌂", "✓", "▦", "↗", "◆", "▤", "⇄", "▥", "◇", "◫", "▧"][i]}</i>
               {n}
               {n === "Approvals" && (
                 <em>
@@ -1029,14 +1078,16 @@ export default function Home() {
             </p>
           </div>
           <div className="actions">
-            <label>
-              ⌕
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search tasks, owners..."
-              />
-            </label>
+            {active !== "Our Catalogue" && (
+              <label>
+                ⌕
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search tasks, owners..."
+                />
+              </label>
+            )}
             <button
               className="notificationBtn"
               onClick={() => setNotificationsOpen(true)}
@@ -1049,14 +1100,16 @@ export default function Home() {
               </button>
             )}
             <PwaInstallButton />
-            {!readOnlyAccess && (
+            {!readOnlyAccess && active !== "Our Catalogue" && (
               <button className="primary" onClick={openComposer}>
                 ＋ Add task
               </button>
             )}
           </div>
         </header>
-        {active === "SOP & Manuals" ? (
+        {active === "Our Catalogue" ? (
+          <Catalogue currentUserEmail={currentUser.email} />
+        ) : active === "SOP & Manuals" ? (
           <SopLibrary
             onTasksChanged={load}
             teamMembers={teamMembers}
@@ -1071,7 +1124,10 @@ export default function Home() {
             loading={loading}
             mode={mode}
             setMode={setMode}
-            openTask={(task) => void detail(task as Task)}
+            openTask={(task) => {
+              setReturnWorkspaceAfterTask("");
+              void detail(task as Task);
+            }}
             setStatus={status}
             approveTask={approveTask}
             returnTaskToWork={returnTaskToWork}
@@ -1242,8 +1298,8 @@ export default function Home() {
             </div>
             <footer>
               <button onClick={() => setOpen(false)}>Cancel</button>
-              <button className="primary" onClick={add}>
-                Create task
+              <button className="primary" disabled={mainTaskSaving} onClick={() => void add()}>
+                {mainTaskSaving ? "Creating…" : "Create task"}
               </button>
             </footer>
           </div>
@@ -1293,7 +1349,7 @@ export default function Home() {
       {selected && (
         <div
           className="overlay taskOverlay"
-          onMouseDown={() => setSelected(null)}
+          onMouseDown={closeTaskDetail}
         >
           <div className="detail" onMouseDown={(e) => e.stopPropagation()}>
             <header>
@@ -1318,7 +1374,7 @@ export default function Home() {
                 )}
                 <button
                   className="taskCloseBtn"
-                  onClick={() => setSelected(null)}
+                  onClick={closeTaskDetail}
                   aria-label="Close task"
                 >
                   ×
@@ -1857,9 +1913,14 @@ export default function Home() {
             void load();
             void loadWorkspaces();
           }}
+          onTaskCreated={(task: WorkspaceTask) => {
+            suppressedTaskPopupTitles.current.set(task.title.trim().toLowerCase(), Date.now() + 15000);
+            setTasks((current) => [task as Task, ...current.filter((item) => item.id !== task.id)]);
+          }}
           onOpenTask={(task: WorkspaceTask) => {
+            setReturnWorkspaceAfterTask(task.project);
             setWorkspaceOpen(false);
-            setWorkspaceTarget("");
+            setWorkspaceTarget(task.project);
             setWorkspaceCreate(false);
             void detail(task as Task);
           }}

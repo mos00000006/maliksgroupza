@@ -64,6 +64,7 @@ const roleAssignees = [
 export default function WorkspacesModal({
   close,
   onOpenTask,
+  onTaskCreated,
   onChanged,
   initialName = "",
   initialTasks = [],
@@ -73,6 +74,7 @@ export default function WorkspacesModal({
 }: {
   close: () => void;
   onOpenTask?: (task: WorkspaceTask) => void;
+  onTaskCreated?: (task: WorkspaceTask) => void;
   onChanged?: () => void;
   initialName?: string;
   initialTasks?: WorkspaceTask[];
@@ -96,6 +98,7 @@ export default function WorkspacesModal({
   const [adding, setAdding] = useState(initialCreate);
   const [workspaceSaving, setWorkspaceSaving] = useState(false);
   const [creatingTask, setCreatingTask] = useState(false);
+  const [taskSaving, setTaskSaving] = useState(false);
   const [busy, setBusy] = useState(!initialWorkspaces.length);
   const [error, setError] = useState("");
   const [draft, setDraft] = useState({
@@ -258,32 +261,50 @@ export default function WorkspacesModal({
     setCreatingTask(true);
   };
   const addTask = async () => {
-    if (!selected || !task.title.trim()) return;
-    const r = await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        ...task,
-        project: selected.name,
-        owner: selected.manager || "Operations",
-      }),
-    });
-    if (r.ok) {
-      const j = await r.json();
-      if (pendingFile && j.task?.id) {
-        const fd = new FormData();
-        fd.append("file", pendingFile);
-        await fetch(`/api/tasks/${j.task.id}/attachments`, {
-          method: "POST",
-          body: fd,
-        });
+    if (!selected || !task.title.trim() || taskSaving) return;
+    setTaskSaving(true);
+    setError("");
+    try {
+      const r = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...task,
+          project: selected.name,
+          owner: selected.manager || "Operations",
+        }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setError(j.error || "The task could not be created.");
+        return;
+      }
+      if (j.task) {
+        setTasks((current) => [
+          j.task,
+          ...current.filter((item) => item.id !== j.task.id),
+        ]);
+        onTaskCreated?.(j.task as WorkspaceTask);
       }
       setTask({ ...task, title: "", description: "" });
-      setPendingFile(null);
       setCreatingTask(false);
-      await load();
+      if (pendingFile && j.task?.id) {
+        const fileToUpload = pendingFile;
+        setPendingFile(null);
+        const fd = new FormData();
+        fd.append("file", fileToUpload);
+        void fetch(`/api/tasks/${j.task.id}/attachments`, {
+          method: "POST",
+          body: fd,
+        }).then(() => onChanged?.());
+      } else {
+        setPendingFile(null);
+      }
       onChanged?.();
-    } else setError("The task could not be created.");
+      void load(false);
+    } finally {
+      setTaskSaving(false);
+    }
   };
   const loadFiles = async () => {
     if (!workspaceTasks.length) {
@@ -350,7 +371,14 @@ export default function WorkspacesModal({
               >
                 ＋ New item
               </button>
-              <button className="closeX" onClick={close}>
+              <button
+                className="closeX"
+                onClick={() => {
+                  setSelected(null);
+                  setTab("table");
+                }}
+                aria-label="Back to company workspaces"
+              >
                 ×
               </button>
             </div>
@@ -645,7 +673,7 @@ export default function WorkspacesModal({
                   <h3>Add item to {task.task_group}</h3>
                   <p>{selected.name}</p>
                 </span>
-                <button onClick={() => setCreatingTask(false)}>×</button>
+                <button disabled={taskSaving} onClick={() => setCreatingTask(false)}>×</button>
               </header>
               <div className="composerGrid">
                 <label>
@@ -778,9 +806,9 @@ export default function WorkspacesModal({
                 </label>
               </div>
               <footer>
-                <button onClick={() => setCreatingTask(false)}>Cancel</button>
-                <button className="primary" onClick={addTask}>
-                  Add item
+                <button disabled={taskSaving} onClick={() => setCreatingTask(false)}>Cancel</button>
+                <button className="primary" disabled={taskSaving} onClick={() => void addTask()}>
+                  {taskSaving ? "Adding…" : "Add item"}
                 </button>
               </footer>
             </div>

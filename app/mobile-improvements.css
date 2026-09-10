@@ -496,3 +496,42 @@ aside > .user {
     width: 100%;
   }
 }
+
+/* Catalogue responsive layout */
+@media (max-width: 1180px) {
+  .catalogueGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .catalogueHero { align-items: flex-start; }
+  .catalogueHeroActions { flex-direction: column; align-items: stretch; }
+}
+@media (max-width: 900px) {
+  .catalogueGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .catalogueHero { flex-direction: column; }
+  .catalogueHeroActions { width: 100%; flex-direction: row; }
+  .catalogueHeroActions label { min-width: 0; flex: 1 1 auto; }
+}
+@media (max-width: 720px) {
+  .catalogueModule { padding-top: 14px; }
+  .catalogueHero { padding: 19px 17px; border-radius: 12px; }
+  .catalogueHero h2 { font-size: 23px; }
+  .catalogueHeroActions { flex-direction: column; align-items: stretch; }
+  .catalogueHeroActions label { width: 100%; }
+  .catalogueSummary { overflow-x: auto; padding-bottom: 2px; }
+  .catalogueSummary > span { min-width: 132px; }
+  .catalogueSummary em { white-space: nowrap; }
+  .catalogueGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .catalogueImage { height: 145px; padding: 11px; }
+  .catalogueCardBody { padding: 12px; }
+  .catalogueCardBody h3 { font-size: 12px; }
+  .catalogueCardBody p { font-size: 10px; }
+  .cataloguePager { gap: 8px; }
+  .cataloguePager button { min-width: 94px; padding: 9px 10px; }
+  .catalogueFormGrid { grid-template-columns: 1fr; padding: 17px; }
+  .catalogueFormGrid label.wide { grid-column: auto; }
+  .catalogueEditor > header { padding: 18px 17px 14px; }
+  .catalogueEditor > footer { padding: 13px 17px 17px; }
+}
+@media (max-width: 430px) {
+  .catalogueGrid { grid-template-columns: 1fr; }
+  .catalogueImage { height: 190px; }
+  .cataloguePager span { display: none; }
+}
