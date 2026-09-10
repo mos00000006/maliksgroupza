@@ -100,7 +100,7 @@ export async function POST(req: Request) {
     const row = await env.DB.prepare(
       `INSERT INTO catalogue_products
        (code,name,description,category,image_name,image_type,image_size,image_key,active,created_by,created_at,updated_by,updated_at)
-       VALUES (?,?,?,?,?,?,?,?,1,?,?,?,?,?) RETURNING *`,
+       VALUES (?,?,?,?,?,?,?,?,1,?,?,?,?) RETURNING *`,
     )
       .bind(
         code,
