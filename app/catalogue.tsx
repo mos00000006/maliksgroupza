@@ -101,7 +101,7 @@ async function optimiseCatalogueImage(file: File) {
   const originalHeight = img.naturalHeight || img.height;
   if (!originalWidth || !originalHeight) throw new Error("Could not read the product picture dimensions.");
 
-  let scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(originalWidth, originalHeight));
+  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(originalWidth, originalHeight));
   let width = Math.max(1, Math.round(originalWidth * scale));
   let height = Math.max(1, Math.round(originalHeight * scale));
   let quality = 0.88;
