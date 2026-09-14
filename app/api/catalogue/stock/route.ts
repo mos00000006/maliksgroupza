@@ -29,8 +29,15 @@ export async function GET(request: Request) {
 
   const { results: allWorkspaces } = await env.DB.prepare(
     `SELECT name,type FROM workspaces
-     WHERE active=1 AND type NOT IN ('Head Office','Wholesale Division')
-     ORDER BY CASE type WHEN 'Store' THEN 0 WHEN 'DC' THEN 1 ELSE 2 END,name`,
+     WHERE active=1
+     ORDER BY CASE type
+       WHEN 'Store' THEN 0
+       WHEN 'Head Office' THEN 1
+       WHEN 'Distribution Centre' THEN 2
+       WHEN 'DC' THEN 2
+       WHEN 'Wholesale Division' THEN 3
+       WHEN 'Wholesale' THEN 3
+       ELSE 4 END,name`,
   ).all<WorkspaceRow>();
 
   const restricted = allowedWorkspaces(member);

@@ -383,11 +383,11 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   return (
     <div className="catalogueModule">
       <section className="catalogueHero">
-        <span>
+        <div className="catalogueHeroIntro">
           <small>POWERBUILD PRODUCT LIBRARY</small>
           <h2>Our Catalogue</h2>
           <p>Browse the group product catalogue by product name, code, category or description.</p>
-        </span>
+        </div>
         <div className="catalogueHeroActions">
           <label>
             <span>⌕</span>

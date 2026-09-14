@@ -1,15 +1,15 @@
-POWERBUILD CATALOGUE - TOUCH365 LIVE STOCK PATCH
+POWERBUILD TOUCH365 STORE LIST + HERO STYLE FIX
 
-Replace/add these files in GitHub:
-- app/catalogue.tsx
-- app/globals.css
-- app/mobile-improvements.css
-- app/api/catalogue/stock/route.ts
-- app/api/integrations/touch365/shared.ts
-- app/api/integrations/touch365/stock/route.ts
-- .github/workflows/deploy.yml
-- docs/TOUCH365-LIVE-STOCK-SETUP.md
+Copy these files into your repo, replacing the existing files:
 
-Then commit and push.
+1. app/api/catalogue/stock/route.ts
+2. app/catalogue.tsx
+3. app/globals.css
 
-IMPORTANT: The Hub-side live stock feature is ready, but actual Touch365 numbers will only appear after Touch365 or a local bridge starts sending stock data to the new secure sync endpoint. See docs/TOUCH365-LIVE-STOCK-SETUP.md.
+What this patch does:
+- Adds Head Office and all active workspaces to the Touch365 On-Hand selector
+- Keeps full-company users able to choose any available workspace
+- Refreshes the catalogue top banner so the title, search box, Touch365 selector and add button align properly
+- Improves responsiveness on desktop and mobile
+
+Then commit and push to GitHub.
