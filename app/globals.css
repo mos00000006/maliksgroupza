@@ -1315,3 +1315,86 @@ button:disabled { cursor: default; }
     width: 100%;
   }
 }
+
+
+/* --- FIX: keep catalogue actions inside hero at all desktop widths --- */
+.catalogueHero {
+  overflow: hidden;
+  grid-template-columns: minmax(235px, 300px) minmax(0, 1fr);
+}
+.catalogueHeroActions {
+  min-width: 0;
+  width: 100%;
+  grid-template-columns: minmax(180px, 1fr) minmax(240px, 300px) minmax(210px, 250px);
+  gap: 12px;
+}
+.catalogueHeroActions > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.catalogueHeroActions label {
+  min-width: 0;
+  width: 100%;
+}
+.catalogueStockSelector {
+  min-width: 0;
+  width: 100%;
+}
+.catalogueHeroActions .primary {
+  min-width: 0 !important;
+  width: 100%;
+  max-width: 250px;
+  min-height: 64px;
+  padding: 0 18px !important;
+  justify-self: end;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.15;
+}
+@media (max-width: 1500px) {
+  .catalogueHero {
+    grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
+    padding: 26px 28px;
+  }
+  .catalogueHeroActions {
+    grid-template-columns: minmax(170px, 1fr) minmax(220px, 270px) minmax(190px, 220px);
+  }
+  .catalogueHeroActions .primary {
+    max-width: 220px;
+    font-size: 13px;
+    padding: 0 14px !important;
+  }
+}
+@media (max-width: 1320px) {
+  .catalogueHero {
+    grid-template-columns: 1fr;
+  }
+  .catalogueHeroIntro p {
+    max-width: 60ch;
+  }
+  .catalogueHeroActions {
+    grid-template-columns: minmax(220px, 1fr) minmax(250px, 320px) minmax(220px, 260px);
+  }
+  .catalogueHeroActions .primary {
+    max-width: 260px;
+  }
+}
+@media (max-width: 900px) {
+  .catalogueHeroActions {
+    grid-template-columns: 1fr 1fr;
+  }
+  .catalogueHeroActions .primary {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: none;
+    justify-self: stretch;
+  }
+}
+@media (max-width: 640px) {
+  .catalogueHeroActions {
+    grid-template-columns: 1fr;
+  }
+  .catalogueHeroActions .primary {
+    grid-column: auto;
+  }
+}
