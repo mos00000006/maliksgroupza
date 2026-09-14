@@ -158,6 +158,9 @@ export default function Home() {
     [returnWorkspaceAfterTask, setReturnWorkspaceAfterTask] = useState(""),
     [sidekickOpen, setSidekickOpen] = useState(false),
     [mobileNavOpen, setMobileNavOpen] = useState(false),
+    [quickActionsOpen, setQuickActionsOpen] = useState(false),
+    [photoTaskPickerOpen, setPhotoTaskPickerOpen] = useState(false),
+    [quickPhotoUploading, setQuickPhotoUploading] = useState(false),
     [toast, setToast] = useState(""),
     [accessDenied, setAccessDenied] = useState(false);
   const [inviteResult, setInviteResult] = useState<HubInvitation | null>(null);
@@ -174,6 +177,8 @@ export default function Home() {
   const [memberSaving, setMemberSaving] = useState(false);
   const [memberSuccess, setMemberSuccess] = useState("");
   const upload = useRef<HTMLInputElement>(null);
+  const quickPhotoInput = useRef<HTMLInputElement>(null);
+  const quickPhotoTarget = useRef<Task | null>(null);
   const memberForm = useRef<HTMLDivElement>(null);
   const memberList = useRef<HTMLDivElement>(null);
   const notificationIds = useRef<Set<number>>(new Set());
@@ -939,6 +944,97 @@ export default function Home() {
     setDraft((current) => ({ ...current, ...(context[active] || {}) }));
     setOpen(true);
   };
+  const quickDueDate = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return date.toISOString().slice(0, 10);
+  };
+  const quickDefaultWorkspace = (preferred?: string) => {
+    if (preferred && workspaces.some((workspace) => workspace.name === preferred)) return preferred;
+    const store = workspaces.find((workspace) => workspace.type === "Store");
+    return store?.name || workspaces[0]?.name || draft.project;
+  };
+  const openQuickTask = (preset: {
+    title: string;
+    description: string;
+    taskType: string;
+    taskGroup?: string;
+    priority?: Task["priority"];
+    preferredWorkspace?: string;
+  }) => {
+    if (readOnlyAccess) {
+      flash("Your Hub access is read only");
+      return;
+    }
+    setDraft((current) => ({
+      ...current,
+      title: preset.title,
+      description: preset.description,
+      project: quickDefaultWorkspace(preset.preferredWorkspace),
+      task_type: preset.taskType,
+      task_group: preset.taskGroup || "Store Tasks",
+      priority: preset.priority || "Medium",
+      status: "Not started",
+      due: quickDueDate(),
+    }));
+    setQuickActionsOpen(false);
+    setOpen(true);
+  };
+  const quickNavigate = (view: string) => {
+    if (!availableNav.includes(view)) {
+      flash("This section is not available for your access level");
+      return;
+    }
+    setQuickActionsOpen(false);
+    setSearch("");
+    setActive(view);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const beginQuickPhoto = () => {
+    if (readOnlyAccess) {
+      flash("Your Hub access is read only");
+      return;
+    }
+    const openTasks = tasks.filter((task) => task.status !== "Complete");
+    if (!openTasks.length) {
+      setQuickActionsOpen(false);
+      flash("Create or open a task before adding photo evidence");
+      return;
+    }
+    setQuickActionsOpen(false);
+    setPhotoTaskPickerOpen(true);
+  };
+  const chooseQuickPhotoTask = (task: Task) => {
+    quickPhotoTarget.current = task;
+    setPhotoTaskPickerOpen(false);
+    quickPhotoInput.current?.click();
+  };
+  const uploadQuickPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    const task = quickPhotoTarget.current;
+    if (!file || !task) return;
+    setQuickPhotoUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch(`/api/tasks/${task.id}/attachments`, {
+        method: "POST",
+        body: form,
+      });
+      if (response.ok) flash(`Photo attached to ${task.title}`);
+      else flash("Photo upload failed");
+    } catch {
+      flash("Photo upload failed");
+    } finally {
+      setQuickPhotoUploading(false);
+      quickPhotoTarget.current = null;
+      event.target.value = "";
+    }
+  };
+  const quickPhotoTasks = [...tasks]
+    .filter((task) => task.status !== "Complete")
+    .sort((a, b) => (a.due || "9999-12-31").localeCompare(b.due || "9999-12-31"))
+    .slice(0, 12);
   const workspaceNames = workspaces.map((w) => w.name);
   const selectedAssigneeValue = draft.assignee_email
     ? `member:${draft.assignee_email}`
@@ -1089,6 +1185,12 @@ export default function Home() {
               </label>
             )}
             <button
+              className="quickActionsHeaderBtn"
+              onClick={() => setQuickActionsOpen(true)}
+            >
+              ⚡ Quick
+            </button>
+            <button
               className="notificationBtn"
               onClick={() => setNotificationsOpen(true)}
             >
@@ -1150,6 +1252,64 @@ export default function Home() {
           />
         )}
       </section>
+      <button
+        className="mobileQuickActionsFab"
+        onClick={() => setQuickActionsOpen(true)}
+        aria-label="Open quick actions"
+      >
+        <i>＋</i><span>Quick</span>
+      </button>
+      <input
+        ref={quickPhotoInput}
+        className="quickPhotoInput"
+        hidden
+        type="file"
+        accept="image/*"
+        onChange={uploadQuickPhoto}
+      />
+      {quickActionsOpen && (
+        <div className="overlay quickActionsOverlay" onMouseDown={() => setQuickActionsOpen(false)}>
+          <section className="quickActionsSheet" onMouseDown={(event) => event.stopPropagation()}>
+            <header>
+              <span>
+                <small>POWERBUILD MOBILE</small>
+                <h2>Quick actions</h2>
+                <p>Start the most common store and management actions in one tap.</p>
+              </span>
+              <button className="quickActionsClose" onClick={() => setQuickActionsOpen(false)} aria-label="Close quick actions">×</button>
+            </header>
+            <div className="quickActionsGrid">
+              {!readOnlyAccess && <button onClick={() => { setQuickActionsOpen(false); openComposer(); }}><i className="qaBlue">＋</i><span><b>New Task</b><small>Create and assign a task</small></span></button>}
+              {!readOnlyAccess && <button onClick={() => openQuickTask({ title: "Store audit", description: "Complete the store audit, record findings and attach photo evidence for exceptions and corrective actions.", taskType: "Audit", taskGroup: "Audit Tasks", priority: "High" })}><i className="qaGold">✓</i><span><b>Audit Store</b><small>Open a structured audit task</small></span></button>}
+              {!readOnlyAccess && <button onClick={() => openQuickTask({ title: "Incident report", description: "Record the incident details, people involved, loss or damage, immediate action taken and required follow-up. Attach photos where relevant.", taskType: "Incident", priority: "High" })}><i className="qaRed">!</i><span><b>Report Incident</b><small>Capture an urgent store issue</small></span></button>}
+              {!readOnlyAccess && <button onClick={beginQuickPhoto} disabled={quickPhotoUploading}><i className="qaPurple">▧</i><span><b>{quickPhotoUploading ? "Uploading…" : "Upload Photo"}</b><small>Add evidence to an open task</small></span></button>}
+              {!readOnlyAccess && <button onClick={() => openQuickTask({ title: "CAPEX request", description: "State the requirement, operational reason, estimated cost, supplier or quotation details and expected benefit.", taskType: "CAPEX", taskGroup: "Regional Tasks", priority: "High", preferredWorkspace: "Head Office" })}><i className="qaGreen">R</i><span><b>CAPEX Request</b><small>Submit an expenditure request</small></span></button>}
+              {!readOnlyAccess && <button onClick={() => openQuickTask({ title: "Stock count", description: "Complete the stock count for the selected department or category, record variances and attach supporting evidence where required.", taskType: "Stock", priority: "Medium" })}><i className="qaOrange">#</i><span><b>Stock Count</b><small>Start a controlled count task</small></span></button>}
+              {availableNav.includes("Wholesale Division") && <button onClick={() => quickNavigate("Wholesale Division")}><i className="qaTeal">↗</i><span><b>Customer Visit</b><small>Open Wholesale CRM and visits</small></span></button>}
+              {availableNav.includes("Approvals") && <button onClick={() => quickNavigate("Approvals")}><i className="qaNavy">◇</i><span><b>Approve Item</b><small>Review completed work awaiting approval</small></span></button>}
+            </div>
+          </section>
+        </div>
+      )}
+      {photoTaskPickerOpen && (
+        <div className="overlay quickActionsOverlay" onMouseDown={() => setPhotoTaskPickerOpen(false)}>
+          <section className="quickPhotoSheet" onMouseDown={(event) => event.stopPropagation()}>
+            <header>
+              <span><small>PHOTO EVIDENCE</small><h2>Choose the task</h2><p>The photo will be attached directly to the selected task.</p></span>
+              <button className="quickActionsClose" onClick={() => setPhotoTaskPickerOpen(false)} aria-label="Close photo task picker">×</button>
+            </header>
+            <div className="quickPhotoTaskList">
+              {quickPhotoTasks.map((task) => (
+                <button key={task.id} onClick={() => chooseQuickPhotoTask(task)}>
+                  <i>▧</i>
+                  <span><b>{task.title}</b><small>{task.project} · {task.status}</small></span>
+                  <em>{task.due || "No due date"}</em>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
       {open && (
         <div className="overlay" onMouseDown={() => setOpen(false)}>
           <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
@@ -1245,6 +1405,7 @@ export default function Home() {
                   <option>Stock</option>
                   <option>HR / Staffing</option>
                   <option>Audit</option>
+                  <option>Incident</option>
                   <option>Regional Instruction</option>
                   <option>CAPEX</option>
                   <option>Receiving</option>
