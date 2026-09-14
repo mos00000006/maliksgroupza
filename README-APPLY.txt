@@ -1,12 +1,18 @@
-POWERBUILD TOUCH365 HEAD OFFICE + CATALOGUE HEADER FIX V2
+POWERBUILD / MALIKS GROUP — REMOVE TOUCH365 ON-HAND
 
-Replace these files in GitHub:
+This patch removes the Touch365 On-Hand feature from Our Catalogue while keeping the catalogue, product images, search, pagination and Add/Edit/Remove functions.
 
-1. app/api/catalogue/stock/route.ts
-2. app/catalogue.tsx
-3. app/globals.css
+REPLACE THESE FILES IN GITHUB:
+1. app/catalogue.tsx
+2. app/globals.css
+3. app/mobile-improvements.css
+4. .github/workflows/deploy.yml
 
-V2 fixes the Add catalogue product button being pushed outside the dark header.
-It also keeps Head Office/all active workspaces in the Touch365 selector.
+FOR COMPLETE CODE CLEANUP, DELETE THESE OLD TOUCH365 ITEMS FROM GITHUB:
+- app/api/catalogue/stock/
+- app/api/integrations/touch365/
+- docs/TOUCH365-LIVE-STOCK-SETUP.md
 
-Commit and push after replacing the files.
+The TOUCH365_SYNC_SECRET GitHub secret is no longer used after replacing deploy.yml. It may also be deleted from GitHub Settings > Secrets and variables > Actions if desired.
+
+Then commit/push and allow the normal deployment workflow to finish.

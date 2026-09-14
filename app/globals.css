@@ -1084,105 +1084,7 @@ td select {
 .catalogueEditor > footer button { min-width: 105px; }
 button:disabled { cursor: default; }
 
-/* --- Touch365 live on-hand in Our Catalogue --- */
-.catalogueStockSelector {
-  min-width: 210px;
-  display: grid;
-  gap: 5px;
-  padding: 10px 12px;
-  border: 1px solid #3b4f6b;
-  border-radius: 12px;
-  background: #14263f;
-  color: #fff;
-}
-.catalogueStockSelector > span {
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  color: #ffd51f;
-}
-.catalogueStockSelector select {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #fff;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 1px 18px 1px 0;
-}
-.catalogueStockSelector select option { color: #172033; background: #fff; }
-.catalogueStockSelector strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-}
-.catalogueStockSelector > small {
-  font-size: 8.5px;
-  color: #aebed2;
-}
-.catalogueStockSelector > small.connected { color: #7de1b6; }
-.catalogueStockSelector > small.pending { color: #f5c567; }
-.catalogueStockNotice {
-  margin: 0 0 14px;
-  padding: 11px 13px;
-  border: 1px solid #f0d98a;
-  border-radius: 10px;
-  background: #fff9e8;
-  color: #6f5711;
-  font-size: 11px;
-}
-.catalogueStockNotice.error {
-  border-color: #f3c2c2;
-  background: #fff2f2;
-  color: #a72424;
-}
-.catalogueStockPanel {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 10px 11px;
-  border: 1px solid #d9e4f1;
-  border-radius: 11px;
-  background: linear-gradient(135deg, #f4f9ff, #fbfdff);
-}
-.catalogueStockPanel > span {
-  min-width: 64px;
-  display: grid;
-  gap: 1px;
-  padding-right: 10px;
-  border-right: 1px solid #d9e4f1;
-}
-.catalogueStockPanel > span small {
-  font-size: 7px;
-  font-weight: 800;
-  letter-spacing: 1.1px;
-  color: #62758e;
-}
-.catalogueStockPanel > span b {
-  font-size: 19px;
-  line-height: 1.1;
-  color: #0b62d8;
-}
-.catalogueStockPanel > div {
-  min-width: 0;
-  display: grid;
-  gap: 3px;
-}
-.catalogueStockPanel > div strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 9.5px;
-  color: #172033;
-}
-.catalogueStockPanel > div small {
-  font-size: 8px;
-  color: #7b8798;
-}
+/* Catalogue form helper text */
 .catalogueFormGrid label > small {
   margin-top: 5px;
   font-size: 8.5px;
@@ -1191,11 +1093,11 @@ button:disabled { cursor: default; }
   color: #7b8798;
 }
 
-
-/* --- Touch365 store selector and catalogue hero style refresh --- */
+/* Catalogue hero layout */
 .catalogueHero {
+  overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(235px, 300px) minmax(0, 1fr);
   align-items: center;
   gap: 22px;
   padding: 28px 34px;
@@ -1213,24 +1115,26 @@ button:disabled { cursor: default; }
   line-height: 1.02;
 }
 .catalogueHeroIntro p {
-  max-width: 28ch;
+  max-width: 32ch;
   font-size: 14px;
   line-height: 1.45;
 }
 .catalogueHeroActions {
+  min-width: 0;
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(260px, 320px) auto;
+  grid-template-columns: minmax(240px, 1fr) minmax(210px, 250px);
   align-items: center;
   gap: 14px;
 }
-.catalogueHeroActions label,
-.catalogueHeroActions .primary,
-.catalogueStockSelector {
-  min-height: 72px;
+.catalogueHeroActions > * {
+  min-width: 0;
+  max-width: 100%;
 }
 .catalogueHeroActions label {
+  width: 100%;
   min-width: 0;
+  min-height: 64px;
   height: auto;
   padding: 0 18px;
   border-radius: 16px;
@@ -1243,52 +1147,26 @@ button:disabled { cursor: default; }
   font-size: 14px;
 }
 .catalogueHeroActions .primary {
-  min-width: 290px;
-  padding: 0 26px !important;
+  min-width: 0 !important;
+  width: 100%;
+  max-width: 250px;
+  min-height: 64px;
+  padding: 0 18px !important;
+  justify-self: end;
   border-radius: 16px !important;
   font-size: 14px;
-  letter-spacing: .1px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.15;
   box-shadow: 0 10px 22px rgba(23,105,232,.22);
 }
-.catalogueStockSelector {
-  min-width: 0;
-  align-content: center;
-  gap: 7px;
-  padding: 13px 18px;
-  border: 1px solid rgba(255,255,255,.15);
-  border-radius: 16px;
-  background: rgba(11, 25, 46, .55);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-}
-.catalogueStockSelector > span {
-  font-size: 10px;
-  letter-spacing: 2.2px;
-}
-.catalogueStockSelector select,
-.catalogueStockSelector strong {
-  font-size: 15px;
-  font-weight: 800;
-}
-.catalogueStockSelector > small {
-  font-size: 10px;
-  letter-spacing: 1.1px;
-  text-transform: none;
-}
-@media (max-width: 1260px) {
+@media (max-width: 1320px) {
   .catalogueHero {
     grid-template-columns: 1fr;
+    padding: 26px 28px;
   }
   .catalogueHeroIntro p {
-    max-width: 58ch;
-  }
-}
-@media (max-width: 1080px) {
-  .catalogueHeroActions {
-    grid-template-columns: 1fr 1fr;
-  }
-  .catalogueHeroActions .primary {
-    grid-column: 1 / -1;
-    min-width: 0;
+    max-width: 60ch;
   }
 }
 @media (max-width: 760px) {
@@ -1307,94 +1185,12 @@ button:disabled { cursor: default; }
     grid-template-columns: 1fr;
   }
   .catalogueHeroActions label,
-  .catalogueHeroActions .primary,
-  .catalogueStockSelector {
+  .catalogueHeroActions .primary {
     min-height: 58px;
   }
   .catalogueHeroActions .primary {
     width: 100%;
-  }
-}
-
-
-/* --- FIX: keep catalogue actions inside hero at all desktop widths --- */
-.catalogueHero {
-  overflow: hidden;
-  grid-template-columns: minmax(235px, 300px) minmax(0, 1fr);
-}
-.catalogueHeroActions {
-  min-width: 0;
-  width: 100%;
-  grid-template-columns: minmax(180px, 1fr) minmax(240px, 300px) minmax(210px, 250px);
-  gap: 12px;
-}
-.catalogueHeroActions > * {
-  min-width: 0;
-  max-width: 100%;
-}
-.catalogueHeroActions label {
-  min-width: 0;
-  width: 100%;
-}
-.catalogueStockSelector {
-  min-width: 0;
-  width: 100%;
-}
-.catalogueHeroActions .primary {
-  min-width: 0 !important;
-  width: 100%;
-  max-width: 250px;
-  min-height: 64px;
-  padding: 0 18px !important;
-  justify-self: end;
-  white-space: normal;
-  text-align: center;
-  line-height: 1.15;
-}
-@media (max-width: 1500px) {
-  .catalogueHero {
-    grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
-    padding: 26px 28px;
-  }
-  .catalogueHeroActions {
-    grid-template-columns: minmax(170px, 1fr) minmax(220px, 270px) minmax(190px, 220px);
-  }
-  .catalogueHeroActions .primary {
-    max-width: 220px;
-    font-size: 13px;
-    padding: 0 14px !important;
-  }
-}
-@media (max-width: 1320px) {
-  .catalogueHero {
-    grid-template-columns: 1fr;
-  }
-  .catalogueHeroIntro p {
-    max-width: 60ch;
-  }
-  .catalogueHeroActions {
-    grid-template-columns: minmax(220px, 1fr) minmax(250px, 320px) minmax(220px, 260px);
-  }
-  .catalogueHeroActions .primary {
-    max-width: 260px;
-  }
-}
-@media (max-width: 900px) {
-  .catalogueHeroActions {
-    grid-template-columns: 1fr 1fr;
-  }
-  .catalogueHeroActions .primary {
-    grid-column: 1 / -1;
-    width: 100%;
     max-width: none;
     justify-self: stretch;
-  }
-}
-@media (max-width: 640px) {
-  .catalogueHeroActions {
-    grid-template-columns: 1fr;
-  }
-  .catalogueHeroActions .primary {
-    grid-column: auto;
   }
 }
