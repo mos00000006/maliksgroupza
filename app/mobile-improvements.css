@@ -544,3 +544,11 @@ aside > .user {
   .catalogueCardBody p { font-size: 10.5px; }
   .cataloguePager span { display: none; }
 }
+
+/* Touch365 catalogue stock controls */
+@media (max-width: 720px) {
+  .catalogueStockSelector { width: 100%; min-width: 0; }
+  .catalogueStockPanel { padding: 9px; gap: 8px; }
+  .catalogueStockPanel > span { min-width: 56px; }
+  .catalogueStockPanel > span b { font-size: 17px; }
+}

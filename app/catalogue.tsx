@@ -21,6 +21,23 @@ type CatalogueDraft = {
   category: string;
 };
 
+type CatalogueStockEntry = {
+  on_hand: number;
+  updated_at: string;
+};
+
+type CatalogueStockResponse = {
+  error?: string;
+  stores?: string[];
+  selected_store?: string;
+  can_choose_store?: boolean;
+  connected?: boolean;
+  last_synced_at?: string;
+  sync_mode?: string;
+  record_count?: number;
+  stock?: Record<string, CatalogueStockEntry>;
+};
+
 const emptyDraft: CatalogueDraft = {
   code: "",
   name: "",
@@ -59,6 +76,20 @@ const apiResult = async (response: Response) => {
     product?: CatalogueProduct | null;
     ok?: boolean;
   };
+};
+
+const stockApiResult = async (response: Response) => {
+  const text = await response.text();
+  let result: CatalogueStockResponse = {};
+  if (text) {
+    try {
+      result = JSON.parse(text) as CatalogueStockResponse;
+    } catch {
+      throw new Error(response.ok ? "The live stock service returned an invalid response." : text.slice(0, 180));
+    }
+  }
+  if (!response.ok) throw new Error(String(result.error || `Stock request failed (${response.status}).`));
+  return result;
 };
 
 const canvasBlob = (canvas: HTMLCanvasElement, quality: number) =>
@@ -150,6 +181,14 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   const [deleting, setDeleting] = useState(false);
   const requestId = useRef(0);
   const pageSize = 12;
+  const [stockByCode, setStockByCode] = useState<Record<string, CatalogueStockEntry>>({});
+  const [stockStores, setStockStores] = useState<string[]>([]);
+  const [selectedStore, setSelectedStore] = useState("");
+  const [canChooseStore, setCanChooseStore] = useState(false);
+  const [stockConnected, setStockConnected] = useState(false);
+  const [stockLastSyncedAt, setStockLastSyncedAt] = useState("");
+  const [stockLoading, setStockLoading] = useState(false);
+  const [stockError, setStockError] = useState("");
 
   const expectedManager = useMemo(
     () => ["moyanamoses006@icloud.com", "moyanamoses006@icloud", "msallikutti@gmail.com"].includes(currentUserEmail.toLowerCase()),
@@ -182,10 +221,84 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     }
   };
 
+  const loadStockAccess = async () => {
+    try {
+      const response = await fetch("/api/catalogue/stock", { cache: "no-store" });
+      const result = await stockApiResult(response);
+      const stores = result.stores || [];
+      setStockStores(stores);
+      setCanChooseStore(Boolean(result.can_choose_store));
+      setSelectedStore((current) => current || result.selected_store || stores[0] || "");
+      setStockConnected(Boolean(result.connected));
+      setStockLastSyncedAt(result.last_synced_at || "");
+      setStockError("");
+    } catch (caught) {
+      setStockError(caught instanceof Error ? caught.message : "Could not load Touch365 store access.");
+    }
+  };
+
+  const loadStock = async (store = selectedStore, productList = products, quiet = false) => {
+    if (!store) return;
+    const codes = productList.map((product) => product.code.trim().toUpperCase()).filter(Boolean);
+    if (!quiet) setStockLoading(true);
+    try {
+      const params = new URLSearchParams({ store });
+      if (codes.length) params.set("codes", codes.join(","));
+      const response = await fetch(`/api/catalogue/stock?${params.toString()}`, { cache: "no-store" });
+      const result = await stockApiResult(response);
+      setStockByCode(result.stock || {});
+      setStockConnected(Boolean(result.connected));
+      setStockLastSyncedAt(result.last_synced_at || "");
+      if (result.stores?.length) setStockStores(result.stores);
+      setCanChooseStore(Boolean(result.can_choose_store));
+      setStockError("");
+    } catch (caught) {
+      setStockByCode({});
+      setStockError(caught instanceof Error ? caught.message : "Could not load Touch365 on-hand quantities.");
+    } finally {
+      if (!quiet) setStockLoading(false);
+    }
+  };
+
+  const stockUpdatedLabel = useMemo(() => {
+    if (!stockLastSyncedAt) return "Awaiting Touch365 connection";
+    const time = Date.parse(stockLastSyncedAt);
+    if (Number.isNaN(time)) return "Touch365 synced";
+    return `Synced ${new Date(time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  }, [stockLastSyncedAt]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadStockAccess(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     const timer = window.setTimeout(() => void load(1, query), 220);
     return () => window.clearTimeout(timer);
   }, [query]);
+
+  useEffect(() => {
+    if (!selectedStore) return;
+    const timer = window.setTimeout(() => void loadStock(selectedStore, products), 0);
+    return () => window.clearTimeout(timer);
+  }, [selectedStore, products]);
+
+  useEffect(() => {
+    if (!selectedStore) return;
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadStock(selectedStore, products, true);
+    }, 15000);
+    const refresh = () => {
+      if (document.visibilityState === "visible") void loadStock(selectedStore, products, true);
+    };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [selectedStore, products]);
 
 
   const openAdd = () => {
@@ -284,6 +397,21 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
               placeholder="Search product or code…"
             />
           </label>
+          <div className="catalogueStockSelector">
+            <span>TOUCH365 ON-HAND</span>
+            {canChooseStore ? (
+              <select
+                value={selectedStore}
+                onChange={(event) => setSelectedStore(event.target.value)}
+                aria-label="Select store for stock on hand"
+              >
+                {stockStores.map((store) => <option key={store} value={store}>{store}</option>)}
+              </select>
+            ) : (
+              <strong>{selectedStore || "Assigned store"}</strong>
+            )}
+            <small className={stockConnected ? "connected" : "pending"}>{stockUpdatedLabel}</small>
+          </div>
           {canManage && (
             <button className="primary" onClick={openAdd}>＋ Add catalogue product</button>
           )}
@@ -298,6 +426,12 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
 
       {success && <div className="catalogueSuccess">✓ {success}</div>}
       {error && !editorOpen && <div className="catalogueError">{error}</div>}
+      {stockError && <div className="catalogueStockNotice error">{stockError}</div>}
+      {!stockError && selectedStore && !stockConnected && (
+        <div className="catalogueStockNotice">
+          Touch365 live on-hand is ready for <b>{selectedStore}</b>, but no stock feed has synced yet.
+        </div>
+      )}
 
       {loading ? (
         <div className="catalogueLoading">Loading catalogue products…</div>
@@ -325,6 +459,28 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                   <small>{product.category || "General"}</small>
                   <h3>{product.name}</h3>
                   <p>{product.description || "No product description added yet."}</p>
+                  <div className="catalogueStockPanel">
+                    <span>
+                      <small>ON HAND</small>
+                      <b>
+                        {stockLoading && !stockByCode[product.code.trim().toUpperCase()]
+                          ? "…"
+                          : stockByCode[product.code.trim().toUpperCase()]
+                            ? Number(stockByCode[product.code.trim().toUpperCase()].on_hand).toLocaleString()
+                            : "—"}
+                      </b>
+                    </span>
+                    <div>
+                      <strong>{selectedStore || "Assigned store"}</strong>
+                      <small>
+                        {stockByCode[product.code.trim().toUpperCase()]
+                          ? "Touch365 stock"
+                          : stockConnected
+                            ? "Code not found in Touch365"
+                            : "Awaiting live stock"}
+                      </small>
+                    </div>
+                  </div>
                   {canManage && (
                     <div className="catalogueManageActions">
                       <button onClick={() => openEdit(product)}>Edit</button>
@@ -376,6 +532,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                   onChange={(event) => setDraft({ ...draft, code: event.target.value })}
                   placeholder="e.g. PVC110RR"
                 />
+                <small>Use the exact Touch365 product code so live on-hand can match automatically.</small>
               </label>
               <label>
                 Product name

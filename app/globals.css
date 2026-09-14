@@ -1083,3 +1083,110 @@ td select {
 }
 .catalogueEditor > footer button { min-width: 105px; }
 button:disabled { cursor: default; }
+
+/* --- Touch365 live on-hand in Our Catalogue --- */
+.catalogueStockSelector {
+  min-width: 210px;
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid #3b4f6b;
+  border-radius: 12px;
+  background: #14263f;
+  color: #fff;
+}
+.catalogueStockSelector > span {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #ffd51f;
+}
+.catalogueStockSelector select {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 18px 1px 0;
+}
+.catalogueStockSelector select option { color: #172033; background: #fff; }
+.catalogueStockSelector strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.catalogueStockSelector > small {
+  font-size: 8.5px;
+  color: #aebed2;
+}
+.catalogueStockSelector > small.connected { color: #7de1b6; }
+.catalogueStockSelector > small.pending { color: #f5c567; }
+.catalogueStockNotice {
+  margin: 0 0 14px;
+  padding: 11px 13px;
+  border: 1px solid #f0d98a;
+  border-radius: 10px;
+  background: #fff9e8;
+  color: #6f5711;
+  font-size: 11px;
+}
+.catalogueStockNotice.error {
+  border-color: #f3c2c2;
+  background: #fff2f2;
+  color: #a72424;
+}
+.catalogueStockPanel {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 11px;
+  border: 1px solid #d9e4f1;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #f4f9ff, #fbfdff);
+}
+.catalogueStockPanel > span {
+  min-width: 64px;
+  display: grid;
+  gap: 1px;
+  padding-right: 10px;
+  border-right: 1px solid #d9e4f1;
+}
+.catalogueStockPanel > span small {
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 1.1px;
+  color: #62758e;
+}
+.catalogueStockPanel > span b {
+  font-size: 19px;
+  line-height: 1.1;
+  color: #0b62d8;
+}
+.catalogueStockPanel > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.catalogueStockPanel > div strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9.5px;
+  color: #172033;
+}
+.catalogueStockPanel > div small {
+  font-size: 8px;
+  color: #7b8798;
+}
+.catalogueFormGrid label > small {
+  margin-top: 5px;
+  font-size: 8.5px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: #7b8798;
+}
