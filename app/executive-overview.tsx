@@ -9,6 +9,8 @@ type Deal = Record<string, string | number> & { id: number; customer_name: strin
 type Visit = { id: number; assigned_to: string; visit_date: string; visit_status: string; update_type: string };
 type Development = Record<string, string | number> & { id: number; project_name: string; site_location: string; status: string; rag_status: string };
 type Sop = { id: number; title: string; workspace: string; status: string; review_date: string; workflow?: string[]; checklist?: string[] };
+type StoreRank = { workspace: string; region: string; manager: string; score: number; status: string; auditScore: number; checklistScore: number; taskScore: number; openCorrectives: number; overdueCorrectives: number; todayChecklist: number | null; dataCoverage: number };
+type StoreControlSummary = { ranking?: StoreRank[]; summary?: { stores: number; auditedStores: number; todayChecklists: number; overdueCorrectives: number; averageScore: number } };
 
 const money = (value: number) => new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR", maximumFractionDigits: 0 }).format(value || 0);
 const number = (value: unknown) => Number(value) || 0;
@@ -24,20 +26,21 @@ const calcPnl = (row: Pnl) => {
 
 export default function ExecutiveOverview({ tasks, workspaces, navigateTo, openWorkspaces }: { tasks: HubTask[]; workspaces: Workspace[]; navigateTo: (view: string) => void; openWorkspaces: () => void }) {
   const [reports, setReports] = useState<Pnl[]>([]), [deals, setDeals] = useState<Deal[]>([]), [visits, setVisits] = useState<Visit[]>([]),
-    [developments, setDevelopments] = useState<Development[]>([]), [sops, setSops] = useState<Sop[]>([]), [busy, setBusy] = useState(true),
+    [developments, setDevelopments] = useState<Development[]>([]), [sops, setSops] = useState<Sop[]>([]), [storeControls, setStoreControls] = useState<StoreControlSummary>({}), [busy, setBusy] = useState(true),
     [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
     const load = async () => {
       setBusy(true);
       try {
-        const responses = await Promise.all([fetch("/api/pnl"), fetch("/api/wholesale"), fetch("/api/wholesale/visits"), fetch("/api/developments"), fetch("/api/sops")]);
+        const responses = await Promise.all([fetch("/api/pnl"), fetch("/api/wholesale"), fetch("/api/wholesale/visits"), fetch("/api/developments"), fetch("/api/sops"), fetch("/api/store-controls")]);
         const data = await Promise.all(responses.map((response) => response.json().catch(() => ({}))));
         if (responses[0].ok) setReports(data[0].reports || []);
         if (responses[1].ok) setDeals(data[1].opportunities || []);
         if (responses[2].ok) setVisits(data[2].visits || []);
         if (responses[3].ok) setDevelopments(data[3].projects || []);
         if (responses[4].ok) setSops(data[4].documents || []);
+        if (responses[5].ok) setStoreControls(data[5] || {});
       } finally { setBusy(false); }
     };
     void load();
@@ -74,12 +77,18 @@ export default function ExecutiveOverview({ tasks, workspaces, navigateTo, openW
     developmentRisks = developments.filter((project) => ["Red", "Amber"].includes(String(project.rag_status)));
   const workflowsReady = sops.filter((sop) => (sop.workflow || []).length > 0).length,
     reviewsDue = sops.filter((sop) => sop.review_date && sop.review_date <= today()).length;
+  const storeRanking = storeControls.ranking || [], storeControlSummary = storeControls.summary,
+    topStore = storeRanking[0],
+    missingDailyChecks = storeRanking.filter((row) => row.todayChecklist === null),
+    overdueCorrectiveStores = storeRanking.filter((row) => row.overdueCorrectives > 0);
 
   const alerts = [
     ...blocked.slice(0, 3).map((task) => ({ level: "red", title: `Blocked: ${task.title}`, detail: `${task.project} · ${task.owner || task.assignee || "Owner required"}`, view: "My Work" })),
     ...developmentRisks.slice(0, 3).map((project) => ({ level: String(project.rag_status).toLowerCase(), title: `${project.rag_status} development: ${project.project_name}`, detail: `${project.site_location || "Site"} · ${project.status}`, view: "Developments" })),
     ...overdueQuotes.slice(0, 2).map((deal) => ({ level: "amber", title: `Quote follow-up overdue: ${deal.customer_name}`, detail: `${deal.quotation_no} · ${age(String(deal.quote_follow_up_date || deal.quote_date))} days`, view: "Wholesale Division" })),
     ...lateDeliveries.slice(0, 2).map((deal) => ({ level: "red", title: `Wholesale delivery delayed: ${deal.customer_name}`, detail: String(deal.order_no || deal.invoice_no), view: "Wholesale Division" })),
+    ...overdueCorrectiveStores.slice(0, 2).map((row) => ({ level: "red", title: `Audit corrective action overdue: ${row.workspace}`, detail: `${row.overdueCorrectives} overdue · ${row.openCorrectives} open`, view: "Store Audits" })),
+    ...missingDailyChecks.slice(0, 2).map((row) => ({ level: "amber", title: `Daily manager checklist outstanding: ${row.workspace}`, detail: `Current 7-day checklist score ${row.checklistScore}%`, view: "Daily Checklists" })),
   ];
 
   const jump = (view: string) => <button className="execJump" onClick={() => navigateTo(view)}>Open dashboard →</button>;
@@ -92,6 +101,7 @@ export default function ExecutiveOverview({ tasks, workspaces, navigateTo, openW
       <article><i className={group.net < 0 ? "red" : "green"}>NP</i><span><small>Net operating profit</small><b>{money(group.net)}</b><em>Before development costs</em></span></article>
       <article><i className="purple">W</i><span><small>Wholesale pipeline</small><b>{money(pipelineValue)}</b><em>{activeDeals.length} active opportunities</em></span></article>
       <article><i className={developmentRisks.length ? "orange" : "green"}>D</i><span><small>Active developments</small><b>{developments.filter((project) => !["Completed", "On Hold"].includes(project.status)).length}</b><em>{developmentRisks.length} require attention</em></span></article>
+      <article><i className={(storeControlSummary?.averageScore || 0) >= 85 ? "green" : (storeControlSummary?.averageScore || 0) >= 70 ? "orange" : "red"}>SC</i><span><small>Store control score</small><b>{storeControlSummary?.averageScore || 0}%</b><em>{storeControlSummary?.todayChecklists || 0}/{storeControlSummary?.stores || 0} daily checks today</em></span></article>
       <article><i className={alerts.length ? "red" : "green"}>!</i><span><small>Executive alerts</small><b>{alerts.length}</b><em>{blocked.length} blocked tasks</em></span></article>
     </section>
 
@@ -103,6 +113,8 @@ export default function ExecutiveOverview({ tasks, workspaces, navigateTo, openW
       <article className="execModule developmentExecutive"><header><span><small>STORE DEVELOPMENT</small><h3>New Sites &amp; Expansion</h3></span>{jump("Developments")}</header><div className="execMetrics"><span><small>Total funding</small><b>{money(developmentBudget)}</b></span><span><small>Committed</small><b>{money(developmentCommitted)}</b></span><span><small>Actual spend</small><b>{money(developmentActual)}</b></span><span><small>Paid</small><b>{money(developmentPaid)}</b></span></div><div className="execProgress"><i style={{ width: `${Math.min(100, developmentBudget ? developmentActual / developmentBudget * 100 : 0)}%` }} /><small>{money(Math.max(0, developmentBudget - developmentActual))} remaining across projects</small></div><div className="execMiniTable"><b>Development portfolio</b>{developments.slice(0, 5).map((project) => <button key={project.id} onClick={() => navigateTo("Developments")}><span>{project.project_name}</span><em>{project.status} · {number(project.progress_percent)}%</em><strong className={`rag-${String(project.rag_status).toLowerCase()}`}>{project.rag_status}</strong></button>)}{!developments.length && <p>No development projects captured yet.</p>}</div></article>
 
       <article className="execModule operationsExecutive"><header><span><small>GROUP EXECUTION</small><h3>Tasks &amp; Accountability</h3></span>{jump("My Work")}</header><div className="execMetrics"><span><small>Open tasks</small><b>{openTasks.length}</b></span><span><small>High priority</small><b>{high.length}</b></span><span><small>Blocked</small><b>{blocked.length}</b></span><span><small>Overdue</small><b>{overdue.length}</b></span></div><div className="execProgress"><i style={{ width: `${taskCompletion}%` }} /><small>{taskCompletion}% of all company tasks completed</small></div><div className="execMiniTable"><b>Management attention</b>{[...blocked, ...overdue.filter((task) => !blocked.includes(task))].slice(0, 5).map((task) => <button key={task.id} onClick={() => navigateTo("My Work")}><span>{task.title}</span><em>{task.project} · {task.assignee || task.owner || "Unassigned"}</em><strong className="negative">{task.status === "Blocked" ? "Blocked" : "Overdue"}</strong></button>)}{!blocked.length && !overdue.length && <p>All company tasks are moving within plan.</p>}</div></article>
+
+      <article className="execModule storeRankingExecutive"><header><span><small>STORE CONTROL CENTRE</small><h3>Executive Store Ranking</h3></span>{jump("Store Ranking")}</header><div className="execMetrics"><span><small>Average score</small><b>{storeControlSummary?.averageScore || 0}%</b></span><span><small>Audited stores</small><b>{storeControlSummary?.auditedStores || 0}/{storeControlSummary?.stores || 0}</b></span><span><small>Today checklists</small><b>{storeControlSummary?.todayChecklists || 0}/{storeControlSummary?.stores || 0}</b></span><span><small>Overdue actions</small><b>{storeControlSummary?.overdueCorrectives || 0}</b></span></div><div className="execProgress"><i style={{ width: `${storeControlSummary?.averageScore || 0}%` }} /><small>{topStore ? `#1 ${topStore.workspace} · ${topStore.score}%` : "Store controls are ready for rollout"}</small></div><div className="execMiniTable"><b>Operational store league</b>{storeRanking.slice(0, 5).map((row, index) => <button key={row.workspace} onClick={() => navigateTo("Store Ranking")}><span>#{index + 1} {row.workspace}</span><em>Audit {row.auditScore}% · Checklist {row.checklistScore}% · Tasks {row.taskScore}%</em><strong className={row.score >= 85 ? "positive" : row.score < 70 ? "negative" : ""}>{row.score}%</strong></button>)}{!storeRanking.length && <p>No store-control scores captured yet.</p>}</div></article>
 
       <article className="execModule controlsExecutive"><header><span><small>GOVERNANCE &amp; CONTROLS</small><h3>SOPs, Training &amp; Workspaces</h3></span>{jump("SOP & Manuals")}</header><div className="execMetrics"><span><small>SOPs &amp; manuals</small><b>{sops.length}</b></span><span><small>AI workflows ready</small><b>{workflowsReady}</b></span><span><small>Reviews due</small><b>{reviewsDue}</b></span><span><small>Company workspaces</small><b>{workspaces.length}</b></span></div><div className="execCoverage"><span><b>{new Set(sops.map((sop) => sop.workspace)).size}</b><small>workspaces with documents</small></span><span><b>{sops.reduce((sum, sop) => sum + (sop.checklist || []).length, 0)}</b><small>checklist controls</small></span><span><b>{workspaces.filter((workspace) => workspace.type === "Store").length}</b><small>stores in the Hub</small></span></div><div className="execMiniTable"><b>Latest controlled documents</b>{sops.slice(0, 4).map((sop) => <button key={sop.id} onClick={() => navigateTo("SOP & Manuals")}><span>{sop.title}</span><em>{sop.workspace}</em><strong>{(sop.workflow || []).length ? "Workflow ready" : sop.status}</strong></button>)}</div></article>
 

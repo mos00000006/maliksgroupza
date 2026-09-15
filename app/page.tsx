@@ -6,7 +6,9 @@ import OperationalView, { type HubTask } from "./operational-view";
 import SopLibrary from "./sop-library";
 import PwaInstallButton from "./pwa-install-button";
 import Catalogue from "./catalogue";
+import StoreControls from "./store-controls";
 type Status = "Not started" | "In progress" | "Blocked" | "Returned" | "Complete";
+type QuickWorkflowKind = "audit" | "incident" | "capex" | "stock";
 type Task = {
   id: number;
   title: string;
@@ -85,6 +87,9 @@ const nav = [
   "Executive Overview",
   "My Work",
   "Store Operations",
+  "Store Audits",
+  "Daily Checklists",
+  "Store Ranking",
   "Wholesale Division",
   "Developments",
   "Financials & P&L",
@@ -161,6 +166,17 @@ export default function Home() {
     [quickActionsOpen, setQuickActionsOpen] = useState(false),
     [photoTaskPickerOpen, setPhotoTaskPickerOpen] = useState(false),
     [quickPhotoUploading, setQuickPhotoUploading] = useState(false),
+    [quickWorkflow, setQuickWorkflow] = useState<QuickWorkflowKind | null>(null),
+    [quickWorkflowSaving, setQuickWorkflowSaving] = useState(false),
+    [quickWorkflowFile, setQuickWorkflowFile] = useState<File | null>(null),
+    [quickWorkflowForm, setQuickWorkflowForm] = useState({
+      workspace: "", department: "", incidentType: "", eventDateTime: "",
+      description: "", estimatedLoss: "", responsiblePerson: "", correctiveAction: "",
+      managerSignoff: "", category: "", requirement: "", reason: "", estimatedCost: "",
+      supplierQuote: "", urgency: "Normal", countDate: "", countedBy: "", varianceNotes: "",
+      supervisorSignoff: "", auditArea: "", auditScore: "", findings: "", dueDate: "",
+      auditResponsible: "", auditManagerSignoff: "",
+    }),
     [toast, setToast] = useState(""),
     [accessDenied, setAccessDenied] = useState(false);
   const [inviteResult, setInviteResult] = useState<HubInvitation | null>(null);
@@ -529,6 +545,9 @@ export default function Home() {
       "Master dashboard rolling up all stores, DC, Head Office and Wholesale.",
     "My Work": `Tasks assigned to or owned by ${currentUser.name}.`,
     "Store Operations": "Operational actions across the store network.",
+    "Store Audits": "Digital branch audits with scoring, evidence and corrective-action tracking.",
+    "Daily Checklists": "Daily manager opening-to-closing compliance and exception control.",
+    "Store Ranking": "Executive operational ranking across the store network.",
     "Wholesale Division": "Wholesale projects, targets and assigned actions.",
     Developments: "New-store, relocation and expansion budgets, costs and opening readiness.",
     "Financials & P&L":
@@ -980,6 +999,158 @@ export default function Home() {
     setQuickActionsOpen(false);
     setOpen(true);
   };
+  const openStructuredWorkflow = (kind: QuickWorkflowKind) => {
+    if (readOnlyAccess) {
+      flash("Your Hub access is read only");
+      return;
+    }
+    const now = new Date();
+    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
+    setQuickWorkflowForm({
+      workspace: quickDefaultWorkspace(kind === "capex" ? "Head Office" : undefined),
+      department: "",
+      incidentType: "",
+      eventDateTime: localDateTime,
+      description: "",
+      estimatedLoss: "",
+      responsiblePerson: "",
+      correctiveAction: "",
+      managerSignoff: currentUser.name || "",
+      category: "",
+      requirement: "",
+      reason: "",
+      estimatedCost: "",
+      supplierQuote: "",
+      urgency: "Normal",
+      countDate: new Date().toISOString().slice(0, 10),
+      countedBy: currentUser.name || "",
+      varianceNotes: "",
+      supervisorSignoff: "",
+      auditArea: "",
+      auditScore: "",
+      findings: "",
+      dueDate: quickDueDate(),
+      auditResponsible: "",
+      auditManagerSignoff: currentUser.name || "",
+    });
+    setQuickWorkflowFile(null);
+    setQuickActionsOpen(false);
+    setQuickWorkflow(kind);
+  };
+  const updateQuickWorkflowField = (field: string, value: string) =>
+    setQuickWorkflowForm((current) => ({ ...current, [field]: value }));
+  const submitQuickWorkflow = async () => {
+    if (!quickWorkflow || quickWorkflowSaving) return;
+    const f = quickWorkflowForm;
+    let title = "";
+    let taskType = "General";
+    let taskGroup = "Store Tasks";
+    let priority: Task["priority"] = "Medium";
+    let description = "";
+    let due = f.dueDate || quickDueDate();
+
+    if (quickWorkflow === "incident") {
+      if (!f.workspace || !f.incidentType || !f.description.trim()) {
+        flash("Complete the store, incident type and description");
+        return;
+      }
+      title = `Incident: ${f.incidentType}`;
+      taskType = "Incident";
+      priority = "High";
+      description = [
+        `INCIDENT REPORT`, `Store: ${f.workspace}`, `Department: ${f.department || "Not specified"}`,
+        `Incident type: ${f.incidentType}`, `Date / time: ${f.eventDateTime || "Not specified"}`,
+        `Description: ${f.description}`, `Estimated loss: ${f.estimatedLoss || "R0 / Not stated"}`,
+        `Responsible / involved: ${f.responsiblePerson || "Not specified"}`,
+        `Corrective action: ${f.correctiveAction || "To be assigned"}`,
+        `Manager sign-off: ${f.managerSignoff || currentUser.name || "Pending"}`,
+      ].join("\n");
+    } else if (quickWorkflow === "capex") {
+      if (!f.workspace || !f.category || !f.requirement.trim() || !f.reason.trim()) {
+        flash("Complete the workspace, category, requirement and reason");
+        return;
+      }
+      title = `CAPEX: ${f.requirement}`;
+      taskType = "CAPEX";
+      taskGroup = "Regional Tasks";
+      priority = f.urgency === "Urgent" ? "High" : "Medium";
+      description = [
+        `CAPEX REQUEST`, `Store / workspace: ${f.workspace}`, `Category: ${f.category}`,
+        `Item / work required: ${f.requirement}`, `Operational reason: ${f.reason}`,
+        `Estimated cost: ${f.estimatedCost || "Not stated"}`, `Supplier / quotation: ${f.supplierQuote || "Not supplied"}`,
+        `Urgency: ${f.urgency}`, `Requested by: ${currentUser.name || "Hub user"}`,
+      ].join("\n");
+    } else if (quickWorkflow === "stock") {
+      if (!f.workspace || !f.department || !f.countDate) {
+        flash("Complete the store, department/category and count date");
+        return;
+      }
+      title = `Stock count: ${f.department}`;
+      taskType = "Stock";
+      description = [
+        `STOCK COUNT CONTROL`, `Store: ${f.workspace}`, `Department / category: ${f.department}`,
+        `Count date: ${f.countDate}`, `Counted by: ${f.countedBy || currentUser.name || "Not specified"}`,
+        `Variance notes: ${f.varianceNotes || "No variance notes entered"}`,
+        `Supervisor sign-off: ${f.supervisorSignoff || "Pending"}`,
+      ].join("\n");
+      due = f.countDate;
+    } else {
+      if (!f.workspace || !f.auditArea || !f.findings.trim()) {
+        flash("Complete the store, audit area and findings");
+        return;
+      }
+      title = `Store audit: ${f.auditArea}`;
+      taskType = "Audit";
+      taskGroup = "Audit Tasks";
+      priority = "High";
+      description = [
+        `STORE AUDIT`, `Store: ${f.workspace}`, `Department / area: ${f.auditArea}`,
+        `Score: ${f.auditScore || "Not scored"}`, `Findings: ${f.findings}`,
+        `Corrective action: ${f.correctiveAction || "To be assigned"}`,
+        `Responsible person: ${f.auditResponsible || "Not assigned"}`, `Corrective action due: ${f.dueDate || "Not set"}`,
+        `Manager sign-off: ${f.auditManagerSignoff || currentUser.name || "Pending"}`,
+      ].join("\n");
+    }
+
+    setQuickWorkflowSaving(true);
+    try {
+      const payload = {
+        ...draft,
+        title,
+        project: f.workspace,
+        due,
+        priority,
+        status: "Not started" as Status,
+        task_type: taskType,
+        task_group: taskGroup,
+        description,
+      };
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.task) {
+        flash(result.error || "The workflow record could not be created");
+        return;
+      }
+      if (quickWorkflowFile) {
+        const formData = new FormData();
+        formData.append("file", quickWorkflowFile);
+        await fetch(`/api/tasks/${result.task.id}/attachments`, { method: "POST", body: formData });
+      }
+      setTasks((current) => [result.task, ...current.filter((item) => item.id !== result.task.id)]);
+      setQuickWorkflow(null);
+      setQuickWorkflowFile(null);
+      void load();
+      flash(`${quickWorkflow === "incident" ? "Incident" : quickWorkflow === "capex" ? "CAPEX request" : quickWorkflow === "stock" ? "Stock count" : "Store audit"} created`);
+    } finally {
+      setQuickWorkflowSaving(false);
+    }
+  };
   const quickNavigate = (view: string) => {
     if (!availableNav.includes(view)) {
       flash("This section is not available for your access level");
@@ -1040,6 +1211,7 @@ export default function Home() {
     ? `member:${draft.assignee_email}`
     : `role:${draft.assignee}`;
   const unread = notifications.filter((n) => !n.read_at).length;
+  const isStoreControlView = ["Store Audits", "Daily Checklists", "Store Ranking"].includes(active);
   if (accessDenied)
     return (
       <main className="hubAccessGate">
@@ -1174,7 +1346,7 @@ export default function Home() {
             </p>
           </div>
           <div className="actions">
-            {active !== "Our Catalogue" && (
+            {active !== "Our Catalogue" && !isStoreControlView && (
               <label>
                 ⌕
                 <input
@@ -1202,14 +1374,23 @@ export default function Home() {
               </button>
             )}
             <PwaInstallButton />
-            {!readOnlyAccess && active !== "Our Catalogue" && (
+            {!readOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && (
               <button className="primary" onClick={openComposer}>
                 ＋ Add task
               </button>
             )}
           </div>
         </header>
-        {active === "Our Catalogue" ? (
+        {isStoreControlView ? (
+          <StoreControls
+            initialView={active}
+            currentUser={currentUser}
+            onNavigate={(view) => {
+              setActive(view);
+              setSearch("");
+            }}
+          />
+        ) : active === "Our Catalogue" ? (
           <Catalogue currentUserEmail={currentUser.email} />
         ) : active === "SOP & Manuals" ? (
           <SopLibrary
@@ -1280,14 +1461,69 @@ export default function Home() {
             </header>
             <div className="quickActionsGrid">
               {!readOnlyAccess && <button onClick={() => { setQuickActionsOpen(false); openComposer(); }}><i className="qaBlue">＋</i><span><b>New Task</b><small>Create and assign a task</small></span></button>}
-              {!readOnlyAccess && <button onClick={() => openQuickTask({ title: "Store audit", description: "Complete the store audit, record findings and attach photo evidence for exceptions and corrective actions.", taskType: "Audit", taskGroup: "Audit Tasks", priority: "High" })}><i className="qaGold">✓</i><span><b>Audit Store</b><small>Open a structured audit task</small></span></button>}
-              {!readOnlyAccess && <button onClick={() => openQuickTask({ title: "Incident report", description: "Record the incident details, people involved, loss or damage, immediate action taken and required follow-up. Attach photos where relevant.", taskType: "Incident", priority: "High" })}><i className="qaRed">!</i><span><b>Report Incident</b><small>Capture an urgent store issue</small></span></button>}
+              <button onClick={() => quickNavigate("Store Audits")}><i className="qaGold">✓</i><span><b>Audit Store</b><small>Open the digital store audit</small></span></button>
+              <button onClick={() => quickNavigate("Daily Checklists")}><i className="qaGreen">☑</i><span><b>Daily Checklist</b><small>Complete today&apos;s manager controls</small></span></button>
+              {!readOnlyAccess && <button onClick={() => openStructuredWorkflow("incident")}><i className="qaRed">!</i><span><b>Report Incident</b><small>Capture an urgent store issue</small></span></button>}
               {!readOnlyAccess && <button onClick={beginQuickPhoto} disabled={quickPhotoUploading}><i className="qaPurple">▧</i><span><b>{quickPhotoUploading ? "Uploading…" : "Upload Photo"}</b><small>Add evidence to an open task</small></span></button>}
-              {!readOnlyAccess && <button onClick={() => openQuickTask({ title: "CAPEX request", description: "State the requirement, operational reason, estimated cost, supplier or quotation details and expected benefit.", taskType: "CAPEX", taskGroup: "Regional Tasks", priority: "High", preferredWorkspace: "Head Office" })}><i className="qaGreen">R</i><span><b>CAPEX Request</b><small>Submit an expenditure request</small></span></button>}
-              {!readOnlyAccess && <button onClick={() => openQuickTask({ title: "Stock count", description: "Complete the stock count for the selected department or category, record variances and attach supporting evidence where required.", taskType: "Stock", priority: "Medium" })}><i className="qaOrange">#</i><span><b>Stock Count</b><small>Start a controlled count task</small></span></button>}
+              {!readOnlyAccess && <button onClick={() => openStructuredWorkflow("capex")}><i className="qaGreen">R</i><span><b>CAPEX Request</b><small>Submit an expenditure request</small></span></button>}
+              {!readOnlyAccess && <button onClick={() => openStructuredWorkflow("stock")}><i className="qaOrange">#</i><span><b>Stock Count</b><small>Start a controlled count task</small></span></button>}
               {availableNav.includes("Wholesale Division") && <button onClick={() => quickNavigate("Wholesale Division")}><i className="qaTeal">↗</i><span><b>Customer Visit</b><small>Open Wholesale CRM and visits</small></span></button>}
               {availableNav.includes("Approvals") && <button onClick={() => quickNavigate("Approvals")}><i className="qaNavy">◇</i><span><b>Approve Item</b><small>Review completed work awaiting approval</small></span></button>}
             </div>
+          </section>
+        </div>
+      )}
+      {quickWorkflow && (
+        <div className="overlay quickWorkflowOverlay" onMouseDown={() => !quickWorkflowSaving && setQuickWorkflow(null)}>
+          <section className="quickWorkflowModal" onMouseDown={(event) => event.stopPropagation()}>
+            <header>
+              <span>
+                <small>POWERBUILD QUICK WORKFLOW</small>
+                <h2>{quickWorkflow === "incident" ? "Report Incident" : quickWorkflow === "capex" ? "CAPEX Request" : quickWorkflow === "stock" ? "Stock Count" : "Store Audit"}</h2>
+                <p>Complete the required control fields. The record is saved into the Hub and can be followed through to completion.</p>
+              </span>
+              <button className="quickActionsClose" onClick={() => setQuickWorkflow(null)} aria-label="Close workflow">×</button>
+            </header>
+            <div className="quickWorkflowBody">
+              <div className="quickWorkflowFields twoCol">
+                <label>Store / Workspace<select value={quickWorkflowForm.workspace} onChange={(e) => updateQuickWorkflowField("workspace", e.target.value)}>{workspaceNames.map((name) => <option key={name}>{name}</option>)}</select></label>
+                {quickWorkflow !== "capex" && <label>Department / Area<input value={quickWorkflow === "audit" ? quickWorkflowForm.auditArea : quickWorkflowForm.department} onChange={(e) => updateQuickWorkflowField(quickWorkflow === "audit" ? "auditArea" : "department", e.target.value)} placeholder="e.g. Receiving, Yard, Paint" /></label>}
+              </div>
+
+              {quickWorkflow === "incident" && <>
+                <div className="quickWorkflowFields twoCol">
+                  <label>Incident Type<select value={quickWorkflowForm.incidentType} onChange={(e) => updateQuickWorkflowField("incidentType", e.target.value)}><option value="">Select type</option><option>Stock loss / shortage</option><option>Damage / breakage</option><option>Theft / security</option><option>Customer incident</option><option>Staff incident</option><option>Vehicle / delivery</option><option>Safety incident</option><option>Other</option></select></label>
+                  <label>Date & Time<input type="datetime-local" value={quickWorkflowForm.eventDateTime} onChange={(e) => updateQuickWorkflowField("eventDateTime", e.target.value)} /></label>
+                </div>
+                <label>Description<textarea value={quickWorkflowForm.description} onChange={(e) => updateQuickWorkflowField("description", e.target.value)} placeholder="What happened? Include the facts and immediate action taken." /></label>
+                <div className="quickWorkflowFields twoCol"><label>Estimated Loss (R)<input inputMode="decimal" value={quickWorkflowForm.estimatedLoss} onChange={(e) => updateQuickWorkflowField("estimatedLoss", e.target.value)} placeholder="0.00" /></label><label>Responsible / Involved Person<input value={quickWorkflowForm.responsiblePerson} onChange={(e) => updateQuickWorkflowField("responsiblePerson", e.target.value)} /></label></div>
+                <label>Corrective Action<textarea value={quickWorkflowForm.correctiveAction} onChange={(e) => updateQuickWorkflowField("correctiveAction", e.target.value)} placeholder="Action required to close or prevent recurrence" /></label>
+                <label>Manager Sign-off<input value={quickWorkflowForm.managerSignoff} onChange={(e) => updateQuickWorkflowField("managerSignoff", e.target.value)} /></label>
+              </>}
+
+              {quickWorkflow === "capex" && <>
+                <div className="quickWorkflowFields twoCol"><label>CAPEX Category<select value={quickWorkflowForm.category} onChange={(e) => updateQuickWorkflowField("category", e.target.value)}><option value="">Select category</option><option>Shelving / Fixtures</option><option>Systems / IT</option><option>Renovation / Building</option><option>Equipment</option><option>Vehicle</option><option>Signage</option><option>Security</option><option>Other</option></select></label><label>Urgency<select value={quickWorkflowForm.urgency} onChange={(e) => updateQuickWorkflowField("urgency", e.target.value)}><option>Normal</option><option>Urgent</option></select></label></div>
+                <label>Item / Work Required<input value={quickWorkflowForm.requirement} onChange={(e) => updateQuickWorkflowField("requirement", e.target.value)} placeholder="What must be purchased or completed?" /></label>
+                <label>Operational Reason<textarea value={quickWorkflowForm.reason} onChange={(e) => updateQuickWorkflowField("reason", e.target.value)} placeholder="Why is this CAPEX required?" /></label>
+                <div className="quickWorkflowFields twoCol"><label>Estimated Cost (R)<input inputMode="decimal" value={quickWorkflowForm.estimatedCost} onChange={(e) => updateQuickWorkflowField("estimatedCost", e.target.value)} /></label><label>Supplier / Quote Reference<input value={quickWorkflowForm.supplierQuote} onChange={(e) => updateQuickWorkflowField("supplierQuote", e.target.value)} placeholder="Supplier name or quotation no." /></label></div>
+              </>}
+
+              {quickWorkflow === "stock" && <>
+                <div className="quickWorkflowFields twoCol"><label>Count Date<input type="date" value={quickWorkflowForm.countDate} onChange={(e) => updateQuickWorkflowField("countDate", e.target.value)} /></label><label>Counted By<input value={quickWorkflowForm.countedBy} onChange={(e) => updateQuickWorkflowField("countedBy", e.target.value)} /></label></div>
+                <label>Variance Notes<textarea value={quickWorkflowForm.varianceNotes} onChange={(e) => updateQuickWorkflowField("varianceNotes", e.target.value)} placeholder="Record shortages, overages, recounts or exceptions" /></label>
+                <label>Supervisor Sign-off<input value={quickWorkflowForm.supervisorSignoff} onChange={(e) => updateQuickWorkflowField("supervisorSignoff", e.target.value)} placeholder="Supervisor name" /></label>
+              </>}
+
+              {quickWorkflow === "audit" && <>
+                <div className="quickWorkflowFields twoCol"><label>Audit Score (%)<input type="number" min="0" max="100" value={quickWorkflowForm.auditScore} onChange={(e) => updateQuickWorkflowField("auditScore", e.target.value)} placeholder="0 - 100" /></label><label>Corrective Action Due<input type="date" value={quickWorkflowForm.dueDate} onChange={(e) => updateQuickWorkflowField("dueDate", e.target.value)} /></label></div>
+                <label>Findings<textarea value={quickWorkflowForm.findings} onChange={(e) => updateQuickWorkflowField("findings", e.target.value)} placeholder="Record observations, non-compliance and good practice" /></label>
+                <label>Corrective Action<textarea value={quickWorkflowForm.correctiveAction} onChange={(e) => updateQuickWorkflowField("correctiveAction", e.target.value)} placeholder="What must be corrected?" /></label>
+                <div className="quickWorkflowFields twoCol"><label>Responsible Person<input value={quickWorkflowForm.auditResponsible} onChange={(e) => updateQuickWorkflowField("auditResponsible", e.target.value)} /></label><label>Manager Sign-off<input value={quickWorkflowForm.auditManagerSignoff} onChange={(e) => updateQuickWorkflowField("auditManagerSignoff", e.target.value)} /></label></div>
+              </>}
+
+              <label className="quickWorkflowFile">Photo / Supporting Document<input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => setQuickWorkflowFile(e.target.files?.[0] || null)} /><small>{quickWorkflowFile ? quickWorkflowFile.name : "Optional — attach photo evidence, quotation or count sheet."}</small></label>
+            </div>
+            <footer><button disabled={quickWorkflowSaving} onClick={() => setQuickWorkflow(null)}>Cancel</button><button className="primary" disabled={quickWorkflowSaving} onClick={() => void submitQuickWorkflow()}>{quickWorkflowSaving ? "Saving…" : quickWorkflow === "incident" ? "Submit Incident" : quickWorkflow === "capex" ? "Submit CAPEX" : quickWorkflow === "stock" ? "Save Stock Count" : "Save Audit"}</button></footer>
           </section>
         </div>
       )}
