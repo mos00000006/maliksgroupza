@@ -1,4 +1,4 @@
-CREATE TABLE `employee_records` (
+CREATE TABLE IF NOT EXISTS `employee_records` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`workspace` text NOT NULL,
 	`employee_number` text DEFAULT '' NOT NULL,
