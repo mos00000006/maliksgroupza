@@ -63,7 +63,37 @@ export async function initEmployeeTables() {
     )`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_employee_warnings_employee ON employee_warnings(employee_id,warning_date)`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_employee_warnings_workspace ON employee_warnings(workspace,status)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS employee_hr_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      workspace TEXT NOT NULL,
+      record_type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      record_date TEXT NOT NULL,
+      end_date TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT '',
+      reference TEXT NOT NULL DEFAULT '',
+      details TEXT NOT NULL DEFAULT '',
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_employee_hr_records_employee ON employee_hr_records(employee_id,record_date)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_employee_hr_records_workspace ON employee_hr_records(workspace,record_type,status)`),
   ]);
+
+  const info = await db.prepare("PRAGMA table_info(employee_records)").all<{ name: string }>();
+  const columns = new Set(info.results.map((row) => String(row.name)));
+  const additions: Array<[string, string]> = [
+    ["residential_address", "TEXT NOT NULL DEFAULT ''"],
+    ["probation_end_date", "TEXT NOT NULL DEFAULT ''"],
+    ["contract_end_date", "TEXT NOT NULL DEFAULT ''"],
+  ];
+  for (const [name, definition] of additions) {
+    if (!columns.has(name)) {
+      await db.prepare(`ALTER TABLE employee_records ADD COLUMN ${name} ${definition}`).run();
+    }
+  }
 }
 
 export function hasEmployeeRecordsAccess(member: HubMember | null | undefined) {
@@ -97,6 +127,10 @@ export function canRecordEmployeeAttendance(member: HubMember | null | undefined
 }
 
 export function canIssueEmployeeWarnings(member: HubMember | null | undefined) {
+  return canManageEmployeeFiles(member);
+}
+
+export function canManageEmployeeHrRecords(member: HubMember | null | undefined) {
   return canManageEmployeeFiles(member);
 }
 

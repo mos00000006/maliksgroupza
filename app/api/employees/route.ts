@@ -5,6 +5,7 @@ import {
   accessibleEmployeeWorkspaces,
   canIssueEmployeeWarnings,
   canManageEmployeeFiles,
+  canManageEmployeeHrRecords,
   canRecordEmployeeAttendance,
   hasEmployeeRecordsAccess,
   initEmployeeTables,
@@ -16,14 +17,15 @@ const today = () => new Date().toISOString().slice(0, 10);
 const clean = (value: unknown) => String(value ?? "").trim();
 const int = (value: unknown) => Math.max(0, Math.round(Number(value) || 0));
 
-function validAttendanceStatus(value: string) {
-  return ["At work", "Not at work", "Late"].includes(value);
-}
-function validWarningLevel(value: string) {
-  return ["Verbal", "Written", "Final written"].includes(value);
-}
-function validWarningStatus(value: string) {
-  return ["Active", "Withdrawn"].includes(value);
+const attendanceStatuses = ["At work", "Not at work", "Late"];
+const warningLevels = ["Verbal", "Written", "Final written"];
+const warningStatuses = ["Active", "Withdrawn"];
+const hrRecordTypes = ["Leave", "Training / Certification", "Company Asset", "Employment Change", "HR Note"];
+
+function warningActive(row: DbRow, date: string) {
+  const status = String(row.status || "Active");
+  const validUntil = String(row.valid_until || "");
+  return status === "Active" && (!validUntil || validUntil >= date);
 }
 
 export async function GET(req: Request) {
@@ -40,30 +42,36 @@ export async function GET(req: Request) {
       ? requested
       : String(stores[0]?.name || "");
 
-  if (!workspace)
+  const permissions = {
+    canManageEmployees: canManageEmployeeFiles(member),
+    canRecordAttendance: canRecordEmployeeAttendance(member),
+    canIssueWarnings: canIssueEmployeeWarnings(member),
+    canManageHrRecords: canManageEmployeeHrRecords(member),
+    canSeeFullId: canManageEmployeeFiles(member),
+  };
+
+  if (!workspace) {
     return Response.json({
       stores,
       workspace: "",
       employees: [],
       attendance: [],
       warnings: [],
-      summary: { total: 0, atWork: 0, notAtWork: 0, late: 0, unmarked: 0, activeWarnings: 0 },
-      permissions: {
-        canManageEmployees: canManageEmployeeFiles(member),
-        canRecordAttendance: canRecordEmployeeAttendance(member),
-        canIssueWarnings: canIssueEmployeeWarnings(member),
-      },
+      hrRecords: [],
+      summary: { total: 0, atWork: 0, notAtWork: 0, late: 0, unmarked: 0, activeWarnings: 0, currentLeave: 0, issuedAssets: 0, expiringTraining: 0 },
+      permissions,
       today: today(),
     });
+  }
 
   if (!canAccessWorkspace(member, workspace))
     return Response.json({ error: "You do not have access to this location." }, { status: 403 });
 
   const start = new Date();
-  start.setDate(start.getDate() - 60);
+  start.setDate(start.getDate() - 180);
   const historyStart = start.toISOString().slice(0, 10);
 
-  const [employeeQuery, attendanceQuery, warningQuery] = await Promise.all([
+  const [employeeQuery, attendanceQuery, warningQuery, hrRecordQuery] = await Promise.all([
     env.DB.prepare(
       `SELECT * FROM employee_records
        WHERE workspace=? AND active=1
@@ -79,12 +87,18 @@ export async function GET(req: Request) {
        WHERE workspace=?
        ORDER BY warning_date DESC,id DESC`,
     ).bind(workspace).all<DbRow>(),
+    env.DB.prepare(
+      `SELECT * FROM employee_hr_records
+       WHERE workspace=?
+       ORDER BY record_date DESC,id DESC`,
+    ).bind(workspace).all<DbRow>(),
   ]);
 
-  const canSeeFullId = canManageEmployeeFiles(member);
+  const date = today();
+  const canSeeFullId = permissions.canSeeFullId;
   const todaysAttendance = new Map<number, DbRow>(
     attendanceQuery.results
-      .filter((row) => String(row.attendance_date) === today())
+      .filter((row) => String(row.attendance_date) === date)
       .map((row) => [Number(row.employee_id), row] as [number, DbRow]),
   );
 
@@ -100,18 +114,21 @@ export async function GET(req: Request) {
     attendanceByEmployee.set(id, [...(attendanceByEmployee.get(id) || []), record]);
   }
 
+  const hrByEmployee = new Map<number, DbRow[]>();
+  for (const record of hrRecordQuery.results) {
+    const id = Number(record.employee_id);
+    hrByEmployee.set(id, [...(hrByEmployee.get(id) || []), record]);
+  }
+
   const employees = employeeQuery.results.map((row) => {
     const employeeId = Number(row.id);
     const employeeAttendance = attendanceByEmployee.get(employeeId) || [];
     const employeeWarnings = warningsByEmployee.get(employeeId) || [];
+    const employeeHr = hrByEmployee.get(employeeId) || [];
     const lateRecords = employeeAttendance.filter((item) => String(item.status) === "Late");
     const absentRecords = employeeAttendance.filter((item) => String(item.status) === "Not at work");
     const presentRecords = employeeAttendance.filter((item) => String(item.status) === "At work");
-    const activeWarnings = employeeWarnings.filter((warning) => {
-      const status = String(warning.status || "Active");
-      const validUntil = String(warning.valid_until || "");
-      return status === "Active" && (!validUntil || validUntil >= today());
-    }).length;
+    const activeWarnings = employeeWarnings.filter((warning) => warningActive(warning, date)).length;
     return {
       ...row,
       id_number: canSeeFullId ? String(row.id_number || "") : maskIdNumber(String(row.id_number || "")),
@@ -124,6 +141,7 @@ export async function GET(req: Request) {
       },
       warning_count: employeeWarnings.length,
       active_warning_count: activeWarnings,
+      hr_record_count: employeeHr.length,
     };
   });
 
@@ -134,10 +152,23 @@ export async function GET(req: Request) {
     if (String(row.status) === "Late") statusCounts.late++;
   }
 
-  const activeWarnings = warningQuery.results.filter((warning) => {
-    const status = String(warning.status || "Active");
-    const validUntil = String(warning.valid_until || "");
-    return status === "Active" && (!validUntil || validUntil >= today());
+  const activeWarnings = warningQuery.results.filter((warning) => warningActive(warning, date)).length;
+  const currentLeave = hrRecordQuery.results.filter((record) => {
+    const type = String(record.record_type || "");
+    const status = String(record.status || "");
+    const startDate = String(record.record_date || "");
+    const endDate = String(record.end_date || "");
+    return type === "Leave" && !/cancelled|declined/i.test(status) && startDate <= date && (!endDate || endDate >= date);
+  }).length;
+  const issuedAssets = hrRecordQuery.results.filter(
+    (record) => String(record.record_type) === "Company Asset" && /^issued$/i.test(String(record.status || "")),
+  ).length;
+  const thirtyDays = new Date();
+  thirtyDays.setDate(thirtyDays.getDate() + 30);
+  const trainingLimit = thirtyDays.toISOString().slice(0, 10);
+  const expiringTraining = hrRecordQuery.results.filter((record) => {
+    const expiry = String(record.end_date || "");
+    return String(record.record_type) === "Training / Certification" && expiry >= date && expiry <= trainingLimit;
   }).length;
 
   return Response.json({
@@ -146,6 +177,7 @@ export async function GET(req: Request) {
     employees,
     attendance: attendanceQuery.results,
     warnings: warningQuery.results,
+    hrRecords: hrRecordQuery.results,
     summary: {
       total: employees.length,
       atWork: statusCounts.atWork,
@@ -153,14 +185,12 @@ export async function GET(req: Request) {
       late: statusCounts.late,
       unmarked: Math.max(0, employees.length - statusCounts.atWork - statusCounts.notAtWork - statusCounts.late),
       activeWarnings,
+      currentLeave,
+      issuedAssets,
+      expiringTraining,
     },
-    permissions: {
-      canManageEmployees: canManageEmployeeFiles(member),
-      canRecordAttendance: canRecordEmployeeAttendance(member),
-      canIssueWarnings: canIssueEmployeeWarnings(member),
-      canSeeFullId,
-    },
-    today: today(),
+    permissions,
+    today: date,
   });
 }
 
@@ -192,8 +222,9 @@ export async function POST(req: Request) {
       const employee = await env.DB.prepare(`INSERT INTO employee_records (
         employee_number,workspace,first_name,last_name,id_number,phone,email,job_title,department,start_date,
         employment_type,supervisor,employment_status,emergency_contact_name,emergency_contact_phone,notes,
+        residential_address,probation_end_date,contract_end_date,
         active,created_by,created_at,updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?) RETURNING *`)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?) RETURNING *`)
         .bind(
           employeeNumber,
           workspace,
@@ -211,6 +242,9 @@ export async function POST(req: Request) {
           clean(payload.emergencyContactName),
           clean(payload.emergencyContactPhone),
           clean(payload.notes),
+          clean(payload.residentialAddress),
+          clean(payload.probationEndDate),
+          clean(payload.contractEndDate),
           user?.email || member.email,
           now,
           now,
@@ -231,7 +265,7 @@ export async function POST(req: Request) {
     const employeeId = Number(payload.employeeId || 0);
     const status = clean(payload.status);
     const attendanceDate = clean(payload.attendanceDate) || today();
-    if (!employeeId || !validAttendanceStatus(status))
+    if (!employeeId || !attendanceStatuses.includes(status))
       return Response.json({ error: "Employee and attendance status are required." }, { status: 400 });
 
     const employee = await env.DB.prepare(
@@ -272,7 +306,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "You are not authorised to issue warnings." }, { status: 403 });
     const employeeId = Number(payload.employeeId || 0);
     const reason = clean(payload.reason);
-    const warningLevel = validWarningLevel(clean(payload.warningLevel)) ? clean(payload.warningLevel) : "Written";
+    const warningLevel = warningLevels.includes(clean(payload.warningLevel)) ? clean(payload.warningLevel) : "Written";
     if (!employeeId || !reason)
       return Response.json({ error: "Employee and warning reason are required." }, { status: 400 });
 
@@ -302,6 +336,41 @@ export async function POST(req: Request) {
     return Response.json({ warning }, { status: 201 });
   }
 
+  if (action === "hrRecord") {
+    if (!canManageEmployeeHrRecords(member))
+      return Response.json({ error: "You are not authorised to add HR records." }, { status: 403 });
+    const employeeId = Number(payload.employeeId || 0);
+    const recordType = clean(payload.recordType);
+    const title = clean(payload.title);
+    if (!employeeId || !hrRecordTypes.includes(recordType) || !title)
+      return Response.json({ error: "Employee, record type and title are required." }, { status: 400 });
+    const employee = await env.DB.prepare(
+      "SELECT id,workspace FROM employee_records WHERE id=? AND active=1",
+    ).bind(employeeId).first<{ id: number; workspace: string }>();
+    if (!employee || !canAccessWorkspace(member, employee.workspace))
+      return Response.json({ error: "Employee not found or access denied." }, { status: 404 });
+
+    const record = await env.DB.prepare(`INSERT INTO employee_hr_records (
+      employee_id,workspace,record_type,title,record_date,end_date,status,reference,details,created_by,created_at,updated_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) RETURNING *`)
+      .bind(
+        employeeId,
+        employee.workspace,
+        recordType,
+        title,
+        clean(payload.recordDate) || today(),
+        clean(payload.endDate),
+        clean(payload.status),
+        clean(payload.reference),
+        clean(payload.details),
+        actor,
+        now,
+        now,
+      )
+      .first<DbRow>();
+    return Response.json({ hrRecord: record }, { status: 201 });
+  }
+
   return Response.json({ error: "Unknown employee record action." }, { status: 400 });
 }
 
@@ -319,8 +388,8 @@ export async function PATCH(req: Request) {
     if (!canManageEmployeeFiles(member))
       return Response.json({ error: "You are not authorised to edit employee files." }, { status: 403 });
     const id = Number(payload.id || 0);
-    const existing = await env.DB.prepare("SELECT workspace FROM employee_records WHERE id=?")
-      .bind(id).first<{ workspace: string }>();
+    const existing = await env.DB.prepare("SELECT workspace,id_number FROM employee_records WHERE id=?")
+      .bind(id).first<{ workspace: string; id_number: string }>();
     if (!existing || !canAccessWorkspace(member, existing.workspace))
       return Response.json({ error: "Employee not found or access denied." }, { status: 404 });
 
@@ -328,18 +397,21 @@ export async function PATCH(req: Request) {
     if (!canAccessWorkspace(member, workspace))
       return Response.json({ error: "You do not have access to the selected location." }, { status: 403 });
 
-    const active = 1; // Former employees remain in the HR register; employment_status carries their state.
+    const employmentStatus = clean(payload.employmentStatus) || "Active";
+    const active = /^(Terminated|Resigned)$/i.test(employmentStatus) ? 0 : 1;
+    const suppliedId = clean(payload.idNumber);
+    const idNumber = suppliedId || existing.id_number || "";
     const updated = await env.DB.prepare(`UPDATE employee_records SET
       employee_number=?,workspace=?,first_name=?,last_name=?,id_number=?,phone=?,email=?,job_title=?,department=?,
       start_date=?,employment_type=?,supervisor=?,employment_status=?,emergency_contact_name=?,emergency_contact_phone=?,
-      notes=?,active=?,updated_at=?
+      notes=?,residential_address=?,probation_end_date=?,contract_end_date=?,active=?,updated_at=?
       WHERE id=? RETURNING *`)
       .bind(
         clean(payload.employeeNumber),
         workspace,
         clean(payload.firstName),
         clean(payload.lastName),
-        clean(payload.idNumber),
+        idNumber,
         clean(payload.phone),
         clean(payload.email),
         clean(payload.jobTitle),
@@ -347,10 +419,13 @@ export async function PATCH(req: Request) {
         clean(payload.startDate),
         clean(payload.employmentType) || "Permanent",
         clean(payload.supervisor),
-        clean(payload.employmentStatus) || "Active",
+        employmentStatus,
         clean(payload.emergencyContactName),
         clean(payload.emergencyContactPhone),
         clean(payload.notes),
+        clean(payload.residentialAddress),
+        clean(payload.probationEndDate),
+        clean(payload.contractEndDate),
         active,
         now,
         id,
@@ -367,11 +442,26 @@ export async function PATCH(req: Request) {
       .bind(id).first<{ workspace: string }>();
     if (!warning || !canAccessWorkspace(member, warning.workspace))
       return Response.json({ error: "Warning not found or access denied." }, { status: 404 });
-    const status = validWarningStatus(clean(payload.status)) ? clean(payload.status) : "Active";
+    const status = warningStatuses.includes(clean(payload.status)) ? clean(payload.status) : "Active";
     const updated = await env.DB.prepare(
       "UPDATE employee_warnings SET status=?,updated_at=? WHERE id=? RETURNING *",
     ).bind(status, now, id).first<DbRow>();
     return Response.json({ warning: updated });
+  }
+
+  if (action === "hrRecordStatus") {
+    if (!canManageEmployeeHrRecords(member))
+      return Response.json({ error: "You are not authorised to update HR records." }, { status: 403 });
+    const id = Number(payload.id || 0);
+    const record = await env.DB.prepare("SELECT workspace FROM employee_hr_records WHERE id=?")
+      .bind(id).first<{ workspace: string }>();
+    if (!record || !canAccessWorkspace(member, record.workspace))
+      return Response.json({ error: "HR record not found or access denied." }, { status: 404 });
+    const status = clean(payload.status);
+    const updated = await env.DB.prepare(
+      "UPDATE employee_hr_records SET status=?,updated_at=? WHERE id=? RETURNING *",
+    ).bind(status, now, id).first<DbRow>();
+    return Response.json({ hrRecord: updated });
   }
 
   return Response.json({ error: "Unsupported employee record update." }, { status: 400 });
