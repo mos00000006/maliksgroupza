@@ -1009,21 +1009,6 @@ button.personLoad:focus-visible {
 .accessSavedBanner b { font-size: 9px; }
 .accessSavedBanner small { margin-top: 3px; color: #48735f; font-size: 7px; }
 
-.employeeRecords { padding: 18px; }
-.employeeKpis { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-bottom: 14px; }
-.employeeKpis > span { padding: 16px; border: 1px solid #e0e7ef; border-radius: 12px; background: #fff; box-shadow: 0 5px 18px #20364f0a; }
-.employeeKpis small,.employeeKpis b { display: block; }.employeeKpis small { color: #66788d; font-size: 12px; }.employeeKpis b { margin-top: 7px; color: #172438; font-size: 24px; }
-.employeeKpis .atWork { border-left: 4px solid #15966b; }.employeeKpis .late { border-left: 4px solid #e5a31a; }.employeeKpis .absent { border-left: 4px solid #d84c4c; }
-.employeeToolbar { display: grid; grid-template-columns: 1fr minmax(240px,340px) auto; align-items: center; gap: 12px; padding: 16px; border: 1px solid #e0e7ef; border-radius: 12px 12px 0 0; background: #fff; }
-.employeeToolbar h2,.employeeToolbar p { margin: 0; }.employeeToolbar h2 { font-size: 18px; }.employeeToolbar p { margin-top: 4px; color: #6c7b8e; font-size: 12px; }
-.employeeToolbar label { display: flex; gap: 8px; align-items: center; padding: 9px 11px; border: 1px solid #d9e2eb; border-radius: 8px; }.employeeToolbar input { width: 100%; border: 0; outline: 0; font: inherit; }
-.employeeTable { overflow: auto; border: 1px solid #e0e7ef; border-top: 0; border-radius: 0 0 12px 12px; background: #fff; }.employeeTable table { width: 100%; min-width: 1000px; border-collapse: collapse; }.employeeTable th,.employeeTable td { padding: 12px; border-bottom: 1px solid #edf1f5; text-align: left; vertical-align: top; font-size: 12px; }.employeeTable th { color: #587086; background: #f6f8fb; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }.employeeTable td small { display: block; margin-top: 4px; color: #75869a; }.employeeTable tr.editable { cursor: pointer; }.employeeTable tr.editable:hover { background: #f5f9ff; }
-.attendanceBadge { display: inline-block; padding: 5px 8px; border-radius: 999px; font-style: normal; font-weight: 700; }.attendanceBadge.atwork { color: #087652; background: #e5f7ef; }.attendanceBadge.late { color: #8d5c00; background: #fff2cc; }.attendanceBadge.notatwork { color: #a52f2f; background: #ffe4e4; }
-.employeeBlank { padding: 28px; color: #6c7b8e; text-align: center; }.employeeError { margin: 10px 0; padding: 10px 12px; border-radius: 8px; color: #a52f2f; background: #ffeaea; }
-.employeeModal { width: min(860px,95vw); max-height: 92vh; overflow: auto; border-radius: 14px; background: #fff; box-shadow: 0 24px 80px #10243c3d; }.employeeModal > header { display: flex; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid #e4eaf0; }.employeeModal h2,.employeeModal p { margin: 0; }.employeeModal header p { margin-top: 4px; color: #6c7b8e; font-size: 12px; }.employeeModal header button { border: 0; background: transparent; font-size: 22px; cursor: pointer; }
-.employeeForm { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; padding: 20px; }.employeeForm label { color: #53677c; font-size: 12px; font-weight: 700; }.employeeForm input,.employeeForm select,.employeeForm textarea { box-sizing: border-box; width: 100%; margin-top: 6px; padding: 10px; border: 1px solid #d8e1ea; border-radius: 8px; background: #fff; font: 400 14px Arial,sans-serif; }.employeeForm .wide { grid-column: 1/-1; }.employeeForm textarea { min-height: 72px; resize: vertical; }.employeeModal footer { display: flex; justify-content: flex-end; gap: 9px; padding: 14px 20px; border-top: 1px solid #e4eaf0; }.employeeModal footer button { padding: 10px 14px; border: 1px solid #d8e1ea; border-radius: 8px; background: #fff; cursor: pointer; }.employeeModal footer .primary { color: #fff; border-color: #1769e8; background: #1769e8; }
-@media (max-width: 760px) { .employeeKpis { grid-template-columns: 1fr 1fr; }.employeeToolbar { grid-template-columns: 1fr; }.employeeForm { grid-template-columns: 1fr; } }
-
 .memberInviteState .editAccessBtn {
   border-color: #1769e8;
   color: #fff;
@@ -1359,4 +1344,71 @@ button.personLoad:focus-visible {
     padding: 9px 11px;
     font-size: 7px;
   }
+}
+
+.taskNotificationPopup {
+  position: fixed;
+  top: 20px;
+  right: 22px;
+  z-index: 80;
+  width: min(390px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 14px;
+  border: 1px solid #d8e4ef;
+  border-radius: 13px;
+  background: #fff;
+  color: #1a2b40;
+  text-align: left;
+  box-shadow: 0 18px 48px #0a1d3540;
+  animation: hubNoticeIn .24s ease-out;
+}
+.taskNotificationPopup img {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: #0f4f8b;
+}
+.taskNotificationPopup span { min-width: 0; }
+.taskNotificationPopup small,
+.taskNotificationPopup b,
+.taskNotificationPopup p { display: block; }
+.taskNotificationPopup small {
+  margin-bottom: 4px;
+  color: #1769e8;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+.taskNotificationPopup b { font-size: 11px; }
+.taskNotificationPopup p {
+  margin: 4px 0 0;
+  color: #667589;
+  font-size: 9px;
+  line-height: 1.35;
+}
+.taskNotificationPopup em {
+  color: #1769e8;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.enableAlertsBtn { color: #155fb5 !important; background: #eaf4ff !important; }
+@keyframes hubNoticeIn {
+  from { opacity: 0; transform: translateY(-12px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (max-width: 720px) {
+  .taskNotificationPopup {
+    top: max(10px, env(safe-area-inset-top));
+    right: 10px;
+    width: calc(100vw - 20px);
+    grid-template-columns: 40px 1fr;
+  }
+  .taskNotificationPopup img { width: 40px; height: 40px; }
+  .taskNotificationPopup em { display: none; }
 }

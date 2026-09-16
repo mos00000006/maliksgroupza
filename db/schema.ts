@@ -257,25 +257,6 @@ export const notifications = sqliteTable("notifications", {
   createdAt: text("created_at").notNull(),
 });
 
-export const employeeRecords = sqliteTable("employee_records", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  workspace: text("workspace").notNull(),
-  employeeNumber: text("employee_number").notNull().default(""),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  position: text("position").notNull().default(""),
-  department: text("department").notNull().default(""),
-  phone: text("phone").notNull().default(""),
-  email: text("email").notNull().default(""),
-  startDate: text("start_date").notNull().default(""),
-  employmentStatus: text("employment_status").notNull().default("Active"),
-  attendanceStatus: text("attendance_status").notNull().default("At work"),
-  attendanceNote: text("attendance_note").notNull().default(""),
-  updatedBy: text("updated_by").notNull(),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-});
-
 export const developmentProjects = sqliteTable("development_projects", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   projectName: text("project_name").notNull(),

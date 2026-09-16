@@ -153,7 +153,7 @@ export async function POST(req: Request) {
       "Regional Manager",
       "Store Manager",
       "Department Manager",
-      "Human Resources (HR)",
+      "Human Resource (HR)",
       "Member / Contributor",
       "Read only",
       "Manager",
@@ -165,11 +165,11 @@ export async function POST(req: Request) {
     requestedScope = ["Full company", "Selected workspaces", "Assigned workspace", "Read only"].includes(String(p.access_scope))
       ? String(p.access_scope)
       : "Assigned workspace",
-    accessScope = role === "Human Resources (HR)"
+    accessScope = role === "Human Resource (HR)"
       ? "Assigned workspace"
       : requestedScope === "Full company" && !["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO"].includes(role)
-      ? "Assigned workspace"
-      : requestedScope,
+        ? "Assigned workspace"
+        : requestedScope,
     requestedWorkspaces = Array.isArray(p.workspace_access)
       ? Array.from(new Set(p.workspace_access.map((value) => String(value).trim()).filter(Boolean)))
       : [],
@@ -185,9 +185,11 @@ export async function POST(req: Request) {
           ? validWorkspaces.slice(0, 1)
           : validWorkspaces,
     ),
-    department = accessScope === "Assigned workspace" && validWorkspaces[0]
-      ? validWorkspaces[0]
-      : String(p.department || "Operations"),
+    department = role === "Human Resource (HR)"
+      ? "Human Resources"
+      : accessScope === "Assigned workspace" && validWorkspaces[0]
+        ? validWorkspaces[0]
+        : String(p.department || "Operations"),
     inviteToken = crypto.randomUUID().replaceAll("-", ""),
     inviteUrl = new URL(
       `/?invite=${encodeURIComponent(inviteToken)}&install=1`,
@@ -227,6 +229,12 @@ export async function POST(req: Request) {
       workspaceAccess,
     )
     .first();
+  if (role === "Human Resource (HR)") {
+    await env.DB.prepare("DELETE FROM notifications WHERE lower(recipient_email)=?")
+      .bind(email)
+      .run();
+  }
+
   const mail = await deliverInvitation({
     name,
     email,
@@ -292,7 +300,7 @@ export async function PATCH(req: Request) {
       "Regional Manager",
       "Store Manager",
       "Department Manager",
-      "Human Resources (HR)",
+      "Human Resource (HR)",
       "Member / Contributor",
       "Read only",
     ].includes(requestedRole)
@@ -301,11 +309,11 @@ export async function PATCH(req: Request) {
     requestedScope = ["Full company", "Selected workspaces", "Assigned workspace", "Read only"].includes(String(p.access_scope))
       ? String(p.access_scope)
       : "Assigned workspace",
-    accessScope = role === "Human Resources (HR)"
+    accessScope = role === "Human Resource (HR)"
       ? "Assigned workspace"
       : requestedScope === "Full company" && !["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO"].includes(role)
-      ? "Assigned workspace"
-      : requestedScope,
+        ? "Assigned workspace"
+        : requestedScope,
     requestedWorkspaces = Array.isArray(p.workspace_access)
       ? Array.from(new Set(p.workspace_access.map((value) => String(value).trim()).filter(Boolean)))
       : [],
@@ -316,7 +324,7 @@ export async function PATCH(req: Request) {
     validWorkspaces = requestedWorkspaces.filter((workspace) => validNames.has(workspace)),
     assigned = accessScope === "Full company"
       ? []
-      : accessScope === "Assigned workspace"
+      : accessScope === "Assigned workspace" || role === "Human Resource (HR)"
         ? validWorkspaces.slice(0, 1)
         : validWorkspaces;
   if (role === "Owner / Admin" && email !== fallbackOwner.email)
@@ -337,9 +345,11 @@ export async function PATCH(req: Request) {
       { error: "Select at least one store or workspace for this user." },
       { status: 400 },
     );
-  const department = accessScope === "Assigned workspace"
-    ? assigned[0]
-    : String(p.department || "Operations");
+  const department = role === "Human Resource (HR)"
+    ? "Human Resources"
+    : accessScope === "Assigned workspace"
+      ? assigned[0]
+      : String(p.department || "Operations");
   const row = await env.DB.prepare(
     "UPDATE team_members SET name=?,role=?,department=?,access_scope=?,workspace_access=? WHERE lower(email)=? RETURNING *",
   )
@@ -352,5 +362,10 @@ export async function PATCH(req: Request) {
       email,
     )
     .first();
+  if (role === "Human Resource (HR)") {
+    await env.DB.prepare("DELETE FROM notifications WHERE lower(recipient_email)=?")
+      .bind(email)
+      .run();
+  }
   return Response.json({ member: row });
 }

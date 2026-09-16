@@ -489,3 +489,71 @@
     flex-direction: column;
   }
 }
+
+.returnedWorkspaceAlert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 18px 16px;
+  padding: 13px 14px;
+  border: 1px solid #f1c37c;
+  border-radius: 10px;
+  background: #fff7e8;
+  color: #6f4308;
+}
+.returnedWorkspaceAlert > i {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #f4a62a;
+  color: #fff;
+  font-style: normal;
+  font-size: 18px;
+  font-weight: 900;
+}
+.returnedWorkspaceAlert > span {
+  min-width: 0;
+  flex: 1;
+}
+.returnedWorkspaceAlert b,
+.returnedWorkspaceAlert small {
+  display: block;
+}
+.returnedWorkspaceAlert b {
+  font-size: 10px;
+}
+.returnedWorkspaceAlert small {
+  margin-top: 4px;
+  color: #8b651f;
+  font-size: 8px;
+  line-height: 1.45;
+}
+.returnedWorkspaceAlert button {
+  border: 0;
+  border-radius: 7px;
+  padding: 9px 11px;
+  background: #172438;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.workspaceChart .ws3 {
+  background: #c97916;
+}
+.workspaceChart .ws4 {
+  background: #2eac77;
+}
+@media (max-width: 720px) {
+  .returnedWorkspaceAlert {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin: 0 12px 12px;
+  }
+  .returnedWorkspaceAlert button {
+    width: 100%;
+  }
+}

@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { getAuthenticatedUser } from "../../auth";
 import { canAccessWorkspace, getHubMember } from "../access";
+import { createEmployeeAttendanceNotifications } from "../team/shared";
 import {
   accessibleEmployeeWorkspaces,
   canIssueEmployeeWarnings,
@@ -30,7 +31,7 @@ function warningActive(row: DbRow, date: string) {
 
 export async function GET(req: Request) {
   await initEmployeeTables();
-  const member = await getHubMember();
+  const member = await getHubMember({ allowEmployeeRecordsOnly: true });
   if (!member || !hasEmployeeRecordsAccess(member))
     return Response.json({ error: "You do not have access to employee records." }, { status: 403 });
 
@@ -196,7 +197,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   await initEmployeeTables();
-  const member = await getHubMember();
+  const member = await getHubMember({ allowEmployeeRecordsOnly: true });
   if (!member || !hasEmployeeRecordsAccess(member))
     return Response.json({ error: "You do not have access to employee records." }, { status: 403 });
 
@@ -269,14 +270,23 @@ export async function POST(req: Request) {
       return Response.json({ error: "Employee and attendance status are required." }, { status: 400 });
 
     const employee = await env.DB.prepare(
-      "SELECT id,workspace FROM employee_records WHERE id=? AND active=1",
-    ).bind(employeeId).first<{ id: number; workspace: string }>();
+      "SELECT id,workspace,first_name,last_name FROM employee_records WHERE id=? AND active=1",
+    ).bind(employeeId).first<{ id: number; workspace: string; first_name: string; last_name: string }>();
     if (!employee || !canAccessWorkspace(member, employee.workspace))
       return Response.json({ error: "Employee not found or access denied." }, { status: 404 });
 
     const minutesLate = status === "Late" ? int(payload.minutesLate) : 0;
     if (status === "Late" && minutesLate <= 0)
       return Response.json({ error: "Enter how many minutes the employee was late." }, { status: 400 });
+
+    const absenceType = status === "Not at work" ? clean(payload.absenceType) : "";
+    const reason = clean(payload.reason);
+    const previous = await env.DB.prepare(
+      `SELECT status,absence_type,minutes_late,reason
+       FROM employee_attendance WHERE employee_id=? AND attendance_date=?`,
+    )
+      .bind(employeeId, attendanceDate)
+      .first<{ status: string; absence_type: string; minutes_late: number; reason: string }>();
 
     const record = await env.DB.prepare(`INSERT INTO employee_attendance (
       employee_id,workspace,attendance_date,status,absence_type,minutes_late,reason,recorded_by,created_at,updated_at
@@ -290,15 +300,41 @@ export async function POST(req: Request) {
         employee.workspace,
         attendanceDate,
         status,
-        status === "Not at work" ? clean(payload.absenceType) : "",
+        absenceType,
         minutesLate,
-        clean(payload.reason),
+        reason,
         actor,
         now,
         now,
       )
       .first<DbRow>();
-    return Response.json({ attendance: record }, { status: 201 });
+
+    const changed =
+      !previous ||
+      previous.status !== status ||
+      String(previous.absence_type || "") !== absenceType ||
+      Number(previous.minutes_late || 0) !== minutesLate ||
+      String(previous.reason || "") !== reason;
+
+    if (changed) {
+      try {
+        await createEmployeeAttendanceNotifications({
+          employeeId,
+          employeeName: `${employee.first_name} ${employee.last_name}`.trim(),
+          workspace: employee.workspace,
+          status: status as "At work" | "Not at work" | "Late",
+          minutesLate,
+          absenceType,
+          reason,
+          recordedBy: actor,
+        });
+      } catch (error) {
+        // Attendance is operationally more important than notification delivery.
+        console.error("Employee attendance notification failed", error);
+      }
+    }
+
+    return Response.json({ attendance: record, notified: changed }, { status: 201 });
   }
 
   if (action === "warning") {
@@ -376,7 +412,7 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   await initEmployeeTables();
-  const member = await getHubMember();
+  const member = await getHubMember({ allowEmployeeRecordsOnly: true });
   if (!member || !hasEmployeeRecordsAccess(member))
     return Response.json({ error: "You do not have access to employee records." }, { status: 403 });
 

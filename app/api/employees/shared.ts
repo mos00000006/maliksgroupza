@@ -101,7 +101,7 @@ export function hasEmployeeRecordsAccess(member: HubMember | null | undefined) {
   const role = member.role || "";
   const department = member.department || "";
   return (
-    ["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO", "Regional Manager", "Store Manager", "Department Manager"].includes(role) ||
+    ["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO", "Regional Manager", "Store Manager", "Department Manager", "Human Resource (HR)"].includes(role) ||
     /(^|\b)(hr|human resources|people)(\b|$)/i.test(department)
   );
 }
@@ -111,7 +111,7 @@ export function canManageEmployeeFiles(member: HubMember | null | undefined) {
   const role = member.role || "";
   const department = member.department || "";
   return (
-    ["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO", "Regional Manager", "Store Manager"].includes(role) ||
+    ["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO", "Regional Manager", "Store Manager", "Human Resource (HR)"].includes(role) ||
     /(^|\b)(hr|human resources|people)(\b|$)/i.test(department)
   );
 }
@@ -121,7 +121,7 @@ export function canRecordEmployeeAttendance(member: HubMember | null | undefined
   const role = member.role || "";
   const department = member.department || "";
   return (
-    ["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO", "Regional Manager", "Store Manager", "Department Manager"].includes(role) ||
+    ["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO", "Regional Manager", "Store Manager", "Department Manager", "Human Resource (HR)"].includes(role) ||
     /(^|\b)(hr|human resources|people)(\b|$)/i.test(department)
   );
 }

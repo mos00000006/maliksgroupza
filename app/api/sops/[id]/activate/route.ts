@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { getAuthenticatedUser } from "../../../../auth";
 import { getSop, parseList } from "../../shared";
 import { canAccessWorkspace, canWrite, getHubMember } from "../../../access";
+import { createTaskCreatedNotifications } from "../../../team/shared";
 type Step = {
   step_no: number;
   title: string;
@@ -30,19 +31,21 @@ export async function POST(
       { status: 400 },
     );
   const now = new Date();
-  await env.DB.batch(
-    steps.map((step) => {
-      const due = new Date(now);
-      due.setDate(
-        due.getDate() + Math.max(0, Number(step.due_offset_days) || 0),
-      );
-      return env.DB.prepare(
-        "INSERT INTO tasks (title,project,owner,assignee,due,priority,status,description,created_by,created_at,task_type,task_group) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-      ).bind(
+  const createdTasks: Array<Record<string, string | number>> = [];
+  for (const step of steps) {
+    const due = new Date(now);
+    due.setDate(
+      due.getDate() + Math.max(0, Number(step.due_offset_days) || 0),
+    );
+    const task = await env.DB.prepare(
+      "INSERT INTO tasks (title,project,owner,assignee,assignee_email,due,priority,status,description,created_by,created_at,task_type,task_group) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING *",
+    )
+      .bind(
         `${step.step_no}. ${step.title}`,
         row.workspace,
         row.owner,
         step.owner_role || row.owner,
+        "",
         due.toISOString().slice(0, 10),
         step.approval_required ? "High" : "Medium",
         "Not started",
@@ -51,9 +54,21 @@ export async function POST(
         now.toISOString(),
         row.department,
         "Store Tasks",
-      );
-    }),
-  );
+      )
+      .first<Record<string, string | number>>();
+    if (task) createdTasks.push(task);
+  }
+
+  for (const task of createdTasks) {
+    await createTaskCreatedNotifications({
+      taskId: Number(task.id),
+      taskTitle: String(task.title),
+      workspace: String(task.project),
+      createdBy: user?.displayName || user?.email || "AI workflow activation",
+      assigneeEmail: String(task.assignee_email || ""),
+      assigneeLabel: String(task.assignee || ""),
+    });
+  }
   await env.DB.prepare(
     "UPDATE sop_documents SET status='Workflow activated',updated_at=? WHERE id=?",
   )

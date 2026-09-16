@@ -1,0 +1,25 @@
+# Consolidated patch history
+
+- maliks_task_notifications_patch.zip
+- maliks_task_notifications_auto_v2.zip
+- maliks_background_app_badge_v3.zip
+- powerbuild_safari_home_screen_notifications_v4.zip
+- maliks_custom_delete_confirm.zip
+- maliks_ai_sidekick_live_patch.zip
+- powerbuild_opening_splash_patch.zip
+- maliks_all_task_notifications_patch.zip
+- maliks_complete_approval_return_workflow_patch.zip
+- maliks_navigation_catalogue_usability_patch.zip
+- maliks_catalogue_admin_fix.zip
+- maliks_catalogue_image_upload_fix_v2.zip
+- maliks_catalogue_add_product_db_fix.zip
+- maliks_catalogue_card_style_v2.zip
+- powerbuild_remove_touch365_onhand_patch.zip
+- powerbuild_mobile_quick_actions_patch.zip
+- powerbuild_store_control_centre_patch.zip
+- powerbuild_employee_records_attendance_warnings_patch.zip
+- powerbuild_employee_records_deploy_fix_v2.zip
+- powerbuild_cloudflare_deploy_order_fix.zip
+- powerbuild_employee_records_v2_warning_hr_history_patch.zip
+- powerbuild_employee_profile_style_scroll_v3.zip
+- powerbuild_hr_restricted_role_attendance_alerts_v3.zip

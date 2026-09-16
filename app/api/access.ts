@@ -11,16 +11,27 @@ export type HubMember = {
   workspace_access: string;
 };
 
-export async function getHubMember() {
+export const HUMAN_RESOURCE_ROLE = "Human Resource (HR)";
+
+export function isHumanResourceRole(member: HubMember | null | undefined) {
+  return Boolean(member && member.role === HUMAN_RESOURCE_ROLE);
+}
+
+export async function getHubMember(options: { allowEmployeeRecordsOnly?: boolean } = {}) {
   await initTeamTables();
   const user = await getAuthenticatedUser();
   if (!user?.email) return null;
   const email = user.email.toLowerCase();
-  return env.DB.prepare(
+  const member = await env.DB.prepare(
     "SELECT name,email,role,department,access_scope,workspace_access FROM team_members WHERE lower(email)=? AND active=1",
   )
     .bind(email)
     .first<HubMember>();
+
+  // HR is intentionally isolated from the general Hub. Only Employee Records
+  // may opt in to this role by passing allowEmployeeRecordsOnly=true.
+  if (isHumanResourceRole(member) && !options.allowEmployeeRecordsOnly) return null;
+  return member;
 }
 
 function parseWorkspaceAccess(member: HubMember) {
@@ -67,17 +78,4 @@ export function canAccessWorkspace(
 
 export function canManageAccess(member: HubMember | null | undefined) {
   return Boolean(member && ["Owner / Admin", "Developer / Technical Admin"].includes(member.role));
-}
-
-export function isHumanResources(member: HubMember | null | undefined) {
-  return member?.role === "Human Resources (HR)";
-}
-
-export function hasFullCompanyAccess(member: HubMember | null | undefined) {
-  return Boolean(
-    member &&
-      (member.role === "Owner / Admin" ||
-        member.role === "Developer / Technical Admin" ||
-        (member.role === "Executive / EXCO" && member.access_scope === "Full company")),
-  );
 }

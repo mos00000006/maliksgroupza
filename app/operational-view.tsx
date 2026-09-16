@@ -5,7 +5,7 @@ import FinancialModule from "./financial-module";
 import DevelopmentModule from "./development-module";
 import ExecutiveOverview from "./executive-overview";
 
-type Status = "Not started" | "In progress" | "Blocked" | "Complete";
+type Status = "Not started" | "In progress" | "Blocked" | "Returned" | "Complete";
 export type HubTask = {
   id: number;
   title: string;
@@ -18,6 +18,7 @@ export type HubTask = {
   description: string;
   task_type: string;
   task_group: string;
+  approval_status: string;
   created_by: string;
   created_at: string;
 };
@@ -38,6 +39,8 @@ type Props = {
   setMode: (mode: "table" | "board") => void;
   openTask: (task: HubTask) => void;
   setStatus: (id: number, status: Status) => void;
+  approveTask: (id: number) => void;
+  returnTaskToWork: (id: number) => void;
   openWorkspaces: (name?: string) => void;
   createStore: () => void;
   addTask: () => void;
@@ -90,6 +93,7 @@ function Kpis({
     attention = tasks.filter(
       (x) =>
         x.status === "Blocked" ||
+        x.status === "Returned" ||
         (x.priority === "High" && x.status !== "Complete"),
     ).length;
   const names = labels || [
@@ -158,7 +162,7 @@ function ExecutiveCharts({
   openRows: (title: string, tasks: HubTask[]) => void;
 }) {
   const status = (
-    ["Not started", "In progress", "Blocked", "Complete"] as Status[]
+    ["Not started", "In progress", "Blocked", "Returned", "Complete"] as Status[]
   ).map((name) => ({
     name,
     count: tasks.filter((t) => t.status === name).length,
@@ -327,6 +331,7 @@ function ActionRegister({
                       <option>Not started</option>
                       <option>In progress</option>
                       <option>Blocked</option>
+                      <option value="Returned" disabled>Returned</option>
                       <option>Complete</option>
                     </select>
                   </td>
@@ -348,7 +353,7 @@ function ActionRegister({
       ) : (
         <div className="board">
           {(
-            ["Not started", "In progress", "Blocked", "Complete"] as Status[]
+            ["Not started", "In progress", "Blocked", "Returned", "Complete"] as Status[]
           ).map((s) => (
             <div className="lane" key={s}>
               <h3>
@@ -445,6 +450,7 @@ function TaskDrilldown({
                       <option>Not started</option>
                       <option>In progress</option>
                       <option>Blocked</option>
+                      <option value="Returned" disabled>Returned</option>
                       <option>Complete</option>
                     </select>
                   </td>
@@ -473,7 +479,7 @@ function Reports({
   openRows: (title: string, tasks: HubTask[]) => void;
 }) {
   const statuses = (
-    ["Not started", "In progress", "Blocked", "Complete"] as Status[]
+    ["Not started", "In progress", "Blocked", "Returned", "Complete"] as Status[]
   ).map((name) => ({
     name,
     count: tasks.filter((t) => t.status === name).length,
@@ -709,6 +715,8 @@ export default function OperationalView({
   setMode,
   openTask,
   setStatus,
+  approveTask,
+  returnTaskToWork,
   openWorkspaces,
   addTask,
   workspaces,
@@ -730,6 +738,7 @@ export default function OperationalView({
           ? shown.filter(
               (t) =>
                 t.status === "Blocked" ||
+                t.status === "Returned" ||
                 (t.priority === "High" && t.status !== "Complete"),
             )
           : shown;
@@ -753,7 +762,7 @@ export default function OperationalView({
                 : "Approval inbox";
   const subtitle =
     active === "Approvals"
-      ? "Review high-priority and blocked submissions requiring management action"
+      ? "Only tasks marked Complete enter this management approval queue"
       : "All items in this module use the same controlled workflow columns";
   const scope = active === "Executive Overview" ? tasks : shown,
     drillRows =
@@ -765,6 +774,7 @@ export default function OperationalView({
             ? scope.filter(
                 (t) =>
                   t.status === "Blocked" ||
+                  t.status === "Returned" ||
                   (t.priority === "High" && t.status !== "Complete"),
               )
             : scope;
@@ -1087,8 +1097,7 @@ export default function OperationalView({
             <small>MANAGEMENT CONTROL</small>
             <h2>Approval inbox</h2>
             <p>
-              High-priority and blocked items requiring a decision or
-              escalation.
+              Completed workspace tasks awaiting a management decision.
             </p>
           </span>
           <b>{shown.length} awaiting review</b>
@@ -1104,22 +1113,22 @@ export default function OperationalView({
                 <b>{t.title}</b>
                 <p>{t.description || "No supporting note has been added."}</p>
                 <em>
-                  Owner: {t.owner} · Due {t.due} · Current status: {t.status}
+                  Owner: {t.owner} · Due {t.due} · Status: {t.status} · {t.approval_status || "Awaiting approval"}
                 </em>
               </span>
               <div>
                 <button onClick={() => openTask(t)}>Review</button>
                 <button
                   className="approve"
-                  onClick={() => setStatus(t.id, "Complete")}
+                  onClick={() => approveTask(t.id)}
                 >
-                  Mark approved
+                  Approve
                 </button>
                 <button
                   className="return"
-                  onClick={() => setStatus(t.id, "Not started")}
+                  onClick={() => returnTaskToWork(t.id)}
                 >
-                  Return for rework
+                  Return to work
                 </button>
               </div>
             </article>
@@ -1128,7 +1137,7 @@ export default function OperationalView({
             <div className="moduleEmpty">
               <b>No approvals are waiting</b>
               <p>
-                Blocked and high-priority items will appear here automatically.
+                Only tasks marked Complete in Company Workspaces will appear here.
               </p>
             </div>
           )}
