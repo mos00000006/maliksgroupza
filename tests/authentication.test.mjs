@@ -78,3 +78,21 @@ test("blocks write requests for a read-only member", async () => {
   );
   assert.equal(response.status, 403);
 });
+
+test("restricts HR to employee records and their own team identity", async () => {
+  const worker = await loadWorker();
+  const member = { email: "hr@example.com", role: "Human Resources (HR)", active: 1 };
+  const identity = { email: "hr@example.com", name: "Store HR" };
+  const blocked = await worker.fetch(
+    new Request("http://localhost/api/tasks"),
+    environment(member),
+    context(identity),
+  );
+  assert.equal(blocked.status, 403);
+  const allowed = await worker.fetch(
+    new Request("http://localhost/api/employee-records"),
+    environment(member),
+    context(identity),
+  );
+  assert.notEqual(allowed.status, 403);
+});

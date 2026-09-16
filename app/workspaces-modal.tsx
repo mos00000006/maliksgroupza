@@ -17,7 +17,7 @@ export type WorkspaceTask = {
   assignee_email: string;
   due: string;
   priority: "High" | "Medium" | "Low";
-  status: "Not started" | "In progress" | "Blocked" | "Returned" | "Complete";
+  status: "Not started" | "In progress" | "Blocked" | "Complete";
   description: string;
   task_type: string;
   task_group: string;
@@ -64,7 +64,6 @@ const roleAssignees = [
 export default function WorkspacesModal({
   close,
   onOpenTask,
-  onTaskCreated,
   onChanged,
   initialName = "",
   initialTasks = [],
@@ -74,7 +73,6 @@ export default function WorkspacesModal({
 }: {
   close: () => void;
   onOpenTask?: (task: WorkspaceTask) => void;
-  onTaskCreated?: (task: WorkspaceTask) => void;
   onChanged?: () => void;
   initialName?: string;
   initialTasks?: WorkspaceTask[];
@@ -98,7 +96,6 @@ export default function WorkspacesModal({
   const [adding, setAdding] = useState(initialCreate);
   const [workspaceSaving, setWorkspaceSaving] = useState(false);
   const [creatingTask, setCreatingTask] = useState(false);
-  const [taskSaving, setTaskSaving] = useState(false);
   const [busy, setBusy] = useState(!initialWorkspaces.length);
   const [error, setError] = useState("");
   const [draft, setDraft] = useState({
@@ -208,8 +205,6 @@ export default function WorkspacesModal({
     : [];
   const complete = workspaceTasks.filter((t) => t.status === "Complete").length;
   const blocked = workspaceTasks.filter((t) => t.status === "Blocked").length;
-  const returnedTasks = workspaceTasks.filter((t) => t.status === "Returned");
-  const returned = returnedTasks.length;
   const openItems = workspaceTasks.length - complete;
   const update = async (id: number, key: string, value: string) => {
     setTasks((current) =>
@@ -261,50 +256,32 @@ export default function WorkspacesModal({
     setCreatingTask(true);
   };
   const addTask = async () => {
-    if (!selected || !task.title.trim() || taskSaving) return;
-    setTaskSaving(true);
-    setError("");
-    try {
-      const r = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          ...task,
-          project: selected.name,
-          owner: selected.manager || "Operations",
-        }),
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        setError(j.error || "The task could not be created.");
-        return;
-      }
-      if (j.task) {
-        setTasks((current) => [
-          j.task,
-          ...current.filter((item) => item.id !== j.task.id),
-        ]);
-        onTaskCreated?.(j.task as WorkspaceTask);
-      }
-      setTask({ ...task, title: "", description: "" });
-      setCreatingTask(false);
+    if (!selected || !task.title.trim()) return;
+    const r = await fetch("/api/tasks", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...task,
+        project: selected.name,
+        owner: selected.manager || "Operations",
+      }),
+    });
+    if (r.ok) {
+      const j = await r.json();
       if (pendingFile && j.task?.id) {
-        const fileToUpload = pendingFile;
-        setPendingFile(null);
         const fd = new FormData();
-        fd.append("file", fileToUpload);
-        void fetch(`/api/tasks/${j.task.id}/attachments`, {
+        fd.append("file", pendingFile);
+        await fetch(`/api/tasks/${j.task.id}/attachments`, {
           method: "POST",
           body: fd,
-        }).then(() => onChanged?.());
-      } else {
-        setPendingFile(null);
+        });
       }
+      setTask({ ...task, title: "", description: "" });
+      setPendingFile(null);
+      setCreatingTask(false);
+      await load();
       onChanged?.();
-      void load(false);
-    } finally {
-      setTaskSaving(false);
-    }
+    } else setError("The task could not be created.");
   };
   const loadFiles = async () => {
     if (!workspaceTasks.length) {
@@ -338,7 +315,7 @@ export default function WorkspacesModal({
 
   if (selected) {
     const statusData = (
-      ["Not started", "In progress", "Blocked", "Returned", "Complete"] as const
+      ["Not started", "In progress", "Blocked", "Complete"] as const
     ).map((name) => ({
       name,
       count: workspaceTasks.filter((t) => t.status === name).length,
@@ -371,14 +348,7 @@ export default function WorkspacesModal({
               >
                 ＋ New item
               </button>
-              <button
-                className="closeX"
-                onClick={() => {
-                  setSelected(null);
-                  setTab("table");
-                }}
-                aria-label="Back to company workspaces"
-              >
+              <button className="closeX" onClick={close}>
                 ×
               </button>
             </div>
@@ -424,8 +394,8 @@ export default function WorkspacesModal({
             </article>
             <article>
               <small>Needs attention</small>
-              <b>{blocked + returned}</b>
-              <em>{blocked} blocked · {returned} returned</em>
+              <b>{blocked}</b>
+              <em>Blocked items</em>
             </article>
             <article>
               <small>Completion</small>
@@ -438,16 +408,6 @@ export default function WorkspacesModal({
               <em>Workspace progress</em>
             </article>
           </div>
-          {returnedTasks.length > 0 && (
-            <div className="returnedWorkspaceAlert" role="status">
-              <i>↩</i>
-              <span>
-                <b>{returnedTasks.length} task{returnedTasks.length === 1 ? "" : "s"} returned to work in {selected.name}</b>
-                <small>Latest: {returnedTasks[0].title}. Review the task and complete the required rework before submitting it for approval again.</small>
-              </span>
-              <button onClick={() => onOpenTask?.(returnedTasks[0])}>Open returned task</button>
-            </div>
-          )}
           {tab === "table" && (
             <div className="mondayBoard">
               {groups.map((group, index) => {
@@ -499,7 +459,6 @@ export default function WorkspacesModal({
                             <option>Not started</option>
                             <option>In progress</option>
                             <option>Blocked</option>
-                            <option value="Returned" disabled>Returned</option>
                             <option>Complete</option>
                           </select>
                           <select
@@ -673,7 +632,7 @@ export default function WorkspacesModal({
                   <h3>Add item to {task.task_group}</h3>
                   <p>{selected.name}</p>
                 </span>
-                <button disabled={taskSaving} onClick={() => setCreatingTask(false)}>×</button>
+                <button onClick={() => setCreatingTask(false)}>×</button>
               </header>
               <div className="composerGrid">
                 <label>
@@ -806,9 +765,9 @@ export default function WorkspacesModal({
                 </label>
               </div>
               <footer>
-                <button disabled={taskSaving} onClick={() => setCreatingTask(false)}>Cancel</button>
-                <button className="primary" disabled={taskSaving} onClick={() => void addTask()}>
-                  {taskSaving ? "Adding…" : "Add item"}
+                <button onClick={() => setCreatingTask(false)}>Cancel</button>
+                <button className="primary" onClick={addTask}>
+                  Add item
                 </button>
               </footer>
             </div>

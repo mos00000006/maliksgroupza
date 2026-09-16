@@ -153,6 +153,7 @@ export async function POST(req: Request) {
       "Regional Manager",
       "Store Manager",
       "Department Manager",
+      "Human Resources (HR)",
       "Member / Contributor",
       "Read only",
       "Manager",
@@ -164,7 +165,9 @@ export async function POST(req: Request) {
     requestedScope = ["Full company", "Selected workspaces", "Assigned workspace", "Read only"].includes(String(p.access_scope))
       ? String(p.access_scope)
       : "Assigned workspace",
-    accessScope = requestedScope === "Full company" && !["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO"].includes(role)
+    accessScope = role === "Human Resources (HR)"
+      ? "Assigned workspace"
+      : requestedScope === "Full company" && !["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO"].includes(role)
       ? "Assigned workspace"
       : requestedScope,
     requestedWorkspaces = Array.isArray(p.workspace_access)
@@ -289,6 +292,7 @@ export async function PATCH(req: Request) {
       "Regional Manager",
       "Store Manager",
       "Department Manager",
+      "Human Resources (HR)",
       "Member / Contributor",
       "Read only",
     ].includes(requestedRole)
@@ -297,7 +301,9 @@ export async function PATCH(req: Request) {
     requestedScope = ["Full company", "Selected workspaces", "Assigned workspace", "Read only"].includes(String(p.access_scope))
       ? String(p.access_scope)
       : "Assigned workspace",
-    accessScope = requestedScope === "Full company" && !["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO"].includes(role)
+    accessScope = role === "Human Resources (HR)"
+      ? "Assigned workspace"
+      : requestedScope === "Full company" && !["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO"].includes(role)
       ? "Assigned workspace"
       : requestedScope,
     requestedWorkspaces = Array.isArray(p.workspace_access)

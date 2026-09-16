@@ -219,6 +219,16 @@ const worker = {
 
       const canManage = ["Owner / Admin", "Developer / Technical Admin"].includes(member.role);
       if (
+        member.role === "Human Resources (HR)" &&
+        url.pathname.startsWith("/api/") &&
+        !(url.pathname === "/api/team" && request.method === "GET") &&
+        !url.pathname.startsWith("/api/employee-records")
+      )
+        return secure(Response.json(
+          { error: "HR access is restricted to employee records for the assigned store." },
+          { status: 403 },
+        ));
+      if (
         ["Viewer", "Read only"].includes(member.role) &&
         !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
         url.pathname !== "/api/team/accept"

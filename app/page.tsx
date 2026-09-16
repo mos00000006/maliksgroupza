@@ -5,11 +5,8 @@ import SidekickModal from "./sidekick-modal";
 import OperationalView, { type HubTask } from "./operational-view";
 import SopLibrary from "./sop-library";
 import PwaInstallButton from "./pwa-install-button";
-import Catalogue from "./catalogue";
-import StoreControls from "./store-controls";
 import EmployeeRecords from "./employee-records";
-type Status = "Not started" | "In progress" | "Blocked" | "Returned" | "Complete";
-type QuickWorkflowKind = "audit" | "incident" | "capex" | "stock";
+type Status = "Not started" | "In progress" | "Blocked" | "Complete";
 type Task = {
   id: number;
   title: string;
@@ -23,7 +20,6 @@ type Task = {
   description: string;
   task_type: string;
   task_group: string;
-  approval_status: string;
   created_by: string;
   created_at: string;
 };
@@ -88,10 +84,6 @@ const nav = [
   "Executive Overview",
   "My Work",
   "Store Operations",
-  "Store Audits",
-  "Daily Checklists",
-  "Store Ranking",
-  "Employee Records",
   "Wholesale Division",
   "Developments",
   "Financials & P&L",
@@ -99,7 +91,7 @@ const nav = [
   "SOP & Manuals",
   "Approvals",
   "Reports",
-  "Our Catalogue",
+  "Employee Records",
 ];
 const navigationForUser = (user: CurrentHubUser) => {
   let workspaceAccess: string[] = [];
@@ -110,6 +102,7 @@ const navigationForUser = (user: CurrentHubUser) => {
       workspaceAccess = Array.isArray(parsed) ? parsed.map(String) : [];
     } catch {}
   }
+  if (user.role === "Human Resources (HR)") return ["Employee Records"];
   const accessAdmin = ["Owner / Admin", "Developer / Technical Admin"].includes(
       user.role || "",
     ),
@@ -118,12 +111,8 @@ const navigationForUser = (user: CurrentHubUser) => {
       (user.role === "Executive / EXCO" && user.access_scope === "Full company"),
     wholesale = fullCompany || workspaceAccess.includes("Wholesale Division");
   return nav.filter((item) => {
-    const employeeRecordsAccess =
-      fullCompany ||
-      ["Regional Manager", "Store Manager", "Department Manager"].includes(user.role || "") ||
-      /(^|\b)(hr|human resources|people)(\b|$)/i.test(user.department || "");
-    if (item === "Employee Records") return employeeRecordsAccess;
     if (fullCompany) return true;
+    if (item === "Employee Records") return false;
     if (item === "Wholesale Division") return wholesale;
     return !["Executive Overview", "Developments", "Approvals", "Reports"].includes(item);
   });
@@ -136,12 +125,6 @@ const roleAssignees = [
   "Store Managers",
   "EXCO",
 ];
-const urlBase64ToUint8Array = (value: string) => {
-  const padding = "=".repeat((4 - (value.length % 4)) % 4);
-  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = window.atob(base64);
-  return Uint8Array.from(raw, (char) => char.charCodeAt(0));
-};
 export default function Home() {
   const [active, setActive] = useState("Executive Overview"),
     [tasks, setTasks] = useState<Task[]>([]),
@@ -151,15 +134,11 @@ export default function Home() {
     [currentUser, setCurrentUser] = useState<CurrentHubUser>({ name: "User", email: "" }),
     [notifications, setNotifications] = useState<HubNotification[]>([]),
     [notificationsOpen, setNotificationsOpen] = useState(false),
-    [popupNotification, setPopupNotification] = useState<{ title: string; message: string } | null>(null),
     [loading, setLoading] = useState(true),
     [mode, setMode] = useState<"table" | "board">("table"),
     [search, setSearch] = useState(""),
     [open, setOpen] = useState(false),
-    [mainTaskSaving, setMainTaskSaving] = useState(false),
     [selected, setSelected] = useState<Task | null>(null),
-    [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null),
-    [deleteBusy, setDeleteBusy] = useState(false),
     [comments, setComments] = useState<Comment[]>([]),
     [files, setFiles] = useState<Attachment[]>([]),
     [comment, setComment] = useState(""),
@@ -167,23 +146,7 @@ export default function Home() {
     [workspaceOpen, setWorkspaceOpen] = useState(false),
     [workspaceTarget, setWorkspaceTarget] = useState(""),
     [workspaceCreate, setWorkspaceCreate] = useState(false),
-    [returnWorkspaceAfterTask, setReturnWorkspaceAfterTask] = useState(""),
     [sidekickOpen, setSidekickOpen] = useState(false),
-    [mobileNavOpen, setMobileNavOpen] = useState(false),
-    [quickActionsOpen, setQuickActionsOpen] = useState(false),
-    [photoTaskPickerOpen, setPhotoTaskPickerOpen] = useState(false),
-    [quickPhotoUploading, setQuickPhotoUploading] = useState(false),
-    [quickWorkflow, setQuickWorkflow] = useState<QuickWorkflowKind | null>(null),
-    [quickWorkflowSaving, setQuickWorkflowSaving] = useState(false),
-    [quickWorkflowFile, setQuickWorkflowFile] = useState<File | null>(null),
-    [quickWorkflowForm, setQuickWorkflowForm] = useState({
-      workspace: "", department: "", incidentType: "", eventDateTime: "",
-      description: "", estimatedLoss: "", responsiblePerson: "", correctiveAction: "",
-      managerSignoff: "", category: "", requirement: "", reason: "", estimatedCost: "",
-      supplierQuote: "", urgency: "Normal", countDate: "", countedBy: "", varianceNotes: "",
-      supervisorSignoff: "", auditArea: "", auditScore: "", findings: "", dueDate: "",
-      auditResponsible: "", auditManagerSignoff: "",
-    }),
     [toast, setToast] = useState(""),
     [accessDenied, setAccessDenied] = useState(false);
   const [inviteResult, setInviteResult] = useState<HubInvitation | null>(null);
@@ -200,17 +163,8 @@ export default function Home() {
   const [memberSaving, setMemberSaving] = useState(false);
   const [memberSuccess, setMemberSuccess] = useState("");
   const upload = useRef<HTMLInputElement>(null);
-  const quickPhotoInput = useRef<HTMLInputElement>(null);
-  const quickPhotoTarget = useRef<Task | null>(null);
   const memberForm = useRef<HTMLDivElement>(null);
   const memberList = useRef<HTMLDivElement>(null);
-  const notificationIds = useRef<Set<number>>(new Set());
-  const notificationSyncReady = useRef(false);
-  const pushReady = useRef(false);
-  const notificationPromptStarted = useRef(false);
-  const popupTimer = useRef<number | null>(null);
-  const lastPopup = useRef<{ key: string; at: number }>({ key: "", at: 0 });
-  const suppressedTaskPopupTitles = useRef<Map<string, number>>(new Map());
   const [draft, setDraft] = useState({
     title: "",
     project: "Wholesale Division",
@@ -224,53 +178,11 @@ export default function Home() {
     task_group: "Store Tasks",
     description: "",
   });
-  const showTaskPopup = (title: string, message: string) => {
-    const now = Date.now();
-    const normalizedTitle = title.trim().toLowerCase();
-    for (const [taskTitle, until] of suppressedTaskPopupTitles.current) {
-      if (until < now) suppressedTaskPopupTitles.current.delete(taskTitle);
-      else if (normalizedTitle.includes(taskTitle)) return;
-    }
-    const key = `${normalizedTitle}|${message.trim().toLowerCase()}`;
-    if (lastPopup.current.key === key && now - lastPopup.current.at < 15000) return;
-    lastPopup.current = { key, at: now };
-    setPopupNotification({ title, message });
-    if (popupTimer.current) window.clearTimeout(popupTimer.current);
-    popupTimer.current = window.setTimeout(() => setPopupNotification(null), 8000);
-  };
-  const applyNotificationSnapshot = async (items: HubNotification[], announce: boolean) => {
-    const unreadItems = items.filter((item) => !item.read_at);
-    if (announce && notificationSyncReady.current) {
-      const fresh = unreadItems.filter((item) => !notificationIds.current.has(item.id));
-      if (fresh.length) {
-        const newest = fresh[0];
-        showTaskPopup(newest.title, newest.message);
-        if (
-          "Notification" in window &&
-          Notification.permission === "granted" &&
-          !pushReady.current &&
-          "serviceWorker" in navigator
-        ) {
-          const registration = await navigator.serviceWorker.ready;
-          await registration.showNotification(newest.title, {
-            body: newest.message,
-            icon: "/powerbuild-app-icon-192.png",
-            badge: "/powerbuild-app-icon-192.png",
-            tag: `task-${newest.task_id}`,
-            data: { taskId: newest.task_id, url: "/" },
-          });
-        }
-      }
-    }
-    notificationIds.current = new Set(items.map((item) => item.id));
-    notificationSyncReady.current = true;
-    setNotifications(items);
-  };
   const loadNotifications = async () => {
     const r = await fetch("/api/notifications");
     if (r.ok) {
       const j = await r.json();
-      await applyNotificationSnapshot(j.notifications || [], true);
+      setNotifications(j.notifications || []);
     }
   };
   const load = async () => {
@@ -281,7 +193,7 @@ export default function Home() {
       ]);
       const [j, nj] = await Promise.all([r.json(), n.json()]);
       setTasks(j.tasks || []);
-      await applyNotificationSnapshot(nj.notifications || [], false);
+      setNotifications(nj.notifications || []);
     } finally {
       setLoading(false);
     }
@@ -316,169 +228,23 @@ export default function Home() {
     setToast(s);
     setTimeout(() => setToast(""), 2300);
   };
-  const enableTaskAlerts = async (requestPermission = true) => {
-    if (!("serviceWorker" in navigator)) {
-      if (requestPermission) flash("This device cannot run background Hub alerts.");
-      return false;
-    }
-
-    // Register the service worker even before notification permission. This is
-    // important for Safari Home Screen web apps because the worker owns the
-    // background push event and home-screen badge update.
-    try {
-      await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-    } catch (error) {
-      console.error("Service worker registration failed", error);
-      if (requestPermission) flash("Could not prepare background Hub alerts.");
-      return false;
-    }
-
-    if (!("Notification" in window) || !("PushManager" in window)) {
-      if (requestPermission) flash("Open the Hub from its Home Screen app icon to receive background alerts.");
-      return false;
-    }
-
-    let permission = Notification.permission;
-    if (permission === "default" && requestPermission) {
-      permission = await Notification.requestPermission();
-    }
-    if (permission !== "granted") {
-      if (requestPermission && permission === "denied")
-        flash("Task alerts were not allowed on this device. In-Hub popups and counts will still work.");
-      return false;
-    }
-
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      let subscription = await registration.pushManager.getSubscription();
-      if (!subscription) {
-        const keyResponse = await fetch("/api/push/public-key");
-        if (!keyResponse.ok) throw new Error("Push key is unavailable");
-        const { publicKey } = await keyResponse.json();
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
-        });
-      }
-      const serialized = subscription.toJSON();
-      const save = await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(serialized),
-      });
-      if (!save.ok) throw new Error("Unable to save push subscription");
-      pushReady.current = true;
-
-      const unreadCount = notifications.filter((item) => !item.read_at).length;
-      const badgeNavigator = navigator as Navigator & {
-        setAppBadge?: (count?: number) => Promise<void>;
-        clearAppBadge?: () => Promise<void>;
-      };
-      if (unreadCount > 0) await badgeNavigator.setAppBadge?.(unreadCount);
-      else await badgeNavigator.clearAppBadge?.();
-
-      if (requestPermission) flash("Background task alerts and app badge are on.");
-      void registration.update();
-      return true;
-    } catch (error) {
-      console.error(error);
-      pushReady.current = false;
-      if (requestPermission) flash("Could not activate background task alerts on this device.");
-      return false;
-    }
-  };
   useEffect(() => {
-    const onServiceWorkerMessage = (event: MessageEvent) => {
-      if (event.data?.type === "hub-push-notification") {
-        const item = event.data.notification || {};
-        showTaskPopup(item.title || "New task", item.body || "A task was assigned to you.");
-        void loadNotifications();
-      }
-      if (event.data?.type === "hub-open-inbox") setNotificationsOpen(true);
-    };
-    navigator.serviceWorker?.addEventListener("message", onServiceWorkerMessage);
     const starter = window.setTimeout(() => {
-      void Promise.all([
-        load(),
-        loadTeam(),
-        loadWorkspaces(),
-      ]).catch(() => setLoading(false));
-
-      // Always register the worker. Safari Home Screen web apps need this even
-      // before notification permission has been granted.
-      if ("serviceWorker" in navigator)
-        void navigator.serviceWorker.register("/sw.js", { scope: "/" }).then((registration) => registration.update());
-
-      if ("Notification" in window && Notification.permission === "granted")
-        void enableTaskAlerts(false);
+      void loadTeam().then(() => Promise.all([load(), loadWorkspaces()])).catch(() => setLoading(false));
     }, 0);
-
-    // iPhone/iPad and desktop browsers only allow the system permission prompt
-    // from a real user gesture. The first normal tap/click/key press in the Hub
-    // is used automatically, so users do not need to find a separate setup button.
-    const requestAlertsOnFirstInteraction = () => {
-      if (notificationPromptStarted.current) return;
-      if (!("Notification" in window) || Notification.permission !== "default") return;
-      if (window.sessionStorage.getItem("maliks-task-alert-permission-attempted") === "1") return;
-
-      const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
-      const standalone =
-        window.matchMedia("(display-mode: standalone)").matches ||
-        navigatorWithStandalone.standalone === true;
-      const isiOS =
-        /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-      // Web Push on iOS is exposed to Home Screen web apps, not an ordinary Safari tab.
-      if (isiOS && !standalone) return;
-
-      notificationPromptStarted.current = true;
-      window.sessionStorage.setItem("maliks-task-alert-permission-attempted", "1");
-      void enableTaskAlerts(true);
-      window.removeEventListener("pointerdown", requestAlertsOnFirstInteraction);
-      window.removeEventListener("touchend", requestAlertsOnFirstInteraction);
-      window.removeEventListener("keydown", requestAlertsOnFirstInteraction);
-    };
-    window.addEventListener("pointerdown", requestAlertsOnFirstInteraction, { passive: true });
-    window.addEventListener("touchend", requestAlertsOnFirstInteraction, { passive: true });
-    window.addEventListener("keydown", requestAlertsOnFirstInteraction);
-
-    const timer = window.setInterval(() => void loadNotifications(), 10000);
+    const timer = window.setInterval(() => void loadNotifications(), 30000);
     return () => {
       window.clearTimeout(starter);
       window.clearInterval(timer);
-      if (popupTimer.current) window.clearTimeout(popupTimer.current);
-      window.removeEventListener("pointerdown", requestAlertsOnFirstInteraction);
-      window.removeEventListener("touchend", requestAlertsOnFirstInteraction);
-      window.removeEventListener("keydown", requestAlertsOnFirstInteraction);
-      navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
     };
   }, []);
-  useEffect(() => {
-    const count = notifications.filter((item) => !item.read_at).length;
-    const badgeNavigator = navigator as Navigator & {
-      setAppBadge?: (count?: number) => Promise<void>;
-      clearAppBadge?: () => Promise<void>;
-    };
-    document.title = count > 0 ? `(${count}) PowerBuild Hub` : "PowerBuild Hub";
-    if (count > 0) void badgeNavigator.setAppBadge?.(count);
-    else void badgeNavigator.clearAppBadge?.();
-  }, [notifications]);
   const canManageTeam = ["Owner / Admin", "Developer / Technical Admin"].includes(
       currentUser.role || "",
     ),
+    isHr = currentUser.role === "Human Resources (HR)",
     readOnlyAccess =
       currentUser.role === "Read only" || currentUser.access_scope === "Read only",
     availableNav = navigationForUser(currentUser);
-  useEffect(() => {
-    const saved = window.localStorage.getItem("powerbuild-active-view");
-    if (!saved || !nav.includes(saved)) return;
-    const timer = window.setTimeout(() => setActive(saved), 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-  useEffect(() => {
-    if (nav.includes(active)) window.localStorage.setItem("powerbuild-active-view", active);
-  }, [active]);
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("invite");
     if (!token) return;
@@ -540,8 +306,8 @@ export default function Home() {
                       : active === "Receiving & Dispatch"
                         ? ["receiving", "dispatch"].some((v) => hay.includes(v))
                         : active === "Approvals"
-                          ? x.status === "Complete" &&
-                            x.approval_status === "Awaiting approval"
+                          ? x.status !== "Complete" &&
+                            (x.status === "Blocked" || x.priority === "High")
                           : true;
         return view && hay.includes(search.toLowerCase());
       }),
@@ -552,10 +318,6 @@ export default function Home() {
       "Master dashboard rolling up all stores, DC, Head Office and Wholesale.",
     "My Work": `Tasks assigned to or owned by ${currentUser.name}.`,
     "Store Operations": "Operational actions across the store network.",
-    "Store Audits": "Digital branch audits with scoring, evidence and corrective-action tracking.",
-    "Daily Checklists": "Daily manager opening-to-closing compliance and exception control.",
-    "Store Ranking": "Executive operational ranking across the store network.",
-    "Employee Records": "Store employee files, daily attendance, lateness and disciplinary warning history.",
     "Wholesale Division": "Wholesale projects, targets and assigned actions.",
     Developments: "New-store, relocation and expansion budgets, costs and opening readiness.",
     "Financials & P&L":
@@ -563,111 +325,31 @@ export default function Home() {
     "Receiving & Dispatch":
       "Warehouse receiving and dispatch responsibilities.",
     "SOP & Manuals": "Controlled procedures, AI workflows and checklists.",
-    Approvals: "Completed tasks awaiting management approval.",
+    Approvals: "High-priority and blocked items requiring a decision.",
     Reports: "Group-wide task and completion reporting.",
-    "Our Catalogue": "PowerBuild group product catalogue, codes, pictures and descriptions.",
+    "Employee Records": "Confidential employee and daily attendance records.",
   };
   const add = async () => {
-    if (!draft.title.trim() || mainTaskSaving) return;
-    const createdTitle = draft.title.trim().toLowerCase();
-    suppressedTaskPopupTitles.current.set(createdTitle, Date.now() + 15000);
-    setMainTaskSaving(true);
-    try {
-      const r = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(draft),
-      });
-      const result = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        suppressedTaskPopupTitles.current.delete(createdTitle);
-        flash(result.error || "Task could not be created");
-        return;
-      }
+    if (!draft.title.trim()) return;
+    const r = await fetch("/api/tasks", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(draft),
+    });
+    if (r.ok) {
       setOpen(false);
       setDraft({ ...draft, title: "", description: "" });
-      if (result.task) setTasks((current) => [result.task, ...current.filter((item) => item.id !== result.task.id)]);
-      void load();
-      flash("Task created");
-    } finally {
-      setMainTaskSaving(false);
+      await load();
+      flash("Task created and assigned");
     }
   };
   const status = async (id: number, value: Status) => {
-    const current = tasks.find((item) => item.id === id);
-    const nextApproval =
-      value === "Complete"
-        ? "Awaiting approval"
-        : value === "Returned"
-          ? "Returned to work"
-          : "";
-    setTasks((items) =>
-      items.map((item) =>
-        item.id === id
-          ? { ...item, status: value, approval_status: nextApproval }
-          : item,
-      ),
-    );
-    const response = await fetch(`/api/tasks/${id}`, {
+    setTasks(tasks.map((x) => (x.id === id ? { ...x, status: value } : x)));
+    await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ status: value }),
     });
-    if (!response.ok) {
-      await load();
-      if (current) setSelected((item) => (item?.id === id ? current : item));
-      return;
-    }
-    const result = await response.json();
-    if (result.task) {
-      setTasks((items) =>
-        items.map((item) => (item.id === id ? result.task : item)),
-      );
-      setSelected((item) => (item?.id === id ? result.task : item));
-    }
-    if (value === "Complete") flash("Task completed and sent to Approvals");
-  };
-  const approveTask = async (id: number) => {
-    const response = await fetch(`/api/tasks/${id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ approval_action: "approve" }),
-    });
-    if (!response.ok) {
-      flash("This task could not be approved");
-      await load();
-      return;
-    }
-    const result = await response.json();
-    if (result.task) {
-      setTasks((items) =>
-        items.map((item) => (item.id === id ? result.task : item)),
-      );
-      setSelected((item) => (item?.id === id ? result.task : item));
-    }
-    void loadNotifications();
-    flash("Task approved");
-  };
-  const returnTaskToWork = async (id: number) => {
-    const response = await fetch(`/api/tasks/${id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ approval_action: "return" }),
-    });
-    if (!response.ok) {
-      flash("This task could not be returned to work");
-      await load();
-      return;
-    }
-    const result = await response.json();
-    if (result.task) {
-      setTasks((items) =>
-        items.map((item) => (item.id === id ? result.task : item)),
-      );
-      setSelected((item) => (item?.id === id ? result.task : item));
-    }
-    void loadNotifications();
-    flash(`Task returned to work at ${result.task?.project || "the workspace"}`);
   };
   const updateTaskAssignee = async (task: Task, value: string) => {
     const member = value.startsWith("member:")
@@ -703,17 +385,6 @@ export default function Home() {
     setComments(j.comments || []);
     setFiles(j.attachments || []);
   };
-  const closeTaskDetail = () => {
-    setSelected(null);
-    setComments([]);
-    setFiles([]);
-    if (returnWorkspaceAfterTask) {
-      setWorkspaceTarget(returnWorkspaceAfterTask);
-      setWorkspaceCreate(false);
-      setWorkspaceOpen(true);
-      setReturnWorkspaceAfterTask("");
-    }
-  };
   const addComment = async () => {
     if (!selected || !comment.trim()) return;
     const r = await fetch(`/api/tasks/${selected.id}/comments`, {
@@ -740,28 +411,6 @@ export default function Home() {
       flash("File attached to task");
     } else flash("Upload failed");
   };
-  const deleteTask = async (task: Task) => {
-    setDeleteBusy(true);
-    try {
-      const r = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        flash(j.error || "Task could not be deleted");
-        return;
-      }
-
-      setTasks((current) => current.filter((item) => item.id !== task.id));
-      setNotifications((current) =>
-        current.filter((item) => item.task_id !== task.id),
-      );
-      setDeleteConfirmTask(null);
-      closeTaskDetail();
-      flash("Task deleted");
-    } finally {
-      setDeleteBusy(false);
-    }
-  };
-
   const copyLink = async () => {
     await navigator.clipboard.writeText(location.origin);
     flash("Hub link copied");
@@ -918,10 +567,7 @@ export default function Home() {
     });
     setNotificationsOpen(false);
     const task = tasks.find((t) => t.id === item.task_id);
-    if (task) {
-      setReturnWorkspaceAfterTask("");
-      await detail(task);
-    }
+    if (task) await detail(task);
     await loadNotifications();
   };
   const markAllRead = async () => {
@@ -971,230 +617,11 @@ export default function Home() {
     setDraft((current) => ({ ...current, ...(context[active] || {}) }));
     setOpen(true);
   };
-  const quickDueDate = () => {
-    const date = new Date();
-    date.setDate(date.getDate() + 7);
-    return date.toISOString().slice(0, 10);
-  };
-  const quickDefaultWorkspace = (preferred?: string) => {
-    if (preferred && workspaces.some((workspace) => workspace.name === preferred)) return preferred;
-    const store = workspaces.find((workspace) => workspace.type === "Store");
-    return store?.name || workspaces[0]?.name || draft.project;
-  };
-  const openStructuredWorkflow = (kind: QuickWorkflowKind) => {
-    if (readOnlyAccess) {
-      flash("Your Hub access is read only");
-      return;
-    }
-    const now = new Date();
-    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-      .toISOString()
-      .slice(0, 16);
-    setQuickWorkflowForm({
-      workspace: quickDefaultWorkspace(kind === "capex" ? "Head Office" : undefined),
-      department: "",
-      incidentType: "",
-      eventDateTime: localDateTime,
-      description: "",
-      estimatedLoss: "",
-      responsiblePerson: "",
-      correctiveAction: "",
-      managerSignoff: currentUser.name || "",
-      category: "",
-      requirement: "",
-      reason: "",
-      estimatedCost: "",
-      supplierQuote: "",
-      urgency: "Normal",
-      countDate: new Date().toISOString().slice(0, 10),
-      countedBy: currentUser.name || "",
-      varianceNotes: "",
-      supervisorSignoff: "",
-      auditArea: "",
-      auditScore: "",
-      findings: "",
-      dueDate: quickDueDate(),
-      auditResponsible: "",
-      auditManagerSignoff: currentUser.name || "",
-    });
-    setQuickWorkflowFile(null);
-    setQuickActionsOpen(false);
-    setQuickWorkflow(kind);
-  };
-  const updateQuickWorkflowField = (field: string, value: string) =>
-    setQuickWorkflowForm((current) => ({ ...current, [field]: value }));
-  const submitQuickWorkflow = async () => {
-    if (!quickWorkflow || quickWorkflowSaving) return;
-    const f = quickWorkflowForm;
-    let title = "";
-    let taskType = "General";
-    let taskGroup = "Store Tasks";
-    let priority: Task["priority"] = "Medium";
-    let description = "";
-    let due = f.dueDate || quickDueDate();
-
-    if (quickWorkflow === "incident") {
-      if (!f.workspace || !f.incidentType || !f.description.trim()) {
-        flash("Complete the store, incident type and description");
-        return;
-      }
-      title = `Incident: ${f.incidentType}`;
-      taskType = "Incident";
-      priority = "High";
-      description = [
-        `INCIDENT REPORT`, `Store: ${f.workspace}`, `Department: ${f.department || "Not specified"}`,
-        `Incident type: ${f.incidentType}`, `Date / time: ${f.eventDateTime || "Not specified"}`,
-        `Description: ${f.description}`, `Estimated loss: ${f.estimatedLoss || "R0 / Not stated"}`,
-        `Responsible / involved: ${f.responsiblePerson || "Not specified"}`,
-        `Corrective action: ${f.correctiveAction || "To be assigned"}`,
-        `Manager sign-off: ${f.managerSignoff || currentUser.name || "Pending"}`,
-      ].join("\n");
-    } else if (quickWorkflow === "capex") {
-      if (!f.workspace || !f.category || !f.requirement.trim() || !f.reason.trim()) {
-        flash("Complete the workspace, category, requirement and reason");
-        return;
-      }
-      title = `CAPEX: ${f.requirement}`;
-      taskType = "CAPEX";
-      taskGroup = "Regional Tasks";
-      priority = f.urgency === "Urgent" ? "High" : "Medium";
-      description = [
-        `CAPEX REQUEST`, `Store / workspace: ${f.workspace}`, `Category: ${f.category}`,
-        `Item / work required: ${f.requirement}`, `Operational reason: ${f.reason}`,
-        `Estimated cost: ${f.estimatedCost || "Not stated"}`, `Supplier / quotation: ${f.supplierQuote || "Not supplied"}`,
-        `Urgency: ${f.urgency}`, `Requested by: ${currentUser.name || "Hub user"}`,
-      ].join("\n");
-    } else if (quickWorkflow === "stock") {
-      if (!f.workspace || !f.department || !f.countDate) {
-        flash("Complete the store, department/category and count date");
-        return;
-      }
-      title = `Stock count: ${f.department}`;
-      taskType = "Stock";
-      description = [
-        `STOCK COUNT CONTROL`, `Store: ${f.workspace}`, `Department / category: ${f.department}`,
-        `Count date: ${f.countDate}`, `Counted by: ${f.countedBy || currentUser.name || "Not specified"}`,
-        `Variance notes: ${f.varianceNotes || "No variance notes entered"}`,
-        `Supervisor sign-off: ${f.supervisorSignoff || "Pending"}`,
-      ].join("\n");
-      due = f.countDate;
-    } else {
-      if (!f.workspace || !f.auditArea || !f.findings.trim()) {
-        flash("Complete the store, audit area and findings");
-        return;
-      }
-      title = `Store audit: ${f.auditArea}`;
-      taskType = "Audit";
-      taskGroup = "Audit Tasks";
-      priority = "High";
-      description = [
-        `STORE AUDIT`, `Store: ${f.workspace}`, `Department / area: ${f.auditArea}`,
-        `Score: ${f.auditScore || "Not scored"}`, `Findings: ${f.findings}`,
-        `Corrective action: ${f.correctiveAction || "To be assigned"}`,
-        `Responsible person: ${f.auditResponsible || "Not assigned"}`, `Corrective action due: ${f.dueDate || "Not set"}`,
-        `Manager sign-off: ${f.auditManagerSignoff || currentUser.name || "Pending"}`,
-      ].join("\n");
-    }
-
-    setQuickWorkflowSaving(true);
-    try {
-      const payload = {
-        ...draft,
-        title,
-        project: f.workspace,
-        due,
-        priority,
-        status: "Not started" as Status,
-        task_type: taskType,
-        task_group: taskGroup,
-        description,
-      };
-      const response = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.task) {
-        flash(result.error || "The workflow record could not be created");
-        return;
-      }
-      if (quickWorkflowFile) {
-        const formData = new FormData();
-        formData.append("file", quickWorkflowFile);
-        await fetch(`/api/tasks/${result.task.id}/attachments`, { method: "POST", body: formData });
-      }
-      setTasks((current) => [result.task, ...current.filter((item) => item.id !== result.task.id)]);
-      setQuickWorkflow(null);
-      setQuickWorkflowFile(null);
-      void load();
-      flash(`${quickWorkflow === "incident" ? "Incident" : quickWorkflow === "capex" ? "CAPEX request" : quickWorkflow === "stock" ? "Stock count" : "Store audit"} created`);
-    } finally {
-      setQuickWorkflowSaving(false);
-    }
-  };
-  const quickNavigate = (view: string) => {
-    if (!availableNav.includes(view)) {
-      flash("This section is not available for your access level");
-      return;
-    }
-    setQuickActionsOpen(false);
-    setSearch("");
-    setActive(view);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-  const beginQuickPhoto = () => {
-    if (readOnlyAccess) {
-      flash("Your Hub access is read only");
-      return;
-    }
-    const openTasks = tasks.filter((task) => task.status !== "Complete");
-    if (!openTasks.length) {
-      setQuickActionsOpen(false);
-      flash("Create or open a task before adding photo evidence");
-      return;
-    }
-    setQuickActionsOpen(false);
-    setPhotoTaskPickerOpen(true);
-  };
-  const chooseQuickPhotoTask = (task: Task) => {
-    quickPhotoTarget.current = task;
-    setPhotoTaskPickerOpen(false);
-    quickPhotoInput.current?.click();
-  };
-  const uploadQuickPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    const task = quickPhotoTarget.current;
-    if (!file || !task) return;
-    setQuickPhotoUploading(true);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const response = await fetch(`/api/tasks/${task.id}/attachments`, {
-        method: "POST",
-        body: form,
-      });
-      if (response.ok) flash(`Photo attached to ${task.title}`);
-      else flash("Photo upload failed");
-    } catch {
-      flash("Photo upload failed");
-    } finally {
-      setQuickPhotoUploading(false);
-      quickPhotoTarget.current = null;
-      event.target.value = "";
-    }
-  };
-  const quickPhotoTasks = [...tasks]
-    .filter((task) => task.status !== "Complete")
-    .sort((a, b) => (a.due || "9999-12-31").localeCompare(b.due || "9999-12-31"))
-    .slice(0, 12);
   const workspaceNames = workspaces.map((w) => w.name);
   const selectedAssigneeValue = draft.assignee_email
     ? `member:${draft.assignee_email}`
     : `role:${draft.assignee}`;
   const unread = notifications.filter((n) => !n.read_at).length;
-  const isStoreControlView = ["Store Audits", "Daily Checklists", "Store Ranking"].includes(active);
-  const isEmployeeRecordsView = active === "Employee Records";
   if (accessDenied)
     return (
       <main className="hubAccessGate">
@@ -1212,42 +639,28 @@ export default function Home() {
     );
   return (
     <main className="shell">
-      <aside className={mobileNavOpen ? "mobileOpen" : ""}>
+      <aside>
         <div className="brand">
-          <img
-            className="brandLogoMark"
-            src="/powerbuild-logo-transparent.png"
-            alt="PowerBuild logo"
-          />
+          <b>P</b>
           <span>
             <strong>POWERBUILD</strong>
             <small>COMPANY HUB</small>
           </span>
         </div>
-        <button
-          className="company"
-          onClick={() => {
-            setWorkspaceOpen(true);
-            setMobileNavOpen(false);
-          }}
-        >
+        {!isHr && <button className="company" onClick={() => setWorkspaceOpen(true)}>
           <i>PG</i>
           <span>
             <b>PowerBuild Group</b>
             <small>19 stores · 3 divisions</small>
           </span>
-        </button>
+        </button>}
         <p>WORKSPACE</p>
         <nav>
-          <button
-            onClick={() => {
-              setWorkspaceOpen(true);
-              setMobileNavOpen(false);
-            }}
-          >
+          {!isHr && <button onClick={() => setWorkspaceOpen(true)}>
             <i>▦</i>Company Workspaces
-          </button>
+          </button>}
           {availableNav.map((n) => {
+            const i = nav.indexOf(n);
             return (
             <button
               key={n}
@@ -1255,34 +668,17 @@ export default function Home() {
               onClick={() => {
                 setActive(n);
                 setSearch("");
-                setMobileNavOpen(false);
               }}
             >
-              <i>{({
-                "Executive Overview": "⌂",
-                "My Work": "✓",
-                "Store Operations": "▦",
-                "Store Audits": "◎",
-                "Daily Checklists": "☑",
-                "Store Ranking": "◆",
-                "Employee Records": "♙",
-                "Wholesale Division": "↗",
-                "Developments": "◇",
-                "Financials & P&L": "▤",
-                "Receiving & Dispatch": "⇄",
-                "SOP & Manuals": "▥",
-                "Approvals": "◫",
-                "Reports": "▧",
-                "Our Catalogue": "▦",
-              } as Record<string,string>)[n] || "•"}</i>
+              <i>{["⌂", "✓", "▦", "↗", "◆", "▤", "⇄", "▥", "◇", "◫"][i]}</i>
               {n}
               {n === "Approvals" && (
                 <em>
                   {
                     tasks.filter(
                       (t) =>
-                        t.status === "Complete" &&
-                        t.approval_status === "Awaiting approval",
+                        t.status !== "Complete" &&
+                        (t.status === "Blocked" || t.priority === "High"),
                     ).length
                   }
                 </em>
@@ -1291,23 +687,11 @@ export default function Home() {
             );
           })}
         </nav>
-        <button
-          className="aiSide"
-          onClick={() => {
-            setSidekickOpen(true);
-            setMobileNavOpen(false);
-          }}
-        >
+        {!isHr && <button className="aiSide" onClick={() => setSidekickOpen(true)}>
           ✦ AI Sidekick
-        </button>
+        </button>}
         {canManageTeam && (
-          <button
-            className="inviteSide"
-            onClick={() => {
-              setTeamOpen(true);
-              setMobileNavOpen(false);
-            }}
-          >
+          <button className="inviteSide" onClick={() => setTeamOpen(true)}>
             ＋ Manage user access
           </button>
         )}
@@ -1319,23 +703,9 @@ export default function Home() {
           </span>
         </div>
       </aside>
-      {mobileNavOpen && (
-        <button
-          className="mobileNavBackdrop"
-          aria-label="Close navigation"
-          onClick={() => setMobileNavOpen(false)}
-        />
-      )}
       <section className="main">
         <header>
-          <button
-            className="mobileMenuBtn"
-            aria-label="Open navigation"
-            onClick={() => setMobileNavOpen(true)}
-          >
-            ☰
-          </button>
-          <div className="headerTitle">
+          <div>
             <h1>{active}</h1>
             <p>
               {active === "Executive Overview"
@@ -1344,54 +714,38 @@ export default function Home() {
             </p>
           </div>
           <div className="actions">
-            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && (
-              <label>
-                ⌕
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search tasks, owners..."
-                />
-              </label>
-            )}
-            <button
-              className="quickActionsHeaderBtn"
-              onClick={() => setQuickActionsOpen(true)}
-            >
-              ⚡ Quick
-            </button>
-            <button
+            {!isHr && <label>
+              ⌕
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search tasks, owners..."
+              />
+            </label>}
+            {!isHr && <button
               className="notificationBtn"
               onClick={() => setNotificationsOpen(true)}
             >
               ◇ Inbox {unread > 0 && <em>{unread}</em>}
-            </button>
+            </button>}
             {canManageTeam && (
               <button className="teamBtn" onClick={() => setTeamOpen(true)}>
                 ♙ Access
               </button>
             )}
-            <PwaInstallButton />
-            {!readOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && (
+            {!isHr && <PwaInstallButton />}
+            {!isHr && !readOnlyAccess && (
               <button className="primary" onClick={openComposer}>
                 ＋ Add task
               </button>
             )}
           </div>
         </header>
-        {isStoreControlView ? (
-          <StoreControls
-            initialView={active}
-            currentUser={currentUser}
-            onNavigate={(view) => {
-              setActive(view);
-              setSearch("");
-            }}
+        {active === "Employee Records" ? (
+          <EmployeeRecords
+            assignedStore={Array.isArray(currentUser.workspace_access) ? currentUser.workspace_access[0] || currentUser.department || "" : (() => { try { return (JSON.parse(currentUser.workspace_access || "[]") as string[])[0] || currentUser.department || ""; } catch { return currentUser.department || ""; } })()}
+            fullCompany={!isHr}
           />
-        ) : isEmployeeRecordsView ? (
-          <EmployeeRecords currentUser={currentUser} />
-        ) : active === "Our Catalogue" ? (
-          <Catalogue currentUserEmail={currentUser.email} />
         ) : active === "SOP & Manuals" ? (
           <SopLibrary
             onTasksChanged={load}
@@ -1407,13 +761,8 @@ export default function Home() {
             loading={loading}
             mode={mode}
             setMode={setMode}
-            openTask={(task) => {
-              setReturnWorkspaceAfterTask("");
-              void detail(task as Task);
-            }}
+            openTask={(task) => void detail(task as Task)}
             setStatus={status}
-            approveTask={approveTask}
-            returnTaskToWork={returnTaskToWork}
             openWorkspaces={(name) => {
               setWorkspaceTarget(name || "");
               setWorkspaceCreate(false);
@@ -1433,120 +782,6 @@ export default function Home() {
           />
         )}
       </section>
-      <button
-        className="mobileQuickActionsFab"
-        onClick={() => setQuickActionsOpen(true)}
-        aria-label="Open quick actions"
-      >
-        <i>＋</i><span>Quick</span>
-      </button>
-      <input
-        ref={quickPhotoInput}
-        className="quickPhotoInput"
-        hidden
-        type="file"
-        accept="image/*"
-        onChange={uploadQuickPhoto}
-      />
-      {quickActionsOpen && (
-        <div className="overlay quickActionsOverlay" onMouseDown={() => setQuickActionsOpen(false)}>
-          <section className="quickActionsSheet" onMouseDown={(event) => event.stopPropagation()}>
-            <header>
-              <span>
-                <small>POWERBUILD MOBILE</small>
-                <h2>Quick actions</h2>
-                <p>Start the most common store and management actions in one tap.</p>
-              </span>
-              <button className="quickActionsClose" onClick={() => setQuickActionsOpen(false)} aria-label="Close quick actions">×</button>
-            </header>
-            <div className="quickActionsGrid">
-              {!readOnlyAccess && <button onClick={() => { setQuickActionsOpen(false); openComposer(); }}><i className="qaBlue">＋</i><span><b>New Task</b><small>Create and assign a task</small></span></button>}
-              <button onClick={() => quickNavigate("Store Audits")}><i className="qaGold">✓</i><span><b>Audit Store</b><small>Open the digital store audit</small></span></button>
-              <button onClick={() => quickNavigate("Daily Checklists")}><i className="qaGreen">☑</i><span><b>Daily Checklist</b><small>Complete today&apos;s manager controls</small></span></button>
-              {availableNav.includes("Employee Records") && <button onClick={() => quickNavigate("Employee Records")}><i className="qaTeal">♙</i><span><b>Staff Attendance</b><small>Mark at work, absent or late</small></span></button>}
-              {!readOnlyAccess && <button onClick={() => openStructuredWorkflow("incident")}><i className="qaRed">!</i><span><b>Report Incident</b><small>Capture an urgent store issue</small></span></button>}
-              {!readOnlyAccess && <button onClick={beginQuickPhoto} disabled={quickPhotoUploading}><i className="qaPurple">▧</i><span><b>{quickPhotoUploading ? "Uploading…" : "Upload Photo"}</b><small>Add evidence to an open task</small></span></button>}
-              {!readOnlyAccess && <button onClick={() => openStructuredWorkflow("capex")}><i className="qaGreen">R</i><span><b>CAPEX Request</b><small>Submit an expenditure request</small></span></button>}
-              {!readOnlyAccess && <button onClick={() => openStructuredWorkflow("stock")}><i className="qaOrange">#</i><span><b>Stock Count</b><small>Start a controlled count task</small></span></button>}
-              {availableNav.includes("Wholesale Division") && <button onClick={() => quickNavigate("Wholesale Division")}><i className="qaTeal">↗</i><span><b>Customer Visit</b><small>Open Wholesale CRM and visits</small></span></button>}
-              {availableNav.includes("Approvals") && <button onClick={() => quickNavigate("Approvals")}><i className="qaNavy">◇</i><span><b>Approve Item</b><small>Review completed work awaiting approval</small></span></button>}
-            </div>
-          </section>
-        </div>
-      )}
-      {quickWorkflow && (
-        <div className="overlay quickWorkflowOverlay" onMouseDown={() => !quickWorkflowSaving && setQuickWorkflow(null)}>
-          <section className="quickWorkflowModal" onMouseDown={(event) => event.stopPropagation()}>
-            <header>
-              <span>
-                <small>POWERBUILD QUICK WORKFLOW</small>
-                <h2>{quickWorkflow === "incident" ? "Report Incident" : quickWorkflow === "capex" ? "CAPEX Request" : quickWorkflow === "stock" ? "Stock Count" : "Store Audit"}</h2>
-                <p>Complete the required control fields. The record is saved into the Hub and can be followed through to completion.</p>
-              </span>
-              <button className="quickActionsClose" onClick={() => setQuickWorkflow(null)} aria-label="Close workflow">×</button>
-            </header>
-            <div className="quickWorkflowBody">
-              <div className="quickWorkflowFields twoCol">
-                <label>Store / Workspace<select value={quickWorkflowForm.workspace} onChange={(e) => updateQuickWorkflowField("workspace", e.target.value)}>{workspaceNames.map((name) => <option key={name}>{name}</option>)}</select></label>
-                {quickWorkflow !== "capex" && <label>Department / Area<input value={quickWorkflow === "audit" ? quickWorkflowForm.auditArea : quickWorkflowForm.department} onChange={(e) => updateQuickWorkflowField(quickWorkflow === "audit" ? "auditArea" : "department", e.target.value)} placeholder="e.g. Receiving, Yard, Paint" /></label>}
-              </div>
-
-              {quickWorkflow === "incident" && <>
-                <div className="quickWorkflowFields twoCol">
-                  <label>Incident Type<select value={quickWorkflowForm.incidentType} onChange={(e) => updateQuickWorkflowField("incidentType", e.target.value)}><option value="">Select type</option><option>Stock loss / shortage</option><option>Damage / breakage</option><option>Theft / security</option><option>Customer incident</option><option>Staff incident</option><option>Vehicle / delivery</option><option>Safety incident</option><option>Other</option></select></label>
-                  <label>Date & Time<input type="datetime-local" value={quickWorkflowForm.eventDateTime} onChange={(e) => updateQuickWorkflowField("eventDateTime", e.target.value)} /></label>
-                </div>
-                <label>Description<textarea value={quickWorkflowForm.description} onChange={(e) => updateQuickWorkflowField("description", e.target.value)} placeholder="What happened? Include the facts and immediate action taken." /></label>
-                <div className="quickWorkflowFields twoCol"><label>Estimated Loss (R)<input inputMode="decimal" value={quickWorkflowForm.estimatedLoss} onChange={(e) => updateQuickWorkflowField("estimatedLoss", e.target.value)} placeholder="0.00" /></label><label>Responsible / Involved Person<input value={quickWorkflowForm.responsiblePerson} onChange={(e) => updateQuickWorkflowField("responsiblePerson", e.target.value)} /></label></div>
-                <label>Corrective Action<textarea value={quickWorkflowForm.correctiveAction} onChange={(e) => updateQuickWorkflowField("correctiveAction", e.target.value)} placeholder="Action required to close or prevent recurrence" /></label>
-                <label>Manager Sign-off<input value={quickWorkflowForm.managerSignoff} onChange={(e) => updateQuickWorkflowField("managerSignoff", e.target.value)} /></label>
-              </>}
-
-              {quickWorkflow === "capex" && <>
-                <div className="quickWorkflowFields twoCol"><label>CAPEX Category<select value={quickWorkflowForm.category} onChange={(e) => updateQuickWorkflowField("category", e.target.value)}><option value="">Select category</option><option>Shelving / Fixtures</option><option>Systems / IT</option><option>Renovation / Building</option><option>Equipment</option><option>Vehicle</option><option>Signage</option><option>Security</option><option>Other</option></select></label><label>Urgency<select value={quickWorkflowForm.urgency} onChange={(e) => updateQuickWorkflowField("urgency", e.target.value)}><option>Normal</option><option>Urgent</option></select></label></div>
-                <label>Item / Work Required<input value={quickWorkflowForm.requirement} onChange={(e) => updateQuickWorkflowField("requirement", e.target.value)} placeholder="What must be purchased or completed?" /></label>
-                <label>Operational Reason<textarea value={quickWorkflowForm.reason} onChange={(e) => updateQuickWorkflowField("reason", e.target.value)} placeholder="Why is this CAPEX required?" /></label>
-                <div className="quickWorkflowFields twoCol"><label>Estimated Cost (R)<input inputMode="decimal" value={quickWorkflowForm.estimatedCost} onChange={(e) => updateQuickWorkflowField("estimatedCost", e.target.value)} /></label><label>Supplier / Quote Reference<input value={quickWorkflowForm.supplierQuote} onChange={(e) => updateQuickWorkflowField("supplierQuote", e.target.value)} placeholder="Supplier name or quotation no." /></label></div>
-              </>}
-
-              {quickWorkflow === "stock" && <>
-                <div className="quickWorkflowFields twoCol"><label>Count Date<input type="date" value={quickWorkflowForm.countDate} onChange={(e) => updateQuickWorkflowField("countDate", e.target.value)} /></label><label>Counted By<input value={quickWorkflowForm.countedBy} onChange={(e) => updateQuickWorkflowField("countedBy", e.target.value)} /></label></div>
-                <label>Variance Notes<textarea value={quickWorkflowForm.varianceNotes} onChange={(e) => updateQuickWorkflowField("varianceNotes", e.target.value)} placeholder="Record shortages, overages, recounts or exceptions" /></label>
-                <label>Supervisor Sign-off<input value={quickWorkflowForm.supervisorSignoff} onChange={(e) => updateQuickWorkflowField("supervisorSignoff", e.target.value)} placeholder="Supervisor name" /></label>
-              </>}
-
-              {quickWorkflow === "audit" && <>
-                <div className="quickWorkflowFields twoCol"><label>Audit Score (%)<input type="number" min="0" max="100" value={quickWorkflowForm.auditScore} onChange={(e) => updateQuickWorkflowField("auditScore", e.target.value)} placeholder="0 - 100" /></label><label>Corrective Action Due<input type="date" value={quickWorkflowForm.dueDate} onChange={(e) => updateQuickWorkflowField("dueDate", e.target.value)} /></label></div>
-                <label>Findings<textarea value={quickWorkflowForm.findings} onChange={(e) => updateQuickWorkflowField("findings", e.target.value)} placeholder="Record observations, non-compliance and good practice" /></label>
-                <label>Corrective Action<textarea value={quickWorkflowForm.correctiveAction} onChange={(e) => updateQuickWorkflowField("correctiveAction", e.target.value)} placeholder="What must be corrected?" /></label>
-                <div className="quickWorkflowFields twoCol"><label>Responsible Person<input value={quickWorkflowForm.auditResponsible} onChange={(e) => updateQuickWorkflowField("auditResponsible", e.target.value)} /></label><label>Manager Sign-off<input value={quickWorkflowForm.auditManagerSignoff} onChange={(e) => updateQuickWorkflowField("auditManagerSignoff", e.target.value)} /></label></div>
-              </>}
-
-              <label className="quickWorkflowFile">Photo / Supporting Document<input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => setQuickWorkflowFile(e.target.files?.[0] || null)} /><small>{quickWorkflowFile ? quickWorkflowFile.name : "Optional — attach photo evidence, quotation or count sheet."}</small></label>
-            </div>
-            <footer><button disabled={quickWorkflowSaving} onClick={() => setQuickWorkflow(null)}>Cancel</button><button className="primary" disabled={quickWorkflowSaving} onClick={() => void submitQuickWorkflow()}>{quickWorkflowSaving ? "Saving…" : quickWorkflow === "incident" ? "Submit Incident" : quickWorkflow === "capex" ? "Submit CAPEX" : quickWorkflow === "stock" ? "Save Stock Count" : "Save Audit"}</button></footer>
-          </section>
-        </div>
-      )}
-      {photoTaskPickerOpen && (
-        <div className="overlay quickActionsOverlay" onMouseDown={() => setPhotoTaskPickerOpen(false)}>
-          <section className="quickPhotoSheet" onMouseDown={(event) => event.stopPropagation()}>
-            <header>
-              <span><small>PHOTO EVIDENCE</small><h2>Choose the task</h2><p>The photo will be attached directly to the selected task.</p></span>
-              <button className="quickActionsClose" onClick={() => setPhotoTaskPickerOpen(false)} aria-label="Close photo task picker">×</button>
-            </header>
-            <div className="quickPhotoTaskList">
-              {quickPhotoTasks.map((task) => (
-                <button key={task.id} onClick={() => chooseQuickPhotoTask(task)}>
-                  <i>▧</i>
-                  <span><b>{task.title}</b><small>{task.project} · {task.status}</small></span>
-                  <em>{task.due || "No due date"}</em>
-                </button>
-              ))}
-            </div>
-          </section>
-        </div>
-      )}
       {open && (
         <div className="overlay" onMouseDown={() => setOpen(false)}>
           <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
@@ -1642,7 +877,6 @@ export default function Home() {
                   <option>Stock</option>
                   <option>HR / Staffing</option>
                   <option>Audit</option>
-                  <option>Incident</option>
                   <option>Regional Instruction</option>
                   <option>CAPEX</option>
                   <option>Receiving</option>
@@ -1696,58 +930,17 @@ export default function Home() {
             </div>
             <footer>
               <button onClick={() => setOpen(false)}>Cancel</button>
-              <button className="primary" disabled={mainTaskSaving} onClick={() => void add()}>
-                {mainTaskSaving ? "Creating…" : "Create task"}
+              <button className="primary" onClick={add}>
+                Create task
               </button>
             </footer>
-          </div>
-        </div>
-      )}
-      {deleteConfirmTask && (
-        <div
-          className="overlay deleteConfirmOverlay"
-          onMouseDown={() => !deleteBusy && setDeleteConfirmTask(null)}
-        >
-          <div
-            className="deleteConfirmModal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-task-title"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="deleteConfirmIcon">!</div>
-            <h2 id="delete-task-title">Delete task?</h2>
-            <p>
-              Are you sure you want to delete <strong>“{deleteConfirmTask.title}”</strong>?
-            </p>
-            <small>
-              This will permanently remove the task, its comments, attachments and task notifications.
-            </small>
-            <div className="deleteConfirmActions">
-              <button
-                type="button"
-                className="deleteConfirmCancel"
-                disabled={deleteBusy}
-                onClick={() => setDeleteConfirmTask(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="deleteConfirmButton"
-                disabled={deleteBusy}
-                onClick={() => void deleteTask(deleteConfirmTask)}
-              >
-                {deleteBusy ? "Deleting..." : "Confirm"}
-              </button>
-            </div>
           </div>
         </div>
       )}
       {selected && (
         <div
           className="overlay taskOverlay"
-          onMouseDown={closeTaskDetail}
+          onMouseDown={() => setSelected(null)}
         >
           <div className="detail" onMouseDown={(e) => e.stopPropagation()}>
             <header>
@@ -1760,24 +953,7 @@ export default function Home() {
                   {selected.project} · {selected.task_group || "Store Tasks"}
                 </p>
               </span>
-              <div className="taskHeaderActions">
-                {!readOnlyAccess && (
-                  <button
-                    className="deleteTaskBtn"
-                    onClick={() => setDeleteConfirmTask(selected)}
-                    title="Delete task"
-                  >
-                    Delete
-                  </button>
-                )}
-                <button
-                  className="taskCloseBtn"
-                  onClick={closeTaskDetail}
-                  aria-label="Close task"
-                >
-                  ×
-                </button>
-              </div>
+              <button onClick={() => setSelected(null)}>×</button>
             </header>
             <div className="detailBody">
               <section>
@@ -1843,7 +1019,6 @@ export default function Home() {
                       <option>Not started</option>
                       <option>In progress</option>
                       <option>Blocked</option>
-                      <option value="Returned" disabled>Returned</option>
                       <option>Complete</option>
                     </select>
                   </span>
@@ -2011,6 +1186,7 @@ export default function Home() {
                     <option>Regional Manager</option>
                     <option>Store Manager</option>
                     <option>Department Manager</option>
+                    <option>Human Resources (HR)</option>
                     <option>Member / Contributor</option>
                     <option>Read only</option>
                   </select>
@@ -2226,6 +1402,9 @@ export default function Home() {
                 <b>Managers</b> — manage only their selected stores or departments
               </p>
               <p>
+                <b>Human Resources (HR)</b> — employee records only for one assigned store; no company dashboards, tasks or Hub notifications
+              </p>
+              <p>
                 <b>Member / Contributor</b> — creates and updates assigned work
               </p>
               <p>
@@ -2253,7 +1432,7 @@ export default function Home() {
               <span>
                 <h2>My Hub Inbox</h2>
                 <p>
-                  Tasks, approvals and workflow alerts for {currentUser.name || "you"}
+                  Task assignments sent directly to {currentUser.name || "you"}
                 </p>
               </span>
               <div>
@@ -2288,7 +1467,7 @@ export default function Home() {
                 <div className="moduleEmpty">
                   <i>◇</i>
                   <b>Your inbox is clear</b>
-                  <p>New tasks, approvals and returned-to-work alerts will appear here.</p>
+                  <p>New tasks assigned to your email will appear here.</p>
                 </div>
               )}
             </div>
@@ -2311,26 +1490,14 @@ export default function Home() {
             void load();
             void loadWorkspaces();
           }}
-          onTaskCreated={(task: WorkspaceTask) => {
-            suppressedTaskPopupTitles.current.set(task.title.trim().toLowerCase(), Date.now() + 15000);
-            setTasks((current) => [task as Task, ...current.filter((item) => item.id !== task.id)]);
-          }}
           onOpenTask={(task: WorkspaceTask) => {
-            setReturnWorkspaceAfterTask(task.project);
             setWorkspaceOpen(false);
-            setWorkspaceTarget(task.project);
+            setWorkspaceTarget("");
             setWorkspaceCreate(false);
             void detail(task as Task);
           }}
         />
       )}
-      <button
-        className="mobileAiFab"
-        onClick={() => setSidekickOpen(true)}
-        aria-label="Open AI Sidekick"
-      >
-        ✦ <span>AI</span>
-      </button>
       {sidekickOpen && (
         <SidekickModal
           close={() => setSidekickOpen(false)}
@@ -2339,23 +1506,6 @@ export default function Home() {
             setActive("SOP & Manuals");
           }}
         />
-      )}
-      {popupNotification && (
-        <button
-          className="taskNotificationPopup"
-          onClick={() => {
-            setPopupNotification(null);
-            setNotificationsOpen(true);
-          }}
-        >
-          <img src="/powerbuild-app-icon-192.png" alt="" />
-          <span>
-            <small>POWERBUILD HUB ALERT</small>
-            <b>{popupNotification.title}</b>
-            <p>{popupNotification.message}</p>
-          </span>
-          <em>View →</em>
-        </button>
       )}
       {toast && <div className="toast">✓ {toast}</div>}
     </main>

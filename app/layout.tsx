@@ -9,9 +9,6 @@ import "./phase-five.css";
 import "./phase-six.css";
 import "./phase-seven.css";
 import "./phase-eight.css";
-import "./mobile-improvements.css";
-import "./launch-splash.css";
-import LaunchSplash from "./launch-splash";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,26 +26,17 @@ export const metadata: Metadata = {
     "Company projects, operations, approvals and performance in one place.",
   other: {
     "codex-preview": "development",
-    "mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "black-translucent",
   },
   icons: {
-    icon: [
-      { url: "/powerbuild-app-icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/powerbuild-app-icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    shortcut: "/powerbuild-app-icon-192.png",
-    apple: [
-      { url: "/powerbuild-app-icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/powerbuild-app-icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
+    icon: "/maliks-group-app-icon.svg",
+    shortcut: "/maliks-group-app-icon.svg",
+    apple: "/maliks-group-app-icon.svg",
   },
   manifest: "/manifest.webmanifest",
-  applicationName: "PowerBuild Hub",
+  applicationName: "Maliks Group Hub",
   appleWebApp: {
     capable: true,
-    title: "PowerBuild Hub",
+    title: "Maliks Group Hub",
     statusBarStyle: "black-translucent",
   },
 };
@@ -63,7 +51,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <LaunchSplash />
         {children}
       </body>
     </html>

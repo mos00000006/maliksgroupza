@@ -69,8 +69,11 @@ export function canManageAccess(member: HubMember | null | undefined) {
   return Boolean(member && ["Owner / Admin", "Developer / Technical Admin"].includes(member.role));
 }
 
+export function isHumanResources(member: HubMember | null | undefined) {
+  return member?.role === "Human Resources (HR)";
+}
 
-export function canApproveTasks(member: HubMember | null | undefined) {
+export function hasFullCompanyAccess(member: HubMember | null | undefined) {
   return Boolean(
     member &&
       (member.role === "Owner / Admin" ||
