@@ -7,6 +7,7 @@ import SopLibrary from "./sop-library";
 import PwaInstallButton from "./pwa-install-button";
 import Catalogue from "./catalogue";
 import StoreControls from "./store-controls";
+import EmployeeRecords from "./employee-records";
 type Status = "Not started" | "In progress" | "Blocked" | "Returned" | "Complete";
 type QuickWorkflowKind = "audit" | "incident" | "capex" | "stock";
 type Task = {
@@ -90,6 +91,7 @@ const nav = [
   "Store Audits",
   "Daily Checklists",
   "Store Ranking",
+  "Employee Records",
   "Wholesale Division",
   "Developments",
   "Financials & P&L",
@@ -116,6 +118,11 @@ const navigationForUser = (user: CurrentHubUser) => {
       (user.role === "Executive / EXCO" && user.access_scope === "Full company"),
     wholesale = fullCompany || workspaceAccess.includes("Wholesale Division");
   return nav.filter((item) => {
+    const employeeRecordsAccess =
+      fullCompany ||
+      ["Regional Manager", "Store Manager", "Department Manager"].includes(user.role || "") ||
+      /(^|\b)(hr|human resources|people)(\b|$)/i.test(user.department || "");
+    if (item === "Employee Records") return employeeRecordsAccess;
     if (fullCompany) return true;
     if (item === "Wholesale Division") return wholesale;
     return !["Executive Overview", "Developments", "Approvals", "Reports"].includes(item);
@@ -548,6 +555,7 @@ export default function Home() {
     "Store Audits": "Digital branch audits with scoring, evidence and corrective-action tracking.",
     "Daily Checklists": "Daily manager opening-to-closing compliance and exception control.",
     "Store Ranking": "Executive operational ranking across the store network.",
+    "Employee Records": "Store employee files, daily attendance, lateness and disciplinary warning history.",
     "Wholesale Division": "Wholesale projects, targets and assigned actions.",
     Developments: "New-store, relocation and expansion budgets, costs and opening readiness.",
     "Financials & P&L":
@@ -1212,6 +1220,7 @@ export default function Home() {
     : `role:${draft.assignee}`;
   const unread = notifications.filter((n) => !n.read_at).length;
   const isStoreControlView = ["Store Audits", "Daily Checklists", "Store Ranking"].includes(active);
+  const isEmployeeRecordsView = active === "Employee Records";
   if (accessDenied)
     return (
       <main className="hubAccessGate">
@@ -1265,7 +1274,6 @@ export default function Home() {
             <i>▦</i>Company Workspaces
           </button>
           {availableNav.map((n) => {
-            const i = nav.indexOf(n);
             return (
             <button
               key={n}
@@ -1276,7 +1284,23 @@ export default function Home() {
                 setMobileNavOpen(false);
               }}
             >
-              <i>{["⌂", "✓", "▦", "↗", "◆", "▤", "⇄", "▥", "◇", "◫", "▧"][i]}</i>
+              <i>{({
+                "Executive Overview": "⌂",
+                "My Work": "✓",
+                "Store Operations": "▦",
+                "Store Audits": "◎",
+                "Daily Checklists": "☑",
+                "Store Ranking": "◆",
+                "Employee Records": "♙",
+                "Wholesale Division": "↗",
+                "Developments": "◇",
+                "Financials & P&L": "▤",
+                "Receiving & Dispatch": "⇄",
+                "SOP & Manuals": "▥",
+                "Approvals": "◫",
+                "Reports": "▧",
+                "Our Catalogue": "▦",
+              } as Record<string,string>)[n] || "•"}</i>
               {n}
               {n === "Approvals" && (
                 <em>
@@ -1346,7 +1370,7 @@ export default function Home() {
             </p>
           </div>
           <div className="actions">
-            {active !== "Our Catalogue" && !isStoreControlView && (
+            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && (
               <label>
                 ⌕
                 <input
@@ -1374,7 +1398,7 @@ export default function Home() {
               </button>
             )}
             <PwaInstallButton />
-            {!readOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && (
+            {!readOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && (
               <button className="primary" onClick={openComposer}>
                 ＋ Add task
               </button>
@@ -1390,6 +1414,8 @@ export default function Home() {
               setSearch("");
             }}
           />
+        ) : isEmployeeRecordsView ? (
+          <EmployeeRecords currentUser={currentUser} />
         ) : active === "Our Catalogue" ? (
           <Catalogue currentUserEmail={currentUser.email} />
         ) : active === "SOP & Manuals" ? (
@@ -1463,6 +1489,7 @@ export default function Home() {
               {!readOnlyAccess && <button onClick={() => { setQuickActionsOpen(false); openComposer(); }}><i className="qaBlue">＋</i><span><b>New Task</b><small>Create and assign a task</small></span></button>}
               <button onClick={() => quickNavigate("Store Audits")}><i className="qaGold">✓</i><span><b>Audit Store</b><small>Open the digital store audit</small></span></button>
               <button onClick={() => quickNavigate("Daily Checklists")}><i className="qaGreen">☑</i><span><b>Daily Checklist</b><small>Complete today&apos;s manager controls</small></span></button>
+              {availableNav.includes("Employee Records") && <button onClick={() => quickNavigate("Employee Records")}><i className="qaTeal">♙</i><span><b>Staff Attendance</b><small>Mark at work, absent or late</small></span></button>}
               {!readOnlyAccess && <button onClick={() => openStructuredWorkflow("incident")}><i className="qaRed">!</i><span><b>Report Incident</b><small>Capture an urgent store issue</small></span></button>}
               {!readOnlyAccess && <button onClick={beginQuickPhoto} disabled={quickPhotoUploading}><i className="qaPurple">▧</i><span><b>{quickPhotoUploading ? "Uploading…" : "Upload Photo"}</b><small>Add evidence to an open task</small></span></button>}
               {!readOnlyAccess && <button onClick={() => openStructuredWorkflow("capex")}><i className="qaGreen">R</i><span><b>CAPEX Request</b><small>Submit an expenditure request</small></span></button>}

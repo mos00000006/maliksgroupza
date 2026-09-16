@@ -1630,3 +1630,163 @@ button:disabled { cursor: default; }
   .rankingExplainer { align-items: flex-start; flex-direction: column; }
   .rankingExplainer > div:last-child { flex-wrap: wrap; }
 }
+
+
+/* ========================================================================
+   EMPLOYEE RECORDS — attendance, lateness, employee file & warnings
+   ======================================================================== */
+.employeeRecords { display: grid; gap: 13px; padding-bottom: 36px; }
+.employeeHero { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 19px 21px; border-radius: 14px; background: linear-gradient(120deg,#172438,#223955); color: #fff; box-shadow: 0 12px 28px rgba(23,36,56,.13); }
+.employeeHero > div:first-child { min-width: 0; }
+.employeeHero small { color: #f3c72b; font-size: 7px; font-weight: 900; letter-spacing: .15em; }
+.employeeHero h2 { margin: 5px 0 5px; font-size: 20px; line-height: 1.1; }
+.employeeHero p { margin: 0; max-width: 720px; color: #c9d4e2; font-size: 9px; line-height: 1.55; }
+.employeeHeroActions { min-width: 360px; display: flex; align-items: end; gap: 9px; }
+.employeeHeroActions label { flex: 1; display: grid; gap: 6px; color: #d4deea; font-size: 8px; font-weight: 800; }
+.employeeHeroActions select { width: 100%; height: 39px; border: 1px solid #53657d; border-radius: 9px; background: #fff; color: #18293f; padding: 0 10px; font: inherit; font-weight: 700; }
+.employeeHeroActions button,.employeePrimary { min-height: 39px; border: 1px solid #dab01f; border-radius: 9px; background: #f6ca2f; color: #172438; padding: 0 14px; font: inherit; font-size: 9px; font-weight: 850; cursor: pointer; white-space: nowrap; }
+.employeeKpis { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 9px; }
+.employeeKpis article { border: 1px solid #dde5ed; border-radius: 11px; background: #fff; padding: 12px 13px; box-shadow: 0 4px 14px rgba(25,49,76,.04); }
+.employeeKpis span,.employeeKpis b,.employeeKpis small { display: block; }
+.employeeKpis span { color: #748296; font-size: 7px; font-weight: 850; text-transform: uppercase; letter-spacing: .04em; }
+.employeeKpis b { margin-top: 5px; color: #1e344c; font-size: 19px; line-height: 1; }
+.employeeKpis small { margin-top: 5px; color: #8a96a4; font-size: 7px; }
+.employeeKpis article.present b { color: #21805a; }
+.employeeKpis article.late b { color: #a86c0d; }
+.employeeKpis article.absent b,.employeeKpis article.warning b { color: #bd3e4c; }
+.employeeToolbar { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #dde5ed; border-radius: 11px; background: #fff; padding: 7px 10px; }
+.employeeToolbar label { flex: 1; max-width: 480px; height: 34px; border: 1px solid #dce4ec; border-radius: 8px; display: flex; align-items: center; padding: 0 9px; color: #8693a2; }
+.employeeToolbar input { flex: 1; min-width: 0; border: 0; outline: 0; padding: 0 8px; color: #2c4158; font: inherit; font-size: 9px; }
+.employeeToolbar > small { color: #8290a0; font-size: 8px; }
+.employeeListPanel { overflow: hidden; border: 1px solid #dce4ed; border-radius: 13px; background: #fff; box-shadow: 0 5px 17px rgba(25,49,76,.05); }
+.employeeListPanel > header { padding: 13px 15px; border-bottom: 1px solid #e8edf2; background: #fbfcfd; }
+.employeeListPanel > header small { color: #a87900; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
+.employeeListPanel > header h3 { margin: 3px 0; color: #1a3049; font-size: 14px; }
+.employeeListPanel > header p { margin: 0; color: #7b8998; font-size: 8px; }
+.employeeTableWrap { overflow-x: auto; }
+.employeeTableHead,.employeeTableRow { min-width: 1030px; display: grid; grid-template-columns: 1.45fr 1fr .65fr .9fr .55fr 1.7fr; gap: 10px; align-items: center; padding: 9px 14px; }
+.employeeTableHead { border-bottom: 1px solid #e4eaf0; background: #f7f9fb; color: #7d8997; font-size: 6px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+.employeeTableRow { min-height: 64px; border-bottom: 1px solid #edf1f5; color: #53667b; font-size: 8px; }
+.employeeTableRow:hover { background: #fcfdfe; }
+.employeeIdentity { min-width: 0; display: flex; align-items: center; gap: 9px; border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; }
+.employeeIdentity > i,.employeeProfileHeading > i { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; display: grid; place-items: center; background: #e8f0f8; color: #285174; font-style: normal; font-size: 9px; font-weight: 900; }
+.employeeIdentity span { min-width: 0; }
+.employeeIdentity b,.employeeIdentity small,.employeeRoleCell b,.employeeRoleCell small { display: block; }
+.employeeIdentity b { overflow: hidden; color: #243b53; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.employeeIdentity small,.employeeRoleCell small { margin-top: 3px; color: #929daa; font-size: 6px; }
+.employeeRoleCell b { color: #40566e; font-size: 8px; }
+.attendancePill { display: inline-block; width: max-content; max-width: 100%; border-radius: 999px; padding: 5px 7px; font-style: normal; font-size: 7px; font-weight: 850; white-space: nowrap; }
+.attendancePill.atWork { background: #e4f6ed; color: #1e8059; }
+.attendancePill.late { background: #fff2d8; color: #99630f; }
+.attendancePill.notAtWork { background: #ffe8eb; color: #b13947; }
+.attendancePill.unmarked { background: #eef2f6; color: #708095; }
+.attendanceReason { display: block; max-width: 130px; margin-top: 4px; overflow: hidden; color: #929daa; font-size: 6px; text-overflow: ellipsis; white-space: nowrap; }
+.warningCountButton { width: 54px; border: 1px solid #e2e8ef; border-radius: 8px; background: #fff; padding: 5px; text-align: center; cursor: pointer; }
+.warningCountButton b,.warningCountButton small { display: block; }
+.warningCountButton b { color: #ad3946; font-size: 12px; }
+.warningCountButton small { margin-top: 2px; color: #8b97a5; font-size: 6px; }
+.attendanceButtons { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; }
+.attendanceButtons button { min-height: 31px; border: 1px solid #d8e0e8; border-radius: 7px; background: #fff; color: #4b5f75; font: inherit; font-size: 7px; font-weight: 800; cursor: pointer; }
+.attendanceButtons button.atWork { border-color: #bfe4d2; color: #247653; }
+.attendanceButtons button.notAtWork { border-color: #f0c7cd; color: #a93e4a; }
+.attendanceButtons button.late { border-color: #ead7a8; color: #94600d; }
+.attendanceButtons button.selected.atWork { background: #e4f6ed; }
+.attendanceButtons button.selected.notAtWork { background: #ffe8eb; }
+.attendanceButtons button.selected.late { background: #fff2d8; }
+.attendanceButtons button:disabled { opacity: .45; cursor: not-allowed; }
+.employeeEmpty { padding: 22px 16px; color: #8895a4; text-align: center; font-size: 8px; }
+.employeeToast { position: fixed; right: 22px; top: 104px; z-index: 60; max-width: 360px; border: 1px solid #cbd8e5; border-radius: 10px; background: #fff; padding: 10px 13px; color: #30475f; box-shadow: 0 12px 32px rgba(25,49,76,.18); font-size: 9px; font-weight: 750; }
+.employeeRecordsLoading { margin-top: 18px; border: 1px solid #dce4ed; border-radius: 12px; background: #fff; padding: 26px; color: #40566d; font-size: 9px; }
+
+.employeeOverlay { z-index: 48; padding: 18px; }
+.employeeProfile { width: min(1040px,calc(100vw - 36px)); max-height: calc(100dvh - 36px); overflow: hidden; border-radius: 15px; background: #fff; box-shadow: 0 28px 80px rgba(14,29,48,.28); display: flex; flex-direction: column; }
+.employeeProfile > header,.employeeSmallModal > header,.employeeFormModal > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #e5ebf1; padding: 15px 18px; background: #fbfcfd; }
+.employeeProfileHeading { min-width: 0; display: flex; align-items: center; gap: 11px; }
+.employeeProfileHeading > i { width: 43px; height: 43px; flex-basis: 43px; border-radius: 12px; font-size: 11px; background: #dfeaf6; }
+.employeeProfileHeading small,.employeeSmallModal > header small,.employeeFormModal > header small { color: #a87900; font-size: 7px; font-weight: 900; letter-spacing: .09em; }
+.employeeProfileHeading h2,.employeeSmallModal > header h2,.employeeFormModal > header h2 { margin: 3px 0; color: #1b3149; font-size: 16px; }
+.employeeProfileHeading p,.employeeSmallModal > header p,.employeeFormModal > header p { margin: 0; color: #8290a0; font-size: 8px; }
+.employeeProfileHeaderActions { display: flex; gap: 7px; align-items: center; }
+.employeeProfileHeaderActions > button:not(.closeEmployeeModal),.employeeHistorySection > header button { min-height: 34px; border: 1px solid #d2dce6; border-radius: 8px; background: #fff; padding: 0 10px; color: #344d66; font: inherit; font-size: 8px; font-weight: 800; cursor: pointer; }
+.closeEmployeeModal,.employeeSmallModal > header > button,.employeeFormModal > header > button { width: 32px; height: 32px; border: 0; border-radius: 8px; background: #edf2f6; color: #607187; font-size: 18px; cursor: pointer; }
+.employeeProfileBody { overflow-y: auto; padding: 14px; display: grid; gap: 12px; }
+.employeeProfileStats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+.employeeProfileStats article { border: 1px solid #dfe6ed; border-radius: 10px; background: #fff; padding: 11px 12px; }
+.employeeProfileStats span,.employeeProfileStats b,.employeeProfileStats small { display: block; }
+.employeeProfileStats span { color: #7e8b9a; font-size: 7px; font-weight: 850; text-transform: uppercase; }
+.employeeProfileStats b { margin-top: 5px; color: #243c55; font-size: 17px; }
+.employeeProfileStats small { margin-top: 4px; color: #929daa; font-size: 6px; }
+.employeeProfileStats article.warning b { color: #b23b48; }
+.employeeFileGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.employeeFileGrid > section,.employeeNotes,.employeeHistorySection { border: 1px solid #dfe6ed; border-radius: 11px; background: #fff; overflow: hidden; }
+.employeeFileGrid > section { padding: 12px 13px; }
+.employeeFileGrid > section > small,.employeeNotes > small,.employeeHistorySection > header small { color: #a87900; font-size: 6px; font-weight: 900; letter-spacing: .09em; }
+.employeeFileGrid dl { margin: 9px 0 0; display: grid; gap: 0; }
+.employeeFileGrid dl > div { display: grid; grid-template-columns: 120px minmax(0,1fr); gap: 9px; padding: 6px 0; border-top: 1px solid #eff2f5; }
+.employeeFileGrid dt { color: #8a96a4; font-size: 7px; }
+.employeeFileGrid dd { margin: 0; color: #354c64; font-size: 8px; font-weight: 700; word-break: break-word; }
+.employeeNotes { padding: 11px 13px; }
+.employeeNotes p { margin: 7px 0 0; color: #52667a; font-size: 8px; line-height: 1.5; white-space: pre-wrap; }
+.employeeHistorySection > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; border-bottom: 1px solid #e9eef3; background: #fbfcfd; }
+.employeeHistorySection > header h3 { margin: 3px 0 0; color: #243b53; font-size: 11px; }
+.employeeHistoryTable { overflow-x: auto; }
+.employeeHistoryHead,.employeeHistoryRow { min-width: 660px; display: grid; grid-template-columns: 115px 115px 1.3fr 1fr; gap: 9px; align-items: center; padding: 8px 12px; }
+.employeeHistoryHead { background: #f7f9fb; color: #7f8c9b; font-size: 6px; font-weight: 900; text-transform: uppercase; }
+.employeeHistoryRow { min-height: 45px; border-top: 1px solid #edf1f5; color: #52667a; font-size: 8px; }
+.employeeHistoryRow small { display: block; margin-top: 3px; color: #929daa; font-size: 6px; }
+.warningCards { display: grid; gap: 8px; padding: 10px; }
+.warningCards article { border: 1px solid #e0e6ed; border-radius: 10px; padding: 10px 11px; background: #fff; }
+.warningCards article > div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.warningCards article > div b { color: #2d435b; font-size: 9px; }
+.warningCards article > div small { margin-left: auto; color: #8d99a7; font-size: 6px; }
+.warningLevel { border-radius: 999px; padding: 4px 7px; font-style: normal; font-size: 6px; font-weight: 900; }
+.warningLevel.verbal { background: #eef2f6; color: #5c6e81; }
+.warningLevel.written { background: #fff2d8; color: #95600d; }
+.warningLevel.final { background: #ffe8eb; color: #ad3543; }
+.warningCards p { margin: 8px 0; color: #596b7e; font-size: 8px; line-height: 1.5; }
+.warningCards footer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-top: 1px solid #edf1f5; padding-top: 8px; }
+.warningCards footer > span { border-radius: 999px; padding: 4px 7px; font-size: 6px; font-weight: 850; }
+.activeWarning { background: #ffe8eb; color: #ad3543; }
+.inactiveWarning { background: #eef2f6; color: #6e7d8e; }
+.warningCards footer small { color: #8995a4; font-size: 6px; }
+.warningCards footer button { margin-left: auto; border: 1px solid #dfc4c8; border-radius: 7px; background: #fff; padding: 5px 8px; color: #a33c47; font: inherit; font-size: 6px; font-weight: 800; cursor: pointer; }
+
+.employeeSmallModal { width: min(520px,calc(100vw - 30px)); max-height: calc(100dvh - 30px); overflow: hidden; border-radius: 14px; background: #fff; box-shadow: 0 28px 80px rgba(14,29,48,.28); display: flex; flex-direction: column; }
+.employeeFormModal { width: min(820px,calc(100vw - 30px)); max-height: calc(100dvh - 30px); overflow: hidden; border-radius: 14px; background: #fff; box-shadow: 0 28px 80px rgba(14,29,48,.28); display: flex; flex-direction: column; }
+.employeeModalBody,.employeeFormBody { overflow-y: auto; padding: 14px 16px; display: grid; gap: 11px; }
+.employeeModalBody label,.employeeFormGrid label,.employeeNotesField { display: grid; gap: 6px; color: #3b4e65; font-size: 8px; font-weight: 800; }
+.employeeModalBody input,.employeeModalBody select,.employeeModalBody textarea,.employeeFormGrid input,.employeeFormGrid select,.employeeNotesField textarea { width: 100%; min-height: 37px; border: 1px solid #d6dfe9; border-radius: 8px; background: #fff; color: #1d3047; padding: 8px 10px; font: inherit; font-size: 8px; font-weight: 500; outline: none; }
+.employeeModalBody textarea,.employeeNotesField textarea { min-height: 78px; resize: vertical; line-height: 1.5; }
+.employeeModalBody label small { color: #8995a3; font-size: 6px; font-weight: 500; }
+.employeeModalTwo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.employeeFormGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.employeePrivacyNote { margin: 0; border: 1px solid #dce4ec; border-radius: 8px; background: #f7fafc; padding: 9px 10px; color: #65768a; font-size: 7px; line-height: 1.5; }
+.employeeSmallModal > footer,.employeeFormModal > footer { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #e5ebf1; padding: 11px 15px; background: #fbfcfd; }
+.employeeSmallModal > footer > button:not(.employeePrimary),.employeeFormModal > footer > button:not(.employeePrimary) { min-height: 37px; border: 1px solid #d4dde6; border-radius: 8px; background: #fff; padding: 0 13px; color: #4d6075; font: inherit; font-size: 8px; font-weight: 800; cursor: pointer; }
+.employeePrimary:disabled { opacity: .55; cursor: wait; }
+.warningPrimary { border-color: #b83d4a; background: #c94755; color: #fff; }
+
+@media (max-width: 1180px) {
+  .employeeKpis { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .employeeFormGrid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 760px) {
+  .employeeRecords { gap: 10px; }
+  .employeeHero { align-items: stretch; flex-direction: column; padding: 15px; gap: 13px; border-radius: 12px; }
+  .employeeHero h2 { font-size: 18px; }
+  .employeeHeroActions { min-width: 0; align-items: stretch; flex-direction: column; }
+  .employeeHeroActions button { width: 100%; }
+  .employeeKpis { grid-template-columns: 1fr 1fr; gap: 7px; }
+  .employeeToolbar { align-items: stretch; flex-direction: column; }
+  .employeeToolbar label { max-width: none; width: 100%; }
+  .employeeProfile { width: calc(100vw - 14px); max-height: calc(100dvh - 14px); }
+  .employeeProfile > header { align-items: flex-start; }
+  .employeeProfileHeading > i { display: none; }
+  .employeeProfileHeaderActions > button:not(.closeEmployeeModal) { display: none; }
+  .employeeProfileStats { grid-template-columns: 1fr 1fr; }
+  .employeeFileGrid { grid-template-columns: 1fr; }
+  .employeeFormGrid,.employeeModalTwo { grid-template-columns: 1fr; }
+  .employeeFormModal,.employeeSmallModal { width: calc(100vw - 14px); max-height: calc(100dvh - 14px); }
+  .employeeOverlay { padding: 7px; }
+  .employeeToast { left: 12px; right: 12px; top: 82px; max-width: none; }
+}
