@@ -1,13 +1,31 @@
 POWERBUILD / MALIKS GROUP HUB
-EMPLOYEE RECORDS DEPLOY FIX V2
+CLOUDFLARE DEPLOY ORDER FIX
 
-This fixes the GitHub Actions lint failure:
-react-hooks/set-state-in-effect in app/employee-records.tsx.
+PROBLEM
+-------
+GitHub Actions failed at:
+  Sync AI Sidekick secret
 
-It also removes the unused openQuickTask helper warning from app/page.tsx.
+Cloudflare returned:
+  "Secret edit failed. You attempted to modify a secret, but the latest
+   version of your Worker isn't currently deployed."
 
-REPLACE THESE TWO FILES:
-- app/employee-records.tsx
-- app/page.tsx
+FIX
+---
+The deployment order has been changed to:
 
-Then commit and push. No database change, secret, or migration is required.
+1. Validate and build
+2. Prepare production configuration
+3. Apply D1 migrations
+4. Deploy the full Hub Worker
+5. Sync OPENAI_API_KEY after the Worker version is deployed
+
+FILES
+-----
+Replace:
+  .github/workflows/deploy.yml
+
+Then commit and push.
+
+No application files need to be changed.
+No GitHub secrets need to be deleted or recreated.

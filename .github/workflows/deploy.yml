@@ -43,12 +43,12 @@ jobs:
       - name: Prepare production configuration
         run: npm run config:production
 
-      - name: Sync AI Sidekick secret
-        if: ${{ env.OPENAI_API_KEY != '' }}
-        run: printf '%s' "$OPENAI_API_KEY" | npx wrangler secret put OPENAI_API_KEY --config .deploy/wrangler.jsonc
-
       - name: Apply database migrations
         run: npx wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc
 
       - name: Deploy full Hub
         run: npx wrangler deploy --config dist/server/wrangler.json
+
+      - name: Sync AI Sidekick secret
+        if: ${{ env.OPENAI_API_KEY != '' }}
+        run: printf '%s' "$OPENAI_API_KEY" | npx wrangler secret put OPENAI_API_KEY --config .deploy/wrangler.jsonc
