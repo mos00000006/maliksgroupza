@@ -981,32 +981,6 @@ export default function Home() {
     const store = workspaces.find((workspace) => workspace.type === "Store");
     return store?.name || workspaces[0]?.name || draft.project;
   };
-  const openQuickTask = (preset: {
-    title: string;
-    description: string;
-    taskType: string;
-    taskGroup?: string;
-    priority?: Task["priority"];
-    preferredWorkspace?: string;
-  }) => {
-    if (readOnlyAccess) {
-      flash("Your Hub access is read only");
-      return;
-    }
-    setDraft((current) => ({
-      ...current,
-      title: preset.title,
-      description: preset.description,
-      project: quickDefaultWorkspace(preset.preferredWorkspace),
-      task_type: preset.taskType,
-      task_group: preset.taskGroup || "Store Tasks",
-      priority: preset.priority || "Medium",
-      status: "Not started",
-      due: quickDueDate(),
-    }));
-    setQuickActionsOpen(false);
-    setOpen(true);
-  };
   const openStructuredWorkflow = (kind: QuickWorkflowKind) => {
     if (readOnlyAccess) {
       flash("Your Hub access is read only");
