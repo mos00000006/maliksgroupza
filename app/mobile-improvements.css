@@ -790,3 +790,60 @@ aside > .user {
     display: none !important;
   }
 }
+
+
+/* ========================================================================
+   POWERBUILD SIDEBAR ICON SYSTEM V8
+   Clean vector icons replace the old text/glyph symbols.
+   ======================================================================== */
+.sidebarNavIcon {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  flex: 0 0 22px !important;
+  display: grid !important;
+  place-items: center !important;
+  margin-right: 1px;
+  border-radius: 6px;
+  color: #8fb0d7;
+  font-style: normal !important;
+  line-height: 1 !important;
+  transition:
+    color .18s ease,
+    background .18s ease,
+    transform .18s ease;
+}
+
+.sidebarNavIcon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  overflow: visible;
+}
+
+aside nav button:hover .sidebarNavIcon {
+  color: #c9ddf6;
+  transform: translateX(1px);
+}
+
+aside nav button.active .sidebarNavIcon {
+  color: #f5c928;
+  background: rgba(246, 202, 47, .10);
+}
+
+aside nav button.active {
+  box-shadow: inset 3px 0 0 #f5c928;
+}
+
+@media (max-width: 720px) {
+  .sidebarNavIcon {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+  }
+
+  .sidebarNavIcon svg {
+    width: 19px;
+    height: 19px;
+  }
+}

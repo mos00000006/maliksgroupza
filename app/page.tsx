@@ -102,6 +102,177 @@ const nav = [
   "Reports",
   "Our Catalogue",
 ];
+
+function SidebarIcon({ name }: { name: string }) {
+  const common = {
+    width: 19,
+    height: 19,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  switch (name) {
+    case "Company Workspaces":
+      return (
+        <svg {...common}>
+          <path d="M4 20V8.8L9 6v14" />
+          <path d="M9 20V4h7v16" />
+          <path d="M16 9h4v11" />
+          <path d="M6.5 11h.01M6.5 14h.01M12 7h1M12 10h1M12 13h1M18 12h.01M18 15h.01" />
+          <path d="M2.5 20h19" />
+        </svg>
+      );
+    case "Executive Overview":
+      return (
+        <svg {...common}>
+          <rect x="3" y="4" width="18" height="14" rx="2.2" />
+          <path d="M7 14v-3M11 14V8M15 14v-5M19 14v-7" />
+          <path d="M8 21h8M12 18v3" />
+        </svg>
+      );
+    case "My Work":
+      return (
+        <svg {...common}>
+          <rect x="5" y="4" width="14" height="17" rx="2.2" />
+          <path d="M9 4.5V3h6v1.5" />
+          <path d="m8.5 12 2.1 2.1 4.9-5" />
+          <path d="M8.5 17h7" />
+        </svg>
+      );
+    case "Store Operations":
+      return (
+        <svg {...common}>
+          <path d="M4 9h16l-1.2-4H5.2L4 9Z" />
+          <path d="M5 9v10h14V9" />
+          <path d="M9 19v-5h6v5" />
+          <path d="M4 9c.3 1.4 1.1 2.1 2.2 2.1S8 10.4 8 9c.3 1.4 1.1 2.1 2.2 2.1S12 10.4 12 9c.3 1.4 1.1 2.1 2.2 2.1S16 10.4 16 9c.3 1.4 1.1 2.1 2.2 2.1S20 10.4 20 9" />
+        </svg>
+      );
+    case "Store Audits":
+      return (
+        <svg {...common}>
+          <path d="M6 4.5h9l3 3V13" />
+          <path d="M15 4.5V8h3" />
+          <path d="M6 4.5v15h7" />
+          <path d="M8.5 10h5M8.5 13h3" />
+          <circle cx="17" cy="17" r="3" />
+          <path d="m19.2 19.2 2.1 2.1" />
+        </svg>
+      );
+    case "Daily Checklists":
+      return (
+        <svg {...common}>
+          <rect x="4" y="3" width="16" height="18" rx="2.2" />
+          <path d="m7 8 1.4 1.4L11 6.8M13 8h4" />
+          <path d="m7 13 1.4 1.4L11 11.8M13 13h4" />
+          <path d="m7 18 1.4 1.4 2.6-2.6M13 18h4" />
+        </svg>
+      );
+    case "Store Ranking":
+      return (
+        <svg {...common}>
+          <path d="M5 20v-5h4v5M10 20v-9h4v9M15 20V7h4v13" />
+          <path d="m12 3 .8 1.6 1.8.3-1.3 1.3.3 1.8L12 7.1 10.4 8l.3-1.8-1.3-1.3 1.8-.3L12 3Z" />
+          <path d="M3 20h18" />
+        </svg>
+      );
+    case "Employee Records":
+      return (
+        <svg {...common}>
+          <rect x="3" y="4" width="18" height="16" rx="2.4" />
+          <circle cx="8.3" cy="10" r="2.2" />
+          <path d="M5.5 16c.7-2 1.7-3 2.8-3 1.2 0 2.2 1 2.9 3" />
+          <path d="M14 9h4M14 12h4M14 15h3" />
+        </svg>
+      );
+    case "Wholesale Division":
+      return (
+        <svg {...common}>
+          <path d="m3.5 8 4.5-3 4.5 3-4.5 3-4.5-3Z" />
+          <path d="m8 11 4.5-3 4.5 3-4.5 3L8 11Z" />
+          <path d="M3.5 8v5L8 16l4.5-3v-2" />
+          <path d="M8 11v5M12.5 14v3l4.5 2.5 4-2.2" />
+          <path d="M17 10.5h4v4" />
+          <path d="m21 10.5-5 5" />
+        </svg>
+      );
+    case "Developments":
+      return (
+        <svg {...common}>
+          <path d="M5 19h14" />
+          <path d="M6 16 16.8 5.2a1.7 1.7 0 0 1 2.4 0l.6.6a1.7 1.7 0 0 1 0 2.4L9 19H6v-3Z" />
+          <path d="m15.5 6.5 3 3" />
+          <path d="M4 5h7M4 9h4M4 13h2" />
+        </svg>
+      );
+    case "Financials & P&L":
+      return (
+        <svg {...common}>
+          <path d="M4 19V5" />
+          <path d="M4 19h16" />
+          <path d="m7 15 4-4 3 2 5-6" />
+          <path d="M16 7h3v3" />
+          <circle cx="9" cy="7" r="2.2" />
+          <path d="M9 5.7v2.6M8.3 6.4h1.1a.7.7 0 0 1 0 1.4H8.3" />
+        </svg>
+      );
+    case "Receiving & Dispatch":
+      return (
+        <svg {...common}>
+          <path d="M8 5H4v4" />
+          <path d="M4 9c1.6-3 4-4.5 7.2-4.5H17" />
+          <path d="m17 2 3 2.5L17 7" />
+          <path d="M16 19h4v-4" />
+          <path d="M20 15c-1.6 3-4 4.5-7.2 4.5H7" />
+          <path d="m7 17-3-2.5L7 12" />
+        </svg>
+      );
+    case "SOP & Manuals":
+      return (
+        <svg {...common}>
+          <path d="M4 5.5C6.8 4.3 9 4.4 12 6v14c-3-1.6-5.2-1.7-8-.5v-14Z" />
+          <path d="M20 5.5C17.2 4.3 15 4.4 12 6v14c3-1.6 5.2-1.7 8-.5v-14Z" />
+          <path d="M7 9h2M7 12h2M15 9h2M15 12h2" />
+        </svg>
+      );
+    case "Approvals":
+      return (
+        <svg {...common}>
+          <path d="M12 3 19 6v5.2c0 4.4-2.7 7.8-7 9.8-4.3-2-7-5.4-7-9.8V6l7-3Z" />
+          <path d="m8.5 12 2.2 2.2 4.8-5" />
+        </svg>
+      );
+    case "Reports":
+      return (
+        <svg {...common}>
+          <path d="M6 3h8l4 4v14H6V3Z" />
+          <path d="M14 3v5h4" />
+          <path d="M9 17v-3M12 17v-5M15 17v-7" />
+          <path d="M8.5 9h3" />
+        </svg>
+      );
+    case "Our Catalogue":
+      return (
+        <svg {...common}>
+          <rect x="3" y="4" width="18" height="16" rx="2.2" />
+          <path d="M3 10h18M3 15h18M9 4v16M15 4v16" />
+          <path d="M5.2 7h1.6M11.2 12h1.6M17.2 17h1.6" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8" />
+          <path d="M12 8v8M8 12h8" />
+        </svg>
+      );
+  }
+}
 const HUMAN_RESOURCE_ROLE = "Human Resource (HR)";
 const navigationForUser = (user: CurrentHubUser) => {
   if (user.role === HUMAN_RESOURCE_ROLE) return ["Employee Records"];
@@ -1307,7 +1478,7 @@ export default function Home() {
                 setMobileNavOpen(false);
               }}
             >
-              <i>▦</i>Company Workspaces
+              <i className="sidebarNavIcon"><SidebarIcon name="Company Workspaces" /></i>Company Workspaces
             </button>
           )}
           {sidebarNavigation.map((n) => {
@@ -1321,23 +1492,9 @@ export default function Home() {
                 setMobileNavOpen(false);
               }}
             >
-              <i>{({
-                "Executive Overview": "⌂",
-                "My Work": "✓",
-                "Store Operations": "▦",
-                "Store Audits": "◎",
-                "Daily Checklists": "☑",
-                "Store Ranking": "◆",
-                "Employee Records": "♙",
-                "Wholesale Division": "↗",
-                "Developments": "◇",
-                "Financials & P&L": "▤",
-                "Receiving & Dispatch": "⇄",
-                "SOP & Manuals": "▥",
-                "Approvals": "◫",
-                "Reports": "▧",
-                "Our Catalogue": "▦",
-              } as Record<string,string>)[n] || "•"}</i>
+              <i className="sidebarNavIcon">
+                <SidebarIcon name={n} />
+              </i>
               {n}
               {n === "Approvals" && (
                 <em>

@@ -1,28 +1,42 @@
 POWERBUILD / MALIKS GROUP HUB
-MOBILE FULL SIDEBAR + FLOATING AI FIX V7
+PROFESSIONAL SIDEBAR ICONS V8
 
 REPLACE ONLY:
   app/page.tsx
   app/mobile-improvements.css
 
-WHAT IS FIXED
--------------
-1. Mobile hamburger menu:
-   - Owner / Admin sees the complete sidebar.
-   - Developer / Technical Admin sees the complete sidebar.
-   - Executive / EXCO with Full Company access sees the complete sidebar.
-   - Human Resource (HR) remains restricted to Employee Records only.
-   - Restricted store users keep their normal permitted menu.
+WHAT CHANGED
+------------
+The old text/glyph symbols in the sidebar have been replaced by clean inline SVG
+icons inside the actual Hub.
 
-2. Entire mobile sidebar scrolls vertically as ONE surface:
-   PowerBuild logo -> Company Workspaces -> all modules -> AI Sidekick ->
-   Manage User Access -> user profile.
+Each module now has a relevant icon:
+- Company Workspaces: company/building
+- Executive Overview: dashboard/chart
+- My Work: task clipboard
+- Store Operations: storefront
+- Store Audits: audit document + magnifier
+- Daily Checklists: checklist
+- Store Ranking: ranking bars + star
+- Employee Records: employee ID card
+- Wholesale Division: boxes + movement arrow
+- Developments: plan/pencil
+- Financials & P&L: financial chart
+- Receiving & Dispatch: two-way movement arrows
+- SOP & Manuals: open manual/book
+- Approvals: shield + check
+- Reports: report document/chart
+- Our Catalogue: product catalogue grid
 
-3. Floating AI button:
-   - disappears as soon as Add Task is opened;
-   - is hidden over task details, Quick Actions, workspaces, Team Access and Inbox;
-   - is hidden while the hamburger drawer is open;
-   - cannot cover the blue Create task button.
+STYLE
+-----
+- Inactive icons use a soft PowerBuild blue.
+- Hover becomes brighter.
+- Active module icon becomes PowerBuild yellow.
+- Active sidebar item gets a thin yellow accent line.
+- Same icon system works on desktop and mobile.
+- No image files are required. Icons are crisp vector SVGs rendered by the Hub.
 
-No database migration.
-No GitHub secret changes.
+No database changes.
+No migration.
+No GitHub secrets.
