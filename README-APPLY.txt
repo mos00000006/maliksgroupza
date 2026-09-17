@@ -1,27 +1,23 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS — 25 MB PER IMAGE + SEQUENTIAL UPLOAD V4
+STORE SPECIALS — ALL BRANCHES FIX V6
 
-REPLACE:
-  app/store-specials.tsx
-  app/api/store-specials/route.ts
+Replace only:
+  app/api/store-specials/shared.ts
 
-NEW UPLOAD RULE
----------------
-- Every promotion image may be up to 25 MB.
-- Up to 12 images can be selected.
-- The Hub no longer sends all pictures inside the Create Special request.
-- It creates the promotion record FIRST.
-- It then uploads each image ONE AT A TIME.
-- This prevents multiple large files from making one oversized request.
+The Store Specials selector now uses EVERY active branch in the Hub, even when a
+branch workspace has a different or blank type label.
 
-Example:
-  2 images x 20 MB = accepted.
-  They are uploaded as two separate ~20 MB requests instead of one ~40 MB request.
+Only genuine non-store locations are excluded:
+- Head Office
+- Distribution Centre / DC
+- Wholesale / Wholesale Division
+- Developments
 
-If an image is over 25 MB:
-  The phone immediately tells the user which image is too large.
+Permissions remain unchanged:
+- Full Company = all branches
+- Assigned Store = assigned store only
+- Regional / multi-store = assigned branches only
+- Human Resource (HR) = no Store Specials access
 
-The slideshow, branch permissions and promotion notifications are unchanged.
-
-No D1 migration.
-No new GitHub secret.
+No database migration.
+No GitHub secret changes.

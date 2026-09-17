@@ -119,22 +119,33 @@ export async function listStoreBranches(member: HubMember) {
      ORDER BY name`,
   ).all<Record<string, string | number | null>>();
 
-  let branches = results.filter((row) =>
-    String(row.type || "").toLowerCase().includes("store"),
-  );
-  if (!branches.length) {
-    branches = results.filter((row) => {
-      const type = String(row.type || "").toLowerCase();
-      return !["head office", "distribution centre", "dc", "wholesale", "wholesale division"].includes(type);
-    });
-  }
+  // Use the complete ACTIVE branch register. Some real stores were created
+  // with different or blank workspace type labels, so do not require
+  // type='Store'. Only remove locations that are clearly not retail branches.
+  const nonBranchPattern =
+    /(head\s*office|wholesale|distribution\s*centre|distribution\s*center|\bdc\b|developments?)/i;
+
+  const branches = results.filter((row) => {
+    const name = String(row.name || "").trim();
+    const type = String(row.type || "").trim();
+    if (!name) return false;
+    return !nonBranchPattern.test(`${name} ${type}`);
+  });
 
   const allowed = allowedWorkspaces(member);
-  return allowed === null
-    ? branches
-    : branches.filter((row) =>
-        allowed.some((name) => name.trim().toLowerCase() === String(row.name || "").trim().toLowerCase()),
-      );
+
+  // Full-company users see every active branch.
+  if (allowed === null) return branches;
+
+  // Assigned-store / regional users see only the branches already assigned
+  // to them through normal Hub workspace access.
+  const normalisedAllowed = new Set(
+    allowed.map((name) => name.trim().toLowerCase()).filter(Boolean),
+  );
+
+  return branches.filter((row) =>
+    normalisedAllowed.has(String(row.name || "").trim().toLowerCase()),
+  );
 }
 
 function recipientWorkspaceAccess(recipient: TeamRecipient) {
