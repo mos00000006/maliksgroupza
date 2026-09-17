@@ -46,7 +46,7 @@ export async function GET(req: Request) {
     env.DB.prepare("SELECT * FROM promotion_comments ORDER BY id DESC").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_decisions ORDER BY id DESC").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_decision_votes ORDER BY id DESC").all<Record<string, unknown>>(),
-    env.DB.prepare("SELECT * FROM promotion_planning_activity ORDER BY id DESC LIMIT 120").all<Record<string, unknown>>(),
+    env.DB.prepare("SELECT * FROM promotion_planning_activity ORDER BY id DESC").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_thoughts ORDER BY id DESC").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_thought_reactions ORDER BY id DESC").all<Record<string, unknown>>(),
     env.DB.prepare(

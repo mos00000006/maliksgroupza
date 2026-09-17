@@ -1,47 +1,80 @@
 POWERBUILD / MALIKS GROUP HUB
-PROMOTION PLANNING V5 — FINALIZED PROMOTION ARCHIVE
+PROMOTION PLANNING V6 — COMPLETE CATCH-UP ARCHIVE
 
 REPLACE:
   app/promotion-planning.tsx
   app/api/promotion-planning/route.ts
 
-HOW IT WORKS
-------------
-When Head Office changes a planning room to:
-  Finalised
+PURPOSE
+-------
+The Finalized Archive is now a complete "I missed the discussion — catch me up"
+record.
 
-it immediately leaves the LIVE Next Promotion Planning area.
+When a user was offline, away from work, or did not participate in the live
+planning room, they can later open the finalized promotion and see EVERYTHING
+that was discussed.
 
-It moves to:
-  🗃 Finalized Archive
-
-The live dropdown now shows only:
-- Open
-- Reviewing
-
-Finalised rooms do not clutter the live discussion.
-
-FINALIZED ARCHIVE
+ARCHIVE NOW SHOWS
 -----------------
-The archive is read-only and keeps:
-- Agreed decisions
-- Approved promotion products
-- Shortlisted / agreed manager thoughts
-- Discussion comments
-- Full activity history
-- User who submitted each item
-- Created date
-- Finalised status
+1. FULL DECISION DISCUSSION
+   - Every decision proposal, not only agreed ones
+   - Proposal status
+   - Who proposed it
+   - Reason/rationale
+   - Every manager vote
+   - Every vote comment
 
-The archive button shows how many completed planning rooms are stored.
+2. FULL PRODUCT DISCUSSION
+   - Every product suggested, not only approved products
+   - Product code/category
+   - Current price
+   - Suggested promotional price
+   - Expected quantity
+   - Brand/supplier
+   - Why it was suggested
+   - Competitor / market note
+   - Display / merchandising idea
+   - Final product status
+   - Every manager support vote/comment
 
-DATABASE
---------
-No new database table is needed.
-The existing status='Finalised' is used as the archive flag.
+3. FULL MANAGER THOUGHTS
+   - Every thought regardless of final status
+   - Thought type
+   - Impact
+   - Item/product
+   - Pricing and quantity
+   - Complete explanation
+   - Every manager reaction/comment
 
-The API history limit was increased from 12 to 100 planning rooms so older
-completed planning records remain available.
+4. GENERAL DISCUSSION
+   - Every general manager comment
+   - Topic
+   - Author
+   - Date/time
 
-No manual migration.
+5. COMPLETE CHRONOLOGICAL TIMELINE
+   - Replays the planning room from first event to last
+   - Who did what
+   - Date/time
+   - Activity description
+
+CATCH-UP DASHBOARD
+------------------
+Shows:
+- Number of participants
+- Decision proposals
+- Product ideas
+- Manager thoughts
+- General comments
+- Activity events
+
+The archive remains READ-ONLY.
+
+IMPORTANT
+---------
+The API no longer limits promotion planning activity to only the latest 120
+events. The complete stored activity history is returned so older finalized
+rooms can retain their full timeline.
+
+No database migration.
 No new GitHub secret.

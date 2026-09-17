@@ -375,6 +375,51 @@ export default function PromotionPlanning({
     [data, archivePlan?.id],
   );
 
+  const archiveFeedback = useMemo(() => {
+    const suggestionIds = new Set(archiveSuggestions.map((item) => item.id));
+    return (data?.feedback || []).filter((item) => suggestionIds.has(item.suggestion_id));
+  }, [data?.feedback, archiveSuggestions]);
+
+  const archiveDecisionVotes = useMemo(() => {
+    const decisionIds = new Set(archiveDecisions.map((item) => item.id));
+    return (data?.decisionVotes || []).filter((item) => decisionIds.has(item.decision_id));
+  }, [data?.decisionVotes, archiveDecisions]);
+
+  const archiveThoughtReactions = useMemo(() => {
+    const thoughtIds = new Set(archiveThoughts.map((item) => item.id));
+    return (data?.thoughtReactions || []).filter((item) => thoughtIds.has(item.thought_id));
+  }, [data?.thoughtReactions, archiveThoughts]);
+
+  const archiveContributors = useMemo(() => {
+    const emails = new Set<string>();
+
+    archiveSuggestions.forEach((item) => emails.add(item.created_by.toLowerCase()));
+    archiveComments.forEach((item) => emails.add(item.created_by.toLowerCase()));
+    archiveDecisions.forEach((item) => emails.add(item.created_by.toLowerCase()));
+    archiveThoughts.forEach((item) => emails.add(item.created_by.toLowerCase()));
+    archiveFeedback.forEach((item) => emails.add(item.created_by.toLowerCase()));
+    archiveDecisionVotes.forEach((item) => emails.add(item.created_by.toLowerCase()));
+    archiveThoughtReactions.forEach((item) => emails.add(item.created_by.toLowerCase()));
+
+    return emails;
+  }, [
+    archiveSuggestions,
+    archiveComments,
+    archiveDecisions,
+    archiveThoughts,
+    archiveFeedback,
+    archiveDecisionVotes,
+    archiveThoughtReactions,
+  ]);
+
+  const archiveTimeline = useMemo(
+    () =>
+      [...archiveActivity].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      ),
+    [archiveActivity],
+  );
+
   const activity = useMemo(
     () => (data?.activity || []).filter((a) => a.plan_id === plan?.id).slice(0, 35),
     [data, plan?.id],
@@ -506,11 +551,11 @@ export default function PromotionPlanning({
         .rightStack{display:grid;gap:12px}.commentComposer{display:grid;gap:7px;margin-bottom:12px}.commentComposer select,.commentComposer textarea{border:1px solid #d5dfe8;border-radius:8px;padding:8px;font:inherit;font-size:8px}.commentComposer textarea{min-height:74px;resize:vertical}.commentComposer button{justify-self:end;border:0;background:#f5ca2e;border-radius:8px;padding:8px 11px;font:inherit;font-size:7px;font-weight:900;color:#172438}
         .comments,.activityFeed{display:grid;gap:7px;max-height:380px;overflow:auto}.comment,.activityItem{background:#f7f9fb;border:1px solid #e0e7ee;border-radius:9px;padding:9px}.comment b,.activityItem b{font-size:8px;color:#2f4962}.comment small,.activityItem small{display:block;color:#8995a2;font-size:6.5px;margin:2px 0 5px}.comment p,.activityItem p{font-size:8px;color:#536a80;margin:0;line-height:1.5}.activityItem{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start}.activityIcon{width:28px;height:28px;border-radius:9px;background:#172d46;color:#f5ca2e;display:grid;place-items:center;font-size:11px}
         .planEmpty{padding:24px;text-align:center;border:1px dashed #cbd7e2;border-radius:11px;color:#7a8998}.planEmpty b{display:block;color:#405a73;margin-bottom:4px}
-        .archiveLauncher{position:relative}.archiveLauncher .archiveBadge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;margin-left:5px;border-radius:999px;background:#172d46;color:#fff;font-size:7px;font-weight:950}.archiveView{display:grid;gap:12px}.archiveHero{background:linear-gradient(125deg,#20374f,#304f6d);border-radius:14px;padding:17px 18px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px}.archiveHero h3{margin:0 0 4px;font-size:17px}.archiveHero p{margin:0;color:#cbd7e3;font-size:8px}.archiveHero button{border:1px solid #ffffff35;background:#fff;color:#20374f;border-radius:8px;padding:8px 11px;font:inherit;font-size:7px;font-weight:900;cursor:pointer}.archiveSelect{background:#fff;border:1px solid #dbe4ec;border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;justify-content:space-between}.archiveSelect select{min-width:300px;border:1px solid #d5dfe8;border-radius:8px;padding:8px;font:inherit;font-size:8px;color:#294159;background:#fff}.archiveSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.archiveSummary article{background:#fff;border:1px solid #dbe4ec;border-radius:11px;padding:12px}.archiveSummary span{display:block;font-size:7px;font-weight:900;color:#7f8b98;text-transform:uppercase}.archiveSummary b{display:block;font-size:19px;color:#223c55;margin-top:4px}.archiveGrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}.archivePanel{background:#fff;border:1px solid #dbe4ec;border-radius:12px;padding:13px}.archivePanel h4{margin:0 0 9px;color:#223c55;font-size:11px}.archiveItem{border:1px solid #e0e7ee;border-radius:9px;padding:9px;margin-bottom:7px;background:#fafcfd}.archiveItem:last-child{margin-bottom:0}.archiveItem b{font-size:8px;color:#2f4962}.archiveItem small{display:block;color:#8995a2;font-size:6.5px;margin-top:2px}.archiveItem p{font-size:8px;color:#536a80;line-height:1.45;margin:5px 0 0}.archiveReadOnly{display:inline-flex;align-items:center;gap:5px;background:#eaf0f5;color:#52697f;border-radius:999px;padding:5px 8px;font-size:7px;font-weight:850}
+        .archiveLauncher{position:relative}.archiveLauncher .archiveBadge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;margin-left:5px;border-radius:999px;background:#172d46;color:#fff;font-size:7px;font-weight:950}.archiveView{display:grid;gap:12px}.archiveHero{background:linear-gradient(125deg,#20374f,#304f6d);border-radius:14px;padding:17px 18px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px}.archiveHero h3{margin:0 0 4px;font-size:17px}.archiveHero p{margin:0;color:#cbd7e3;font-size:8px}.archiveHero button{border:1px solid #ffffff35;background:#fff;color:#20374f;border-radius:8px;padding:8px 11px;font:inherit;font-size:7px;font-weight:900;cursor:pointer}.archiveSelect{background:#fff;border:1px solid #dbe4ec;border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;justify-content:space-between}.archiveSelect select{min-width:300px;border:1px solid #d5dfe8;border-radius:8px;padding:8px;font:inherit;font-size:8px;color:#294159;background:#fff}.archiveSummary{display:grid;grid-template-columns:repeat(6,1fr);gap:9px}.archiveSummary article{background:#fff;border:1px solid #dbe4ec;border-radius:11px;padding:12px}.archiveSummary span{display:block;font-size:7px;font-weight:900;color:#7f8b98;text-transform:uppercase}.archiveSummary b{display:block;font-size:19px;color:#223c55;margin-top:4px}.archiveGrid{display:grid;grid-template-columns:1fr;gap:11px}.archivePanel{background:#fff;border:1px solid #dbe4ec;border-radius:12px;padding:13px}.archivePanel h4{margin:0 0 4px;color:#223c55;font-size:12px}.archivePanel>.archiveSectionIntro{font-size:7.5px;color:#7a8a9a;margin:0 0 10px}.archiveItem{border:1px solid #e0e7ee;border-radius:10px;padding:11px;margin-bottom:8px;background:#fafcfd}.archiveItem:last-child{margin-bottom:0}.archiveItem b{font-size:8.5px;color:#2f4962}.archiveItem small{display:block;color:#8995a2;font-size:6.5px;margin-top:2px}.archiveItem p{font-size:8px;color:#536a80;line-height:1.5;margin:5px 0 0}.archiveReadOnly{display:inline-flex;align-items:center;gap:5px;background:#eaf0f5;color:#52697f;border-radius:999px;padding:5px 8px;font-size:7px;font-weight:850}.archiveCatchupNote{background:linear-gradient(135deg,#fff9df,#fff3b9);border:1px solid #f0d66b;border-radius:12px;padding:12px 14px;color:#5f4d10}.archiveCatchupNote b{display:block;font-size:9px;margin-bottom:4px}.archiveCatchupNote p{margin:0;font-size:7.5px;line-height:1.5}.archiveStatusRow{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.archiveTag{display:inline-flex;border-radius:999px;padding:4px 7px;background:#edf2f6;color:#5a6f84;font-size:6.5px;font-weight:850}.archiveTag.good{background:#dff4e7;color:#196a49}.archiveTag.warn{background:#fff0ca;color:#8a6200}.archiveTag.bad{background:#f8e2e4;color:#a43c48}.archiveResponses{display:grid;gap:5px;margin-top:9px;padding-top:8px;border-top:1px solid #e4eaf0}.archiveResponse{background:#fff;border:1px solid #e2e8ee;border-radius:8px;padding:7px 8px}.archiveResponse b{font-size:7.5px}.archiveResponse small{display:inline;color:#8b98a5;margin-left:5px}.archiveResponse p{font-size:7.5px;margin-top:3px}.archiveTimelineItem{display:grid;grid-template-columns:92px 1fr;gap:10px;position:relative;padding:8px 0;border-bottom:1px solid #e7edf2}.archiveTimelineItem:last-child{border-bottom:0}.archiveTimelineTime{font-size:6.5px;color:#8a98a7}.archiveTimelineBody b{font-size:8px;color:#2d465f}.archiveTimelineBody p{margin:3px 0 0;font-size:7.5px;color:#607489}.archiveTimelineBody small{display:block;margin-top:2px;color:#929daa;font-size:6.5px}
         .planOverlay{position:fixed;inset:0;background:#0d1a2b99;z-index:95;display:grid;place-items:center;padding:12px}.planModal{width:min(760px,calc(100vw - 24px));max-height:calc(100dvh - 24px);background:#fff;border-radius:15px;overflow:hidden;display:flex;flex-direction:column}.planModal header{display:flex;justify-content:space-between;padding:15px 17px;border-bottom:1px solid #e3e9ef}.planModal header h3{margin:0;color:#203951}.planModal header button{border:0;background:#edf2f6;width:32px;height:32px;border-radius:8px}.planModalBody{padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;overflow:auto}.planModalBody label{display:grid;gap:5px;font-size:7px;font-weight:850;color:#40566e}.planModalBody input,.planModalBody select,.planModalBody textarea{border:1px solid #d5dfe8;border-radius:8px;padding:8px;font:inherit;font-size:8px}.planModalBody textarea{min-height:80px}.span2{grid-column:1/-1}.planModal footer{display:flex;justify-content:flex-end;gap:7px;padding:10px 15px;border-top:1px solid #e5ebf0}.planModal footer button{border:1px solid #d5dfe8;background:#fff;border-radius:8px;padding:8px 11px;font:inherit;font-size:7px;font-weight:850}.planModal footer .primary{background:#f5ca2e;border-color:#dfb91f;color:#172438}
-        @media(max-width:1100px){.planKpis{grid-template-columns:repeat(3,1fr)}.decisionGrid{grid-template-columns:1fr}.thoughtGrid{grid-template-columns:1fr 1fr}.archiveSummary{grid-template-columns:1fr 1fr}.archiveGrid{grid-template-columns:1fr}}
+        @media(max-width:1100px){.planKpis{grid-template-columns:repeat(3,1fr)}.decisionGrid{grid-template-columns:1fr}.thoughtGrid{grid-template-columns:1fr 1fr}.archiveSummary{grid-template-columns:repeat(3,1fr)}.archiveGrid{grid-template-columns:1fr}}
         @media(max-width:900px){.planColumns{grid-template-columns:1fr}.planHero{grid-template-columns:1fr}.planActions{justify-content:flex-start}}
-        @media(max-width:720px){.archiveHero{align-items:flex-start;flex-direction:column}.archiveSelect{align-items:stretch;flex-direction:column}.archiveSelect select{min-width:0;width:100%}.thoughtGrid{grid-template-columns:1fr}.planTopBar{align-items:stretch;flex-direction:column}.planTopBar select{min-width:0;width:100%}.planKpis{grid-template-columns:1fr 1fr}.planModalBody{grid-template-columns:1fr}.span2{grid-column:auto}.planToast{left:12px;right:12px;top:82px}.ideaTop,.decisionTop{align-items:flex-start}}
+        @media(max-width:720px){.archiveSummary{grid-template-columns:1fr 1fr}.archiveTimelineItem{grid-template-columns:1fr}.archiveHero{align-items:flex-start;flex-direction:column}.archiveSelect{align-items:stretch;flex-direction:column}.archiveSelect select{min-width:0;width:100%}.thoughtGrid{grid-template-columns:1fr}.planTopBar{align-items:stretch;flex-direction:column}.planTopBar select{min-width:0;width:100%}.planKpis{grid-template-columns:1fr 1fr}.planModalBody{grid-template-columns:1fr}.span2{grid-column:auto}.planToast{left:12px;right:12px;top:82px}.ideaTop,.decisionTop{align-items:flex-start}}
       `}</style>
 
       {message && <div className="planToast">{message}</div>}
@@ -587,22 +632,39 @@ export default function PromotionPlanning({
 
               {archivePlan && (
                 <>
+                  <div className="archiveCatchupNote">
+                    <b>📚 Catch-up mode — everything discussed is kept here</b>
+                    <p>
+                      If you missed the planning discussion, read this archive from top to bottom. It includes every proposal,
+                      every product idea, every manager thought, every vote/reaction, every general comment, and the complete
+                      chronological activity history — not only the final approved outcome.
+                    </p>
+                  </div>
+
                   <div className="archiveSummary">
                     <article>
-                      <span>Agreed decisions</span>
-                      <b>{archiveDecisions.filter((item) => item.status === "Agreed").length}</b>
+                      <span>Participants</span>
+                      <b>{archiveContributors.size}</b>
                     </article>
                     <article>
-                      <span>Approved products</span>
-                      <b>{archiveSuggestions.filter((item) => item.status === "Approved").length}</b>
+                      <span>Decision proposals</span>
+                      <b>{archiveDecisions.length}</b>
+                    </article>
+                    <article>
+                      <span>Product ideas</span>
+                      <b>{archiveSuggestions.length}</b>
                     </article>
                     <article>
                       <span>Manager thoughts</span>
                       <b>{archiveThoughts.length}</b>
                     </article>
                     <article>
-                      <span>Comments</span>
+                      <span>General comments</span>
                       <b>{archiveComments.length}</b>
+                    </article>
+                    <article>
+                      <span>Activity events</span>
+                      <b>{archiveActivity.length}</b>
                     </article>
                   </div>
 
@@ -610,68 +672,168 @@ export default function PromotionPlanning({
                     <div>
                       <b style={{fontSize:"9px",color:"#294159"}}>{archivePlan.title}</b>
                       <div style={{fontSize:"7px",color:"#7c8c9b",marginTop:"3px"}}>
-                        Created {new Date(archivePlan.created_at).toLocaleDateString()} · Finalised
+                        Created {new Date(archivePlan.created_at).toLocaleDateString()} · Finalised · Complete discussion retained
                       </div>
                     </div>
-                    <span className="archiveReadOnly">🔒 Read-only archive</span>
+                    <span className="archiveReadOnly">🔒 Read-only catch-up archive</span>
                   </div>
 
                   <div className="archiveGrid">
                     <section className="archivePanel">
-                      <h4>Agreed decisions</h4>
-                      {archiveDecisions.filter((item) => item.status === "Agreed").map((item) => (
-                        <div className="archiveItem" key={item.id}>
-                          <b>{item.topic}</b>
-                          <small>{shortEmail(item.created_by)}</small>
-                          <p>{item.proposal}</p>
-                          {item.rationale && <p><b>Reason:</b> {item.rationale}</p>}
-                        </div>
-                      ))}
-                      {!archiveDecisions.some((item) => item.status === "Agreed") && (
-                        <div className="planEmpty"><b>No agreed decisions recorded</b></div>
+                      <h4>1. Full Decision Discussion</h4>
+                      <p className="archiveSectionIntro">
+                        Every proposed decision is shown, including proposals that were not ultimately agreed, plus every manager vote and comment.
+                      </p>
+
+                      {archiveDecisions.map((item) => {
+                        const votes = archiveDecisionVotes.filter((vote) => vote.decision_id === item.id);
+                        return (
+                          <div className="archiveItem" key={item.id}>
+                            <b>{item.topic}: {item.proposal}</b>
+                            <small>
+                              {shortEmail(item.created_by)} · {new Date(item.created_at).toLocaleString()}
+                            </small>
+
+                            <div className="archiveStatusRow">
+                              <span className={`archiveTag ${item.status === "Agreed" ? "good" : item.status === "Discuss" ? "warn" : item.status === "Closed" ? "bad" : ""}`}>
+                                {item.status}
+                              </span>
+                              <span className="archiveTag">{votes.length} vote{votes.length === 1 ? "" : "s"}</span>
+                            </div>
+
+                            {item.rationale && <p><b>Reason given:</b> {item.rationale}</p>}
+
+                            {votes.length > 0 && (
+                              <div className="archiveResponses">
+                                {votes.map((vote) => (
+                                  <div className="archiveResponse" key={vote.id}>
+                                    <b>{vote.vote}</b>
+                                    <small>{shortEmail(vote.created_by)} · {new Date(vote.created_at).toLocaleString()}</small>
+                                    {vote.comment && <p>{vote.comment}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {!archiveDecisions.length && (
+                        <div className="planEmpty"><b>No decision proposals were recorded</b></div>
                       )}
                     </section>
 
                     <section className="archivePanel">
-                      <h4>Approved promotion products</h4>
-                      {archiveSuggestions.filter((item) => item.status === "Approved").map((item) => (
-                        <div className="archiveItem" key={item.id}>
-                          <b>{item.product_name}{item.product_code ? ` · ${item.product_code}` : ""}</b>
-                          <small>{item.category || "General"} · {shortEmail(item.created_by)}</small>
-                          {(item.current_price || item.proposed_price) && (
-                            <p>
-                              Current: {item.current_price || "—"} · Promo: {item.proposed_price || "—"} · Qty: {item.expected_qty || "—"}
-                            </p>
-                          )}
-                          {item.reason && <p>{item.reason}</p>}
-                        </div>
-                      ))}
-                      {!archiveSuggestions.some((item) => item.status === "Approved") && (
-                        <div className="planEmpty"><b>No approved products recorded</b></div>
+                      <h4>2. Full Product Discussion</h4>
+                      <p className="archiveSectionIntro">
+                        Every product that was suggested is retained, whether approved, declined, held or only discussed, together with all manager views.
+                      </p>
+
+                      {archiveSuggestions.map((item) => {
+                        const responses = archiveFeedback.filter((feedbackItem) => feedbackItem.suggestion_id === item.id);
+                        return (
+                          <div className="archiveItem" key={item.id}>
+                            <b>{item.product_name}{item.product_code ? ` · ${item.product_code}` : ""}</b>
+                            <small>
+                              {item.category || "General"} · {shortEmail(item.created_by)} · {new Date(item.created_at).toLocaleString()}
+                            </small>
+
+                            <div className="archiveStatusRow">
+                              <span className={`archiveTag ${item.status === "Approved" ? "good" : item.status === "Declined" ? "bad" : item.status === "Under Review" || item.status === "Hold" ? "warn" : ""}`}>
+                                {item.status}
+                              </span>
+                              <span className="archiveTag">{responses.length} manager view{responses.length === 1 ? "" : "s"}</span>
+                            </div>
+
+                            {(item.current_price || item.proposed_price || item.expected_qty) && (
+                              <p>
+                                <b>Pricing / qty:</b> Current {item.current_price || "—"} · Suggested {item.proposed_price || "—"} · Qty {item.expected_qty || "—"}
+                              </p>
+                            )}
+                            {item.brand_supplier && <p><b>Brand / supplier:</b> {item.brand_supplier}</p>}
+                            {item.reason && <p><b>Why it was suggested:</b> {item.reason}</p>}
+                            {item.competitor_note && <p><b>Competitor / market note:</b> {item.competitor_note}</p>}
+                            {item.display_idea && <p><b>Display / merchandising:</b> {item.display_idea}</p>}
+
+                            {responses.length > 0 && (
+                              <div className="archiveResponses">
+                                {responses.map((response) => (
+                                  <div className="archiveResponse" key={response.id}>
+                                    <b>{response.support}</b>
+                                    <small>{shortEmail(response.created_by)} · {new Date(response.created_at).toLocaleString()}</small>
+                                    {response.comment && <p>{response.comment}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {!archiveSuggestions.length && (
+                        <div className="planEmpty"><b>No product ideas were recorded</b></div>
                       )}
                     </section>
 
                     <section className="archivePanel">
-                      <h4>Shortlisted / agreed manager thoughts</h4>
-                      {archiveThoughts
-                        .filter((item) => item.status === "Shortlist" || item.status === "Agreed")
-                        .map((item) => (
+                      <h4>3. Full Manager Thoughts</h4>
+                      <p className="archiveSectionIntro">
+                        Every pricing, stock, customer-demand, competitor, marketing, margin and product thought is retained with all reactions.
+                      </p>
+
+                      {archiveThoughts.map((item) => {
+                        const reactions = archiveThoughtReactions.filter((reaction) => reaction.thought_id === item.id);
+                        return (
                           <div className="archiveItem" key={item.id}>
                             <b>{item.title}</b>
-                            <small>{item.thought_type} · {shortEmail(item.created_by)} · {item.status}</small>
+                            <small>
+                              {item.thought_type} · {shortEmail(item.created_by)} · {new Date(item.created_at).toLocaleString()}
+                            </small>
+
+                            <div className="archiveStatusRow">
+                              <span className={`archiveTag ${item.status === "Agreed" || item.status === "Shortlist" ? "good" : item.status === "Discuss" ? "warn" : item.status === "Closed" ? "bad" : ""}`}>
+                                {item.status}
+                              </span>
+                              <span className="archiveTag">{item.impact} impact</span>
+                              <span className="archiveTag">{reactions.length} reaction{reactions.length === 1 ? "" : "s"}</span>
+                            </div>
+
                             {item.item_name && (
-                              <p>Item: {item.item_name}{item.item_code ? ` · ${item.item_code}` : ""}</p>
+                              <p><b>Item:</b> {item.item_name}{item.item_code ? ` · ${item.item_code}` : ""}</p>
                             )}
-                            {item.details && <p>{item.details}</p>}
+                            {(item.current_price || item.suggested_price || item.expected_qty) && (
+                              <p>
+                                <b>Pricing / qty:</b> Current {item.current_price || "—"} · Suggested {item.suggested_price || "—"} · Qty/need {item.expected_qty || "—"}
+                              </p>
+                            )}
+                            {item.details && <p><b>Full thought:</b> {item.details}</p>}
+
+                            {reactions.length > 0 && (
+                              <div className="archiveResponses">
+                                {reactions.map((reaction) => (
+                                  <div className="archiveResponse" key={reaction.id}>
+                                    <b>{reaction.reaction}</b>
+                                    <small>{shortEmail(reaction.created_by)} · {new Date(reaction.created_at).toLocaleString()}</small>
+                                    {reaction.comment && <p>{reaction.comment}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        ))}
-                      {!archiveThoughts.some((item) => item.status === "Shortlist" || item.status === "Agreed") && (
-                        <div className="planEmpty"><b>No shortlisted thoughts recorded</b></div>
+                        );
+                      })}
+
+                      {!archiveThoughts.length && (
+                        <div className="planEmpty"><b>No manager thoughts were recorded</b></div>
                       )}
                     </section>
 
                     <section className="archivePanel">
-                      <h4>Discussion comments</h4>
+                      <h4>4. General Discussion & Comments</h4>
+                      <p className="archiveSectionIntro">
+                        General comments are preserved exactly as part of the planning record so late readers can understand the context behind the final outcome.
+                      </p>
+
                       {archiveComments.map((item) => (
                         <div className="archiveItem" key={item.id}>
                           <b>{item.topic}</b>
@@ -679,25 +841,38 @@ export default function PromotionPlanning({
                           <p>{item.comment}</p>
                         </div>
                       ))}
+
                       {!archiveComments.length && (
-                        <div className="planEmpty"><b>No comments recorded</b></div>
+                        <div className="planEmpty"><b>No general comments were recorded</b></div>
                       )}
                     </section>
 
-                    <section className="archivePanel" style={{gridColumn:"1/-1"}}>
-                      <h4>Full activity history</h4>
-                      {archiveActivity.map((item) => (
-                        <div className="archiveItem" key={item.id}>
-                          <b>{item.activity_type}</b>
-                          <small>{shortEmail(item.created_by)} · {new Date(item.created_at).toLocaleString()}</small>
-                          <p>{item.summary}</p>
+                    <section className="archivePanel">
+                      <h4>5. Complete Chronological Timeline</h4>
+                      <p className="archiveSectionIntro">
+                        Read this from top to bottom to replay the planning room in the order events happened.
+                      </p>
+
+                      {archiveTimeline.map((item) => (
+                        <div className="archiveTimelineItem" key={item.id}>
+                          <div className="archiveTimelineTime">
+                            {new Date(item.created_at).toLocaleDateString()}<br/>
+                            {new Date(item.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}
+                          </div>
+                          <div className="archiveTimelineBody">
+                            <b>{item.activity_type}</b>
+                            <small>{shortEmail(item.created_by)}</small>
+                            <p>{item.summary}</p>
+                          </div>
                         </div>
                       ))}
-                      {!archiveActivity.length && (
-                        <div className="planEmpty"><b>No activity history recorded</b></div>
+
+                      {!archiveTimeline.length && (
+                        <div className="planEmpty"><b>No activity timeline was recorded</b></div>
                       )}
                     </section>
                   </div>
+
                 </>
               )}
             </>
