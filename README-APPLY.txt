@@ -1,25 +1,25 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS — FULL BRANCH LIST V7
+STORE SPECIALS — FULL FORM SIDE SCROLL V8
 
 REPLACE ONLY:
   app/store-specials.tsx
 
-FIX
----
-The branch selector was already receiving the full branch list, but it had:
-  max-height: 220px;
-  overflow: auto;
+WHAT THIS FIXES
+---------------
+The branch list remains fully expanded, but the entire promotion form now has a
+visible right-side vertical scrollbar.
 
-That created a small internal scrollbar and only showed the first rows.
+Desktop:
+- Clear 10px scrollbar on the right side of the Store Special modal.
+- Scrolls the whole form from top to bottom.
+- Header and footer remain fixed while the form body scrolls.
 
-This version:
-- removes the internal branch-list scrollbar;
-- shows ALL branches at once in the promotion form;
-- keeps the form itself scrollable normally;
-- shows the total number of branches in the header;
-- keeps 3 columns on desktop;
-- keeps 1 column on mobile.
+Mobile:
+- Full-height promotion modal.
+- Touch/swipe up and down normally.
+- Slim visible right-side scrollbar.
+- All branches remain visible in the full form.
 
 No API changes.
-No database changes.
-No secret changes.
+No D1 migration.
+No GitHub secret changes.

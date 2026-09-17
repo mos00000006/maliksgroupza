@@ -533,9 +533,9 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
         .specialEmpty{grid-column:1/-1;background:#fff;border:1px dashed #ccd8e4;border-radius:14px;padding:36px;text-align:center;color:#7d8b9a}.specialEmpty b{display:block;color:#40566d;margin-bottom:5px}
         .specialLoading{background:#fff;border:1px solid #dce4ec;border-radius:12px;padding:24px;color:#40566d}
         .specialOverlay{position:fixed;inset:0;z-index:70;background:#0d1a2b99;display:grid;place-items:center;padding:16px}
-        .specialModal{width:min(930px,calc(100vw - 28px));max-height:calc(100dvh - 28px);background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 90px #0b16283d}
+        .specialModal{width:min(930px,calc(100vw - 28px));height:min(900px,calc(100dvh - 28px));max-height:calc(100dvh - 28px);background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 90px #0b16283d}.specialModalBody{flex:1 1 auto;min-height:0}
         .specialModal>header{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:16px 19px;border-bottom:1px solid #e4eaf0;background:#fbfcfd}.specialModal>header small{color:#b38600;font-size:7px;font-weight:900;letter-spacing:.12em}.specialModal>header h2{margin:4px 0 3px;color:#1c334b;font-size:18px}.specialModal>header p{margin:0;color:#7b8999;font-size:8px}.specialModal>header button{width:33px;height:33px;border:0;border-radius:9px;background:#edf2f6;color:#637589;font-size:18px;cursor:pointer}
-        .specialModalBody{overflow-y:auto;padding:15px 18px;display:grid;gap:12px}.specialFormGrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+        .specialModalBody{overflow-y:scroll;overflow-x:hidden;padding:15px 18px;display:grid;gap:12px;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}.specialModalBody::-webkit-scrollbar{width:10px}.specialModalBody::-webkit-scrollbar-track{background:#edf2f6;border-left:1px solid #dfe6ed}.specialModalBody::-webkit-scrollbar-thumb{background:#8797aa;border-radius:999px;border:2px solid #edf2f6}.specialModalBody::-webkit-scrollbar-thumb:hover{background:#65788e}.specialModalBody{scrollbar-width:auto;scrollbar-color:#8797aa #edf2f6}.specialFormGrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
         .specialModal label{display:grid;gap:6px;color:#354b62;font-size:8px;font-weight:850}.specialModal input,.specialModal textarea,.specialModal select{width:100%;border:1px solid #d4dee8;border-radius:9px;background:#fff;padding:9px 10px;font:inherit;color:#20364d;font-size:9px;outline:0}.specialModal textarea{min-height:82px;resize:vertical}
         .specialBranchBox{border:1px solid #dce4ec;border-radius:11px;overflow:hidden}.specialBranchHeader{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;background:#f7f9fb;border-bottom:1px solid #e5ebf0}.specialBranchHeader b{font-size:9px;color:#344b62}.specialAllToggle{display:flex!important;grid-auto-flow:column;align-items:center;gap:7px!important;font-size:8px!important}.specialAllToggle input{width:17px;height:17px}
         .specialBranchGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;max-height:none;overflow:visible;padding:5px}.specialBranchGrid label{display:flex;align-items:center;grid-template-columns:none;gap:7px;padding:8px;border-radius:7px;font-weight:700;cursor:pointer;min-height:42px}.specialBranchGrid label:hover{background:#f3f7fa}.specialBranchGrid input{width:16px;height:16px;flex:0 0 16px}.specialBranchGrid.disabled{opacity:.45;pointer-events:none}
@@ -550,7 +550,9 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
           .specialKpis{grid-template-columns:1fr 1fr}
           .specialFormGrid{grid-template-columns:1fr}
           .specialBranchGrid{grid-template-columns:1fr}
-          .specialModal{width:calc(100vw - 12px);max-height:calc(100dvh - 12px)}
+          .specialModal{width:calc(100vw - 12px);height:calc(100dvh - 12px);max-height:calc(100dvh - 12px)}
+          .specialModalBody::-webkit-scrollbar{width:7px}
+          .specialModalBody::-webkit-scrollbar-thumb{background:#7f91a6;border:1px solid #edf2f6}
           .specialOverlay{padding:6px}
           .specialToast{left:12px;right:12px;top:82px;max-width:none}
           .specialCarousel,.specialNoImage{min-height:0;height:auto}
