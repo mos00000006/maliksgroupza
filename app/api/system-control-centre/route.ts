@@ -353,6 +353,10 @@ async function createDatabaseSnapshot(member: HubMember) {
      WHERE type='table'
        AND name NOT LIKE 'sqlite_%'
        AND name NOT LIKE 'system_%'
+       AND name NOT LIKE '_cf_%'
+       AND name NOT LIKE 'cf_%'
+       AND name NOT LIKE '_d1_%'
+       AND name NOT LIKE 'd1_%'
        AND name NOT IN (
          'd1_migrations',
          'push_vapid_config',
@@ -379,6 +383,17 @@ async function createDatabaseSnapshot(member: HubMember) {
   let totalRows = 0;
 
   for (const table of tableRows.map((row) => row.name)) {
+    const lowerTable = table.toLowerCase();
+    if (
+      lowerTable.startsWith("_cf_") ||
+      lowerTable.startsWith("cf_") ||
+      lowerTable.startsWith("_d1_") ||
+      lowerTable.startsWith("d1_") ||
+      lowerTable.startsWith("sqlite_")
+    ) {
+      continue;
+    }
+
     const safeTable = quoteIdentifier(table);
     const rows: unknown[] = [];
     let offset = 0;

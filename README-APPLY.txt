@@ -1,31 +1,45 @@
 POWERBUILD / MALIKS GROUP HUB
-SYSTEM CONTROL CENTRE BUILD FIX V2
+SYSTEM CONTROL CENTRE SNAPSHOT FIX V3
 
 REPLACE ONLY:
-  app/system-control-centre.tsx
   app/api/system-control-centre/route.ts
 
-FIXED
+FIX
+---
+Create Snapshot was failing with:
+
+  D1_ERROR: access to _cf_KV.key is prohibited: SQLITE_AUTH
+
+CAUSE
 -----
-1. react/no-unescaped-entities errors:
-   - "user's" is now JSX-safe.
-   - "Hub's" is now JSX-safe.
+_cf_KV is an internal Cloudflare D1 table.
+The snapshot export must never try to read provider-internal tables.
 
-2. System Control Centre API warnings:
-   - removed unused allowedWorkspaces import.
-   - removed unused AuditMember type.
+CHANGES
+-------
+The snapshot exporter now excludes:
+- _cf_*
+- cf_*
+- _d1_*
+- d1_*
+- sqlite_*
+- system_* tables
 
-The other warnings shown in your GitHub Action are pre-existing warnings and
-do not stop the build.
+It also retains the existing exclusions:
+- d1_migrations
+- push_vapid_config
+- push_subscriptions
+- notifications
+- promotion_planning_reads
 
-IMPORTANT
----------
-Your log still shows:
-  app/app/store-specials.tsx
+A second defensive check in the export loop prevents future Cloudflare/D1
+internal tables from being read even if they appear in sqlite_master.
 
-That is a duplicate nested file/folder. Delete app/app/store-specials.tsx from
-GitHub if it is not intentionally used. It is not part of the normal Hub app
-structure.
+NO MIGRATION.
+NO SECRET CHANGES.
 
-No database migration.
-No GitHub secret changes.
+After deployment:
+1. Open System Control Centre.
+2. Click Create Snapshot again.
+3. Backup should change from Missing to Protected.
+4. Open Backups and download the generated JSON once to confirm it is usable.
