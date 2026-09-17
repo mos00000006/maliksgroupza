@@ -9,6 +9,8 @@ import Catalogue from "./catalogue";
 import StoreControls from "./store-controls";
 import EmployeeRecords from "./employee-records";
 import StoreSpecials from "./store-specials";
+import SystemControlCentre from "./system-control-centre";
+import SystemClientMonitor from "./system-client-monitor";
 type Status = "Not started" | "In progress" | "Blocked" | "Returned" | "Complete";
 type QuickWorkflowKind = "audit" | "incident" | "capex" | "stock";
 type Task = {
@@ -103,6 +105,7 @@ const nav = [
   "Approvals",
   "Reports",
   "Our Catalogue",
+  "System Control Centre",
 ];
 
 function SidebarIcon({ name }: { name: string }) {
@@ -275,6 +278,15 @@ function SidebarIcon({ name }: { name: string }) {
           <path d="M5.2 7h1.6M11.2 12h1.6M17.2 17h1.6" />
         </svg>
       );
+    case "System Control Centre":
+      return (
+        <svg {...common}>
+          <path d="M12 3 19 6v5.3c0 4.5-2.8 7.8-7 9.7-4.2-1.9-7-5.2-7-9.7V6l7-3Z" />
+          <path d="M12 8v4" />
+          <path d="M12 16h.01" />
+          <circle cx="12" cy="12" r="6.5" />
+        </svg>
+      );
     default:
       return (
         <svg {...common}>
@@ -307,6 +319,7 @@ const navigationForUser = (user: CurrentHubUser) => {
       fullCompany ||
       ["Regional Manager", "Store Manager", "Department Manager"].includes(user.role || "") ||
       /(^|\b)(hr|human resources|people)(\b|$)/i.test(user.department || "");
+    if (item === "System Control Centre") return accessAdmin;
     if (item === "Employee Records") return employeeRecordsAccess;
     if (fullCompany) return true;
     if (item === "Wholesale Division") return wholesale;
@@ -686,7 +699,10 @@ export default function Home() {
     sidebarNavigation = hrOnlyAccess
       ? ["Employee Records"]
       : fullCompanyNavigation
-        ? nav
+        ? nav.filter(
+            (item) =>
+              item !== "System Control Centre" || canManageTeam,
+          )
         : availableNav;
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("view");
@@ -791,6 +807,7 @@ export default function Home() {
     Approvals: "Completed tasks awaiting management approval.",
     Reports: "Group-wide task and completion reporting.",
     "Our Catalogue": "PowerBuild group product catalogue, codes, pictures and descriptions.",
+    "System Control Centre": "Owner-only system health, access control, audit activity, errors, backups and launch readiness.",
   };
   const add = async () => {
     if (!draft.title.trim() || mainTaskSaving) return;
@@ -1449,6 +1466,7 @@ export default function Home() {
   const isStoreControlView = ["Store Audits", "Daily Checklists", "Store Ranking"].includes(active);
   const isEmployeeRecordsView = active === "Employee Records";
   const isStoreSpecialsView = active === "Store Specials";
+  const isSystemControlView = active === "System Control Centre";
   if (accessDenied)
     return (
       <main className="hubAccessGate">
@@ -1466,6 +1484,7 @@ export default function Home() {
     );
   return (
     <main className="shell">
+      <SystemClientMonitor />
       <aside className={mobileNavOpen ? "mobileOpen" : ""}>
         <button className="mobileSidebarClose" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}>×</button>
         <div className="brand">
@@ -1604,7 +1623,7 @@ export default function Home() {
             </p>
           </div>
           <div className="actions">
-            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isStoreSpecialsView && (
+            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isStoreSpecialsView && !isSystemControlView && (
               <label>
                 ⌕
                 <input
@@ -1636,7 +1655,7 @@ export default function Home() {
               </button>
             )}
             <PwaInstallButton />
-            {!readOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isStoreSpecialsView && (
+            {!readOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isStoreSpecialsView && !isSystemControlView && (
               <button className="primary" onClick={openComposer}>
                 ＋ Add task
               </button>
@@ -1656,6 +1675,8 @@ export default function Home() {
           <EmployeeRecords currentUser={currentUser} />
         ) : isStoreSpecialsView ? (
           <StoreSpecials currentUser={currentUser} />
+        ) : isSystemControlView ? (
+          <SystemControlCentre currentUser={currentUser} />
         ) : active === "Our Catalogue" ? (
           <Catalogue currentUserEmail={currentUser.email} />
         ) : active === "SOP & Manuals" ? (
