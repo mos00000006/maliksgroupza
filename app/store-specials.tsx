@@ -538,7 +538,7 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
         .specialModalBody{overflow-y:scroll;overflow-x:hidden;padding:15px 18px;display:grid;gap:12px;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}.specialModalBody::-webkit-scrollbar{width:10px}.specialModalBody::-webkit-scrollbar-track{background:#edf2f6;border-left:1px solid #dfe6ed}.specialModalBody::-webkit-scrollbar-thumb{background:#8797aa;border-radius:999px;border:2px solid #edf2f6}.specialModalBody::-webkit-scrollbar-thumb:hover{background:#65788e}.specialModalBody{scrollbar-width:auto;scrollbar-color:#8797aa #edf2f6}.specialFormGrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
         .specialModal label{display:grid;gap:6px;color:#354b62;font-size:8px;font-weight:850}.specialModal input,.specialModal textarea,.specialModal select{width:100%;border:1px solid #d4dee8;border-radius:9px;background:#fff;padding:9px 10px;font:inherit;color:#20364d;font-size:9px;outline:0}.specialModal textarea{min-height:82px;resize:vertical}
         .specialBranchBox{border:1px solid #dce4ec;border-radius:11px;overflow:hidden}.specialBranchHeader{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;background:#f7f9fb;border-bottom:1px solid #e5ebf0}.specialBranchHeader b{font-size:9px;color:#344b62}.specialAllToggle{display:flex!important;grid-auto-flow:column;align-items:center;gap:7px!important;font-size:8px!important}.specialAllToggle input{width:17px;height:17px}
-        .specialBranchScroller{height:260px;overflow-y:scroll;overflow-x:hidden;background:#fff;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}.specialBranchScroller.disabled{opacity:.45;pointer-events:none}.specialBranchGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;padding:5px 8px 16px 5px}.specialBranchGrid label{display:flex;align-items:center;grid-template-columns:none;gap:7px;padding:9px 8px;border-radius:7px;font-weight:700;cursor:pointer;min-height:44px}.specialBranchGrid label:hover{background:#f3f7fa}.specialBranchGrid input{width:16px;height:16px;flex:0 0 16px}
+        .specialBranchGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 8px;padding:8px 10px 14px;background:#fff}.specialBranchGrid label{display:flex;align-items:center;grid-template-columns:none;gap:8px;padding:10px 9px;border-radius:8px;font-weight:700;cursor:pointer;min-height:44px}.specialBranchGrid label:hover{background:#f3f7fa}.specialBranchGrid input{width:17px;height:17px;flex:0 0 17px}.specialBranchGrid.disabled{opacity:.45;pointer-events:none}
         .specialFileBox{border:1px dashed #bac9d8;border-radius:11px;padding:13px;background:#f8fafc}.specialFileBox input{border:0;padding:0;background:transparent}.specialFileBox small{display:block;margin-top:6px;color:#7e8c9b;font-size:7px;font-weight:500}
         .specialExistingImages{display:flex;gap:8px;overflow:auto;padding-bottom:4px}.specialExistingImages figure{position:relative;flex:0 0 130px;margin:0;border:1px solid #dbe3eb;border-radius:9px;overflow:hidden;background:#fff}.specialExistingImages img{width:130px;height:78px;object-fit:cover;display:block}.specialExistingImages button{position:absolute;right:4px;top:4px;width:24px;height:24px;border:0;border-radius:7px;background:#172438d9;color:#fff;cursor:pointer}.specialExistingImages figcaption{padding:5px 6px;color:#6f8091;font-size:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .specialModal>footer{display:flex;justify-content:flex-end;gap:8px;padding:11px 17px;border-top:1px solid #e5ebf0;background:#fbfcfd}.specialModal>footer button{height:38px;border:1px solid #d3dde6;border-radius:9px;background:#fff;padding:0 14px;font:inherit;font-size:8px;font-weight:850;color:#4a5f75;cursor:pointer}.specialModal>footer button.primary{background:#f5ca2e;border-color:#dfb81c;color:#172438}
@@ -549,8 +549,7 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
           .specialHero button{width:100%}
           .specialKpis{grid-template-columns:1fr 1fr}
           .specialFormGrid{grid-template-columns:1fr}
-          .specialBranchScroller{height:48dvh;overflow-y:scroll;overflow-x:hidden}
-          .specialBranchGrid{grid-template-columns:1fr;padding:5px 6px 18px 5px}
+          .specialBranchGrid{grid-template-columns:1fr;padding:6px 7px 14px}
           .specialModal{width:calc(100vw - 12px);height:calc(100dvh - 12px);max-height:calc(100dvh - 12px)}
           .specialModalBody::-webkit-scrollbar{width:7px}
           .specialModalBody::-webkit-scrollbar-thumb{background:#7f91a6;border:1px solid #edf2f6}
@@ -677,19 +676,17 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
                     </label>
                   )}
                 </div>
-                <div className={`specialBranchScroller ${form.allBranches ? "disabled" : ""}`}>
-                  <div className="specialBranchGrid">
-                    {data.branches.map((branch) => (
-                      <label key={branch.id}>
-                        <input
-                          type="checkbox"
-                          checked={form.branches.includes(branch.name)}
-                          onChange={() => toggleBranch(branch.name)}
-                        />
-                        {branch.name}
-                      </label>
-                    ))}
-                  </div>
+                <div className={`specialBranchGrid ${form.allBranches ? "disabled" : ""}`}>
+                  {data.branches.map((branch) => (
+                    <label key={branch.id}>
+                      <input
+                        type="checkbox"
+                        checked={form.branches.includes(branch.name)}
+                        onChange={() => toggleBranch(branch.name)}
+                      />
+                      {branch.name}
+                    </label>
+                  ))}
                 </div>
               </div>
 

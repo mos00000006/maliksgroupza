@@ -1,31 +1,22 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS — NATIVE WINDOWS BRANCH SCROLL V14
+STORE SPECIALS — ALL BRANCHES VISIBLE AT ONCE V15
 
 REPLACE ONLY:
   app/store-specials.tsx
 
-THIS VERSION REMOVES ALL CUSTOM SCROLLBAR STYLING.
+NEW METHOD
+----------
+The branch selector NO LONGER has its own scrollbar.
 
-The branch list now uses a normal browser/Windows scroll box:
-- standard up arrow where the browser provides it;
-- standard down arrow where the browser provides it;
-- standard draggable scrollbar thumb;
-- mouse wheel / trackpad scrolling;
-- all hidden branches remain reachable;
-- 3 columns on desktop;
-- 1 column on mobile;
-- mobile supports normal swipe scrolling.
+All branches are displayed at once:
+- Desktop: 3 columns
+- Tablet: 2 columns
+- Cellphone: 1 column
 
-TECHNICAL CHANGE
-----------------
-The scroll is now on a dedicated wrapper:
-  .specialBranchScroller
+If the list makes the promotion form taller, the MAIN Store Special form scrolls
+normally. There is no hidden branch area and no separate branch scrollbar.
 
-The branch grid itself no longer controls overflow. This avoids the previous
-grid/scrollbar behaviour that was clipping or making branches difficult to reach.
-
-Desktop branch panel height: 260px.
-Mobile branch panel height: 48dvh.
+This is the simplest and most reliable layout for seeing every branch.
 
 No API changes.
 No database changes.
