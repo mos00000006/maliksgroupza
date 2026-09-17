@@ -21,7 +21,7 @@ const int = (value: unknown) => Math.max(0, Math.round(Number(value) || 0));
 const attendanceStatuses = ["At work", "Not at work", "Late"];
 const warningLevels = ["Verbal", "Written", "Final written"];
 const warningStatuses = ["Active", "Withdrawn"];
-const hrRecordTypes = ["Leave", "Training / Certification", "Company Asset", "Employment Change", "HR Note"];
+const hrRecordTypes = ["Leave", "Leave Request", "Training / Certification", "Uniform / PPE", "Company Vehicle", "Company Phone / SIM", "Company Asset", "Employment Change", "HR Note"];
 
 function warningActive(row: DbRow, date: string) {
   const status = String(row.status || "Active");
@@ -69,7 +69,7 @@ export async function GET(req: Request) {
     return Response.json({ error: "You do not have access to this location." }, { status: 403 });
 
   const start = new Date();
-  start.setDate(start.getDate() - 180);
+  start.setDate(start.getDate() - 370);
   const historyStart = start.toISOString().slice(0, 10);
 
   const [employeeQuery, attendanceQuery, warningQuery, hrRecordQuery] = await Promise.all([
@@ -159,11 +159,13 @@ export async function GET(req: Request) {
     const status = String(record.status || "");
     const startDate = String(record.record_date || "");
     const endDate = String(record.end_date || "");
-    return type === "Leave" && !/cancelled|declined/i.test(status) && startDate <= date && (!endDate || endDate >= date);
+    return (type === "Leave" || type === "Leave Request") && /approved|on leave|taken/i.test(status) && startDate <= date && (!endDate || endDate >= date);
   }).length;
-  const issuedAssets = hrRecordQuery.results.filter(
-    (record) => String(record.record_type) === "Company Asset" && /^issued$/i.test(String(record.status || "")),
-  ).length;
+  const issuedAssets = hrRecordQuery.results.filter((record) => {
+    const type = String(record.record_type || "");
+    const status = String(record.status || "");
+    return ["Uniform / PPE", "Company Vehicle", "Company Phone / SIM", "Company Asset"].includes(type) && /^(issued|allocated)$/i.test(status);
+  }).length;
   const thirtyDays = new Date();
   thirtyDays.setDate(thirtyDays.getDate() + 30);
   const trainingLimit = thirtyDays.toISOString().slice(0, 10);

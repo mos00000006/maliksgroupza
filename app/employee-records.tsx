@@ -32,7 +32,7 @@ type HrRecord = {
   id: number;
   employee_id: number;
   workspace: string;
-  record_type: "Leave" | "Training / Certification" | "Company Asset" | "Employment Change" | "HR Note";
+  record_type: "Leave" | "Leave Request" | "Training / Certification" | "Uniform / PPE" | "Company Vehicle" | "Company Phone / SIM" | "Company Asset" | "Employment Change" | "HR Note";
   title: string;
   record_date: string;
   end_date: string;
@@ -96,7 +96,7 @@ type ApiData = {
   today: string;
 };
 
-type Tab = "Employees" | "Warnings" | "Attendance Exceptions" | "HR Records";
+type Tab = "Employees" | "Attendance History" | "Leave Requests" | "Company Property" | "Warnings" | "HR Records";
 
 const blankEmployee = (workspace = "") => ({
   employeeNumber: "",
@@ -130,6 +130,22 @@ const formatDate = (value: string) => {
 const employeeName = (employee: Employee) => `${employee.first_name} ${employee.last_name}`.trim();
 const initials = (employee: Employee) => `${employee.first_name?.[0] || ""}${employee.last_name?.[0] || ""}`.toUpperCase() || "ST";
 const warningIsActive = (warning: Warning, today: string) => warning.status === "Active" && (!warning.valid_until || warning.valid_until >= today);
+
+const isAttendedStatus = (status: Attendance["status"]) => status === "At work" || status === "Late";
+const isoDate = (date: Date) => date.toISOString().slice(0, 10);
+const startOfWeekIso = (todayValue: string) => {
+  const date = new Date(`${todayValue}T12:00:00`);
+  const day = date.getDay() || 7;
+  date.setDate(date.getDate() - day + 1);
+  return isoDate(date);
+};
+const monthKey = (value: string) => value.slice(0, 7);
+const monthLabel = (key: string) => {
+  const date = new Date(`${key}-01T12:00:00`);
+  return date.toLocaleDateString("en-ZA", { month: "short", year: "numeric" });
+};
+const propertyRecordTypes = ["Uniform / PPE", "Company Vehicle", "Company Phone / SIM", "Company Asset"];
+const leaveRecordTypes = ["Leave", "Leave Request"];
 
 const CSS = `
 .employeeRecords{display:grid;gap:12px;padding-bottom:32px}.employeeHero{display:flex;justify-content:space-between;gap:18px;padding:18px 20px;border-radius:14px;background:linear-gradient(120deg,#172438,#223955);color:#fff}.employeeHero small,.sectionEyebrow{color:#f2c72d;font-size:7px;font-weight:900;letter-spacing:.13em}.employeeHero h2{margin:5px 0;font-size:20px}.employeeHero p{margin:0;max-width:760px;color:#c9d4e2;font-size:9px;line-height:1.5}.employeeHeroActions{min-width:360px;display:flex;align-items:end;gap:8px}.employeeHeroActions label{flex:1;display:grid;gap:5px;font-size:8px;font-weight:800}.employeeHeroActions select,.employeeForm input,.employeeForm select,.employeeForm textarea,.recordForm input,.recordForm select,.recordForm textarea{width:100%;border:1px solid #d7e0e8;border-radius:8px;background:#fff;color:#21364e;padding:9px 10px;font:inherit;font-size:8px}.employeeHeroActions select{height:39px}.employeeHeroActions button,.primaryBtn,.secondaryBtn{min-height:38px;border-radius:8px;padding:0 13px;font:inherit;font-size:8px;font-weight:850;cursor:pointer}.employeeHeroActions button,.primaryBtn{border:1px solid #dbb21f;background:#f6ca2f;color:#172438}.secondaryBtn{border:1px solid #d3dde6;background:#fff;color:#425870}.employeeKpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}.employeeKpis article{border:1px solid #dfe6ed;border-radius:10px;background:#fff;padding:11px 12px}.employeeKpis span,.employeeKpis b,.employeeKpis small{display:block}.employeeKpis span{color:#7d8997;font-size:6px;font-weight:900;text-transform:uppercase}.employeeKpis b{margin-top:5px;color:#21384f;font-size:18px}.employeeKpis small{margin-top:4px;color:#929daa;font-size:6px}.employeeKpis .good b{color:#23805b}.employeeKpis .warn b{color:#a96b0c}.employeeKpis .bad b{color:#b53c49}.employeeTabs{display:flex;gap:6px;overflow-x:auto;border:1px solid #dfe6ed;border-radius:10px;background:#fff;padding:6px}.employeeTabs button{border:0;border-radius:7px;background:transparent;padding:9px 12px;color:#677789;font:inherit;font-size:8px;font-weight:850;cursor:pointer;white-space:nowrap}.employeeTabs button.active{background:#172438;color:#fff}.employeeToolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid #dfe6ed;border-radius:10px;background:#fff;padding:7px 10px}.employeeToolbar label{display:flex;align-items:center;flex:1;max-width:520px;border:1px solid #dde4eb;border-radius:8px;padding:0 9px}.employeeToolbar input{width:100%;border:0;outline:0;padding:9px;font:inherit;font-size:8px}.employeeToolbar small{color:#8693a1;font-size:7px}.panel{overflow:hidden;border:1px solid #dfe6ed;border-radius:12px;background:#fff}.panelHeader{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid #e8edf2;background:#fbfcfd}.panelHeader h3{margin:3px 0 0;color:#22394f;font-size:13px}.panelHeader p{margin:3px 0 0;color:#8290a0;font-size:7px}.tableWrap{overflow-x:auto}.tableHead,.tableRow{min-width:1040px;display:grid;grid-template-columns:1.35fr .9fr .62fr .8fr .55fr 1.75fr;gap:9px;align-items:center;padding:9px 13px}.tableHead{background:#f7f9fb;color:#7f8b99;font-size:6px;font-weight:900;text-transform:uppercase}.tableRow{min-height:62px;border-top:1px solid #edf1f5;color:#50657a;font-size:8px}.identityBtn{border:0;background:transparent;padding:0;display:flex;align-items:center;gap:8px;text-align:left;cursor:pointer}.avatar{width:34px;height:34px;flex:0 0 34px;border-radius:10px;display:grid;place-items:center;background:#e8f0f8;color:#2b5174;font-size:9px;font-weight:900;font-style:normal}.identityBtn b,.identityBtn small,.stack b,.stack small{display:block}.identityBtn b{color:#233b53;font-size:9px}.identityBtn small,.stack small{margin-top:3px;color:#929daa;font-size:6px}.attendancePill,.warningLevel,.statusPill,.recordTypePill{display:inline-block;border-radius:999px;padding:5px 7px;font-style:normal;font-size:6px;font-weight:900}.attendancePill.atWork{background:#e5f6ee;color:#207a55}.attendancePill.late{background:#fff1d4;color:#94600d}.attendancePill.notAtWork{background:#ffe8eb;color:#ab3946}.attendancePill.unmarked{background:#eef2f6;color:#6f7f91}.attendanceButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.attendanceButtons button{min-height:31px;border:1px solid #d9e1e8;border-radius:7px;background:#fff;font:inherit;font-size:7px;font-weight:850;cursor:pointer}.attendanceButtons .atWork{color:#247653;border-color:#bfe3d1}.attendanceButtons .notAtWork{color:#aa3d49;border-color:#efc6cb}.attendanceButtons .late{color:#93600d;border-color:#ead8aa}.warningCount{border:1px solid #e1e7ee;border-radius:8px;background:#fff;padding:5px;cursor:pointer}.warningCount b,.warningCount small{display:block}.warningCount b{color:#ad3946;font-size:12px}.warningCount small{color:#8b97a5;font-size:6px}.employeeEmpty{padding:22px;text-align:center;color:#8895a4;font-size:8px}.registerHead,.registerRow{min-width:930px;display:grid;gap:8px;align-items:center;padding:9px 13px}.registerHead{background:#f7f9fb;color:#7f8b99;font-size:6px;font-weight:900;text-transform:uppercase}.registerRow{border-top:1px solid #edf1f5;color:#50657a;font-size:8px}.warningRegister .registerHead,.warningRegister .registerRow{grid-template-columns:1.1fr .72fr 1.35fr .72fr .72fr .7fr}.attendanceRegister .registerHead,.attendanceRegister .registerRow{grid-template-columns:1.1fr .7fr .65fr 1.2fr .75fr}.hrRegister .registerHead,.hrRegister .registerRow{grid-template-columns:1.05fr .9fr 1.2fr .75fr .75fr .7fr}.warningLevel.verbal{background:#eef2f6;color:#5d6e81}.warningLevel.written{background:#fff1d4;color:#93600d}.warningLevel.final{background:#ffe8eb;color:#ad3543}.statusPill.active{background:#ffe8eb;color:#ad3543}.statusPill.inactive{background:#eef2f6;color:#6e7d8e}.recordTypePill{background:#e9f0f8;color:#31597a}.rowButton{border:0;background:transparent;color:#28557d;font:inherit;font-size:8px;font-weight:850;cursor:pointer;text-align:left}.overlay.employeeOverlay{z-index:55;padding:14px}.employeeModal,.profileModal{width:min(860px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:hidden;border-radius:14px;background:#fff;box-shadow:0 28px 80px rgba(14,29,48,.28);display:flex;flex-direction:column}.smallModal{width:min(530px,calc(100vw - 28px))}.employeeModal>header,.profileModal>header{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid #e6ebf1;background:#fbfcfd}.employeeModal h2,.profileModal h2{margin:3px 0;color:#21374f;font-size:16px}.employeeModal p,.profileModal p{margin:0;color:#8290a0;font-size:8px}.closeBtn{width:32px;height:32px;border:0;border-radius:8px;background:#edf2f6;color:#607187;font-size:18px;cursor:pointer}.modalBody{overflow-y:auto;padding:14px 16px}.modalFooter{display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #e6ebf1;padding:10px 14px;background:#fbfcfd}.employeeForm,.recordForm{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.employeeForm label,.recordForm label,.fullField{display:grid;gap:5px;color:#3d5268;font-size:7px;font-weight:850}.employeeForm textarea,.recordForm textarea,.fullField textarea{min-height:80px;resize:vertical}.span2{grid-column:span 2}.span3{grid-column:1/-1}.privacyNote{margin:10px 0 0;border:1px solid #dce4ec;border-radius:8px;background:#f7fafc;padding:9px;color:#65768a;font-size:7px;line-height:1.5}.profileHeader{display:flex;align-items:center;gap:10px}.profileHeader .avatar{width:43px;height:43px;flex-basis:43px}.profileBody{overflow-y:auto;padding:14px;display:grid;gap:11px}.profileStats{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.profileStats article{border:1px solid #dfe6ed;border-radius:9px;padding:10px}.profileStats span,.profileStats b,.profileStats small{display:block}.profileStats span{font-size:6px;color:#7f8c9a;font-weight:900;text-transform:uppercase}.profileStats b{margin-top:4px;font-size:15px;color:#263e56}.profileStats small{margin-top:3px;font-size:6px;color:#929daa}.profileGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.profileCard{border:1px solid #dfe6ed;border-radius:10px;padding:11px}.profileCard dl{margin:8px 0 0}.profileCard dl div{display:grid;grid-template-columns:125px 1fr;gap:8px;padding:6px 0;border-top:1px solid #eff2f5}.profileCard dt{font-size:7px;color:#8995a4}.profileCard dd{margin:0;font-size:8px;color:#354c64;font-weight:700;word-break:break-word}.historySection{border:1px solid #dfe6ed;border-radius:10px;overflow:hidden}.historySection header{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px 12px;background:#fbfcfd;border-bottom:1px solid #e9eef3}.historySection h3{margin:3px 0 0;font-size:11px;color:#263c54}.historyList{display:grid}.historyItem{padding:9px 11px;border-top:1px solid #edf1f5;font-size:8px;color:#566a7e}.historyItem:first-child{border-top:0}.historyItem b,.historyItem small{display:block}.historyItem small{margin-top:3px;color:#8d99a7;font-size:6px}.warningDetailGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.warningDetailGrid div{border:1px solid #e2e7ed;border-radius:8px;padding:9px}.warningDetailGrid span,.warningDetailGrid b{display:block}.warningDetailGrid span{font-size:6px;color:#8995a4;text-transform:uppercase;font-weight:900}.warningDetailGrid b{margin-top:4px;font-size:8px;color:#31475f}.warningDetailText{margin-top:10px;border:1px solid #e2e7ed;border-radius:8px;padding:10px;color:#53667b;font-size:8px;line-height:1.5;white-space:pre-wrap}.toast{position:fixed;right:18px;top:95px;z-index:70;border:1px solid #cbd8e5;border-radius:9px;background:#fff;padding:10px 12px;box-shadow:0 12px 32px rgba(25,49,76,.18);color:#30475f;font-size:8px;font-weight:800}.filters{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.filters select{height:34px;border:1px solid #d9e1e8;border-radius:7px;background:#fff;padding:0 8px;color:#52667a;font:inherit;font-size:7px}.miniActions{display:flex;gap:6px;flex-wrap:wrap}.miniActions button{border:1px solid #d6dfe8;border-radius:7px;background:#fff;padding:6px 8px;color:#40576f;font:inherit;font-size:6px;font-weight:850;cursor:pointer}
@@ -310,6 +326,9 @@ button.historyItem:hover{background:#f6f9fc}
 }
 
 @media(max-width:1200px){.employeeKpis{grid-template-columns:repeat(4,1fr)}.employeeForm,.recordForm{grid-template-columns:1fr 1fr}.span3{grid-column:1/-1}}@media(max-width:760px){.employeeHero{flex-direction:column;padding:15px}.employeeHeroActions{min-width:0;flex-direction:column;align-items:stretch}.employeeKpis{grid-template-columns:1fr 1fr}.employeeToolbar{align-items:stretch;flex-direction:column}.employeeToolbar label{max-width:none}.employeeModal,.profileModal{width:calc(100vw - 12px);max-height:calc(100dvh - 12px)}.overlay.employeeOverlay{padding:6px}.employeeForm,.recordForm,.profileGrid,.warningDetailGrid{grid-template-columns:1fr}.span2,.span3{grid-column:1}.profileStats{grid-template-columns:1fr 1fr}.profileHeader .avatar{display:none}.toast{left:10px;right:10px;top:80px}.employeeHeroActions button{width:100%}}
+.attendanceOverview{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;padding:12px 0 2px}.attendanceOverview article{border:1px solid #d9e3ec;border-radius:12px;background:#fff;padding:11px 12px}.attendanceOverview span,.attendanceOverview b,.attendanceOverview small{display:block}.attendanceOverview span{color:#7e8d9d;font-size:6px;font-weight:900;text-transform:uppercase}.attendanceOverview b{margin-top:5px;color:#213a54;font-size:18px}.attendanceOverview small{margin-top:4px;color:#8e9aa7;font-size:6px}.monthHistory{overflow-x:auto}.monthHistoryHead,.monthHistoryRow{min-width:650px;display:grid;grid-template-columns:1.1fr .8fr .75fr .75fr .85fr;gap:8px;align-items:center;padding:8px 13px}.monthHistoryHead{background:#f7f9fb;color:#7f8b99;font-size:6px;font-weight:900;text-transform:uppercase}.monthHistoryRow{border-top:1px solid #edf1f5;color:#4c6278;font-size:8px}.quickRecordActions{display:flex;gap:6px;flex-wrap:wrap}.quickRecordActions button{min-height:32px;border:1px solid #d5dfe8;border-radius:8px;background:#fff;padding:0 9px;color:#35506c;font:inherit;font-size:7px;font-weight:850;cursor:pointer}.quickRecordActions button:hover{background:#f5f8fb}.leaveStatus{display:inline-block;border-radius:999px;padding:5px 7px;font-size:6px;font-weight:900}.leaveStatus.requested{background:#fff1d4;color:#94600d}.leaveStatus.approved{background:#e5f6ee;color:#207a55}.leaveStatus.declined{background:#ffe8eb;color:#aa3946}.leaveStatus.cancelled{background:#eef2f6;color:#6e7d8e}.propertyType{display:inline-block;border-radius:999px;padding:5px 7px;background:#e8f0f8;color:#2d587b;font-size:6px;font-weight:900}.statusActions{display:flex;gap:5px;flex-wrap:wrap}.statusActions button{border:1px solid #d8e1e9;border-radius:7px;background:#fff;padding:5px 7px;color:#496077;font:inherit;font-size:6px;font-weight:850;cursor:pointer}.statusActions .approve{border-color:#bfe3d1;color:#247653}.statusActions .decline{border-color:#efc6cb;color:#aa3d49}.profileQuickGrid{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}.profileQuickGrid .historySection{min-width:0}.profileAttendanceSummary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;padding:12px 13px}.profileAttendanceSummary article{border:1px solid #e0e7ee;border-radius:10px;background:#fbfcfd;padding:10px}.profileAttendanceSummary span,.profileAttendanceSummary b,.profileAttendanceSummary small{display:block}.profileAttendanceSummary span{font-size:6px;color:#8190a0;font-weight:900;text-transform:uppercase}.profileAttendanceSummary b{margin-top:5px;font-size:17px;color:#243d56}.profileAttendanceSummary small{margin-top:3px;font-size:6px;color:#909ca9}.profileAssetItem{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}.profileAssetItem .statusActions{justify-content:flex-end}.hrRegister.propertyRegister .registerHead,.hrRegister.propertyRegister .registerRow{grid-template-columns:1.05fr .9fr 1.25fr .8fr .75fr .8fr}.hrRegister.leaveRegister .registerHead,.hrRegister.leaveRegister .registerRow{grid-template-columns:1.05fr .85fr 1.2fr .8fr .75fr 1fr}.attendanceRegister.allAttendance .registerHead,.attendanceRegister.allAttendance .registerRow{grid-template-columns:1.05fr .7fr .7fr 1.2fr .75fr}.recordForm .contextHint{grid-column:1/-1;border:1px solid #dbe5ed;border-radius:9px;background:#f7fafc;padding:9px 10px;color:#64778a;font-size:7px;line-height:1.5}.profileModal .historySection .quickRecordActions{justify-content:flex-end}
+@media(max-width:900px){.attendanceOverview,.profileAttendanceSummary{grid-template-columns:repeat(3,1fr)}.profileQuickGrid{grid-template-columns:1fr}}@media(max-width:620px){.attendanceOverview,.profileAttendanceSummary{grid-template-columns:1fr 1fr}.quickRecordActions{width:100%}.quickRecordActions button{flex:1}.profileAssetItem{grid-template-columns:1fr}}
+
 `;
 
 export default function EmployeeRecords({ currentUser }: { currentUser: CurrentHubUser }) {
@@ -404,21 +423,66 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
     });
   }, [data, search, warningFilter]);
 
-  const attendanceExceptions = useMemo(() => {
+  const attendanceHistory = useMemo(() => {
     if (!data) return [];
     const needle = search.trim().toLowerCase();
     return data.attendance.filter((record) => {
-      if (record.status === "At work") return false;
       const employee = data.employees.find((item) => item.id === Number(record.employee_id));
-      return !needle || [employee ? employeeName(employee) : "", record.status, record.absence_type, record.reason].join(" ").toLowerCase().includes(needle);
+      return !needle || [employee ? employeeName(employee) : "", record.status, record.absence_type, record.reason, record.recorded_by].join(" ").toLowerCase().includes(needle);
     });
   }, [data, search]);
+
+  const leaveRequests = useMemo(() => {
+    if (!data) return [];
+    const needle = search.trim().toLowerCase();
+    return data.hrRecords.filter((record) => {
+      if (!leaveRecordTypes.includes(record.record_type)) return false;
+      const employee = data.employees.find((item) => item.id === Number(record.employee_id));
+      return !needle || [employee ? employeeName(employee) : "", record.title, record.status, record.reference, record.details].join(" ").toLowerCase().includes(needle);
+    });
+  }, [data, search]);
+
+  const companyProperty = useMemo(() => {
+    if (!data) return [];
+    const needle = search.trim().toLowerCase();
+    return data.hrRecords.filter((record) => {
+      if (!propertyRecordTypes.includes(record.record_type)) return false;
+      const employee = data.employees.find((item) => item.id === Number(record.employee_id));
+      return !needle || [employee ? employeeName(employee) : "", record.record_type, record.title, record.status, record.reference, record.details].join(" ").toLowerCase().includes(needle);
+    });
+  }, [data, search]);
+
+  const attendanceInsights = (employeeId: number) => {
+    const records = attendanceFor(employeeId);
+    const weekStart = startOfWeekIso(data?.today || new Date().toISOString().slice(0, 10));
+    const currentMonth = monthKey(data?.today || new Date().toISOString().slice(0, 10));
+    const currentYear = (data?.today || new Date().toISOString().slice(0, 10)).slice(0, 4);
+    const week = records.filter((record) => record.attendance_date >= weekStart);
+    const month = records.filter((record) => monthKey(record.attendance_date) === currentMonth);
+    const year = records.filter((record) => record.attendance_date.startsWith(currentYear));
+    const summarize = (items: Attendance[]) => ({
+      attended: items.filter((record) => isAttendedStatus(record.status)).length,
+      late: items.filter((record) => record.status === "Late").length,
+      absent: items.filter((record) => record.status === "Not at work").length,
+      lateMinutes: items.reduce((sum, record) => sum + (record.status === "Late" ? Number(record.minutes_late || 0) : 0), 0),
+    });
+    const months: Array<{ key: string; label: string; attended: number; late: number; absent: number; lateMinutes: number }> = [];
+    const cursor = new Date(`${data?.today || new Date().toISOString().slice(0, 10)}T12:00:00`);
+    for (let i = 0; i < 12; i++) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+      const summary = summarize(records.filter((record) => monthKey(record.attendance_date) === key));
+      months.push({ key, label: monthLabel(key), ...summary });
+      cursor.setMonth(cursor.getMonth() - 1);
+    }
+    return { week: summarize(week), month: summarize(month), year: summarize(year), months };
+  };
 
   const filteredHrRecords = useMemo(() => {
     if (!data) return [];
     const needle = search.trim().toLowerCase();
     return data.hrRecords.filter((record) => {
       const employee = data.employees.find((item) => item.id === Number(record.employee_id));
+      if (leaveRecordTypes.includes(record.record_type) || propertyRecordTypes.includes(record.record_type)) return false;
       const matchType = recordFilter === "All" || record.record_type === recordFilter;
       const matchSearch = !needle || [employee ? employeeName(employee) : "", record.record_type, record.title, record.status, record.reference].join(" ").toLowerCase().includes(needle);
       return matchType && matchSearch;
@@ -521,8 +585,10 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
     finally { setSaving(false); }
   };
 
-  const openHrRecord = (employee: Employee, type = "Leave") => {
-    setHrForm({ recordType: type, title: "", recordDate: data?.today || new Date().toISOString().slice(0, 10), endDate: "", status: "", reference: "", details: "" });
+  const openHrRecord = (employee: Employee, type = "HR Note") => {
+    const status = type === "Leave Request" ? "Requested" : propertyRecordTypes.includes(type) ? (type === "Company Vehicle" ? "Allocated" : "Issued") : "";
+    const title = type === "Leave Request" ? "Annual Leave" : type === "Uniform / PPE" ? "Uniform / PPE issue" : type === "Company Vehicle" ? "Vehicle allocation" : type === "Company Phone / SIM" ? "Phone / SIM issue" : "";
+    setHrForm({ recordType: type, title, recordDate: data?.today || new Date().toISOString().slice(0, 10), endDate: "", status, reference: "", details: "" });
     setHrModal(employee);
   };
   const saveHrRecord = async () => {
@@ -534,6 +600,17 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
       setHrModal(null);
       await load(workspace);
     } catch (error) { flash(error instanceof Error ? error.message : "HR record could not be saved."); }
+    finally { setSaving(false); }
+  };
+
+  const updateHrStatus = async (record: HrRecord, status: string) => {
+    if (!data?.permissions.canManageHrRecords || saving) return;
+    setSaving(true);
+    try {
+      await patch({ action: "hrRecordStatus", id: record.id, status });
+      flash(`${record.record_type} updated to ${status}.`);
+      await load(workspace);
+    } catch (error) { flash(error instanceof Error ? error.message : "HR record could not be updated."); }
     finally { setSaving(false); }
   };
 
@@ -549,7 +626,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
         <div>
           <small>POWERBUILD PEOPLE CONTROL</small>
           <h2>Employee Records, Attendance & HR History</h2>
-          <p>Maintain employee files, daily attendance, lateness minutes, disciplinary warnings, leave, training/certifications, company assets and employment-change records.</p>
+          <p>Maintain employee files, weekly/monthly attendance history, leave requests, warnings, uniforms/PPE, company vehicles, phones/SIMs, training and employment records.</p>
         </div>
         <div className="employeeHeroActions">
           <label>Location<select value={workspace} onChange={(e) => { setSearch(""); setSelected(null); void load(e.target.value); }}>{data.stores.map((store) => <option key={store.id} value={store.name}>{store.name}</option>)}</select></label>
@@ -568,13 +645,13 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
       </div>
 
       <div className="employeeTabs">
-        {(["Employees", "Warnings", "Attendance Exceptions", "HR Records"] as Tab[]).map((tab) => <button key={tab} className={activeTab === tab ? "active" : ""} onClick={() => { setActiveTab(tab); setSearch(""); }}>{tab}</button>)}
+        {(["Employees", "Attendance History", "Leave Requests", "Company Property", "Warnings", "HR Records"] as Tab[]).map((tab) => <button key={tab} className={activeTab === tab ? "active" : ""} onClick={() => { setActiveTab(tab); setSearch(""); }}>{tab}</button>)}
       </div>
 
       <div className="employeeToolbar">
         <label>⌕<input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={activeTab === "Employees" ? "Search employee, number, job title or department…" : `Search ${activeTab.toLowerCase()}…`} /></label>
         {activeTab === "Warnings" && <div className="filters"><select value={warningFilter} onChange={(e) => setWarningFilter(e.target.value)}><option>All</option><option>Active</option><option>Expired</option><option>Withdrawn</option><option>Verbal</option><option>Written</option><option>Final written</option></select></div>}
-        {activeTab === "HR Records" && <div className="filters"><select value={recordFilter} onChange={(e) => setRecordFilter(e.target.value)}><option>All</option><option>Leave</option><option>Training / Certification</option><option>Company Asset</option><option>Employment Change</option><option>HR Note</option></select></div>}
+        {activeTab === "HR Records" && <div className="filters"><select value={recordFilter} onChange={(e) => setRecordFilter(e.target.value)}><option>All</option><option>Training / Certification</option><option>Employment Change</option><option>HR Note</option></select></div>}
       </div>
 
       {activeTab === "Employees" && (
@@ -624,29 +701,73 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
         </div>
       )}
 
-      {activeTab === "Attendance Exceptions" && (
-        <div className="panel attendanceRegister">
-          <div className="panelHeader"><div><small className="sectionEyebrow">ATTENDANCE HISTORY</small><h3>Lateness & Absence Exceptions</h3><p>Objective history of late and not-at-work records from the last 180 days.</p></div></div>
+      {activeTab === "Attendance History" && (
+        <div className="panel attendanceRegister allAttendance">
+          <div className="panelHeader"><div><small className="sectionEyebrow">ATTENDANCE REGISTER</small><h3>Attendance History</h3><p>Full attendance record for the last 12 months, including days attended, lateness and absences.</p></div></div>
           <div className="tableWrap">
             <div className="registerHead"><span>Employee</span><span>Date</span><span>Status</span><span>Reason / Detail</span><span>Recorded by</span></div>
-            {attendanceExceptions.map((record) => {
+            {attendanceHistory.map((record) => {
               const employee = employeeById(Number(record.employee_id));
               return <div className="registerRow" key={record.id}>
                 <button className="rowButton" onClick={() => employee && setSelected(employee)}>{employee ? employeeName(employee) : `Employee #${record.employee_id}`}</button>
                 <span>{formatDate(record.attendance_date)}</span>
-                <span><em className={`attendancePill ${record.status === "Late" ? "late" : "notAtWork"}`}>{record.status}{record.status === "Late" ? ` · ${record.minutes_late} min` : ""}</em></span>
-                <span className="stack"><b>{record.absence_type || (record.status === "Late" ? `${record.minutes_late} minutes late` : "—")}</b><small>{record.reason || "No reason entered"}</small></span>
+                <span><em className={`attendancePill ${record.status === "At work" ? "atWork" : record.status === "Late" ? "late" : "notAtWork"}`}>{record.status}{record.status === "Late" ? ` · ${record.minutes_late} min` : ""}</em></span>
+                <span className="stack"><b>{record.absence_type || (record.status === "Late" ? `${record.minutes_late} minutes late` : record.status === "At work" ? "Present" : "—")}</b><small>{record.reason || "No additional note"}</small></span>
                 <span>{record.recorded_by || "—"}</span>
               </div>;
             })}
-            {!attendanceExceptions.length && <div className="employeeEmpty">No attendance exceptions match this view.</div>}
+            {!attendanceHistory.length && <div className="employeeEmpty">No attendance history matches this view.</div>}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "Leave Requests" && (
+        <div className="panel hrRegister leaveRegister">
+          <div className="panelHeader"><div><small className="sectionEyebrow">LEAVE CONTROL</small><h3>Leave Requests</h3><p>Track requested, approved, declined and completed employee leave.</p></div></div>
+          <div className="tableWrap">
+            <div className="registerHead"><span>Employee</span><span>Leave type</span><span>Period / Reason</span><span>Requested</span><span>Status</span><span>Action</span></div>
+            {leaveRequests.map((record) => {
+              const employee = employeeById(Number(record.employee_id));
+              const statusClass = /approved|taken|on leave/i.test(record.status) ? "approved" : /declined/i.test(record.status) ? "declined" : /cancel/i.test(record.status) ? "cancelled" : "requested";
+              return <div className="registerRow" key={record.id}>
+                <button className="rowButton" onClick={() => employee && setSelected(employee)}>{employee ? employeeName(employee) : `Employee #${record.employee_id}`}</button>
+                <span><em className="recordTypePill">{record.title || "Leave"}</em></span>
+                <span className="stack"><b>{formatDate(record.record_date)}{record.end_date ? ` → ${formatDate(record.end_date)}` : ""}</b><small>{record.details || "No reason entered"}</small></span>
+                <span>{record.created_by || "—"}</span>
+                <span><em className={`leaveStatus ${statusClass}`}>{record.status || "Requested"}</em></span>
+                <span className="statusActions">{data.permissions.canManageHrRecords && !/approved|declined|cancelled/i.test(record.status || "") && <><button className="approve" onClick={() => void updateHrStatus(record,"Approved")}>Approve</button><button className="decline" onClick={() => void updateHrStatus(record,"Declined")}>Decline</button></>}{data.permissions.canManageHrRecords && /approved/i.test(record.status || "") && <button onClick={() => void updateHrStatus(record,"Taken")}>Mark taken</button>}</span>
+              </div>;
+            })}
+            {!leaveRequests.length && <div className="employeeEmpty">No leave requests recorded.</div>}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "Company Property" && (
+        <div className="panel hrRegister propertyRegister">
+          <div className="panelHeader"><div><small className="sectionEyebrow">COMPANY PROPERTY</small><h3>Uniforms, Vehicles, Phones & Assets</h3><p>Keep a permanent issue/return trail for company property allocated to employees.</p></div></div>
+          <div className="tableWrap">
+            <div className="registerHead"><span>Employee</span><span>Type</span><span>Item / Identifier</span><span>Issued</span><span>Status</span><span>Action</span></div>
+            {companyProperty.map((record) => {
+              const employee = employeeById(Number(record.employee_id));
+              const active = /issued|allocated/i.test(record.status || "");
+              return <div className="registerRow" key={record.id}>
+                <button className="rowButton" onClick={() => employee && setSelected(employee)}>{employee ? employeeName(employee) : `Employee #${record.employee_id}`}</button>
+                <span><em className="propertyType">{record.record_type}</em></span>
+                <span className="stack"><b>{record.title}</b><small>{record.reference || record.details || "No identifier"}</small></span>
+                <span>{formatDate(record.record_date)}</span>
+                <span><em className={`statusPill ${active ? "active" : "inactive"}`}>{record.status || "—"}</em></span>
+                <span className="statusActions">{data.permissions.canManageHrRecords && active && <button className="approve" onClick={() => void updateHrStatus(record,"Returned")}>Mark returned</button>}{data.permissions.canManageHrRecords && active && <button className="decline" onClick={() => void updateHrStatus(record,"Lost / Damaged")}>Lost / damaged</button>}</span>
+              </div>;
+            })}
+            {!companyProperty.length && <div className="employeeEmpty">No company property records match this view.</div>}
           </div>
         </div>
       )}
 
       {activeTab === "HR Records" && (
         <div className="panel hrRegister">
-          <div className="panelHeader"><div><small className="sectionEyebrow">EMPLOYEE FILE HISTORY</small><h3>HR Records</h3><p>Leave, training/certification, company assets, employment changes and HR notes.</p></div></div>
+          <div className="panelHeader"><div><small className="sectionEyebrow">EMPLOYEE FILE HISTORY</small><h3>HR Records</h3><p>Training/certifications, employment changes and general HR notes.</p></div></div>
           <div className="tableWrap">
             <div className="registerHead"><span>Employee</span><span>Type</span><span>Record</span><span>Date</span><span>Status</span><span>Reference</span></div>
             {filteredHrRecords.map((record) => {
@@ -668,16 +789,19 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
       {selected && (
         <div className="overlay employeeOverlay" onMouseDown={() => setSelected(null)}>
           <section className="profileModal" onMouseDown={(e) => e.stopPropagation()}>
-            <header><div className="profileHeader"><i className="avatar">{initials(selected)}</i><div><small className="sectionEyebrow">EMPLOYEE FILE · {selected.employee_number}</small><h2>{employeeName(selected)}</h2><p>{selected.job_title || "Job title not set"} · {selected.workspace}</p></div></div><div className="miniActions">{data.permissions.canManageEmployees && <button className="secondaryBtn" onClick={() => openEditEmployee(selected)}>Edit file</button>}{data.permissions.canIssueWarnings && <button className="secondaryBtn" onClick={() => openWarning(selected)}>Issue warning</button>}{data.permissions.canManageHrRecords && <button className="secondaryBtn" onClick={() => openHrRecord(selected)}>Add HR record</button>}<button className="closeBtn" onClick={() => setSelected(null)}>×</button></div></header>
+            <header><div className="profileHeader"><i className="avatar">{initials(selected)}</i><div><small className="sectionEyebrow">EMPLOYEE FILE · {selected.employee_number}</small><h2>{employeeName(selected)}</h2><p>{selected.job_title || "Job title not set"} · {selected.workspace}</p></div></div><div className="miniActions">{data.permissions.canManageEmployees && <button className="secondaryBtn" onClick={() => openEditEmployee(selected)}>Edit file</button>}{data.permissions.canManageHrRecords && <button className="secondaryBtn" onClick={() => openHrRecord(selected,"Leave Request")}>Leave request</button>}{data.permissions.canIssueWarnings && <button className="secondaryBtn" onClick={() => openWarning(selected)}>Issue warning</button>}<button className="closeBtn" onClick={() => setSelected(null)}>×</button></div></header>
             <div className="profileBody">
-              <div className="profileStats"><article><span>At work</span><b>{selected.attendance_stats.atWork}</b><small>last 180 days</small></article><article><span>Late</span><b>{selected.attendance_stats.late}</b><small>{selected.attendance_stats.lateMinutes} minutes</small></article><article><span>Not at work</span><b>{selected.attendance_stats.notAtWork}</b><small>last 180 days</small></article><article><span>Warnings</span><b>{selected.warning_count}</b><small>{selected.active_warning_count} active</small></article><article><span>HR records</span><b>{selected.hr_record_count}</b><small>leave, training, assets</small></article></div>
+              {(() => { const insight = attendanceInsights(selected.id); return <div className="profileStats"><article><span>Attended this week</span><b>{insight.week.attended}</b><small>{insight.week.late} late</small></article><article><span>Attended this month</span><b>{insight.month.attended}</b><small>{insight.month.late} late · {insight.month.lateMinutes} min</small></article><article><span>Absent this month</span><b>{insight.month.absent}</b><small>Not-at-work records</small></article><article><span>Warnings</span><b>{selected.warning_count}</b><small>{selected.active_warning_count} active</small></article><article><span>Year attendance</span><b>{insight.year.attended}</b><small>{insight.year.late} late · {insight.year.absent} absent</small></article></div>; })()}
               <div className="profileGrid">
                 <section className="profileCard"><small className="sectionEyebrow">EMPLOYMENT</small><dl><div><dt>Employee no.</dt><dd>{selected.employee_number}</dd></div><div><dt>Job title</dt><dd>{selected.job_title || "—"}</dd></div><div><dt>Department</dt><dd>{selected.department || "—"}</dd></div><div><dt>Start date</dt><dd>{formatDate(selected.start_date)}</dd></div><div><dt>Probation ends</dt><dd>{formatDate(selected.probation_end_date)}</dd></div><div><dt>Contract ends</dt><dd>{formatDate(selected.contract_end_date)}</dd></div><div><dt>Supervisor</dt><dd>{selected.supervisor || "—"}</dd></div><div><dt>Status</dt><dd>{selected.employment_status}</dd></div></dl></section>
                 <section className="profileCard"><small className="sectionEyebrow">CONTACT & IDENTIFICATION</small><dl><div><dt>ID / Passport</dt><dd>{selected.id_number || "—"}</dd></div><div><dt>Phone</dt><dd>{selected.phone || "—"}</dd></div><div><dt>Email</dt><dd>{selected.email || "—"}</dd></div><div><dt>Address</dt><dd>{selected.residential_address || "—"}</dd></div><div><dt>Emergency contact</dt><dd>{selected.emergency_contact_name || "—"}</dd></div><div><dt>Emergency phone</dt><dd>{selected.emergency_contact_phone || "—"}</dd></div></dl></section>
               </div>
+              {(() => { const insight = attendanceInsights(selected.id); return <section className="historySection"><header><div><small className="sectionEyebrow">ATTENDANCE PERFORMANCE</small><h3>Weekly, Monthly & 12-Month Record</h3></div></header><div className="profileAttendanceSummary"><article><span>This week</span><b>{insight.week.attended}</b><small>days attended</small></article><article><span>This month</span><b>{insight.month.attended}</b><small>days attended</small></article><article><span>Late this month</span><b>{insight.month.late}</b><small>{insight.month.lateMinutes} minutes</small></article><article><span>Absent this month</span><b>{insight.month.absent}</b><small>days recorded absent</small></article><article><span>This year</span><b>{insight.year.attended}</b><small>days attended</small></article></div><div className="monthHistory"><div className="monthHistoryHead"><span>Month</span><span>Attended</span><span>Late</span><span>Absent</span><span>Late minutes</span></div>{insight.months.map((month) => <div className="monthHistoryRow" key={month.key}><b>{month.label}</b><span>{month.attended}</span><span>{month.late}</span><span>{month.absent}</span><span>{month.lateMinutes}</span></div>)}</div></section>; })()}
+              <section className="historySection"><header><div><small className="sectionEyebrow">LEAVE REQUEST HISTORY</small><h3>Leave Requests</h3></div>{data.permissions.canManageHrRecords && <button className="secondaryBtn" onClick={() => openHrRecord(selected,"Leave Request")}>＋ New leave request</button>}</header><div className="historyList">{hrFor(selected.id).filter((record) => leaveRecordTypes.includes(record.record_type)).map((record) => <div className="historyItem profileAssetItem" key={record.id}><div><b>{record.title || "Leave"} · {record.status || "Requested"}</b><small>{formatDate(record.record_date)}{record.end_date ? ` → ${formatDate(record.end_date)}` : ""}{record.details ? ` · ${record.details}` : ""}</small></div><div className="statusActions">{data.permissions.canManageHrRecords && !/approved|declined|cancelled/i.test(record.status || "") && <><button className="approve" onClick={() => void updateHrStatus(record,"Approved")}>Approve</button><button className="decline" onClick={() => void updateHrStatus(record,"Declined")}>Decline</button></>}</div></div>)}{!hrFor(selected.id).some((record) => leaveRecordTypes.includes(record.record_type)) && <div className="employeeEmpty">No leave requests recorded.</div>}</div></section>
+              <section className="historySection"><header><div><small className="sectionEyebrow">COMPANY PROPERTY</small><h3>Uniforms, Vehicles, Phones & Other Assets</h3></div>{data.permissions.canManageHrRecords && <div className="quickRecordActions"><button onClick={() => openHrRecord(selected,"Uniform / PPE")}>＋ Uniform / PPE</button><button onClick={() => openHrRecord(selected,"Company Vehicle")}>＋ Vehicle</button><button onClick={() => openHrRecord(selected,"Company Phone / SIM")}>＋ Phone / SIM</button></div>}</header><div className="historyList">{hrFor(selected.id).filter((record) => propertyRecordTypes.includes(record.record_type)).map((record) => <div className="historyItem profileAssetItem" key={record.id}><div><b>{record.record_type} · {record.title}</b><small>{formatDate(record.record_date)} · {record.status || "No status"}{record.reference ? ` · ${record.reference}` : ""}{record.details ? ` · ${record.details}` : ""}</small></div><div className="statusActions">{data.permissions.canManageHrRecords && /issued|allocated/i.test(record.status || "") && <button className="approve" onClick={() => void updateHrStatus(record,"Returned")}>Mark returned</button>}</div></div>)}{!hrFor(selected.id).some((record) => propertyRecordTypes.includes(record.record_type)) && <div className="employeeEmpty">No company property issued.</div>}</div></section>
               <section className="historySection"><header><div><small className="sectionEyebrow">DISCIPLINARY HISTORY</small><h3>Warnings ({selected.warning_count})</h3></div>{data.permissions.canIssueWarnings && <button className="secondaryBtn" onClick={() => openWarning(selected)}>＋ Issue warning</button>}</header><div className="historyList">{warningsFor(selected.id).map((warning) => <button key={warning.id} className="historyItem rowButton" onClick={() => setSelectedWarning(warning)}><b>{warning.warning_level} · {warning.reason}</b><small>{formatDate(warning.warning_date)} · {warningIsActive(warning, data.today) ? "Active" : warning.status === "Withdrawn" ? "Withdrawn" : "Expired"} · Issued by {warning.issued_by}</small></button>)}{!warningsFor(selected.id).length && <div className="employeeEmpty">No warnings recorded.</div>}</div></section>
-              <section className="historySection"><header><div><small className="sectionEyebrow">ATTENDANCE HISTORY</small><h3>Recent records</h3></div></header><div className="historyList">{attendanceFor(selected.id).slice(0,30).map((record) => <div className="historyItem" key={record.id}><b>{formatDate(record.attendance_date)} · {record.status}{record.status === "Late" ? ` (${record.minutes_late} min)` : ""}</b><small>{record.absence_type || record.reason || record.recorded_by || "No additional detail"}</small></div>)}{!attendanceFor(selected.id).length && <div className="employeeEmpty">No attendance history yet.</div>}</div></section>
-              <section className="historySection"><header><div><small className="sectionEyebrow">HR FILE HISTORY</small><h3>Leave, Training, Assets & Employment Changes</h3></div>{data.permissions.canManageHrRecords && <button className="secondaryBtn" onClick={() => openHrRecord(selected)}>＋ Add record</button>}</header><div className="historyList">{hrFor(selected.id).map((record) => <div className="historyItem" key={record.id}><b>{record.record_type} · {record.title}</b><small>{formatDate(record.record_date)}{record.end_date ? ` → ${formatDate(record.end_date)}` : ""} · {record.status || "No status"}{record.reference ? ` · ${record.reference}` : ""}</small>{record.details && <small>{record.details}</small>}</div>)}{!hrFor(selected.id).length && <div className="employeeEmpty">No HR history records yet.</div>}</div></section>
+              <section className="historySection"><header><div><small className="sectionEyebrow">DAILY ATTENDANCE LOG</small><h3>Recent Daily Records</h3></div></header><div className="historyList">{attendanceFor(selected.id).slice(0,60).map((record) => <div className="historyItem" key={record.id}><b>{formatDate(record.attendance_date)} · {record.status}{record.status === "Late" ? ` (${record.minutes_late} min)` : ""}</b><small>{record.absence_type || record.reason || record.recorded_by || "No additional detail"}</small></div>)}{!attendanceFor(selected.id).length && <div className="employeeEmpty">No attendance history yet.</div>}</div></section>
+              <section className="historySection"><header><div><small className="sectionEyebrow">OTHER HR FILE HISTORY</small><h3>Training, Employment Changes & HR Notes</h3></div>{data.permissions.canManageHrRecords && <button className="secondaryBtn" onClick={() => openHrRecord(selected,"HR Note")}>＋ Add HR record</button>}</header><div className="historyList">{hrFor(selected.id).filter((record) => !leaveRecordTypes.includes(record.record_type) && !propertyRecordTypes.includes(record.record_type)).map((record) => <div className="historyItem" key={record.id}><b>{record.record_type} · {record.title}</b><small>{formatDate(record.record_date)}{record.end_date ? ` → ${formatDate(record.end_date)}` : ""} · {record.status || "No status"}{record.reference ? ` · ${record.reference}` : ""}</small>{record.details && <small>{record.details}</small>}</div>)}{!hrFor(selected.id).some((record) => !leaveRecordTypes.includes(record.record_type) && !propertyRecordTypes.includes(record.record_type)) && <div className="employeeEmpty">No additional HR history records yet.</div>}</div></section>
               {selected.notes && <section className="profileCard"><small className="sectionEyebrow">EMPLOYEE FILE NOTES</small><p style={{fontSize:"8px",color:"#52667a",lineHeight:1.5,whiteSpace:"pre-wrap"}}>{selected.notes}</p></section>}
             </div>
           </section>
@@ -697,7 +821,17 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
       )}
 
       {hrModal && (
-        <div className="overlay employeeOverlay" onMouseDown={() => setHrModal(null)}><section className="employeeModal" onMouseDown={(e) => e.stopPropagation()}><header><div><small className="sectionEyebrow">EMPLOYEE HR RECORD</small><h2>Add file record</h2><p>{employeeName(hrModal)} · {hrModal.employee_number}</p></div><button className="closeBtn" onClick={()=>setHrModal(null)}>×</button></header><div className="modalBody recordForm"><label>Record type<select value={hrForm.recordType} onChange={(e)=>setHrForm({...hrForm,recordType:e.target.value})}><option>Leave</option><option>Training / Certification</option><option>Company Asset</option><option>Employment Change</option><option>HR Note</option></select></label><label>Start / record date<input type="date" value={hrForm.recordDate} onChange={(e)=>setHrForm({...hrForm,recordDate:e.target.value})}/></label><label>End / expiry / return date<input type="date" value={hrForm.endDate} onChange={(e)=>setHrForm({...hrForm,endDate:e.target.value})}/></label><label className="span2">Title *<input value={hrForm.title} onChange={(e)=>setHrForm({...hrForm,title:e.target.value})} placeholder="e.g. Annual leave / Forklift certificate / Laptop issued"/></label><label>Status<input value={hrForm.status} onChange={(e)=>setHrForm({...hrForm,status:e.target.value})} placeholder="Approved, Issued, Completed…"/></label><label>Reference / certificate / asset no.<input value={hrForm.reference} onChange={(e)=>setHrForm({...hrForm,reference:e.target.value})}/></label><label className="span2">Details<textarea value={hrForm.details} onChange={(e)=>setHrForm({...hrForm,details:e.target.value})}/></label></div><footer className="modalFooter"><button className="secondaryBtn" onClick={()=>setHrModal(null)}>Cancel</button><button className="primaryBtn" disabled={saving} onClick={()=>void saveHrRecord()}>{saving?"Saving…":"Add HR record"}</button></footer></section></div>
+        <div className="overlay employeeOverlay" onMouseDown={() => setHrModal(null)}><section className="employeeModal" onMouseDown={(e) => e.stopPropagation()}><header><div><small className="sectionEyebrow">EMPLOYEE HR RECORD</small><h2>{hrForm.recordType === "Leave Request" ? "New leave request" : propertyRecordTypes.includes(hrForm.recordType) ? "Issue company property" : "Add file record"}</h2><p>{employeeName(hrModal)} · {hrModal.employee_number}</p></div><button className="closeBtn" onClick={()=>setHrModal(null)}>×</button></header><div className="modalBody recordForm">
+          <label>Record type<select value={hrForm.recordType} onChange={(e)=>{ const type=e.target.value; setHrForm({...hrForm,recordType:type,status:type==="Leave Request"?"Requested":propertyRecordTypes.includes(type)?(type==="Company Vehicle"?"Allocated":"Issued"):""}); }}><option>Leave Request</option><option>Training / Certification</option><option>Uniform / PPE</option><option>Company Vehicle</option><option>Company Phone / SIM</option><option>Company Asset</option><option>Employment Change</option><option>HR Note</option></select></label>
+          <label>{hrForm.recordType === "Leave Request" ? "Leave start date" : propertyRecordTypes.includes(hrForm.recordType) ? "Issue / allocation date" : "Start / record date"}<input type="date" value={hrForm.recordDate} onChange={(e)=>setHrForm({...hrForm,recordDate:e.target.value})}/></label>
+          <label>{hrForm.recordType === "Leave Request" ? "Leave end date" : propertyRecordTypes.includes(hrForm.recordType) ? "Expected return date" : "End / expiry date"}<input type="date" value={hrForm.endDate} onChange={(e)=>setHrForm({...hrForm,endDate:e.target.value})}/></label>
+          <label className="span2">{hrForm.recordType === "Leave Request" ? "Leave type *" : hrForm.recordType === "Uniform / PPE" ? "Uniform / PPE issued *" : hrForm.recordType === "Company Vehicle" ? "Vehicle make / model *" : hrForm.recordType === "Company Phone / SIM" ? "Phone / SIM item *" : "Title *"}<input value={hrForm.title} onChange={(e)=>setHrForm({...hrForm,title:e.target.value})} placeholder={hrForm.recordType === "Leave Request" ? "Annual Leave / Sick Leave / Family Responsibility" : hrForm.recordType === "Uniform / PPE" ? "e.g. 2 Golf Shirts XL + Safety Boots size 9" : hrForm.recordType === "Company Vehicle" ? "e.g. Toyota Hilux 2.4 GD-6" : hrForm.recordType === "Company Phone / SIM" ? "e.g. Samsung A55 + MTN SIM" : "Record title"}/></label>
+          <label>Status<select value={hrForm.status} onChange={(e)=>setHrForm({...hrForm,status:e.target.value})}>{hrForm.recordType === "Leave Request" ? <><option>Requested</option><option>Approved</option><option>Declined</option><option>Cancelled</option><option>Taken</option></> : propertyRecordTypes.includes(hrForm.recordType) ? <><option>{hrForm.recordType === "Company Vehicle" ? "Allocated" : "Issued"}</option><option>Returned</option><option>Lost / Damaged</option><option>Replaced</option></> : <><option value="">No status</option><option>Active</option><option>Completed</option><option>Expired</option></>}</select></label>
+          <label>{hrForm.recordType === "Company Vehicle" ? "Registration / fleet no." : hrForm.recordType === "Company Phone / SIM" ? "IMEI / mobile / SIM no." : hrForm.recordType === "Uniform / PPE" ? "Issue reference / size" : "Reference / certificate / asset no."}<input value={hrForm.reference} onChange={(e)=>setHrForm({...hrForm,reference:e.target.value})}/></label>
+          <label className="span2">{hrForm.recordType === "Leave Request" ? "Leave reason / note" : propertyRecordTypes.includes(hrForm.recordType) ? "Condition, quantity, accessories & notes" : "Details"}<textarea value={hrForm.details} onChange={(e)=>setHrForm({...hrForm,details:e.target.value})}/></label>
+          {hrForm.recordType === "Leave Request" && <div className="contextHint">Leave requests remain in the employee file permanently. Use Approved/Declined to record the management decision; the record is never deleted when the leave is completed.</div>}
+          {propertyRecordTypes.includes(hrForm.recordType) && <div className="contextHint">For uniforms/PPE record quantity and sizes. For vehicles record registration/fleet number. For phones record device, IMEI and SIM/mobile number. When returned, use “Mark returned” from the employee file/property register.</div>}
+        </div><footer className="modalFooter"><button className="secondaryBtn" onClick={()=>setHrModal(null)}>Cancel</button><button className="primaryBtn" disabled={saving} onClick={()=>void saveHrRecord()}>{saving?"Saving…":hrForm.recordType === "Leave Request" ? "Save leave request" : propertyRecordTypes.includes(hrForm.recordType) ? "Issue / allocate" : "Add HR record"}</button></footer></section></div>
       )}
 
       {employeeModal && (
