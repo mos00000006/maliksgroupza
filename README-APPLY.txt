@@ -1,21 +1,35 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS — CLEAN SCROLLBAR STYLE V11
+STORE SPECIALS — FULL UP/DOWN BRANCH SCROLL CONTROLS V12
 
 REPLACE ONLY:
   app/store-specials.tsx
 
-WHAT CHANGED
-------------
-- Removed the browser arrow buttons from the branch scrollbar.
-- Reduced scrollbar width.
-- Added a cleaner rounded rail.
-- Added a PowerBuild navy-blue draggable thumb.
-- Added hover and active states.
-- Removed the bulky side gutter.
-- Mobile scrollbar is slimmer and touch friendly.
+WHAT IS FIXED
+-------------
+The branch list now has dedicated navigation controls on the RIGHT side:
 
-The scrolling behaviour and full branch list stay exactly the same.
+  ▲  Scroll to top
+  ▼  Scroll to bottom
+
+The down-facing button is always visible at the bottom of the branch panel.
+
+You can still:
+- drag the normal scrollbar thumb;
+- use the mouse wheel / trackpad;
+- swipe vertically on cellphone.
+
+The last branch can now be reached cleanly because the scrollable area has extra
+bottom padding and the Down button scrolls directly to scrollHeight.
+
+STYLE
+-----
+- Separate clean arrow buttons.
+- Slim native scrollbar.
+- Rounded blue/grey rail.
+- Works on desktop and mobile.
+- All Branches disables the scroll controls because the individual checkboxes
+  are disabled.
 
 No API changes.
-No database changes.
-No secret changes.
+No D1 migration.
+No GitHub secret changes.
