@@ -86,6 +86,50 @@ export async function initPromotionPlanningTables() {
     )`),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_promotion_suggestions_plan ON promotion_suggestions(plan_id,id)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_promotion_comments_plan ON promotion_comments(plan_id,id)"),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS promotion_decisions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plan_id INTEGER NOT NULL,
+      branch TEXT NOT NULL,
+      topic TEXT NOT NULL,
+      proposal TEXT NOT NULL,
+      rationale TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'Proposed',
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS promotion_decision_votes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      decision_id INTEGER NOT NULL,
+      branch TEXT NOT NULL,
+      vote TEXT NOT NULL DEFAULT 'Support',
+      comment TEXT NOT NULL DEFAULT '',
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    env.DB.prepare(
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_promotion_decision_vote_user ON promotion_decision_votes(decision_id,created_by)",
+    ),
+    env.DB.prepare(
+      "CREATE INDEX IF NOT EXISTS idx_promotion_decisions_plan ON promotion_decisions(plan_id,id)",
+    ),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS promotion_planning_activity (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plan_id INTEGER NOT NULL,
+      activity_type TEXT NOT NULL,
+      branch TEXT NOT NULL DEFAULT '',
+      summary TEXT NOT NULL,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )`),
+    env.DB.prepare(
+      "CREATE INDEX IF NOT EXISTS idx_promotion_activity_plan ON promotion_planning_activity(plan_id,id)",
+    ),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS promotion_planning_reads (
+      email TEXT PRIMARY KEY,
+      last_seen_at TEXT NOT NULL
+    )`),
   ]);
 }
 
@@ -199,9 +243,69 @@ async function pushPlanningNotification(
   }
 }
 
+export async function recordPromotionPlanningActivity(
+  planId: number,
+  activityType: string,
+  branch: string,
+  summary: string,
+  createdBy: string,
+) {
+  await env.DB.prepare(
+    `INSERT INTO promotion_planning_activity
+      (plan_id,activity_type,branch,summary,created_by,created_at)
+     VALUES (?,?,?,?,?,?)`,
+  )
+    .bind(
+      planId,
+      activityType,
+      branch || "",
+      summary,
+      createdBy.toLowerCase(),
+      new Date().toISOString(),
+    )
+    .run();
+}
+
+export async function unreadPromotionPlanningActivity(email: string) {
+  const normalised = email.trim().toLowerCase();
+  if (!normalised) return 0;
+
+  const read = await env.DB.prepare(
+    "SELECT last_seen_at FROM promotion_planning_reads WHERE email=?",
+  )
+    .bind(normalised)
+    .first<{ last_seen_at: string }>();
+
+  const lastSeen = read?.last_seen_at || "1970-01-01T00:00:00.000Z";
+  const result = await env.DB.prepare(
+    `SELECT COUNT(*) AS total
+     FROM promotion_planning_activity
+     WHERE created_at>?
+       AND lower(created_by)<>?`,
+  )
+    .bind(lastSeen, normalised)
+    .first<{ total: number }>();
+
+  return Number(result?.total || 0);
+}
+
+export async function markPromotionPlanningSeen(email: string) {
+  const normalised = email.trim().toLowerCase();
+  if (!normalised) return;
+  await env.DB.prepare(
+    `INSERT INTO promotion_planning_reads(email,last_seen_at)
+     VALUES (?,?)
+     ON CONFLICT(email) DO UPDATE SET last_seen_at=excluded.last_seen_at`,
+  )
+    .bind(normalised, new Date().toISOString())
+    .run();
+}
+
 export async function notifyPlanningOpened(plan: PromotionPlanRow) {
   const recipients = await planningRecipients(parseBranches(plan.branches_json));
-  const message = `Add product ideas and branch feedback for "${plan.title}" by ${plan.input_deadline || "the planning deadline"}.`;
+  const message = plan.input_deadline
+    ? `Add your branch ideas and decisions for "${plan.title}" by ${plan.input_deadline}.`
+    : `Join "${plan.title}" and add your branch ideas, proposals and product suggestions.`;
   await Promise.all(
     recipients.map((recipient) =>
       pushPlanningNotification(
@@ -218,7 +322,9 @@ export async function notifyPlanningOpened(plan: PromotionPlanRow) {
 export async function notifyOutstandingBranches(plan: PromotionPlanRow, outstanding: string[]) {
   if (!outstanding.length) return;
   const recipients = await planningRecipients(outstanding);
-  const message = `Your branch input is still required for "${plan.title}". Please add product ideas or comments before ${plan.input_deadline || "the deadline"}.`;
+  const message = plan.input_deadline
+    ? `Your branch input is still required for "${plan.title}". Please contribute before ${plan.input_deadline}.`
+    : `Your branch input is still required for "${plan.title}". Please add your ideas, votes or comments.`;
   await Promise.all(
     recipients.map((recipient) =>
       pushPlanningNotification(

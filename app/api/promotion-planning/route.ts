@@ -6,9 +6,12 @@ import {
   canManagePromotionPlanning,
   contributionBranches,
   initPromotionPlanningTables,
+  markPromotionPlanningSeen,
   notifyOutstandingBranches,
   notifyPlanningOpened,
   parseBranches,
+  recordPromotionPlanningActivity,
+  unreadPromotionPlanningActivity,
   type PromotionPlanRow,
 } from "./shared";
 
@@ -20,17 +23,29 @@ async function getPlan(id: number) {
     .first<PromotionPlanRow>();
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   await initPromotionPlanningTables();
   const member = await getHubMember();
   if (!member) return Response.json({ error: "Hub access is not active." }, { status: 403 });
 
+  const user = await getAuthenticatedUser();
+  const email = (user?.email || member.email).toLowerCase();
+  const unreadActivity = await unreadPromotionPlanningActivity(email);
+
+  const url = new URL(req.url);
+  if (url.searchParams.get("summary") === "1") {
+    return Response.json({ unreadActivity });
+  }
+
   const allowedBranches = await contributionBranches(member);
-  const [plans, suggestions, feedback, comments] = await Promise.all([
+  const [plans, suggestions, feedback, comments, decisions, decisionVotes, activity] = await Promise.all([
     env.DB.prepare("SELECT * FROM promotion_plans ORDER BY id DESC LIMIT 12").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_suggestions ORDER BY id DESC").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_feedback ORDER BY id DESC").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_comments ORDER BY id DESC").all<Record<string, unknown>>(),
+    env.DB.prepare("SELECT * FROM promotion_decisions ORDER BY id DESC").all<Record<string, unknown>>(),
+    env.DB.prepare("SELECT * FROM promotion_decision_votes ORDER BY id DESC").all<Record<string, unknown>>(),
+    env.DB.prepare("SELECT * FROM promotion_planning_activity ORDER BY id DESC LIMIT 120").all<Record<string, unknown>>(),
   ]);
 
   return Response.json({
@@ -38,6 +53,10 @@ export async function GET() {
     suggestions: suggestions.results,
     feedback: feedback.results,
     comments: comments.results,
+    decisions: decisions.results,
+    decisionVotes: decisionVotes.results,
+    activity: activity.results,
+    unreadActivity,
     allowedBranches,
     permissions: {
       canManage: canManagePromotionPlanning(member),
@@ -60,13 +79,13 @@ export async function POST(req: Request) {
       return Response.json({ error: "Full-company management access is required." }, { status: 403 });
 
     const title = text(p.title);
-    const promoStart = text(p.promoStart);
-    const promoEnd = text(p.promoEnd);
     const inputDeadline = text(p.inputDeadline);
     const brief = text(p.brief);
-    if (!title || !inputDeadline)
-      return Response.json({ error: "Planning title and manager input deadline are required." }, { status: 400 });
+    if (!title)
+      return Response.json({ error: "Planning title is required." }, { status: 400 });
 
+    const promoStart = "";
+    const promoEnd = "";
     const allBranches = await contributionBranches(member);
     const result = await env.DB.prepare(
       `INSERT INTO promotion_plans
@@ -80,8 +99,20 @@ export async function POST(req: Request) {
     const id = Number(result.meta?.last_row_id || 0);
     const plan = await getPlan(id);
     if (!plan) return Response.json({ error: "Planning cycle could not be created." }, { status: 500 });
+    await recordPromotionPlanningActivity(
+      plan.id,
+      "Plan opened",
+      "",
+      `Planning room opened: ${plan.title}`,
+      user?.email || member.email,
+    );
     try { await notifyPlanningOpened(plan); } catch (error) { console.error(error); }
     return Response.json({ plan }, { status: 201 });
+  }
+
+  if (action === "markSeen") {
+    await markPromotionPlanningSeen(user?.email || member.email);
+    return Response.json({ ok: true });
   }
 
   if (!canContributePromotionPlanning(member))
@@ -110,6 +141,13 @@ export async function POST(req: Request) {
       text(p.currentPrice), text(p.proposedPrice), text(p.expectedQty), text(p.reason),
       text(p.competitorNote), text(p.displayIdea), user?.email || member.email, now, now,
     ).run();
+    await recordPromotionPlanningActivity(
+      planId,
+      "Product idea",
+      branch,
+      `${branch} suggested ${productName}`,
+      user?.email || member.email,
+    );
     return Response.json({ ok: true });
   }
 
@@ -121,6 +159,13 @@ export async function POST(req: Request) {
       `INSERT INTO promotion_comments(plan_id,branch,topic,comment,created_by,created_at)
        VALUES (?,?,?,?,?,?)`,
     ).bind(planId, branch, text(p.topic) || "General", comment, user?.email || member.email, now).run();
+    await recordPromotionPlanningActivity(
+      planId,
+      "Branch thought",
+      branch,
+      `${branch} added a ${text(p.topic) || "General"} comment`,
+      user?.email || member.email,
+    );
     return Response.json({ ok: true });
   }
 
@@ -140,6 +185,79 @@ export async function POST(req: Request) {
          comment=excluded.comment,
          updated_at=excluded.updated_at`,
     ).bind(suggestionId, branch, support, comment, email, now, now).run();
+
+    const suggestion = await env.DB.prepare(
+      "SELECT plan_id,product_name FROM promotion_suggestions WHERE id=?",
+    ).bind(suggestionId).first<{ plan_id: number; product_name: string }>();
+    if (suggestion) {
+      await recordPromotionPlanningActivity(
+        suggestion.plan_id,
+        "Product vote",
+        branch,
+        `${branch} voted ${support} on ${suggestion.product_name}`,
+        user?.email || member.email,
+      );
+    }
+    return Response.json({ ok: true });
+  }
+
+  if (action === "addDecision") {
+    const planId = Number(p.planId || 0);
+    const plan = await getPlan(planId);
+    if (!plan || plan.status === "Finalised")
+      return Response.json({ error: "This planning room is not open for new proposals." }, { status: 400 });
+
+    const topic = text(p.topic);
+    const proposal = text(p.proposal);
+    const rationale = text(p.rationale);
+    if (!topic || !proposal)
+      return Response.json({ error: "Decision topic and proposal are required." }, { status: 400 });
+
+    await env.DB.prepare(
+      `INSERT INTO promotion_decisions
+       (plan_id,branch,topic,proposal,rationale,status,created_by,created_at,updated_at)
+       VALUES (?,?,?,?,?,'Proposed',?,?,?)`,
+    ).bind(planId, branch, topic, proposal, rationale, user?.email || member.email, now, now).run();
+
+    await recordPromotionPlanningActivity(
+      planId,
+      "Decision proposal",
+      branch,
+      `${branch} proposed ${topic}: ${proposal}`,
+      user?.email || member.email,
+    );
+    return Response.json({ ok: true });
+  }
+
+  if (action === "decisionVote") {
+    const decisionId = Number(p.decisionId || 0);
+    const vote = text(p.vote) || "Support";
+    const comment = text(p.comment);
+    const email = (user?.email || member.email).toLowerCase();
+
+    await env.DB.prepare(
+      `INSERT INTO promotion_decision_votes
+       (decision_id,branch,vote,comment,created_by,created_at,updated_at)
+       VALUES (?,?,?,?,?,?,?)
+       ON CONFLICT(decision_id,created_by) DO UPDATE SET
+         branch=excluded.branch,
+         vote=excluded.vote,
+         comment=excluded.comment,
+         updated_at=excluded.updated_at`,
+    ).bind(decisionId, branch, vote, comment, email, now, now).run();
+
+    const decision = await env.DB.prepare(
+      "SELECT plan_id,topic,proposal FROM promotion_decisions WHERE id=?",
+    ).bind(decisionId).first<{ plan_id: number; topic: string; proposal: string }>();
+    if (decision) {
+      await recordPromotionPlanningActivity(
+        decision.plan_id,
+        "Decision vote",
+        branch,
+        `${branch} voted ${vote} on ${decision.topic}`,
+        user?.email || member.email,
+      );
+    }
     return Response.json({ ok: true });
   }
 
@@ -164,6 +282,18 @@ export async function PATCH(req: Request) {
     await env.DB.prepare(
       "UPDATE promotion_suggestions SET status=?,updated_at=? WHERE id=?",
     ).bind(status, now, id).run();
+    const suggestion = await env.DB.prepare(
+      "SELECT plan_id,product_name FROM promotion_suggestions WHERE id=?",
+    ).bind(id).first<{ plan_id: number; product_name: string }>();
+    if (suggestion) {
+      await recordPromotionPlanningActivity(
+        suggestion.plan_id,
+        "Product status",
+        "",
+        `${suggestion.product_name} moved to ${status}`,
+        member.email,
+      );
+    }
     return Response.json({ ok: true });
   }
 
@@ -175,6 +305,38 @@ export async function PATCH(req: Request) {
     await env.DB.prepare(
       "UPDATE promotion_plans SET status=?,updated_at=? WHERE id=?",
     ).bind(status, now, id).run();
+    await recordPromotionPlanningActivity(
+      id,
+      "Planning status",
+      "",
+      `Planning status changed to ${status}`,
+      member.email,
+    );
+    return Response.json({ ok: true });
+  }
+
+  if (action === "decisionStatus") {
+    const id = Number(p.id || 0);
+    const status = text(p.status);
+    if (!["Proposed","Discuss","Agreed","Closed"].includes(status))
+      return Response.json({ error: "Invalid decision status." }, { status: 400 });
+
+    await env.DB.prepare(
+      "UPDATE promotion_decisions SET status=?,updated_at=? WHERE id=?",
+    ).bind(status, now, id).run();
+
+    const decision = await env.DB.prepare(
+      "SELECT plan_id,topic,proposal FROM promotion_decisions WHERE id=?",
+    ).bind(id).first<{ plan_id: number; topic: string; proposal: string }>();
+    if (decision) {
+      await recordPromotionPlanningActivity(
+        decision.plan_id,
+        "Decision status",
+        "",
+        `${decision.topic} marked ${status}: ${decision.proposal}`,
+        member.email,
+      );
+    }
     return Response.json({ ok: true });
   }
 

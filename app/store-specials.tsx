@@ -234,6 +234,7 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
   const [planningOpen, setPlanningOpen] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("promotionPlanning") === "1",
   );
+  const [planningUnread, setPlanningUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("Current");
   const [composerOpen, setComposerOpen] = useState(false);
@@ -243,6 +244,14 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<StoreSpecial | null>(null);
+
+  const loadPlanningUnread = async () => {
+    try {
+      const response = await fetch("/api/promotion-planning?summary=1", { cache: "no-store" });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok) setPlanningUnread(Number(result.unreadActivity || 0));
+    } catch {}
+  };
 
   const flash = (text: string) => {
     setMessage(text);
@@ -274,6 +283,17 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
     const openPlanning = () => setPlanningOpen(true);
     window.addEventListener("open-promotion-planning", openPlanning);
     return () => window.removeEventListener("open-promotion-planning", openPlanning);
+  }, []);
+
+  useEffect(() => {
+    void loadPlanningUnread();
+    const timer = window.setInterval(() => void loadPlanningUnread(), 30000);
+    const onFocus = () => void loadPlanningUnread();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
 
   const grouped = useMemo(() => {
@@ -501,7 +521,16 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
   };
 
   if (planningOpen)
-    return <PromotionPlanning currentUser={currentUser} onBack={() => setPlanningOpen(false)} />;
+    return (
+      <PromotionPlanning
+        currentUser={currentUser}
+        onBack={() => {
+          setPlanningOpen(false);
+          setPlanningUnread(0);
+          window.setTimeout(() => void loadPlanningUnread(), 250);
+        }}
+      />
+    );
 
   if (loading && !data)
     return <div className="specialLoading">Loading store specials…</div>;
@@ -518,6 +547,7 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
         .specialHero small{color:#f5cb2f;font-size:8px;font-weight:900;letter-spacing:.15em}
         .specialHero h2{font-size:24px;margin:6px 0 6px}.specialHero p{margin:0;color:#c8d5e4;font-size:10px;line-height:1.55;max-width:720px}
         .specialHero button{height:42px;border:1px solid #e1b91f;border-radius:10px;background:#f5ca2e;color:#172438;padding:0 16px;font:inherit;font-size:10px;font-weight:900;cursor:pointer}
+        .planningLaunchButton{padding-right:34px!important}.planningUnreadBadge{position:absolute;right:-7px;top:-8px;min-width:22px;height:22px;padding:0 5px;border-radius:999px;background:#ef4d5d;color:#fff;border:2px solid #fff;display:grid;place-items:center;font-size:7px;font-weight:950;box-shadow:0 4px 12px #1724382e}
         .specialKpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
         .specialKpis article{background:#fff;border:1px solid #dde5ed;border-radius:12px;padding:13px 14px}.specialKpis span,.specialKpis b,.specialKpis small{display:block}
         .specialKpis span{font-size:7px;font-weight:900;color:#7b8998;text-transform:uppercase}.specialKpis b{font-size:20px;color:#203850;margin-top:4px}.specialKpis small{font-size:7px;color:#95a0ad;margin-top:4px}
@@ -590,7 +620,21 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
           </p>
         </div>
         <div style={{display:"flex",gap:"8px",flexWrap:"wrap",justifyContent:"flex-end"}}>
-          <button onClick={() => setPlanningOpen(true)} style={{background:"#fff",borderColor:"#dbe5ef",color:"#213a53"}}>💡 Next Promotion Planning</button>
+          <button
+            className="planningLaunchButton"
+            onClick={() => {
+              setPlanningOpen(true);
+              setPlanningUnread(0);
+            }}
+            style={{background:"#fff",borderColor:"#dbe5ef",color:"#213a53",position:"relative"}}
+          >
+            💡 Next Promotion Planning
+            {planningUnread > 0 && (
+              <span className="planningUnreadBadge">
+                {planningUnread > 99 ? "99+" : planningUnread}
+              </span>
+            )}
+          </button>
           {data.permissions.canManage && <button onClick={openCreate}>＋ Create store special</button>}
         </div>
       </div>
