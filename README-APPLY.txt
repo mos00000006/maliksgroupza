@@ -1,23 +1,42 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS — ALL BRANCHES VISIBLE AT ONCE V15
+STORE SPECIALS — ALL 20 BRANCHES VISIBLE V16
 
 REPLACE ONLY:
   app/store-specials.tsx
 
+WHY ONLY 6 WERE SHOWING
+-----------------------
+The Hub was receiving all 20 branches (the '(20)' counter proved this), but the
+branch area was still being clipped by layout/overflow behaviour.
+
 NEW METHOD
 ----------
-The branch selector NO LONGER has its own scrollbar.
+Desktop:
+- 5 branch columns.
+- 20 stores = approximately 4 rows.
+- All branches are visible at once.
+- NO internal branch scrollbar.
 
-All branches are displayed at once:
-- Desktop: 3 columns
-- Tablet: 2 columns
-- Cellphone: 1 column
+Large tablet / smaller desktop:
+- 4 columns.
 
-If the list makes the promotion form taller, the MAIN Store Special form scrolls
-normally. There is no hidden branch area and no separate branch scrollbar.
+Tablet:
+- 2 columns.
 
-This is the simplest and most reliable layout for seeing every branch.
+Cellphone:
+- 1 column.
+- The MAIN promotion form scrolls normally.
 
-No API changes.
-No database changes.
-No secret changes.
+ANTI-CLIPPING
+-------------
+The branch box and branch grid are explicitly forced to:
+  height: auto
+  max-height: none
+  overflow: visible
+
+The branch grid also has an inline style safeguard so older/global CSS cannot
+silently clip the remaining branches again.
+
+No API change.
+No D1 migration.
+No secret change.
