@@ -147,6 +147,102 @@ const monthLabel = (key: string) => {
 const propertyRecordTypes = ["Uniform / PPE", "Company Vehicle", "Company Phone / SIM", "Company Asset"];
 const leaveRecordTypes = ["Leave", "Leave Request"];
 
+const southAfricaVehicleOptions = [
+  "Toyota Hilux",
+  "Toyota Quantum",
+  "Toyota Fortuner",
+  "Toyota Corolla Cross",
+  "Toyota Starlet",
+  "Toyota Rumion",
+  "Ford Ranger",
+  "Ford Everest",
+  "Ford Transit",
+  "Isuzu D-Max",
+  "Isuzu MU-X",
+  "Isuzu N-Series",
+  "Volkswagen Polo Vivo",
+  "Volkswagen Polo",
+  "Volkswagen Amarok",
+  "Volkswagen Caddy",
+  "Volkswagen T-Cross",
+  "Suzuki Swift",
+  "Suzuki Fronx",
+  "Suzuki Ertiga",
+  "Suzuki Dzire",
+  "Hyundai Grand i10",
+  "Hyundai Venue",
+  "Hyundai Creta",
+  "Hyundai Staria",
+  "Kia Picanto",
+  "Kia Sonet",
+  "Kia Seltos",
+  "Nissan Navara",
+  "Nissan Magnite",
+  "Nissan Almera",
+  "GWM P-Series / P500",
+  "GWM Steed",
+  "Haval Jolion",
+  "Haval H6",
+  "Chery Tiggo 4 Pro",
+  "Chery Tiggo 7 Pro",
+  "Chery Tiggo 8 Pro",
+  "Mahindra Pik Up",
+  "Mahindra Scorpio-N",
+  "Mahindra XUV 3XO",
+  "Renault Kwid",
+  "Renault Triber",
+  "Renault Kiger",
+  "Peugeot Landtrek",
+  "Foton Tunland",
+  "Foton View",
+  "Mercedes-Benz Sprinter",
+  "Mercedes-Benz Vito",
+  "BMW 3 Series",
+  "BMW X1",
+  "Audi A3",
+  "Audi Q3",
+];
+
+const southAfricaPhoneSimOptions = [
+  "Apple iPhone 16 / 16 Plus",
+  "Apple iPhone 16 Pro / Pro Max",
+  "Apple iPhone 15 / 15 Plus",
+  "Apple iPhone 15 Pro / Pro Max",
+  "Apple iPhone 14",
+  "Apple iPhone SE",
+  "Samsung Galaxy A06 / A16",
+  "Samsung Galaxy A26",
+  "Samsung Galaxy A36",
+  "Samsung Galaxy A56",
+  "Samsung Galaxy S24 / S24+",
+  "Samsung Galaxy S24 Ultra",
+  "Samsung Galaxy S25 / S25+",
+  "Samsung Galaxy S25 Ultra",
+  "Samsung Galaxy Z Flip",
+  "Samsung Galaxy Z Fold",
+  "Huawei nova series",
+  "Huawei Pura series",
+  "Honor X series",
+  "Honor Magic series",
+  "Oppo A series",
+  "Oppo Reno series",
+  "Xiaomi / Redmi Note series",
+  "Xiaomi / Redmi A series",
+  "Vivo Y series",
+  "Vivo V series",
+  "Tecno Spark series",
+  "Tecno Camon series",
+  "Nokia / HMD smartphone",
+  "Motorola Moto G series",
+  "Itel smartphone",
+  "Vodacom SIM only",
+  "MTN SIM only",
+  "Telkom Mobile SIM only",
+  "Cell C SIM only",
+  "Rain SIM / eSIM only",
+  "Company eSIM only",
+];
+
 const CSS = `
 .employeeRecords{display:grid;gap:12px;padding-bottom:32px}.employeeHero{display:flex;justify-content:space-between;gap:18px;padding:18px 20px;border-radius:14px;background:linear-gradient(120deg,#172438,#223955);color:#fff}.employeeHero small,.sectionEyebrow{color:#f2c72d;font-size:7px;font-weight:900;letter-spacing:.13em}.employeeHero h2{margin:5px 0;font-size:20px}.employeeHero p{margin:0;max-width:760px;color:#c9d4e2;font-size:9px;line-height:1.5}.employeeHeroActions{min-width:360px;display:flex;align-items:end;gap:8px}.employeeHeroActions label{flex:1;display:grid;gap:5px;font-size:8px;font-weight:800}.employeeHeroActions select,.employeeForm input,.employeeForm select,.employeeForm textarea,.recordForm input,.recordForm select,.recordForm textarea{width:100%;border:1px solid #d7e0e8;border-radius:8px;background:#fff;color:#21364e;padding:9px 10px;font:inherit;font-size:8px}.employeeHeroActions select{height:39px}.employeeHeroActions button,.primaryBtn,.secondaryBtn{min-height:38px;border-radius:8px;padding:0 13px;font:inherit;font-size:8px;font-weight:850;cursor:pointer}.employeeHeroActions button,.primaryBtn{border:1px solid #dbb21f;background:#f6ca2f;color:#172438}.secondaryBtn{border:1px solid #d3dde6;background:#fff;color:#425870}.employeeKpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}.employeeKpis article{border:1px solid #dfe6ed;border-radius:10px;background:#fff;padding:11px 12px}.employeeKpis span,.employeeKpis b,.employeeKpis small{display:block}.employeeKpis span{color:#7d8997;font-size:6px;font-weight:900;text-transform:uppercase}.employeeKpis b{margin-top:5px;color:#21384f;font-size:18px}.employeeKpis small{margin-top:4px;color:#929daa;font-size:6px}.employeeKpis .good b{color:#23805b}.employeeKpis .warn b{color:#a96b0c}.employeeKpis .bad b{color:#b53c49}.employeeTabs{display:flex;gap:6px;overflow-x:auto;border:1px solid #dfe6ed;border-radius:10px;background:#fff;padding:6px}.employeeTabs button{border:0;border-radius:7px;background:transparent;padding:9px 12px;color:#677789;font:inherit;font-size:8px;font-weight:850;cursor:pointer;white-space:nowrap}.employeeTabs button.active{background:#172438;color:#fff}.employeeToolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid #dfe6ed;border-radius:10px;background:#fff;padding:7px 10px}.employeeToolbar label{display:flex;align-items:center;flex:1;max-width:520px;border:1px solid #dde4eb;border-radius:8px;padding:0 9px}.employeeToolbar input{width:100%;border:0;outline:0;padding:9px;font:inherit;font-size:8px}.employeeToolbar small{color:#8693a1;font-size:7px}.panel{overflow:hidden;border:1px solid #dfe6ed;border-radius:12px;background:#fff}.panelHeader{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid #e8edf2;background:#fbfcfd}.panelHeader h3{margin:3px 0 0;color:#22394f;font-size:13px}.panelHeader p{margin:3px 0 0;color:#8290a0;font-size:7px}.tableWrap{overflow-x:auto}.tableHead,.tableRow{min-width:1040px;display:grid;grid-template-columns:1.35fr .9fr .62fr .8fr .55fr 1.75fr;gap:9px;align-items:center;padding:9px 13px}.tableHead{background:#f7f9fb;color:#7f8b99;font-size:6px;font-weight:900;text-transform:uppercase}.tableRow{min-height:62px;border-top:1px solid #edf1f5;color:#50657a;font-size:8px}.identityBtn{border:0;background:transparent;padding:0;display:flex;align-items:center;gap:8px;text-align:left;cursor:pointer}.avatar{width:34px;height:34px;flex:0 0 34px;border-radius:10px;display:grid;place-items:center;background:#e8f0f8;color:#2b5174;font-size:9px;font-weight:900;font-style:normal}.identityBtn b,.identityBtn small,.stack b,.stack small{display:block}.identityBtn b{color:#233b53;font-size:9px}.identityBtn small,.stack small{margin-top:3px;color:#929daa;font-size:6px}.attendancePill,.warningLevel,.statusPill,.recordTypePill{display:inline-block;border-radius:999px;padding:5px 7px;font-style:normal;font-size:6px;font-weight:900}.attendancePill.atWork{background:#e5f6ee;color:#207a55}.attendancePill.late{background:#fff1d4;color:#94600d}.attendancePill.notAtWork{background:#ffe8eb;color:#ab3946}.attendancePill.unmarked{background:#eef2f6;color:#6f7f91}.attendanceButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.attendanceButtons button{min-height:31px;border:1px solid #d9e1e8;border-radius:7px;background:#fff;font:inherit;font-size:7px;font-weight:850;cursor:pointer}.attendanceButtons .atWork{color:#247653;border-color:#bfe3d1}.attendanceButtons .notAtWork{color:#aa3d49;border-color:#efc6cb}.attendanceButtons .late{color:#93600d;border-color:#ead8aa}.warningCount{border:1px solid #e1e7ee;border-radius:8px;background:#fff;padding:5px;cursor:pointer}.warningCount b,.warningCount small{display:block}.warningCount b{color:#ad3946;font-size:12px}.warningCount small{color:#8b97a5;font-size:6px}.employeeEmpty{padding:22px;text-align:center;color:#8895a4;font-size:8px}.registerHead,.registerRow{min-width:930px;display:grid;gap:8px;align-items:center;padding:9px 13px}.registerHead{background:#f7f9fb;color:#7f8b99;font-size:6px;font-weight:900;text-transform:uppercase}.registerRow{border-top:1px solid #edf1f5;color:#50657a;font-size:8px}.warningRegister .registerHead,.warningRegister .registerRow{grid-template-columns:1.1fr .72fr 1.35fr .72fr .72fr .7fr}.attendanceRegister .registerHead,.attendanceRegister .registerRow{grid-template-columns:1.1fr .7fr .65fr 1.2fr .75fr}.hrRegister .registerHead,.hrRegister .registerRow{grid-template-columns:1.05fr .9fr 1.2fr .75fr .75fr .7fr}.warningLevel.verbal{background:#eef2f6;color:#5d6e81}.warningLevel.written{background:#fff1d4;color:#93600d}.warningLevel.final{background:#ffe8eb;color:#ad3543}.statusPill.active{background:#ffe8eb;color:#ad3543}.statusPill.inactive{background:#eef2f6;color:#6e7d8e}.recordTypePill{background:#e9f0f8;color:#31597a}.rowButton{border:0;background:transparent;color:#28557d;font:inherit;font-size:8px;font-weight:850;cursor:pointer;text-align:left}.overlay.employeeOverlay{z-index:55;padding:14px}.employeeModal,.profileModal{width:min(860px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:hidden;border-radius:14px;background:#fff;box-shadow:0 28px 80px rgba(14,29,48,.28);display:flex;flex-direction:column}.smallModal{width:min(530px,calc(100vw - 28px))}.employeeModal>header,.profileModal>header{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid #e6ebf1;background:#fbfcfd}.employeeModal h2,.profileModal h2{margin:3px 0;color:#21374f;font-size:16px}.employeeModal p,.profileModal p{margin:0;color:#8290a0;font-size:8px}.closeBtn{width:32px;height:32px;border:0;border-radius:8px;background:#edf2f6;color:#607187;font-size:18px;cursor:pointer}.modalBody{overflow-y:auto;padding:14px 16px}.modalFooter{display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #e6ebf1;padding:10px 14px;background:#fbfcfd}.employeeForm,.recordForm{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.employeeForm label,.recordForm label,.fullField{display:grid;gap:5px;color:#3d5268;font-size:7px;font-weight:850}.employeeForm textarea,.recordForm textarea,.fullField textarea{min-height:80px;resize:vertical}.span2{grid-column:span 2}.span3{grid-column:1/-1}.privacyNote{margin:10px 0 0;border:1px solid #dce4ec;border-radius:8px;background:#f7fafc;padding:9px;color:#65768a;font-size:7px;line-height:1.5}.profileHeader{display:flex;align-items:center;gap:10px}.profileHeader .avatar{width:43px;height:43px;flex-basis:43px}.profileBody{overflow-y:auto;padding:14px;display:grid;gap:11px}.profileStats{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.profileStats article{border:1px solid #dfe6ed;border-radius:9px;padding:10px}.profileStats span,.profileStats b,.profileStats small{display:block}.profileStats span{font-size:6px;color:#7f8c9a;font-weight:900;text-transform:uppercase}.profileStats b{margin-top:4px;font-size:15px;color:#263e56}.profileStats small{margin-top:3px;font-size:6px;color:#929daa}.profileGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.profileCard{border:1px solid #dfe6ed;border-radius:10px;padding:11px}.profileCard dl{margin:8px 0 0}.profileCard dl div{display:grid;grid-template-columns:125px 1fr;gap:8px;padding:6px 0;border-top:1px solid #eff2f5}.profileCard dt{font-size:7px;color:#8995a4}.profileCard dd{margin:0;font-size:8px;color:#354c64;font-weight:700;word-break:break-word}.historySection{border:1px solid #dfe6ed;border-radius:10px;overflow:hidden}.historySection header{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px 12px;background:#fbfcfd;border-bottom:1px solid #e9eef3}.historySection h3{margin:3px 0 0;font-size:11px;color:#263c54}.historyList{display:grid}.historyItem{padding:9px 11px;border-top:1px solid #edf1f5;font-size:8px;color:#566a7e}.historyItem:first-child{border-top:0}.historyItem b,.historyItem small{display:block}.historyItem small{margin-top:3px;color:#8d99a7;font-size:6px}.warningDetailGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.warningDetailGrid div{border:1px solid #e2e7ed;border-radius:8px;padding:9px}.warningDetailGrid span,.warningDetailGrid b{display:block}.warningDetailGrid span{font-size:6px;color:#8995a4;text-transform:uppercase;font-weight:900}.warningDetailGrid b{margin-top:4px;font-size:8px;color:#31475f}.warningDetailText{margin-top:10px;border:1px solid #e2e7ed;border-radius:8px;padding:10px;color:#53667b;font-size:8px;line-height:1.5;white-space:pre-wrap}.toast{position:fixed;right:18px;top:95px;z-index:70;border:1px solid #cbd8e5;border-radius:9px;background:#fff;padding:10px 12px;box-shadow:0 12px 32px rgba(25,49,76,.18);color:#30475f;font-size:8px;font-weight:800}.filters{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.filters select{height:34px;border:1px solid #d9e1e8;border-radius:7px;background:#fff;padding:0 8px;color:#52667a;font:inherit;font-size:7px}.miniActions{display:flex;gap:6px;flex-wrap:wrap}.miniActions button{border:1px solid #d6dfe8;border-radius:7px;background:#fff;padding:6px 8px;color:#40576f;font:inherit;font-size:6px;font-weight:850;cursor:pointer}
 
@@ -358,6 +454,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
   const [hrForm, setHrForm] = useState({
     recordType: "Leave", title: "", recordDate: new Date().toISOString().slice(0, 10), endDate: "", status: "", reference: "", details: "",
   });
+  const [propertyChoice, setPropertyChoice] = useState("");
   const [recordPicker, setRecordPicker] = useState<{ recordType: HrRecord["record_type"]; heading: string } | null>(null);
   const [recordPickerSearch, setRecordPickerSearch] = useState("");
 
@@ -592,7 +689,8 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
 
   const openHrRecord = (employee: Employee, type = "HR Note") => {
     const status = type === "Leave Request" ? "Requested" : propertyRecordTypes.includes(type) ? (type === "Company Vehicle" ? "Allocated" : "Issued") : "";
-    const title = type === "Leave Request" ? "Annual Leave" : type === "Uniform / PPE" ? "Uniform / PPE issue" : type === "Company Vehicle" ? "Vehicle allocation" : type === "Company Phone / SIM" ? "Phone / SIM issue" : "";
+    const title = type === "Leave Request" ? "Annual Leave" : type === "Uniform / PPE" ? "Uniform / PPE issue" : "";
+    setPropertyChoice("");
     setHrForm({ recordType: type, title, recordDate: data?.today || new Date().toISOString().slice(0, 10), endDate: "", status, reference: "", details: "" });
     setHrModal(employee);
   };
@@ -874,15 +972,71 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
 
       {hrModal && (
         <div className="overlay employeeOverlay" onMouseDown={() => setHrModal(null)}><section className="employeeModal" onMouseDown={(e) => e.stopPropagation()}><header><div><small className="sectionEyebrow">EMPLOYEE HR RECORD</small><h2>{hrForm.recordType === "Leave Request" ? "New leave request" : propertyRecordTypes.includes(hrForm.recordType) ? "Issue company property" : "Add file record"}</h2><p>{employeeName(hrModal)} · {hrModal.employee_number}</p></div><button className="closeBtn" onClick={()=>setHrModal(null)}>×</button></header><div className="modalBody recordForm">
-          <label>Record type<select value={hrForm.recordType} onChange={(e)=>{ const type=e.target.value; setHrForm({...hrForm,recordType:type,status:type==="Leave Request"?"Requested":propertyRecordTypes.includes(type)?(type==="Company Vehicle"?"Allocated":"Issued"):""}); }}><option>Leave Request</option><option>Training / Certification</option><option>Uniform / PPE</option><option>Company Vehicle</option><option>Company Phone / SIM</option><option>Company Asset</option><option>Employment Change</option><option>HR Note</option></select></label>
+          <label>Record type<select value={hrForm.recordType} onChange={(e)=>{ const type=e.target.value; setPropertyChoice(""); setHrForm({...hrForm,recordType:type,title:type==="Leave Request"?"Annual Leave":type==="Uniform / PPE"?"Uniform / PPE issue":"",status:type==="Leave Request"?"Requested":propertyRecordTypes.includes(type)?(type==="Company Vehicle"?"Allocated":"Issued"):""}); }}><option>Leave Request</option><option>Training / Certification</option><option>Uniform / PPE</option><option>Company Vehicle</option><option>Company Phone / SIM</option><option>Company Asset</option><option>Employment Change</option><option>HR Note</option></select></label>
           <label>{hrForm.recordType === "Leave Request" ? "Leave start date" : propertyRecordTypes.includes(hrForm.recordType) ? "Issue / allocation date" : "Start / record date"}<input type="date" value={hrForm.recordDate} onChange={(e)=>setHrForm({...hrForm,recordDate:e.target.value})}/></label>
           <label>{hrForm.recordType === "Leave Request" ? "Leave end date" : propertyRecordTypes.includes(hrForm.recordType) ? "Expected return date" : "End / expiry date"}<input type="date" value={hrForm.endDate} onChange={(e)=>setHrForm({...hrForm,endDate:e.target.value})}/></label>
-          <label className="span2">{hrForm.recordType === "Leave Request" ? "Leave type *" : hrForm.recordType === "Uniform / PPE" ? "Uniform / PPE issued *" : hrForm.recordType === "Company Vehicle" ? "Vehicle make / model *" : hrForm.recordType === "Company Phone / SIM" ? "Phone / SIM item *" : "Title *"}<input value={hrForm.title} onChange={(e)=>setHrForm({...hrForm,title:e.target.value})} placeholder={hrForm.recordType === "Leave Request" ? "Annual Leave / Sick Leave / Family Responsibility" : hrForm.recordType === "Uniform / PPE" ? "e.g. 2 Golf Shirts XL + Safety Boots size 9" : hrForm.recordType === "Company Vehicle" ? "e.g. Toyota Hilux 2.4 GD-6" : hrForm.recordType === "Company Phone / SIM" ? "e.g. Samsung A55 + MTN SIM" : "Record title"}/></label>
+
+          {hrForm.recordType === "Company Vehicle" ? (
+            <>
+              <label className="span2">Vehicle make / model *
+                <select
+                  value={propertyChoice}
+                  onChange={(e)=>{ const choice=e.target.value; setPropertyChoice(choice); setHrForm({...hrForm,title:choice==="Other"?"":choice}); }}
+                >
+                  <option value="">Select vehicle make / model…</option>
+                  {southAfricaVehicleOptions.map((vehicle)=><option key={vehicle} value={vehicle}>{vehicle}</option>)}
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+              {propertyChoice === "Other" && (
+                <label className="span2">Other vehicle make / model *
+                  <input
+                    value={hrForm.title}
+                    onChange={(e)=>setHrForm({...hrForm,title:e.target.value})}
+                    placeholder="Type make and model, e.g. JAC T9 2.0T"
+                    autoFocus
+                  />
+                </label>
+              )}
+            </>
+          ) : hrForm.recordType === "Company Phone / SIM" ? (
+            <>
+              <label className="span2">Phone / SIM item *
+                <select
+                  value={propertyChoice}
+                  onChange={(e)=>{ const choice=e.target.value; setPropertyChoice(choice); setHrForm({...hrForm,title:choice==="Other"?"":choice}); }}
+                >
+                  <option value="">Select phone / SIM item…</option>
+                  {southAfricaPhoneSimOptions.map((item)=><option key={item} value={item}>{item}</option>)}
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+              {propertyChoice === "Other" && (
+                <label className="span2">Other phone / SIM item *
+                  <input
+                    value={hrForm.title}
+                    onChange={(e)=>setHrForm({...hrForm,title:e.target.value})}
+                    placeholder="Type device / SIM details"
+                    autoFocus
+                  />
+                </label>
+              )}
+            </>
+          ) : (
+            <label className="span2">{hrForm.recordType === "Leave Request" ? "Leave type *" : hrForm.recordType === "Uniform / PPE" ? "Uniform / PPE issued *" : "Title *"}
+              <input
+                value={hrForm.title}
+                onChange={(e)=>setHrForm({...hrForm,title:e.target.value})}
+                placeholder={hrForm.recordType === "Leave Request" ? "Annual Leave / Sick Leave / Family Responsibility" : hrForm.recordType === "Uniform / PPE" ? "e.g. 2 Golf Shirts XL + Safety Boots size 9" : "Record title"}
+              />
+            </label>
+          )}
+
           <label>Status<select value={hrForm.status} onChange={(e)=>setHrForm({...hrForm,status:e.target.value})}>{hrForm.recordType === "Leave Request" ? <><option>Requested</option><option>Approved</option><option>Declined</option><option>Cancelled</option><option>Taken</option></> : propertyRecordTypes.includes(hrForm.recordType) ? <><option>{hrForm.recordType === "Company Vehicle" ? "Allocated" : "Issued"}</option><option>Returned</option><option>Lost / Damaged</option><option>Replaced</option></> : <><option value="">No status</option><option>Active</option><option>Completed</option><option>Expired</option></>}</select></label>
           <label>{hrForm.recordType === "Company Vehicle" ? "Registration / fleet no." : hrForm.recordType === "Company Phone / SIM" ? "IMEI / mobile / SIM no." : hrForm.recordType === "Uniform / PPE" ? "Issue reference / size" : "Reference / certificate / asset no."}<input value={hrForm.reference} onChange={(e)=>setHrForm({...hrForm,reference:e.target.value})}/></label>
           <label className="span2">{hrForm.recordType === "Leave Request" ? "Leave reason / note" : propertyRecordTypes.includes(hrForm.recordType) ? "Condition, quantity, accessories & notes" : "Details"}<textarea value={hrForm.details} onChange={(e)=>setHrForm({...hrForm,details:e.target.value})}/></label>
           {hrForm.recordType === "Leave Request" && <div className="contextHint">Leave requests remain in the employee file permanently. Use Approved/Declined to record the management decision; the record is never deleted when the leave is completed.</div>}
-          {propertyRecordTypes.includes(hrForm.recordType) && <div className="contextHint">For uniforms/PPE record quantity and sizes. For vehicles record registration/fleet number. For phones record device, IMEI and SIM/mobile number. When returned, use “Mark returned” from the employee file/property register.</div>}
+          {propertyRecordTypes.includes(hrForm.recordType) && <div className="contextHint">Choose the vehicle or phone from the preset South African list. If it is not listed, select Other and type it manually. For uniforms/PPE record quantity and sizes. For vehicles record registration/fleet number. For phones record IMEI and SIM/mobile number. When returned, use “Mark returned” from the employee file/property register.</div>}
         </div><footer className="modalFooter"><button className="secondaryBtn" onClick={()=>setHrModal(null)}>Cancel</button><button className="primaryBtn" disabled={saving} onClick={()=>void saveHrRecord()}>{saving?"Saving…":hrForm.recordType === "Leave Request" ? "Save leave request" : propertyRecordTypes.includes(hrForm.recordType) ? "Issue / allocate" : "Add HR record"}</button></footer></section></div>
       )}
 

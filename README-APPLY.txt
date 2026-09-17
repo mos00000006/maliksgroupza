@@ -1,33 +1,23 @@
 POWERBUILD / MALIKS GROUP HUB
-EMPLOYEE RECORD ADD BUTTONS + MOBILE UI FIX V5
+VEHICLE + PHONE / SIM DROPDOWNS V6
 
-WHAT THIS FIXES
----------------
-1. Company Property tab now has visible buttons:
-   + Uniform / PPE
-   + Vehicle
-   + Phone / SIM
-   + Other Asset
-   Clicking one first opens a clean employee selector, then the issue/allocation form.
+Replace only:
+  app/employee-records.tsx
 
-2. HR Records tab now has a visible + Add HR record button.
-   Choose the employee first, then select Training / Certification, Employment Change, HR Note, etc.
+WHAT CHANGED
+------------
+Company Vehicle:
+- Vehicle make/model is now a dropdown.
+- Includes common South African bakkies, passenger vehicles, SUVs, vans and work vehicles.
+- "Other" is the final option.
+- Selecting Other opens a manual make/model field.
 
-3. Leave Requests tab now has + New leave request.
+Company Phone / SIM:
+- Phone/SIM item is now a dropdown.
+- Includes common Apple, Samsung, Huawei, Honor, Oppo, Xiaomi/Redmi, Vivo, Tecno,
+  Nokia/HMD, Motorola and Itel options.
+- Includes Vodacom, MTN, Telkom Mobile, Cell C, Rain and company eSIM/SIM-only options.
+- "Other" is the final option.
+- Selecting Other opens a manual item field.
 
-4. Mobile Quick button no longer remains over the Add Task modal.
-   As soon as Add Task is opened, the floating Quick button disappears.
-
-5. Mobile sidebar is now a full-height drawer that scrolls as ONE surface from top to bottom.
-   You can swipe up/down to reach every Hub section, AI Sidekick, Access and the user profile.
-   A visible mobile close button and scrollbar have also been added.
-
-FILES TO REPLACE
-----------------
-app/employee-records.tsx
-app/page.tsx
-app/mobile-improvements.css
-
-No new database migration.
-No new GitHub secret.
-No API file change is required.
+No API, D1 migration, GitHub secret or deployment-workflow change is required.
