@@ -1157,6 +1157,16 @@ export default function Home() {
       await loadNotifications();
       return;
     }
+    if (
+      item.notification_type === "PromotionPlanningOpened" ||
+      item.notification_type === "PromotionPlanningReminder"
+    ) {
+      setActive("Store Specials");
+      setSearch("");
+      window.setTimeout(() => window.dispatchEvent(new Event("open-promotion-planning")), 0);
+      await loadNotifications();
+      return;
+    }
     const task = tasks.find((t) => t.id === item.task_id);
     if (task) {
       setReturnWorkspaceAfterTask("");
@@ -2566,7 +2576,9 @@ export default function Home() {
                         ? `Employee Records · ${new Date(item.created_at).toLocaleString()}`
                         : item.notification_type === "StoreSpecialUpcoming" || item.notification_type === "StoreSpecialStarted"
                           ? `Store Specials · ${new Date(item.created_at).toLocaleString()}`
-                          : `${item.project || "Task"} · Due ${item.due || "not set"} · ${new Date(item.created_at).toLocaleString()}`}
+                          : item.notification_type === "PromotionPlanningOpened" || item.notification_type === "PromotionPlanningReminder"
+                            ? `Next Promotion Planning · ${new Date(item.created_at).toLocaleString()}`
+                            : `${item.project || "Task"} · Due ${item.due || "not set"} · ${new Date(item.created_at).toLocaleString()}`}
                     </small>
                   </span>
                   <em>
@@ -2574,7 +2586,9 @@ export default function Home() {
                       ? "View employee records →"
                       : item.notification_type === "StoreSpecialUpcoming" || item.notification_type === "StoreSpecialStarted"
                         ? "View store special →"
-                        : "Open task →"}
+                        : item.notification_type === "PromotionPlanningOpened" || item.notification_type === "PromotionPlanningReminder"
+                          ? "Open promotion planning →"
+                          : "Open task →"}
                   </em>
                 </button>
               ))}

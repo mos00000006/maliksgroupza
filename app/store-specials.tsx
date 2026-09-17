@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import PromotionPlanning from "./promotion-planning";
 
 type CurrentHubUser = {
   name: string;
@@ -230,6 +231,9 @@ function PromotionCarousel({ images, title }: { images: SpecialImage[]; title: s
 
 export default function StoreSpecials({ currentUser }: { currentUser: CurrentHubUser }) {
   const [data, setData] = useState<ApiData | null>(null);
+  const [planningOpen, setPlanningOpen] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("promotionPlanning") === "1",
+  );
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("Current");
   const [composerOpen, setComposerOpen] = useState(false);
@@ -264,6 +268,12 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const openPlanning = () => setPlanningOpen(true);
+    window.addEventListener("open-promotion-planning", openPlanning);
+    return () => window.removeEventListener("open-promotion-planning", openPlanning);
   }, []);
 
   const grouped = useMemo(() => {
@@ -490,6 +500,9 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
     }
   };
 
+  if (planningOpen)
+    return <PromotionPlanning currentUser={currentUser} onBack={() => setPlanningOpen(false)} />;
+
   if (loading && !data)
     return <div className="specialLoading">Loading store specials…</div>;
 
@@ -576,7 +589,10 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
             Schedule promotions by branch, upload the promotion artwork and automatically notify the correct stores before the special and when it starts.
           </p>
         </div>
-        {data.permissions.canManage && <button onClick={openCreate}>＋ Create store special</button>}
+        <div style={{display:"flex",gap:"8px",flexWrap:"wrap",justifyContent:"flex-end"}}>
+          <button onClick={() => setPlanningOpen(true)} style={{background:"#fff",borderColor:"#dbe5ef",color:"#213a53"}}>💡 Next Promotion Planning</button>
+          {data.permissions.canManage && <button onClick={openCreate}>＋ Create store special</button>}
+        </div>
       </div>
 
       <div className="specialKpis">
