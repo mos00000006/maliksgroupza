@@ -1,24 +1,21 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS — PROPER UP/DOWN BRANCH SCROLLBAR V10
+STORE SPECIALS — CLEAN SCROLLBAR STYLE V11
 
 REPLACE ONLY:
   app/store-specials.tsx
 
-FIX
----
-The branch selector now has a proper draggable vertical scrollbar.
+WHAT CHANGED
+------------
+- Removed the browser arrow buttons from the branch scrollbar.
+- Reduced scrollbar width.
+- Added a cleaner rounded rail.
+- Added a PowerBuild navy-blue draggable thumb.
+- Added hover and active states.
+- Removed the bulky side gutter.
+- Mobile scrollbar is slimmer and touch friendly.
 
-Desktop:
-- Branch panel height reduced to 230px so overflow is guaranteed.
-- Visible scrollbar track on the right.
-- Large draggable thumb.
-- Drag thumb UP or DOWN.
-- Mouse wheel / trackpad scrolling still works.
+The scrolling behaviour and full branch list stay exactly the same.
 
-Mobile:
-- Branch panel uses up to 42% of screen height.
-- Visible, wider touch-friendly scrollbar.
-- Swipe up/down through branches.
-
-All branches remain available.
-No API/database/secret changes.
+No API changes.
+No database changes.
+No secret changes.
