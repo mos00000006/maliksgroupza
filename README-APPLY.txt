@@ -1,28 +1,24 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS — BRANCH LIST SIDE SCROLL V9
+STORE SPECIALS — PROPER UP/DOWN BRANCH SCROLLBAR V10
 
 REPLACE ONLY:
   app/store-specials.tsx
 
 FIX
 ---
-The right-side scrollbar is now directly on the "Branches running this special"
-section.
+The branch selector now has a proper draggable vertical scrollbar.
 
 Desktop:
-- Branch list is 3 columns.
-- Visible vertical scrollbar on the right.
-- Section height is 360px.
-- All branches remain available by scrolling.
+- Branch panel height reduced to 230px so overflow is guaranteed.
+- Visible scrollbar track on the right.
+- Large draggable thumb.
+- Drag thumb UP or DOWN.
+- Mouse wheel / trackpad scrolling still works.
 
 Mobile:
-- Branch list is 1 column.
-- Visible slimmer scrollbar on the right.
-- Section height is up to 52% of the screen.
-- Touch scrolling works normally.
+- Branch panel uses up to 42% of screen height.
+- Visible, wider touch-friendly scrollbar.
+- Swipe up/down through branches.
 
-The whole promotion form can still scroll as well.
-
-No API changes.
-No D1 migration.
-No secret changes.
+All branches remain available.
+No API/database/secret changes.
