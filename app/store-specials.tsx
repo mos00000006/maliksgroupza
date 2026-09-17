@@ -114,17 +114,55 @@ function validatePromotionImages(selected: File[]) {
 
 function PromotionCarousel({ images, title }: { images: SpecialImage[]; title: string }) {
   const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    if (images.length <= 1) return;
-    const timer = window.setInterval(
-      () => setIndex((current) => (current + 1) % images.length),
-      5000,
-    );
-    return () => window.clearInterval(timer);
-  }, [images.length]);
+  const [direction, setDirection] = useState<"next" | "prev">("next");
+  const [animating, setAnimating] = useState(false);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchCurrentX, setTouchCurrentX] = useState<number | null>(null);
 
   const active = images[index] || images[0];
+
+  const moveTo = (nextIndex: number, nextDirection: "next" | "prev") => {
+    if (images.length <= 1 || animating || nextIndex === index) return;
+    setDirection(nextDirection);
+    setAnimating(true);
+    window.setTimeout(() => {
+      setIndex(nextIndex);
+      window.setTimeout(() => setAnimating(false), 30);
+    }, 180);
+  };
+
+  const previous = () =>
+    moveTo((index - 1 + images.length) % images.length, "prev");
+
+  const next = () =>
+    moveTo((index + 1) % images.length, "next");
+
+  const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    const x = event.touches[0]?.clientX ?? null;
+    setTouchStartX(x);
+    setTouchCurrentX(x);
+  };
+
+  const onTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    setTouchCurrentX(event.touches[0]?.clientX ?? null);
+  };
+
+  const onTouchEnd = () => {
+    if (touchStartX === null || touchCurrentX === null) {
+      setTouchStartX(null);
+      setTouchCurrentX(null);
+      return;
+    }
+
+    const distance = touchCurrentX - touchStartX;
+    const threshold = 45;
+
+    if (distance <= -threshold) next();
+    else if (distance >= threshold) previous();
+
+    setTouchStartX(null);
+    setTouchCurrentX(null);
+  };
 
   if (!active)
     return (
@@ -135,39 +173,57 @@ function PromotionCarousel({ images, title }: { images: SpecialImage[]; title: s
     );
 
   return (
-    <div className="specialCarousel">
-      <img src={active.url} alt={`${title} promotion ${index + 1}`} />
+    <div
+      className="specialCarousel"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      <div className={`specialFlipStage ${animating ? `flipping ${direction}` : ""}`}>
+        <img src={active.url} alt={`${title} promotion ${index + 1}`} />
+      </div>
+
       {images.length > 1 && (
         <>
           <button
-            className="specialCarouselPrev"
-            onClick={() => setIndex((current) => (current - 1 + images.length) % images.length)}
+            className="specialCarouselPrev desktopOnlyCarouselButton"
+            onClick={previous}
             aria-label="Previous promotion picture"
           >
             ‹
           </button>
           <button
-            className="specialCarouselNext"
-            onClick={() => setIndex((current) => (current + 1) % images.length)}
+            className="specialCarouselNext desktopOnlyCarouselButton"
+            onClick={next}
             aria-label="Next promotion picture"
           >
             ›
           </button>
+
           <div className="specialDots">
             {images.map((image, itemIndex) => (
               <button
                 key={image.id}
                 className={itemIndex === index ? "active" : ""}
-                onClick={() => setIndex(itemIndex)}
+                onClick={() =>
+                  moveTo(itemIndex, itemIndex > index ? "next" : "prev")
+                }
                 aria-label={`Show promotion picture ${itemIndex + 1}`}
               />
             ))}
           </div>
         </>
       )}
+
       <span className="specialSlideCount">
         {index + 1}/{images.length}
       </span>
+
+      {images.length > 1 && (
+        <span className="specialSwipeHint">
+          Swipe to view next page
+        </span>
+      )}
     </div>
   );
 }
@@ -457,12 +513,17 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
         .specialFilter button.active{background:#172b43;color:#fff}
         .specialGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
         .specialCard{overflow:hidden;background:#fff;border:1px solid #dbe4ec;border-radius:15px;box-shadow:0 7px 24px #1724380d}
-        .specialCarousel,.specialNoImage{position:relative;aspect-ratio:16/8;background:#edf2f7;overflow:hidden}
-        .specialCarousel img{width:100%;height:100%;object-fit:cover;display:block}
+        .specialCarousel,.specialNoImage{position:relative;background:#e8edf3;overflow:hidden}
+        .specialCarousel{display:block;perspective:1400px;touch-action:pan-y;background:#fff}
+        .specialFlipStage{width:100%;height:auto;min-height:0;display:block;transform-style:preserve-3d;transform-origin:center;transition:transform .34s ease,opacity .2s ease;background:#fff}
+        .specialFlipStage img{width:100%;height:auto;max-height:none;object-fit:contain;display:block;background:#fff}
+        .specialFlipStage.flipping.next{transform:rotateY(-12deg) translateX(-2%);opacity:.45}
+        .specialFlipStage.flipping.prev{transform:rotateY(12deg) translateX(2%);opacity:.45}
         .specialNoImage{display:grid;place-items:center;text-align:center;color:#6f8092}.specialNoImage span,.specialNoImage small{display:block}
-        .specialCarouselPrev,.specialCarouselNext{position:absolute;top:50%;transform:translateY(-50%);width:32px;height:32px;border:0;border-radius:50%;background:#172438d9;color:#fff;font-size:20px;cursor:pointer}.specialCarouselPrev{left:10px}.specialCarouselNext{right:10px}
-        .specialDots{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:5px}.specialDots button{width:7px;height:7px;padding:0;border:0;border-radius:999px;background:#ffffff88}.specialDots button.active{width:18px;background:#f5ca2e}
-        .specialSlideCount{position:absolute;right:9px;bottom:8px;background:#172438c9;color:#fff;border-radius:999px;padding:4px 7px;font-size:7px;font-weight:800}
+        .specialCarouselPrev,.specialCarouselNext{position:absolute;top:min(50%,320px);transform:translateY(-50%);width:44px;height:58px;border:1px solid #ffffff55;border-radius:12px;background:#172438dd;color:#fff;font-size:29px;cursor:pointer;box-shadow:0 8px 22px #17243833;z-index:4}.specialCarouselPrev{left:14px}.specialCarouselNext{right:14px}.specialCarouselPrev:hover,.specialCarouselNext:hover{background:#203a58}
+        .specialDots{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:4;background:#17243899;border-radius:999px;padding:5px 8px}.specialDots button{width:7px;height:7px;padding:0;border:0;border-radius:999px;background:#ffffff99}.specialDots button.active{width:20px;background:#f5ca2e}
+        .specialSlideCount{position:absolute;right:12px;top:10px;background:#172438d8;color:#fff;border-radius:999px;padding:5px 8px;font-size:7px;font-weight:800;z-index:4}
+        .specialSwipeHint{display:none;position:absolute;left:12px;top:10px;background:#172438c7;color:#fff;border-radius:999px;padding:5px 8px;font-size:7px;font-weight:750;z-index:4}
         .specialCardBody{padding:14px}.specialCardTop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
         .specialStatus{display:inline-flex;border-radius:999px;padding:5px 8px;font-size:7px;font-weight:900}.specialStatus.Current{background:#def4e8;color:#18734d}.specialStatus.Upcoming{background:#fff1cf;color:#9a6500}.specialStatus.Past{background:#edf1f5;color:#69798a}
         .specialCard h3{margin:7px 0 4px;color:#1d344c;font-size:15px}.specialCard p{margin:0;color:#6c7b8b;font-size:8px;line-height:1.55}
@@ -483,7 +544,22 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
         .specialModal>footer{display:flex;justify-content:flex-end;gap:8px;padding:11px 17px;border-top:1px solid #e5ebf0;background:#fbfcfd}.specialModal>footer button{height:38px;border:1px solid #d3dde6;border-radius:9px;background:#fff;padding:0 14px;font:inherit;font-size:8px;font-weight:850;color:#4a5f75;cursor:pointer}.specialModal>footer button.primary{background:#f5ca2e;border-color:#dfb81c;color:#172438}
         .specialConfirm{width:min(460px,calc(100vw - 28px));background:#fff;border-radius:15px;padding:20px;box-shadow:0 25px 70px #0b16283d}.specialConfirm h3{margin:0 0 6px;color:#213950}.specialConfirm p{color:#697a8c;font-size:9px;line-height:1.5}.specialConfirm div{display:flex;justify-content:flex-end;gap:7px}.specialConfirm button{border:1px solid #d4dee8;border-radius:8px;background:#fff;padding:8px 11px;font:inherit;font-size:8px;font-weight:850}.specialConfirm button.danger{background:#bd3f4c;border-color:#bd3f4c;color:#fff}
         @media(max-width:900px){.specialGrid{grid-template-columns:1fr}.specialKpis{grid-template-columns:1fr 1fr}.specialBranchGrid{grid-template-columns:1fr 1fr}}
-        @media(max-width:720px){.specialHero{grid-template-columns:1fr;padding:17px}.specialHero button{width:100%}.specialKpis{grid-template-columns:1fr 1fr}.specialFormGrid{grid-template-columns:1fr}.specialBranchGrid{grid-template-columns:1fr}.specialModal{width:calc(100vw - 12px);max-height:calc(100dvh - 12px)}.specialOverlay{padding:6px}.specialToast{left:12px;right:12px;top:82px;max-width:none}.specialCarousel,.specialNoImage{aspect-ratio:4/3}}
+        @media(max-width:720px){
+          .specialHero{grid-template-columns:1fr;padding:17px}
+          .specialHero button{width:100%}
+          .specialKpis{grid-template-columns:1fr 1fr}
+          .specialFormGrid{grid-template-columns:1fr}
+          .specialBranchGrid{grid-template-columns:1fr}
+          .specialModal{width:calc(100vw - 12px);max-height:calc(100dvh - 12px)}
+          .specialOverlay{padding:6px}
+          .specialToast{left:12px;right:12px;top:82px;max-width:none}
+          .specialCarousel,.specialNoImage{min-height:0;height:auto}
+          .specialFlipStage{min-height:0;width:100%;height:auto}
+          .specialFlipStage img{width:100%;height:auto;max-height:none;object-fit:contain}
+          .desktopOnlyCarouselButton{display:none!important}
+          .specialSwipeHint{display:inline-flex}
+          .specialDots{top:11px}
+        }
       `}</style>
 
       {message && <div className="specialToast">{message}</div>}
@@ -643,7 +719,7 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
                   disabled={saving}
                 />
                 <small>
-                  Upload multiple pictures/pages. Each image may be up to 25 MB. The Hub uploads pictures one at a time and turns them into a slideshow that changes every 5 seconds.
+                  Upload multiple pictures/pages. Each image may be up to 25 MB. The Hub uploads pictures one at a time. The slideshow changes only when the user clicks Previous/Next on desktop or swipes on a phone.
                   {files.length
                     ? ` ${files.length} picture${files.length === 1 ? "" : "s"} selected.`
                     : ""}

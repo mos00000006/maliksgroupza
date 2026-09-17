@@ -1,23 +1,24 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS — ALL BRANCHES FIX V6
+STORE SPECIALS — TRUE FULL IMAGE VIEW V6
 
-Replace only:
-  app/api/store-specials/shared.ts
+REPLACE ONLY:
+  app/store-specials.tsx
 
-The Store Specials selector now uses EVERY active branch in the Hub, even when a
-branch workspace has a different or blank type label.
+FIX
+---
+The promotion viewer was still forcing the artwork into a fixed-height stage.
+This caused the lower part of tall pamphlets to be clipped.
 
-Only genuine non-store locations are excluded:
-- Head Office
-- Distribution Centre / DC
-- Wholesale / Wholesale Division
-- Developments
+This version:
+- removes the fixed 360px carousel height;
+- removes the 76vh maximum image height;
+- lets the card grow to the natural full height of the promotion image;
+- keeps object-fit: contain;
+- keeps manual Previous / Next on desktop;
+- keeps swipe left/right on mobile;
+- keeps the page-flip animation;
+- moves slide dots / page counter to the top so they remain visible on tall flyers.
 
-Permissions remain unchanged:
-- Full Company = all branches
-- Assigned Store = assigned store only
-- Regional / multi-store = assigned branches only
-- Human Resource (HR) = no Store Specials access
-
-No database migration.
-No GitHub secret changes.
+No API changes.
+No D1 migration.
+No secret changes.
