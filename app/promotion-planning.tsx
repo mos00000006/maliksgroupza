@@ -207,6 +207,8 @@ export default function PromotionPlanning({
 }) {
   const [data, setData] = useState<ApiData | null>(null);
   const [planId, setPlanId] = useState(0);
+  const [archivePlanId, setArchivePlanId] = useState(0);
+  const [showArchive, setShowArchive] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [planModal, setPlanModal] = useState(false);
@@ -277,7 +279,25 @@ export default function PromotionPlanning({
 
       setData(result);
       setUnreadAtOpen((current) => current || Number(result.unreadActivity || 0));
-      setPlanId((current) => current || Number(result.plans?.[0]?.id || 0));
+
+      const firstActivePlan = result.plans?.find((item: Plan) => item.status !== "Finalised");
+      const firstFinalisedPlan = result.plans?.find((item: Plan) => item.status === "Finalised");
+
+      setPlanId((current) => {
+        if (
+          current &&
+          result.plans?.some((item: Plan) => item.id === current && item.status !== "Finalised")
+        ) return current;
+        return Number(firstActivePlan?.id || 0);
+      });
+
+      setArchivePlanId((current) => {
+        if (
+          current &&
+          result.plans?.some((item: Plan) => item.id === current && item.status === "Finalised")
+        ) return current;
+        return Number(firstFinalisedPlan?.id || 0);
+      });
 
 
       if (markAsSeen) await markSeen();
@@ -292,7 +312,23 @@ export default function PromotionPlanning({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const plan = data?.plans.find((p) => p.id === planId) || data?.plans[0];
+  const activePlans = useMemo(
+    () => (data?.plans || []).filter((item) => item.status !== "Finalised"),
+    [data?.plans],
+  );
+
+  const finalisedPlans = useMemo(
+    () => (data?.plans || []).filter((item) => item.status === "Finalised"),
+    [data?.plans],
+  );
+
+  const plan =
+    activePlans.find((item) => item.id === planId) ||
+    activePlans[0];
+
+  const archivePlan =
+    finalisedPlans.find((item) => item.id === archivePlanId) ||
+    finalisedPlans[0];
 
   const suggestions = useMemo(
     () => (data?.suggestions || []).filter((s) => s.plan_id === plan?.id),
@@ -312,6 +348,31 @@ export default function PromotionPlanning({
   const thoughts = useMemo(
     () => (data?.thoughts || []).filter((t) => t.plan_id === plan?.id),
     [data, plan?.id],
+  );
+
+  const archiveSuggestions = useMemo(
+    () => (data?.suggestions || []).filter((item) => item.plan_id === archivePlan?.id),
+    [data, archivePlan?.id],
+  );
+
+  const archiveComments = useMemo(
+    () => (data?.comments || []).filter((item) => item.plan_id === archivePlan?.id),
+    [data, archivePlan?.id],
+  );
+
+  const archiveDecisions = useMemo(
+    () => (data?.decisions || []).filter((item) => item.plan_id === archivePlan?.id),
+    [data, archivePlan?.id],
+  );
+
+  const archiveThoughts = useMemo(
+    () => (data?.thoughts || []).filter((item) => item.plan_id === archivePlan?.id),
+    [data, archivePlan?.id],
+  );
+
+  const archiveActivity = useMemo(
+    () => (data?.activity || []).filter((item) => item.plan_id === archivePlan?.id),
+    [data, archivePlan?.id],
   );
 
   const activity = useMemo(
@@ -445,10 +506,11 @@ export default function PromotionPlanning({
         .rightStack{display:grid;gap:12px}.commentComposer{display:grid;gap:7px;margin-bottom:12px}.commentComposer select,.commentComposer textarea{border:1px solid #d5dfe8;border-radius:8px;padding:8px;font:inherit;font-size:8px}.commentComposer textarea{min-height:74px;resize:vertical}.commentComposer button{justify-self:end;border:0;background:#f5ca2e;border-radius:8px;padding:8px 11px;font:inherit;font-size:7px;font-weight:900;color:#172438}
         .comments,.activityFeed{display:grid;gap:7px;max-height:380px;overflow:auto}.comment,.activityItem{background:#f7f9fb;border:1px solid #e0e7ee;border-radius:9px;padding:9px}.comment b,.activityItem b{font-size:8px;color:#2f4962}.comment small,.activityItem small{display:block;color:#8995a2;font-size:6.5px;margin:2px 0 5px}.comment p,.activityItem p{font-size:8px;color:#536a80;margin:0;line-height:1.5}.activityItem{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start}.activityIcon{width:28px;height:28px;border-radius:9px;background:#172d46;color:#f5ca2e;display:grid;place-items:center;font-size:11px}
         .planEmpty{padding:24px;text-align:center;border:1px dashed #cbd7e2;border-radius:11px;color:#7a8998}.planEmpty b{display:block;color:#405a73;margin-bottom:4px}
+        .archiveLauncher{position:relative}.archiveLauncher .archiveBadge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;margin-left:5px;border-radius:999px;background:#172d46;color:#fff;font-size:7px;font-weight:950}.archiveView{display:grid;gap:12px}.archiveHero{background:linear-gradient(125deg,#20374f,#304f6d);border-radius:14px;padding:17px 18px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px}.archiveHero h3{margin:0 0 4px;font-size:17px}.archiveHero p{margin:0;color:#cbd7e3;font-size:8px}.archiveHero button{border:1px solid #ffffff35;background:#fff;color:#20374f;border-radius:8px;padding:8px 11px;font:inherit;font-size:7px;font-weight:900;cursor:pointer}.archiveSelect{background:#fff;border:1px solid #dbe4ec;border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;justify-content:space-between}.archiveSelect select{min-width:300px;border:1px solid #d5dfe8;border-radius:8px;padding:8px;font:inherit;font-size:8px;color:#294159;background:#fff}.archiveSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.archiveSummary article{background:#fff;border:1px solid #dbe4ec;border-radius:11px;padding:12px}.archiveSummary span{display:block;font-size:7px;font-weight:900;color:#7f8b98;text-transform:uppercase}.archiveSummary b{display:block;font-size:19px;color:#223c55;margin-top:4px}.archiveGrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}.archivePanel{background:#fff;border:1px solid #dbe4ec;border-radius:12px;padding:13px}.archivePanel h4{margin:0 0 9px;color:#223c55;font-size:11px}.archiveItem{border:1px solid #e0e7ee;border-radius:9px;padding:9px;margin-bottom:7px;background:#fafcfd}.archiveItem:last-child{margin-bottom:0}.archiveItem b{font-size:8px;color:#2f4962}.archiveItem small{display:block;color:#8995a2;font-size:6.5px;margin-top:2px}.archiveItem p{font-size:8px;color:#536a80;line-height:1.45;margin:5px 0 0}.archiveReadOnly{display:inline-flex;align-items:center;gap:5px;background:#eaf0f5;color:#52697f;border-radius:999px;padding:5px 8px;font-size:7px;font-weight:850}
         .planOverlay{position:fixed;inset:0;background:#0d1a2b99;z-index:95;display:grid;place-items:center;padding:12px}.planModal{width:min(760px,calc(100vw - 24px));max-height:calc(100dvh - 24px);background:#fff;border-radius:15px;overflow:hidden;display:flex;flex-direction:column}.planModal header{display:flex;justify-content:space-between;padding:15px 17px;border-bottom:1px solid #e3e9ef}.planModal header h3{margin:0;color:#203951}.planModal header button{border:0;background:#edf2f6;width:32px;height:32px;border-radius:8px}.planModalBody{padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;overflow:auto}.planModalBody label{display:grid;gap:5px;font-size:7px;font-weight:850;color:#40566e}.planModalBody input,.planModalBody select,.planModalBody textarea{border:1px solid #d5dfe8;border-radius:8px;padding:8px;font:inherit;font-size:8px}.planModalBody textarea{min-height:80px}.span2{grid-column:1/-1}.planModal footer{display:flex;justify-content:flex-end;gap:7px;padding:10px 15px;border-top:1px solid #e5ebf0}.planModal footer button{border:1px solid #d5dfe8;background:#fff;border-radius:8px;padding:8px 11px;font:inherit;font-size:7px;font-weight:850}.planModal footer .primary{background:#f5ca2e;border-color:#dfb91f;color:#172438}
-        @media(max-width:1100px){.planKpis{grid-template-columns:repeat(3,1fr)}.decisionGrid{grid-template-columns:1fr}.thoughtGrid{grid-template-columns:1fr 1fr}}
+        @media(max-width:1100px){.planKpis{grid-template-columns:repeat(3,1fr)}.decisionGrid{grid-template-columns:1fr}.thoughtGrid{grid-template-columns:1fr 1fr}.archiveSummary{grid-template-columns:1fr 1fr}.archiveGrid{grid-template-columns:1fr}}
         @media(max-width:900px){.planColumns{grid-template-columns:1fr}.planHero{grid-template-columns:1fr}.planActions{justify-content:flex-start}}
-        @media(max-width:720px){.thoughtGrid{grid-template-columns:1fr}.planTopBar{align-items:stretch;flex-direction:column}.planTopBar select{min-width:0;width:100%}.planKpis{grid-template-columns:1fr 1fr}.planModalBody{grid-template-columns:1fr}.span2{grid-column:auto}.planToast{left:12px;right:12px;top:82px}.ideaTop,.decisionTop{align-items:flex-start}}
+        @media(max-width:720px){.archiveHero{align-items:flex-start;flex-direction:column}.archiveSelect{align-items:stretch;flex-direction:column}.archiveSelect select{min-width:0;width:100%}.thoughtGrid{grid-template-columns:1fr}.planTopBar{align-items:stretch;flex-direction:column}.planTopBar select{min-width:0;width:100%}.planKpis{grid-template-columns:1fr 1fr}.planModalBody{grid-template-columns:1fr}.span2{grid-column:auto}.planToast{left:12px;right:12px;top:82px}.ideaTop,.decisionTop{align-items:flex-start}}
       `}</style>
 
       {message && <div className="planToast">{message}</div>}
@@ -470,6 +532,14 @@ export default function PromotionPlanning({
 
         <div className="planActions">
           <button onClick={onBack}>← Store Specials</button>
+
+          <button className="archiveLauncher" onClick={() => setShowArchive(true)}>
+            🗃 Finalized Archive
+            {finalisedPlans.length > 0 && (
+              <span className="archiveBadge">{finalisedPlans.length}</span>
+            )}
+          </button>
+
           {data?.permissions.canManage && (
             <button className="primary" onClick={() => setPlanModal(true)}>＋ New planning room</button>
           )}
@@ -483,11 +553,166 @@ export default function PromotionPlanning({
         </div>
       </div>
 
-      {data?.plans.length ? (
+      {showArchive ? (
+        <div className="archiveView">
+          <div className="archiveHero">
+            <div>
+              <h3>Finalized Promotion Archive</h3>
+              <p>Completed planning rooms are stored here and removed from the live discussion. Archive records are read-only.</p>
+            </div>
+            <button onClick={() => setShowArchive(false)}>← Back to live planning</button>
+          </div>
+
+          {finalisedPlans.length ? (
+            <>
+              <div className="archiveSelect">
+                <div>
+                  <b style={{fontSize:"9px",color:"#2d465f"}}>Archived planning room</b>
+                  <div style={{fontSize:"7px",color:"#8190a0",marginTop:"2px"}}>
+                    {finalisedPlans.length} finalized record{finalisedPlans.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+
+                <select
+                  value={archivePlan?.id || 0}
+                  onChange={(event) => setArchivePlanId(Number(event.target.value))}
+                >
+                  {finalisedPlans.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.title} · Finalised
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {archivePlan && (
+                <>
+                  <div className="archiveSummary">
+                    <article>
+                      <span>Agreed decisions</span>
+                      <b>{archiveDecisions.filter((item) => item.status === "Agreed").length}</b>
+                    </article>
+                    <article>
+                      <span>Approved products</span>
+                      <b>{archiveSuggestions.filter((item) => item.status === "Approved").length}</b>
+                    </article>
+                    <article>
+                      <span>Manager thoughts</span>
+                      <b>{archiveThoughts.length}</b>
+                    </article>
+                    <article>
+                      <span>Comments</span>
+                      <b>{archiveComments.length}</b>
+                    </article>
+                  </div>
+
+                  <div className="planTopBar">
+                    <div>
+                      <b style={{fontSize:"9px",color:"#294159"}}>{archivePlan.title}</b>
+                      <div style={{fontSize:"7px",color:"#7c8c9b",marginTop:"3px"}}>
+                        Created {new Date(archivePlan.created_at).toLocaleDateString()} · Finalised
+                      </div>
+                    </div>
+                    <span className="archiveReadOnly">🔒 Read-only archive</span>
+                  </div>
+
+                  <div className="archiveGrid">
+                    <section className="archivePanel">
+                      <h4>Agreed decisions</h4>
+                      {archiveDecisions.filter((item) => item.status === "Agreed").map((item) => (
+                        <div className="archiveItem" key={item.id}>
+                          <b>{item.topic}</b>
+                          <small>{shortEmail(item.created_by)}</small>
+                          <p>{item.proposal}</p>
+                          {item.rationale && <p><b>Reason:</b> {item.rationale}</p>}
+                        </div>
+                      ))}
+                      {!archiveDecisions.some((item) => item.status === "Agreed") && (
+                        <div className="planEmpty"><b>No agreed decisions recorded</b></div>
+                      )}
+                    </section>
+
+                    <section className="archivePanel">
+                      <h4>Approved promotion products</h4>
+                      {archiveSuggestions.filter((item) => item.status === "Approved").map((item) => (
+                        <div className="archiveItem" key={item.id}>
+                          <b>{item.product_name}{item.product_code ? ` · ${item.product_code}` : ""}</b>
+                          <small>{item.category || "General"} · {shortEmail(item.created_by)}</small>
+                          {(item.current_price || item.proposed_price) && (
+                            <p>
+                              Current: {item.current_price || "—"} · Promo: {item.proposed_price || "—"} · Qty: {item.expected_qty || "—"}
+                            </p>
+                          )}
+                          {item.reason && <p>{item.reason}</p>}
+                        </div>
+                      ))}
+                      {!archiveSuggestions.some((item) => item.status === "Approved") && (
+                        <div className="planEmpty"><b>No approved products recorded</b></div>
+                      )}
+                    </section>
+
+                    <section className="archivePanel">
+                      <h4>Shortlisted / agreed manager thoughts</h4>
+                      {archiveThoughts
+                        .filter((item) => item.status === "Shortlist" || item.status === "Agreed")
+                        .map((item) => (
+                          <div className="archiveItem" key={item.id}>
+                            <b>{item.title}</b>
+                            <small>{item.thought_type} · {shortEmail(item.created_by)} · {item.status}</small>
+                            {item.item_name && (
+                              <p>Item: {item.item_name}{item.item_code ? ` · ${item.item_code}` : ""}</p>
+                            )}
+                            {item.details && <p>{item.details}</p>}
+                          </div>
+                        ))}
+                      {!archiveThoughts.some((item) => item.status === "Shortlist" || item.status === "Agreed") && (
+                        <div className="planEmpty"><b>No shortlisted thoughts recorded</b></div>
+                      )}
+                    </section>
+
+                    <section className="archivePanel">
+                      <h4>Discussion comments</h4>
+                      {archiveComments.map((item) => (
+                        <div className="archiveItem" key={item.id}>
+                          <b>{item.topic}</b>
+                          <small>{shortEmail(item.created_by)} · {new Date(item.created_at).toLocaleString()}</small>
+                          <p>{item.comment}</p>
+                        </div>
+                      ))}
+                      {!archiveComments.length && (
+                        <div className="planEmpty"><b>No comments recorded</b></div>
+                      )}
+                    </section>
+
+                    <section className="archivePanel" style={{gridColumn:"1/-1"}}>
+                      <h4>Full activity history</h4>
+                      {archiveActivity.map((item) => (
+                        <div className="archiveItem" key={item.id}>
+                          <b>{item.activity_type}</b>
+                          <small>{shortEmail(item.created_by)} · {new Date(item.created_at).toLocaleString()}</small>
+                          <p>{item.summary}</p>
+                        </div>
+                      ))}
+                      {!archiveActivity.length && (
+                        <div className="planEmpty"><b>No activity history recorded</b></div>
+                      )}
+                    </section>
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <div className="planEmpty">
+              <b>No finalized promotion planning yet</b>
+              When a planning room is marked Finalised, it will automatically move here.
+            </div>
+          )}
+        </div>
+      ) : data?.plans.length ? (
         <>
           <div className="planTopBar">
             <select value={plan?.id || 0} onChange={(e) => setPlanId(Number(e.target.value))}>
-              {data.plans.map((p) => <option key={p.id} value={p.id}>{p.title} · {p.status}</option>)}
+              {activePlans.map((p) => <option key={p.id} value={p.id}>{p.title} · {p.status}</option>)}
             </select>
             {plan && (
               <span style={{fontSize:"8px",fontWeight:800,color:"#62758a"}}>
@@ -849,7 +1074,14 @@ export default function PromotionPlanning({
               <select
                 style={{minWidth:"180px"}}
                 value={plan.status}
-                onChange={async (e)=>{ await patch({action:"planStatus",id:plan.id,status:e.target.value}); }}
+                onChange={async (e)=>{
+                  const nextStatus = e.target.value;
+                  const ok = await patch({action:"planStatus",id:plan.id,status:nextStatus});
+                  if (ok && nextStatus === "Finalised") {
+                    flash("Planning room finalised and moved to the Finalized Archive.");
+                    setShowArchive(true);
+                  }
+                }}
               >
                 <option>Open</option>
                 <option>Reviewing</option>
@@ -862,8 +1094,12 @@ export default function PromotionPlanning({
         <div className="planEmpty">
           <b>No promotion planning room yet</b>
           {data?.permissions.canManage
-            ? "Open the first planning room. Do not set the promotion date yet — let managers propose and agree it in the Decision Room."
-            : "Head Office has not opened the next promotion planning room yet."}
+            ? finalisedPlans.length
+              ? "There is no live planning room. Start a new one, or open the Finalized Archive to review completed promotions."
+              : "Open the first planning room. Do not set the promotion date yet — let managers propose and agree it in the Decision Room."
+            : finalisedPlans.length
+              ? "There is no live planning room at the moment. Completed planning is available in the Finalized Archive."
+              : "Head Office has not opened the next promotion planning room yet."}
         </div>
       )}
 

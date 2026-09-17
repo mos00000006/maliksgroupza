@@ -40,7 +40,7 @@ export async function GET(req: Request) {
 
   const allowedBranches = await contributionBranches(member);
   const [plans, suggestions, feedback, comments, decisions, decisionVotes, activity, thoughts, thoughtReactions, eligibleManagers] = await Promise.all([
-    env.DB.prepare("SELECT * FROM promotion_plans ORDER BY id DESC LIMIT 12").all<Record<string, unknown>>(),
+    env.DB.prepare("SELECT * FROM promotion_plans ORDER BY id DESC LIMIT 100").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_suggestions ORDER BY id DESC").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_feedback ORDER BY id DESC").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_comments ORDER BY id DESC").all<Record<string, unknown>>(),
