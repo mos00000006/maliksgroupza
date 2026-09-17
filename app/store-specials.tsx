@@ -286,14 +286,20 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
   }, []);
 
   useEffect(() => {
-    void loadPlanningUnread();
+    // Run the initial badge refresh asynchronously so React does not see a
+    // synchronous state update originating from the effect body.
+    const initial = window.setTimeout(() => void loadPlanningUnread(), 0);
     const timer = window.setInterval(() => void loadPlanningUnread(), 30000);
     const onFocus = () => void loadPlanningUnread();
+
     window.addEventListener("focus", onFocus);
+
     return () => {
+      window.clearTimeout(initial);
       window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const grouped = useMemo(() => {

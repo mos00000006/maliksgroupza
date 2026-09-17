@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getAuthenticatedUser } from "../../auth";
-import { allowedWorkspaces, canAccessWorkspace, getHubMember } from "../access";
+import { getHubMember } from "../access";
 import {
   canManageStoreSpecials,
   canSelectAllBranches,

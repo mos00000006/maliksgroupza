@@ -225,6 +225,7 @@ export default function PromotionPlanning({
   useEffect(() => {
     const timer = window.setTimeout(() => void load(true), 0);
     return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const plan = data?.plans.find((p) => p.id === planId) || data?.plans[0];
@@ -250,7 +251,10 @@ export default function PromotionPlanning({
   );
 
   const feedback = data?.feedback || [];
-  const decisionVotes = data?.decisionVotes || [];
+  const decisionVotes = useMemo(
+    () => data?.decisionVotes || [],
+    [data?.decisionVotes],
+  );
 
   const scoreFor = (suggestionId: number) =>
     feedback
