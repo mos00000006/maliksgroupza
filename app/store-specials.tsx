@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type CurrentHubUser = {
   name: string;
@@ -239,7 +239,6 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<StoreSpecial | null>(null);
-  const branchGridRef = useRef<HTMLDivElement | null>(null);
 
   const flash = (text: string) => {
     setMessage(text);
@@ -315,16 +314,6 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
     });
     setFiles([]);
     setComposerOpen(true);
-  };
-
-  const scrollBranchesToTop = () => {
-    branchGridRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const scrollBranchesToBottom = () => {
-    const grid = branchGridRef.current;
-    if (!grid) return;
-    grid.scrollTo({ top: grid.scrollHeight, behavior: "smooth" });
   };
 
   const toggleBranch = (name: string) => {
@@ -549,7 +538,7 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
         .specialModalBody{overflow-y:scroll;overflow-x:hidden;padding:15px 18px;display:grid;gap:12px;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}.specialModalBody::-webkit-scrollbar{width:10px}.specialModalBody::-webkit-scrollbar-track{background:#edf2f6;border-left:1px solid #dfe6ed}.specialModalBody::-webkit-scrollbar-thumb{background:#8797aa;border-radius:999px;border:2px solid #edf2f6}.specialModalBody::-webkit-scrollbar-thumb:hover{background:#65788e}.specialModalBody{scrollbar-width:auto;scrollbar-color:#8797aa #edf2f6}.specialFormGrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
         .specialModal label{display:grid;gap:6px;color:#354b62;font-size:8px;font-weight:850}.specialModal input,.specialModal textarea,.specialModal select{width:100%;border:1px solid #d4dee8;border-radius:9px;background:#fff;padding:9px 10px;font:inherit;color:#20364d;font-size:9px;outline:0}.specialModal textarea{min-height:82px;resize:vertical}
         .specialBranchBox{border:1px solid #dce4ec;border-radius:11px;overflow:hidden}.specialBranchHeader{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;background:#f7f9fb;border-bottom:1px solid #e5ebf0}.specialBranchHeader b{font-size:9px;color:#344b62}.specialAllToggle{display:flex!important;grid-auto-flow:column;align-items:center;gap:7px!important;font-size:8px!important}.specialAllToggle input{width:17px;height:17px}
-        .specialBranchScrollFrame{position:relative;padding-right:38px;background:#fff}.specialBranchGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;max-height:230px;overflow-y:auto;overflow-x:hidden;padding:5px 8px 12px 5px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#6f86a0 #edf2f6}.specialBranchGrid::-webkit-scrollbar{width:7px}.specialBranchGrid::-webkit-scrollbar-button{display:none!important;width:0!important;height:0!important}.specialBranchGrid::-webkit-scrollbar-track{background:#edf2f6;border-radius:999px;margin:5px 0}.specialBranchGrid::-webkit-scrollbar-thumb{background:#6f86a0;border-radius:999px;border:1px solid #edf2f6;min-height:44px}.specialBranchGrid::-webkit-scrollbar-thumb:hover{background:#516d8b}.specialBranchGrid label{display:flex;align-items:center;grid-template-columns:none;gap:7px;padding:8px;border-radius:7px;font-weight:700;cursor:pointer;min-height:42px}.specialBranchGrid label:hover{background:#f3f7fa}.specialBranchGrid input{width:16px;height:16px;flex:0 0 16px}.specialBranchGrid.disabled{opacity:.45;pointer-events:none}.specialBranchScrollControls{position:absolute;right:5px;top:7px;bottom:7px;width:28px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;z-index:3}.specialBranchScrollButton{width:28px;height:28px;padding:0;border:1px solid #d5e0ea;border-radius:8px;background:#fff;color:#24496f;display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 7px #17243812;transition:background .16s ease,color .16s ease,border-color .16s ease}.specialBranchScrollButton:hover{background:#172f4b;color:#fff;border-color:#172f4b}.specialBranchScrollButton:disabled{opacity:.35;cursor:not-allowed}.specialBranchScrollButton svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}.specialBranchScrollRail{flex:1;width:4px;margin:6px 0;border-radius:999px;background:#e8eef4;position:relative;overflow:hidden}.specialBranchScrollRail span{position:absolute;left:0;right:0;top:22%;height:34%;border-radius:999px;background:#91a3b7}
+        .specialBranchGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;max-height:300px;overflow-y:scroll;overflow-x:hidden;padding:5px 12px 14px 5px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#56718f #edf2f6}.specialBranchGrid::-webkit-scrollbar{width:9px}.specialBranchGrid::-webkit-scrollbar-button{display:none!important;width:0!important;height:0!important}.specialBranchGrid::-webkit-scrollbar-track{background:#edf2f6;border-radius:999px;margin:7px 0}.specialBranchGrid::-webkit-scrollbar-thumb{background:#56718f;border-radius:999px;border:2px solid #edf2f6;min-height:54px}.specialBranchGrid::-webkit-scrollbar-thumb:hover{background:#365675}.specialBranchGrid::-webkit-scrollbar-thumb:active{background:#244766}.specialBranchGrid label{display:flex;align-items:center;grid-template-columns:none;gap:7px;padding:9px 8px;border-radius:7px;font-weight:700;cursor:pointer;min-height:44px}.specialBranchGrid label:hover{background:#f3f7fa}.specialBranchGrid input{width:16px;height:16px;flex:0 0 16px}.specialBranchGrid.disabled{opacity:.45;pointer-events:none}
         .specialFileBox{border:1px dashed #bac9d8;border-radius:11px;padding:13px;background:#f8fafc}.specialFileBox input{border:0;padding:0;background:transparent}.specialFileBox small{display:block;margin-top:6px;color:#7e8c9b;font-size:7px;font-weight:500}
         .specialExistingImages{display:flex;gap:8px;overflow:auto;padding-bottom:4px}.specialExistingImages figure{position:relative;flex:0 0 130px;margin:0;border:1px solid #dbe3eb;border-radius:9px;overflow:hidden;background:#fff}.specialExistingImages img{width:130px;height:78px;object-fit:cover;display:block}.specialExistingImages button{position:absolute;right:4px;top:4px;width:24px;height:24px;border:0;border-radius:7px;background:#172438d9;color:#fff;cursor:pointer}.specialExistingImages figcaption{padding:5px 6px;color:#6f8091;font-size:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .specialModal>footer{display:flex;justify-content:flex-end;gap:8px;padding:11px 17px;border-top:1px solid #e5ebf0;background:#fbfcfd}.specialModal>footer button{height:38px;border:1px solid #d3dde6;border-radius:9px;background:#fff;padding:0 14px;font:inherit;font-size:8px;font-weight:850;color:#4a5f75;cursor:pointer}.specialModal>footer button.primary{background:#f5ca2e;border-color:#dfb81c;color:#172438}
@@ -560,13 +549,11 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
           .specialHero button{width:100%}
           .specialKpis{grid-template-columns:1fr 1fr}
           .specialFormGrid{grid-template-columns:1fr}
-          .specialBranchScrollFrame{padding-right:34px}
-          .specialBranchGrid{grid-template-columns:1fr;max-height:42dvh;overflow-y:auto;padding-right:5px;padding-bottom:12px;scrollbar-width:thin}
-          .specialBranchGrid::-webkit-scrollbar{width:5px}
+          .specialBranchGrid{grid-template-columns:1fr;max-height:48dvh;overflow-y:scroll;padding-right:8px;padding-bottom:14px;scrollbar-width:thin}
+          .specialBranchGrid::-webkit-scrollbar{width:7px}
           .specialBranchGrid::-webkit-scrollbar-button{display:none!important;width:0!important;height:0!important}
-          .specialBranchScrollControls{right:3px;width:26px}
-          .specialBranchScrollButton{width:26px;height:30px;border-radius:8px}
-          .specialBranchScrollButton svg{width:15px;height:15px}
+          .specialBranchGrid::-webkit-scrollbar-track{background:#edf2f6;border-radius:999px;margin:6px 0}
+          .specialBranchGrid::-webkit-scrollbar-thumb{background:#56718f;border:1px solid #edf2f6;border-radius:999px;min-height:48px}
           .specialModal{width:calc(100vw - 12px);height:calc(100dvh - 12px);max-height:calc(100dvh - 12px)}
           .specialModalBody::-webkit-scrollbar{width:7px}
           .specialModalBody::-webkit-scrollbar-thumb{background:#7f91a6;border:1px solid #edf2f6}
@@ -693,54 +680,17 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
                     </label>
                   )}
                 </div>
-                <div className="specialBranchScrollFrame">
-                  <div
-                    ref={branchGridRef}
-                    className={`specialBranchGrid ${form.allBranches ? "disabled" : ""}`}
-                  >
-                    {data.branches.map((branch) => (
-                      <label key={branch.id}>
-                        <input
-                          type="checkbox"
-                          checked={form.branches.includes(branch.name)}
-                          onChange={() => toggleBranch(branch.name)}
-                        />
-                        {branch.name}
-                      </label>
-                    ))}
-                  </div>
-
-                  <div className="specialBranchScrollControls" aria-label="Branch list scroll controls">
-                    <button
-                      type="button"
-                      className="specialBranchScrollButton up"
-                      onClick={scrollBranchesToTop}
-                      disabled={form.allBranches}
-                      aria-label="Scroll branches to top"
-                      title="Scroll to top"
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="m6 14 6-6 6 6" />
-                      </svg>
-                    </button>
-
-                    <div className="specialBranchScrollRail" aria-hidden="true">
-                      <span />
-                    </div>
-
-                    <button
-                      type="button"
-                      className="specialBranchScrollButton down"
-                      onClick={scrollBranchesToBottom}
-                      disabled={form.allBranches}
-                      aria-label="Scroll branches to bottom"
-                      title="Scroll to bottom"
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="m6 10 6 6 6-6" />
-                      </svg>
-                    </button>
-                  </div>
+                <div className={`specialBranchGrid ${form.allBranches ? "disabled" : ""}`}>
+                  {data.branches.map((branch) => (
+                    <label key={branch.id}>
+                      <input
+                        type="checkbox"
+                        checked={form.branches.includes(branch.name)}
+                        onChange={() => toggleBranch(branch.name)}
+                      />
+                      {branch.name}
+                    </label>
+                  ))}
                 </div>
               </div>
 

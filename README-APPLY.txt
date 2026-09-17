@@ -1,35 +1,26 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS — FULL UP/DOWN BRANCH SCROLL CONTROLS V12
+STORE SPECIALS — CLEAN ALL-BRANCH SCROLL V13
 
 REPLACE ONLY:
   app/store-specials.tsx
 
-WHAT IS FIXED
--------------
-The branch list now has dedicated navigation controls on the RIGHT side:
+THIS FIX REMOVES THE EXTRA CUSTOM ARROW RAIL.
 
-  ▲  Scroll to top
-  ▼  Scroll to bottom
+BRANCH PANEL NOW:
+- contains ALL branches received from the Hub;
+- 3 columns on desktop;
+- one single, normal scrollbar on the far right;
+- drag the scrollbar from first branch to last branch;
+- mouse wheel / trackpad works;
+- mobile uses one column and swipe scrolling;
+- extra bottom padding ensures the final branch is fully reachable.
 
-The down-facing button is always visible at the bottom of the branch panel.
+There is NO second scrollbar, NO separate arrow rail, and NO floating up/down
+buttons.
 
-You can still:
-- drag the normal scrollbar thumb;
-- use the mouse wheel / trackpad;
-- swipe vertically on cellphone.
+The total branch count remains shown in:
+  Branches running this special (20)
 
-The last branch can now be reached cleanly because the scrollable area has extra
-bottom padding and the Down button scrolls directly to scrollHeight.
-
-STYLE
------
-- Separate clean arrow buttons.
-- Slim native scrollbar.
-- Rounded blue/grey rail.
-- Works on desktop and mobile.
-- All Branches disables the scroll controls because the individual checkboxes
-  are disabled.
-
-No API changes.
+No API change.
 No D1 migration.
-No GitHub secret changes.
+No secret change.
