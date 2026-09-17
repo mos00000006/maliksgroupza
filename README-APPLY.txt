@@ -1,26 +1,32 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS — CLEAN ALL-BRANCH SCROLL V13
+STORE SPECIALS — NATIVE WINDOWS BRANCH SCROLL V14
 
 REPLACE ONLY:
   app/store-specials.tsx
 
-THIS FIX REMOVES THE EXTRA CUSTOM ARROW RAIL.
+THIS VERSION REMOVES ALL CUSTOM SCROLLBAR STYLING.
 
-BRANCH PANEL NOW:
-- contains ALL branches received from the Hub;
+The branch list now uses a normal browser/Windows scroll box:
+- standard up arrow where the browser provides it;
+- standard down arrow where the browser provides it;
+- standard draggable scrollbar thumb;
+- mouse wheel / trackpad scrolling;
+- all hidden branches remain reachable;
 - 3 columns on desktop;
-- one single, normal scrollbar on the far right;
-- drag the scrollbar from first branch to last branch;
-- mouse wheel / trackpad works;
-- mobile uses one column and swipe scrolling;
-- extra bottom padding ensures the final branch is fully reachable.
+- 1 column on mobile;
+- mobile supports normal swipe scrolling.
 
-There is NO second scrollbar, NO separate arrow rail, and NO floating up/down
-buttons.
+TECHNICAL CHANGE
+----------------
+The scroll is now on a dedicated wrapper:
+  .specialBranchScroller
 
-The total branch count remains shown in:
-  Branches running this special (20)
+The branch grid itself no longer controls overflow. This avoids the previous
+grid/scrollbar behaviour that was clipping or making branches difficult to reach.
 
-No API change.
-No D1 migration.
-No secret change.
+Desktop branch panel height: 260px.
+Mobile branch panel height: 48dvh.
+
+No API changes.
+No database changes.
+No secret changes.
