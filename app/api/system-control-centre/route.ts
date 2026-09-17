@@ -1,7 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getAuthenticatedUser } from "../../auth";
 import {
-  allowedWorkspaces,
   canManageAccess,
   getHubMember,
   type HubMember,
@@ -65,7 +64,6 @@ type TeamRow = {
   created_at: string;
 };
 
-type AuditMember = HubMember & { active?: number };
 
 function quoteIdentifier(value: string) {
   return `"${value.replaceAll('"', '""')}"`;

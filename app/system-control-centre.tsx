@@ -445,7 +445,7 @@ export default function SystemControlCentre({
               <h3>User access & emergency revoke</h3>
               <p>
                 Disable lost-device/resigned-user access immediately. Disabling also
-                removes that user's push subscriptions.
+                removes that user&apos;s push subscriptions.
               </p>
             </div>
           </div>
@@ -632,7 +632,7 @@ export default function SystemControlCentre({
             <div>
               <h3>Database snapshots</h3>
               <p>
-                Business-data JSON snapshots stored in the Hub's R2 bucket. Push/VAPID
+                Business-data JSON snapshots stored in the Hub&apos;s R2 bucket. Push/VAPID
                 secrets and notification noise are excluded.
               </p>
             </div>
