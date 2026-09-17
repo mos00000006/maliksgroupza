@@ -10,6 +10,28 @@ import { initTeamTables } from "../team/shared";
 
 const RELEASE = "2026.09.17 · System Control Centre V1";
 const OWNER_EMAIL = "msallikutti@gmail.com";
+
+const PROTECTED_DEVELOPER_EMAILS = new Set([
+  "moyanamoses006@icloud.com",
+  "msallikutti@gmail.com",
+]);
+
+const PROTECTED_DEVELOPER_NAMES = new Set([
+  "moses moyana",
+  "azam malik",
+]);
+
+function isProtectedDeveloper(
+  user: { name?: string | null; email?: string | null },
+) {
+  const email = String(user.email || "").trim().toLowerCase();
+  const name = String(user.name || "").trim().toLowerCase();
+
+  return (
+    PROTECTED_DEVELOPER_EMAILS.has(email) ||
+    PROTECTED_DEVELOPER_NAMES.has(name)
+  );
+}
 const SNAPSHOT_RETENTION = 20;
 
 const CRITICAL_TABLES = [
@@ -633,6 +655,7 @@ export async function GET(req: Request) {
 
   const userRows = users.map((user) => ({
     ...user,
+    protected_developer: isProtectedDeveloper(user),
     workspace_access_parsed: parseWorkspaceAccess(user.workspace_access),
     access_preview: {
       modules: modulesForMember(user),
@@ -919,6 +942,15 @@ export async function PATCH(req: Request) {
 
     if (!existing)
       return Response.json({ error: "Hub user not found." }, { status: 404 });
+
+    if (!active && isProtectedDeveloper(existing))
+      return Response.json(
+        {
+          error:
+            "This is a protected developer account and cannot be disabled from the Hub.",
+        },
+        { status: 403 },
+      );
 
     await env.DB.prepare(
       "UPDATE team_members SET active=? WHERE lower(email)=?",

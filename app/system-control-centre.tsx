@@ -23,6 +23,7 @@ type UserRow = {
   access_scope: string;
   workspace_access_parsed: string[];
   invite_status: string;
+  protected_developer?: boolean;
   access_preview: {
     modules: string[];
     workspaces: string[];
@@ -445,7 +446,7 @@ export default function SystemControlCentre({
               <h3>User access & emergency revoke</h3>
               <p>
                 Disable lost-device/resigned-user access immediately. Disabling also
-                removes that user&apos;s push subscriptions.
+                removes that user&apos;s push subscriptions. Moses Moyana, Azam Malik and the protected developer email account cannot be disabled.
               </p>
             </div>
           </div>
@@ -481,7 +482,14 @@ export default function SystemControlCentre({
                       </span>
                     </td>
                     <td>
-                      {user.active ? (
+                      {user.protected_developer ? (
+                        <span
+                          className="sysTag good"
+                          title="Permanent developer account — cannot be disabled from the Hub"
+                        >
+                          🔒 Protected developer
+                        </span>
+                      ) : user.active ? (
                         <button
                           className="danger"
                           disabled={working === user.email}

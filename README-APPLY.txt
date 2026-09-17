@@ -1,45 +1,38 @@
 POWERBUILD / MALIKS GROUP HUB
-SYSTEM CONTROL CENTRE SNAPSHOT FIX V3
+SYSTEM CONTROL CENTRE — PROTECTED DEVELOPERS V4
 
-REPLACE ONLY:
+REPLACE:
   app/api/system-control-centre/route.ts
+  app/system-control-centre.tsx
 
-FIX
----
-Create Snapshot was failing with:
+PERMANENTLY PROTECTED ACCOUNTS
+------------------------------
+These identities cannot be disabled from User Access:
+- Moses Moyana
+- Azam Malik
+- msallikutti@gmail.com
 
-  D1_ERROR: access to _cf_KV.key is prohibited: SQLITE_AUTH
+Moses is also protected by the known developer email:
+- moyanamoses006@icloud.com
 
-CAUSE
------
-_cf_KV is an internal Cloudflare D1 table.
-The snapshot export must never try to read provider-internal tables.
+HOW IT WORKS
+------------
+Protection is enforced in TWO places:
 
-CHANGES
--------
-The snapshot exporter now excludes:
-- _cf_*
-- cf_*
-- _d1_*
-- d1_*
-- sqlite_*
-- system_* tables
+1. UI
+   The Disable Access button is removed and replaced with:
+   🔒 Protected developer
 
-It also retains the existing exclusions:
-- d1_migrations
-- push_vapid_config
-- push_subscriptions
-- notifications
-- promotion_planning_reads
+2. API / SERVER
+   Even if someone manually calls the API, the Hub refuses to disable one
+   of the protected developer identities.
 
-A second defensive check in the export loop prevents future Cloudflare/D1
-internal tables from being read even if they appear in sqlite_master.
+IMPORTANT
+---------
+Protection is ONLY for these three identities.
 
-NO MIGRATION.
-NO SECRET CHANGES.
+Any other user added now or in future can still be disabled/re-enabled normally,
+even if they have a powerful role.
 
-After deployment:
-1. Open System Control Centre.
-2. Click Create Snapshot again.
-3. Backup should change from Missing to Protected.
-4. Open Backups and download the generated JSON once to confirm it is usable.
+No database migration.
+No secret changes.
