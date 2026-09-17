@@ -34,6 +34,9 @@ const independentCloudflareConfig = {
       bucket_name: "maliks-group-hub-files",
     },
   ],
+  triggers: {
+    crons: ["0 * * * *"],
+  },
   access: {
     dev: {
       aud: "maliks-group-hub-local",

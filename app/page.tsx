@@ -8,6 +8,7 @@ import PwaInstallButton from "./pwa-install-button";
 import Catalogue from "./catalogue";
 import StoreControls from "./store-controls";
 import EmployeeRecords from "./employee-records";
+import StoreSpecials from "./store-specials";
 type Status = "Not started" | "In progress" | "Blocked" | "Returned" | "Complete";
 type QuickWorkflowKind = "audit" | "incident" | "capex" | "stock";
 type Task = {
@@ -89,6 +90,7 @@ const nav = [
   "Executive Overview",
   "My Work",
   "Store Operations",
+  "Store Specials",
   "Store Audits",
   "Daily Checklists",
   "Store Ranking",
@@ -151,6 +153,15 @@ function SidebarIcon({ name }: { name: string }) {
           <path d="M5 9v10h14V9" />
           <path d="M9 19v-5h6v5" />
           <path d="M4 9c.3 1.4 1.1 2.1 2.2 2.1S8 10.4 8 9c.3 1.4 1.1 2.1 2.2 2.1S12 10.4 12 9c.3 1.4 1.1 2.1 2.2 2.1S16 10.4 16 9c.3 1.4 1.1 2.1 2.2 2.1S20 10.4 20 9" />
+        </svg>
+      );
+    case "Store Specials":
+      return (
+        <svg {...common}>
+          <path d="M4 11v4l10-3V6L4 9v2Z" />
+          <path d="M14 8.2c2.8.7 4.4 2.2 5 4.3-1.5 2.1-3.2 3.3-5 3.7" />
+          <path d="M6.5 15.2 8 20h3l-1.8-5.8" />
+          <path d="M18.5 6.5 20 5M19.5 9h2M18.5 11.5l1.5 1.5" />
         </svg>
       );
     case "Store Audits":
@@ -678,9 +689,16 @@ export default function Home() {
         ? nav
         : availableNav;
   useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("view");
     const saved = window.localStorage.getItem("powerbuild-active-view");
-    if (!saved || !nav.includes(saved)) return;
-    const timer = window.setTimeout(() => setActive(saved), 0);
+    const target =
+      requested && nav.includes(requested)
+        ? requested
+        : saved && nav.includes(saved)
+          ? saved
+          : "";
+    if (!target) return;
+    const timer = window.setTimeout(() => setActive(target), 0);
     return () => window.clearTimeout(timer);
   }, []);
   useEffect(() => {
@@ -1130,6 +1148,15 @@ export default function Home() {
       await loadNotifications();
       return;
     }
+    if (
+      item.notification_type === "StoreSpecialUpcoming" ||
+      item.notification_type === "StoreSpecialStarted"
+    ) {
+      setActive("Store Specials");
+      setSearch("");
+      await loadNotifications();
+      return;
+    }
     const task = tasks.find((t) => t.id === item.task_id);
     if (task) {
       setReturnWorkspaceAfterTask("");
@@ -1411,6 +1438,7 @@ export default function Home() {
   const unread = notifications.filter((n) => !n.read_at).length;
   const isStoreControlView = ["Store Audits", "Daily Checklists", "Store Ranking"].includes(active);
   const isEmployeeRecordsView = active === "Employee Records";
+  const isStoreSpecialsView = active === "Store Specials";
   if (accessDenied)
     return (
       <main className="hubAccessGate">
@@ -1566,7 +1594,7 @@ export default function Home() {
             </p>
           </div>
           <div className="actions">
-            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && (
+            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isStoreSpecialsView && (
               <label>
                 ⌕
                 <input
@@ -1598,7 +1626,7 @@ export default function Home() {
               </button>
             )}
             <PwaInstallButton />
-            {!readOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && (
+            {!readOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isStoreSpecialsView && (
               <button className="primary" onClick={openComposer}>
                 ＋ Add task
               </button>
@@ -1616,6 +1644,8 @@ export default function Home() {
           />
         ) : isEmployeeRecordsView ? (
           <EmployeeRecords currentUser={currentUser} />
+        ) : isStoreSpecialsView ? (
+          <StoreSpecials currentUser={currentUser} />
         ) : active === "Our Catalogue" ? (
           <Catalogue currentUserEmail={currentUser.email} />
         ) : active === "SOP & Manuals" ? (
@@ -2508,7 +2538,7 @@ export default function Home() {
               <span>
                 <h2>My Hub Inbox</h2>
                 <p>
-                  Tasks, approvals, employee attendance and workflow alerts for {currentUser.name || "you"}
+                  Tasks, approvals, employee attendance, store specials and workflow alerts for {currentUser.name || "you"}
                 </p>
               </span>
               <div>
@@ -2534,17 +2564,25 @@ export default function Home() {
                     <small>
                       {item.notification_type === "EmployeeAttendance"
                         ? `Employee Records · ${new Date(item.created_at).toLocaleString()}`
-                        : `${item.project || "Task"} · Due ${item.due || "not set"} · ${new Date(item.created_at).toLocaleString()}`}
+                        : item.notification_type === "StoreSpecialUpcoming" || item.notification_type === "StoreSpecialStarted"
+                          ? `Store Specials · ${new Date(item.created_at).toLocaleString()}`
+                          : `${item.project || "Task"} · Due ${item.due || "not set"} · ${new Date(item.created_at).toLocaleString()}`}
                     </small>
                   </span>
-                  <em>{item.notification_type === "EmployeeAttendance" ? "View employee records →" : "Open task →"}</em>
+                  <em>
+                    {item.notification_type === "EmployeeAttendance"
+                      ? "View employee records →"
+                      : item.notification_type === "StoreSpecialUpcoming" || item.notification_type === "StoreSpecialStarted"
+                        ? "View store special →"
+                        : "Open task →"}
+                  </em>
                 </button>
               ))}
               {!notifications.length && (
                 <div className="moduleEmpty">
                   <i>◇</i>
                   <b>Your inbox is clear</b>
-                  <p>New tasks, approvals and returned-to-work alerts will appear here.</p>
+                  <p>New tasks, approvals, attendance and store-special alerts will appear here.</p>
                 </div>
               )}
             </div>

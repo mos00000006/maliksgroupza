@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { getAuthenticatedUser } from "../../auth";
 import { canAccessWorkspace, getHubMember } from "../access";
 import { initTeamTables } from "../team/shared";
+import { syncStoreSpecialLifecycleNotifications } from "../store-specials/shared";
 
 async function currentEmail() {
   const user = await getAuthenticatedUser();
@@ -10,6 +11,7 @@ async function currentEmail() {
 
 export async function GET() {
   await initTeamTables();
+  await syncStoreSpecialLifecycleNotifications();
   const email = await currentEmail(),
     member = await getHubMember();
   if (!email || !member)

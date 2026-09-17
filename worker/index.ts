@@ -2,6 +2,7 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { syncStoreSpecialLifecycleNotifications } from "../app/api/store-specials/shared";
 
 interface Env {
   ASSETS: Fetcher;
@@ -256,6 +257,10 @@ const worker = {
     }
 
     return secure(await handler.fetch(request, env, ctx));
+  },
+
+  async scheduled(_controller: unknown, _env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(syncStoreSpecialLifecycleNotifications());
   },
 };
 
