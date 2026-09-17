@@ -1,29 +1,26 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS CREATION FIX V2
+STORE SPECIALS PAYLOAD TOO LARGE FIX V3
 
 REPLACE ONLY:
-  app/api/store-specials/shared.ts
-  app/api/store-specials/route.ts
   app/store-specials.tsx
 
 WHAT THIS FIXES
 ---------------
-1. Store Specials no longer relies on INSERT ... RETURNING to obtain the new D1 row.
-   It now uses the D1 insert result / last_row_id and reads the created row back safely.
+The "Payload Too Large" error when creating a Store Special with large phone photos.
 
-2. Notification/push problems can no longer make a successfully saved promotion
-   appear as "Special could not be created".
+New behaviour:
+- Promotion images are resized/compressed in the browser BEFORE upload.
+- Maximum long edge: 2200px.
+- Large images are converted to high-quality JPEG at 84% quality.
+- Already-small PNG files can remain PNG.
+- The total prepared image batch is kept below 8 MB.
+- Up to 12 images can be selected at once.
+- The form shows when pictures are being prepared.
+- It also shows the final prepared upload size.
+- Create & notify stores is disabled until image optimization finishes.
 
-3. The creation order is now:
-   - Save promotion record
-   - Upload promotion pictures to R2
-   - Schedule/send notifications
-   Notification failure is logged, but the promotion remains saved.
+The slideshow still uses the uploaded high-resolution images and changes every 5 seconds.
 
-4. Upcoming and start-date notification functions are non-fatal and retryable.
-
-5. If another backend problem occurs, the Store Specials screen now displays the
-   actual backend error instead of only the generic "Special could not be created."
-
-NO NEW SECRET.
-NO MANUAL D1 MIGRATION.
+No backend/API file needs replacing.
+No D1 migration.
+No GitHub secret.
