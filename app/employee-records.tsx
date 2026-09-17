@@ -329,6 +329,9 @@ button.historyItem:hover{background:#f6f9fc}
 .attendanceOverview{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;padding:12px 0 2px}.attendanceOverview article{border:1px solid #d9e3ec;border-radius:12px;background:#fff;padding:11px 12px}.attendanceOverview span,.attendanceOverview b,.attendanceOverview small{display:block}.attendanceOverview span{color:#7e8d9d;font-size:6px;font-weight:900;text-transform:uppercase}.attendanceOverview b{margin-top:5px;color:#213a54;font-size:18px}.attendanceOverview small{margin-top:4px;color:#8e9aa7;font-size:6px}.monthHistory{overflow-x:auto}.monthHistoryHead,.monthHistoryRow{min-width:650px;display:grid;grid-template-columns:1.1fr .8fr .75fr .75fr .85fr;gap:8px;align-items:center;padding:8px 13px}.monthHistoryHead{background:#f7f9fb;color:#7f8b99;font-size:6px;font-weight:900;text-transform:uppercase}.monthHistoryRow{border-top:1px solid #edf1f5;color:#4c6278;font-size:8px}.quickRecordActions{display:flex;gap:6px;flex-wrap:wrap}.quickRecordActions button{min-height:32px;border:1px solid #d5dfe8;border-radius:8px;background:#fff;padding:0 9px;color:#35506c;font:inherit;font-size:7px;font-weight:850;cursor:pointer}.quickRecordActions button:hover{background:#f5f8fb}.leaveStatus{display:inline-block;border-radius:999px;padding:5px 7px;font-size:6px;font-weight:900}.leaveStatus.requested{background:#fff1d4;color:#94600d}.leaveStatus.approved{background:#e5f6ee;color:#207a55}.leaveStatus.declined{background:#ffe8eb;color:#aa3946}.leaveStatus.cancelled{background:#eef2f6;color:#6e7d8e}.propertyType{display:inline-block;border-radius:999px;padding:5px 7px;background:#e8f0f8;color:#2d587b;font-size:6px;font-weight:900}.statusActions{display:flex;gap:5px;flex-wrap:wrap}.statusActions button{border:1px solid #d8e1e9;border-radius:7px;background:#fff;padding:5px 7px;color:#496077;font:inherit;font-size:6px;font-weight:850;cursor:pointer}.statusActions .approve{border-color:#bfe3d1;color:#247653}.statusActions .decline{border-color:#efc6cb;color:#aa3d49}.profileQuickGrid{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}.profileQuickGrid .historySection{min-width:0}.profileAttendanceSummary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;padding:12px 13px}.profileAttendanceSummary article{border:1px solid #e0e7ee;border-radius:10px;background:#fbfcfd;padding:10px}.profileAttendanceSummary span,.profileAttendanceSummary b,.profileAttendanceSummary small{display:block}.profileAttendanceSummary span{font-size:6px;color:#8190a0;font-weight:900;text-transform:uppercase}.profileAttendanceSummary b{margin-top:5px;font-size:17px;color:#243d56}.profileAttendanceSummary small{margin-top:3px;font-size:6px;color:#909ca9}.profileAssetItem{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}.profileAssetItem .statusActions{justify-content:flex-end}.hrRegister.propertyRegister .registerHead,.hrRegister.propertyRegister .registerRow{grid-template-columns:1.05fr .9fr 1.25fr .8fr .75fr .8fr}.hrRegister.leaveRegister .registerHead,.hrRegister.leaveRegister .registerRow{grid-template-columns:1.05fr .85fr 1.2fr .8fr .75fr 1fr}.attendanceRegister.allAttendance .registerHead,.attendanceRegister.allAttendance .registerRow{grid-template-columns:1.05fr .7fr .7fr 1.2fr .75fr}.recordForm .contextHint{grid-column:1/-1;border:1px solid #dbe5ed;border-radius:9px;background:#f7fafc;padding:9px 10px;color:#64778a;font-size:7px;line-height:1.5}.profileModal .historySection .quickRecordActions{justify-content:flex-end}
 @media(max-width:900px){.attendanceOverview,.profileAttendanceSummary{grid-template-columns:repeat(3,1fr)}.profileQuickGrid{grid-template-columns:1fr}}@media(max-width:620px){.attendanceOverview,.profileAttendanceSummary{grid-template-columns:1fr 1fr}.quickRecordActions{width:100%}.quickRecordActions button{flex:1}.profileAssetItem{grid-template-columns:1fr}}
 
+.panelHeaderActions{display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap}.panelHeaderActions button,.panelAddBtn{min-height:34px;border:1px solid #d2dce6;border-radius:8px;background:#fff;padding:0 10px;color:#35516d;font:inherit;font-size:7px;font-weight:900;cursor:pointer;white-space:nowrap}.panelHeaderActions button:hover,.panelAddBtn:hover{background:#f1f6fb;border-color:#bccbd9}.panelAddBtn{border-color:#d8af1b;background:#f6ca2f;color:#172438}.panelAddBtn:hover{background:#f2c21b;border-color:#c99f0c}.recordPickerOverlay{z-index:64}.recordPickerModal{width:min(720px,calc(100vw - 24px));max-height:min(720px,calc(100dvh - 24px))}.recordPickerBody{min-height:0;overflow-y:auto;padding:14px}.recordPickerSearch{height:42px;border:1px solid #d6e0e9;border-radius:10px;background:#f8fafc;display:flex;align-items:center;padding:0 11px;color:#7b8998}.recordPickerSearch input{flex:1;min-width:0;border:0;outline:0;background:transparent;padding:0 8px;color:#263e56;font:inherit;font-size:9px}.recordPickerList{display:grid;gap:7px;margin-top:10px}.recordPickerList>button{width:100%;display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid #dfe6ed;border-radius:11px;background:#fff;padding:9px 10px;text-align:left;cursor:pointer}.recordPickerList>button:hover{background:#f7fafc;border-color:#c9d5e0}.recordPickerList>button span{min-width:0}.recordPickerList>button b,.recordPickerList>button small{display:block}.recordPickerList>button b{color:#243c55;font-size:9px}.recordPickerList>button small{margin-top:3px;overflow:hidden;color:#8996a5;font-size:7px;text-overflow:ellipsis;white-space:nowrap}.recordPickerList>button em{color:#315a7e;font-size:7px;font-style:normal;font-weight:900;white-space:nowrap}@media(max-width:760px){.panelHeader{align-items:flex-start;flex-direction:column}.panelHeaderActions{width:100%;display:grid;grid-template-columns:1fr 1fr}.panelHeaderActions button,.panelAddBtn{width:100%;min-height:40px}.recordPickerModal{width:calc(100vw - 10px);max-height:calc(100dvh - 10px)}.recordPickerList>button{grid-template-columns:36px minmax(0,1fr);min-height:62px}.recordPickerList>button em{grid-column:2;margin-top:-5px}.recordPickerSearch{height:46px}}
+
+
 `;
 
 export default function EmployeeRecords({ currentUser }: { currentUser: CurrentHubUser }) {
@@ -355,6 +358,8 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
   const [hrForm, setHrForm] = useState({
     recordType: "Leave", title: "", recordDate: new Date().toISOString().slice(0, 10), endDate: "", status: "", reference: "", details: "",
   });
+  const [recordPicker, setRecordPicker] = useState<{ recordType: HrRecord["record_type"]; heading: string } | null>(null);
+  const [recordPickerSearch, setRecordPickerSearch] = useState("");
 
   const flash = (text: string) => {
     setMessage(text);
@@ -591,6 +596,29 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
     setHrForm({ recordType: type, title, recordDate: data?.today || new Date().toISOString().slice(0, 10), endDate: "", status, reference: "", details: "" });
     setHrModal(employee);
   };
+  const openRecordPicker = (recordType: HrRecord["record_type"], heading: string) => {
+    if (!data?.permissions.canManageHrRecords) return;
+    setRecordPickerSearch("");
+    setRecordPicker({ recordType, heading });
+  };
+
+  const chooseEmployeeForRecord = (employee: Employee) => {
+    if (!recordPicker) return;
+    const recordType = recordPicker.recordType;
+    setRecordPicker(null);
+    setRecordPickerSearch("");
+    openHrRecord(employee, recordType);
+  };
+
+  const pickerEmployees = (data?.employees || []).filter((employee) => {
+    const needle = recordPickerSearch.trim().toLowerCase();
+    if (!needle) return true;
+    return [employeeName(employee), employee.employee_number, employee.job_title, employee.department]
+      .join(" ")
+      .toLowerCase()
+      .includes(needle);
+  });
+
   const saveHrRecord = async () => {
     if (!hrModal || saving) return;
     setSaving(true);
@@ -723,7 +751,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
 
       {activeTab === "Leave Requests" && (
         <div className="panel hrRegister leaveRegister">
-          <div className="panelHeader"><div><small className="sectionEyebrow">LEAVE CONTROL</small><h3>Leave Requests</h3><p>Track requested, approved, declined and completed employee leave.</p></div></div>
+          <div className="panelHeader"><div><small className="sectionEyebrow">LEAVE CONTROL</small><h3>Leave Requests</h3><p>Track requested, approved, declined and completed employee leave.</p></div>{data.permissions.canManageHrRecords && <button className="panelAddBtn" onClick={() => openRecordPicker("Leave Request", "Choose employee for leave request")}>＋ New leave request</button>}</div>
           <div className="tableWrap">
             <div className="registerHead"><span>Employee</span><span>Leave type</span><span>Period / Reason</span><span>Requested</span><span>Status</span><span>Action</span></div>
             {leaveRequests.map((record) => {
@@ -745,7 +773,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
 
       {activeTab === "Company Property" && (
         <div className="panel hrRegister propertyRegister">
-          <div className="panelHeader"><div><small className="sectionEyebrow">COMPANY PROPERTY</small><h3>Uniforms, Vehicles, Phones & Assets</h3><p>Keep a permanent issue/return trail for company property allocated to employees.</p></div></div>
+          <div className="panelHeader"><div><small className="sectionEyebrow">COMPANY PROPERTY</small><h3>Uniforms, Vehicles, Phones & Assets</h3><p>Keep a permanent issue/return trail for company property allocated to employees.</p></div>{data.permissions.canManageHrRecords && <div className="panelHeaderActions"><button onClick={() => openRecordPicker("Uniform / PPE", "Choose employee for Uniform / PPE")}>＋ Uniform / PPE</button><button onClick={() => openRecordPicker("Company Vehicle", "Choose employee for Vehicle allocation")}>＋ Vehicle</button><button onClick={() => openRecordPicker("Company Phone / SIM", "Choose employee for Phone / SIM")}>＋ Phone / SIM</button><button onClick={() => openRecordPicker("Company Asset", "Choose employee for Company Asset")}>＋ Other Asset</button></div>}</div>
           <div className="tableWrap">
             <div className="registerHead"><span>Employee</span><span>Type</span><span>Item / Identifier</span><span>Issued</span><span>Status</span><span>Action</span></div>
             {companyProperty.map((record) => {
@@ -767,7 +795,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
 
       {activeTab === "HR Records" && (
         <div className="panel hrRegister">
-          <div className="panelHeader"><div><small className="sectionEyebrow">EMPLOYEE FILE HISTORY</small><h3>HR Records</h3><p>Training/certifications, employment changes and general HR notes.</p></div></div>
+          <div className="panelHeader"><div><small className="sectionEyebrow">EMPLOYEE FILE HISTORY</small><h3>HR Records</h3><p>Training/certifications, employment changes and general HR notes.</p></div>{data.permissions.canManageHrRecords && <button className="panelAddBtn" onClick={() => openRecordPicker("HR Note", "Choose employee for HR record")}>＋ Add HR record</button>}</div>
           <div className="tableWrap">
             <div className="registerHead"><span>Employee</span><span>Type</span><span>Record</span><span>Date</span><span>Status</span><span>Reference</span></div>
             {filteredHrRecords.map((record) => {
@@ -783,6 +811,30 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
             })}
             {!filteredHrRecords.length && <div className="employeeEmpty">No HR records match this view.</div>}
           </div>
+        </div>
+      )}
+
+      {recordPicker && (
+        <div className="overlay employeeOverlay recordPickerOverlay" onMouseDown={() => setRecordPicker(null)}>
+          <section className="employeeModal recordPickerModal" onMouseDown={(e) => e.stopPropagation()}>
+            <header>
+              <div><small className="sectionEyebrow">SELECT EMPLOYEE</small><h2>{recordPicker.heading}</h2><p>Select the employee first, then complete the record details.</p></div>
+              <button className="closeBtn" onClick={() => setRecordPicker(null)}>×</button>
+            </header>
+            <div className="recordPickerBody">
+              <label className="recordPickerSearch">⌕<input autoFocus value={recordPickerSearch} onChange={(e) => setRecordPickerSearch(e.target.value)} placeholder="Search name, employee number, job title or department…" /></label>
+              <div className="recordPickerList">
+                {pickerEmployees.map((employee) => (
+                  <button key={employee.id} onClick={() => chooseEmployeeForRecord(employee)}>
+                    <i className="avatar">{initials(employee)}</i>
+                    <span><b>{employeeName(employee)}</b><small>{employee.employee_number || "No employee no."} · {employee.job_title || "No job title"} · {employee.department || "No department"}</small></span>
+                    <em>Choose →</em>
+                  </button>
+                ))}
+                {!pickerEmployees.length && <div className="employeeEmpty">No employees match your search.</div>}
+              </div>
+            </div>
+          </section>
         </div>
       )}
 

@@ -1246,6 +1246,7 @@ export default function Home() {
   return (
     <main className="shell">
       <aside className={mobileNavOpen ? "mobileOpen" : ""}>
+        <button className="mobileSidebarClose" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}>×</button>
         <div className="brand">
           <img
             className="brandLogoMark"
@@ -1489,7 +1490,7 @@ export default function Home() {
           />
         )}
       </section>
-      {!hrOnlyAccess && (
+      {!hrOnlyAccess && !open && !quickActionsOpen && !quickWorkflow && !photoTaskPickerOpen && (
         <button
           className="mobileQuickActionsFab"
           onClick={() => setQuickActionsOpen(true)}
