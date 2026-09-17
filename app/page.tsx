@@ -11,6 +11,8 @@ import EmployeeRecords from "./employee-records";
 import StoreSpecials from "./store-specials";
 import SystemControlCentre from "./system-control-centre";
 import SystemClientMonitor from "./system-client-monitor";
+import RolloutOnboardingCentre from "./rollout-onboarding-centre";
+import OnboardingGate from "./onboarding-gate";
 type Status = "Not started" | "In progress" | "Blocked" | "Returned" | "Complete";
 type QuickWorkflowKind = "audit" | "incident" | "capex" | "stock";
 type Task = {
@@ -106,6 +108,7 @@ const nav = [
   "Reports",
   "Our Catalogue",
   "System Control Centre",
+  "Rollout & Onboarding",
 ];
 
 function SidebarIcon({ name }: { name: string }) {
@@ -287,6 +290,16 @@ function SidebarIcon({ name }: { name: string }) {
           <circle cx="12" cy="12" r="6.5" />
         </svg>
       );
+    case "Rollout & Onboarding":
+      return (
+        <svg {...common}>
+          <circle cx="9" cy="8" r="3" />
+          <path d="M3.8 19c.6-3.4 2.4-5.2 5.2-5.2 1.4 0 2.5.4 3.4 1.2" />
+          <path d="m14 16 2 2 4-5" />
+          <path d="M16.5 4.5h4v4" />
+          <path d="m20.5 4.5-5 5" />
+        </svg>
+      );
     default:
       return (
         <svg {...common}>
@@ -319,7 +332,7 @@ const navigationForUser = (user: CurrentHubUser) => {
       fullCompany ||
       ["Regional Manager", "Store Manager", "Department Manager"].includes(user.role || "") ||
       /(^|\b)(hr|human resources|people)(\b|$)/i.test(user.department || "");
-    if (item === "System Control Centre") return accessAdmin;
+    if (item === "System Control Centre" || item === "Rollout & Onboarding") return accessAdmin;
     if (item === "Employee Records") return employeeRecordsAccess;
     if (fullCompany) return true;
     if (item === "Wholesale Division") return wholesale;
@@ -602,6 +615,28 @@ export default function Home() {
     }
   };
   useEffect(() => {
+    const enableFromOnboarding = () => {
+      void enableTaskAlerts(true).finally(() => {
+        window.dispatchEvent(
+          new Event("powerbuild-notifications-updated"),
+        );
+      });
+    };
+
+    window.addEventListener(
+      "powerbuild-enable-notifications",
+      enableFromOnboarding,
+    );
+
+    return () =>
+      window.removeEventListener(
+        "powerbuild-enable-notifications",
+        enableFromOnboarding,
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     const onServiceWorkerMessage = (event: MessageEvent) => {
       if (!taskAlertsAllowed.current) return;
       if (event.data?.type === "hub-push-notification") {
@@ -701,7 +736,8 @@ export default function Home() {
       : fullCompanyNavigation
         ? nav.filter(
             (item) =>
-              item !== "System Control Centre" || canManageTeam,
+              !["System Control Centre", "Rollout & Onboarding"].includes(item) ||
+              canManageTeam,
           )
         : availableNav;
   useEffect(() => {
@@ -808,6 +844,7 @@ export default function Home() {
     Reports: "Group-wide task and completion reporting.",
     "Our Catalogue": "PowerBuild group product catalogue, codes, pictures and descriptions.",
     "System Control Centre": "Owner-only system health, access control, audit activity, errors, backups and launch readiness.",
+    "Rollout & Onboarding": "Track installation, notification setup, access confirmation and onboarding completion for every Hub user.",
   };
   const add = async () => {
     if (!draft.title.trim() || mainTaskSaving) return;
@@ -1184,6 +1221,14 @@ export default function Home() {
       await loadNotifications();
       return;
     }
+    if (item.notification_type === "OnboardingReminder") {
+      window.setTimeout(
+        () => window.dispatchEvent(new Event("open-onboarding-setup")),
+        0,
+      );
+      await loadNotifications();
+      return;
+    }
     const task = tasks.find((t) => t.id === item.task_id);
     if (task) {
       setReturnWorkspaceAfterTask("");
@@ -1467,6 +1512,7 @@ export default function Home() {
   const isEmployeeRecordsView = active === "Employee Records";
   const isStoreSpecialsView = active === "Store Specials";
   const isSystemControlView = active === "System Control Centre";
+  const isRolloutOnboardingView = active === "Rollout & Onboarding";
   if (accessDenied)
     return (
       <main className="hubAccessGate">
@@ -1485,6 +1531,7 @@ export default function Home() {
   return (
     <main className="shell">
       <SystemClientMonitor />
+      <OnboardingGate currentUser={currentUser} />
       <aside className={mobileNavOpen ? "mobileOpen" : ""}>
         <button className="mobileSidebarClose" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}>×</button>
         <div className="brand">
@@ -1623,7 +1670,7 @@ export default function Home() {
             </p>
           </div>
           <div className="actions">
-            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isStoreSpecialsView && !isSystemControlView && (
+            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isStoreSpecialsView && !isSystemControlView && !isRolloutOnboardingView && (
               <label>
                 ⌕
                 <input
@@ -1655,7 +1702,7 @@ export default function Home() {
               </button>
             )}
             <PwaInstallButton />
-            {!readOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isStoreSpecialsView && !isSystemControlView && (
+            {!readOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isStoreSpecialsView && !isSystemControlView && !isRolloutOnboardingView && (
               <button className="primary" onClick={openComposer}>
                 ＋ Add task
               </button>
@@ -1677,6 +1724,8 @@ export default function Home() {
           <StoreSpecials currentUser={currentUser} />
         ) : isSystemControlView ? (
           <SystemControlCentre currentUser={currentUser} />
+        ) : isRolloutOnboardingView ? (
+          <RolloutOnboardingCentre currentUser={currentUser} />
         ) : active === "Our Catalogue" ? (
           <Catalogue currentUserEmail={currentUser.email} />
         ) : active === "SOP & Manuals" ? (
