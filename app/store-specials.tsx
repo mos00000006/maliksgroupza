@@ -115,20 +115,17 @@ function validatePromotionImages(selected: File[]) {
 function PromotionCarousel({ images, title }: { images: SpecialImage[]; title: string }) {
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState<"next" | "prev">("next");
-  const [animating, setAnimating] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchCurrentX, setTouchCurrentX] = useState<number | null>(null);
 
   const active = images[index] || images[0];
 
   const moveTo = (nextIndex: number, nextDirection: "next" | "prev") => {
-    if (images.length <= 1 || animating || nextIndex === index) return;
+    if (images.length <= 1 || nextIndex === index) return;
     setDirection(nextDirection);
-    setAnimating(true);
-    window.setTimeout(() => {
-      setIndex(nextIndex);
-      window.setTimeout(() => setAnimating(false), 30);
-    }, 180);
+    // Change the page immediately. The new image then receives a short
+    // flip-in animation instead of holding the old page on screen.
+    setIndex(nextIndex);
   };
 
   const previous = () =>
@@ -179,7 +176,10 @@ function PromotionCarousel({ images, title }: { images: SpecialImage[]; title: s
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      <div className={`specialFlipStage ${animating ? `flipping ${direction}` : ""}`}>
+      <div
+        key={`${active.id}-${index}`}
+        className={`specialFlipStage ${direction === "next" ? "flipInNext" : "flipInPrev"}`}
+      >
         <img src={active.url} alt={`${title} promotion ${index + 1}`} />
       </div>
 
@@ -515,10 +515,12 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
         .specialCard{overflow:hidden;background:#fff;border:1px solid #dbe4ec;border-radius:15px;box-shadow:0 7px 24px #1724380d}
         .specialCarousel,.specialNoImage{position:relative;background:#e8edf3;overflow:hidden}
         .specialCarousel{display:block;perspective:1400px;touch-action:pan-y;background:#fff}
-        .specialFlipStage{width:100%;height:auto;min-height:0;display:block;transform-style:preserve-3d;transform-origin:center;transition:transform .34s ease,opacity .2s ease;background:#fff}
+        .specialFlipStage{width:100%;height:auto;min-height:0;display:block;transform-style:preserve-3d;transform-origin:center;background:#fff;will-change:transform,opacity}
         .specialFlipStage img{width:100%;height:auto;max-height:none;object-fit:contain;display:block;background:#fff}
-        .specialFlipStage.flipping.next{transform:rotateY(-12deg) translateX(-2%);opacity:.45}
-        .specialFlipStage.flipping.prev{transform:rotateY(12deg) translateX(2%);opacity:.45}
+        .specialFlipStage.flipInNext{animation:specialFlipNext .14s ease-out both}
+        .specialFlipStage.flipInPrev{animation:specialFlipPrev .14s ease-out both}
+        @keyframes specialFlipNext{from{transform:rotateY(-7deg) translateX(1%);opacity:.78}to{transform:rotateY(0) translateX(0);opacity:1}}
+        @keyframes specialFlipPrev{from{transform:rotateY(7deg) translateX(-1%);opacity:.78}to{transform:rotateY(0) translateX(0);opacity:1}}
         .specialNoImage{display:grid;place-items:center;text-align:center;color:#6f8092}.specialNoImage span,.specialNoImage small{display:block}
         .specialCarouselPrev,.specialCarouselNext{position:absolute;top:min(50%,320px);transform:translateY(-50%);width:44px;height:58px;border:1px solid #ffffff55;border-radius:12px;background:#172438dd;color:#fff;font-size:29px;cursor:pointer;box-shadow:0 8px 22px #17243833;z-index:4}.specialCarouselPrev{left:14px}.specialCarouselNext{right:14px}.specialCarouselPrev:hover,.specialCarouselNext:hover{background:#203a58}
         .specialDots{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:4;background:#17243899;border-radius:999px;padding:5px 8px}.specialDots button{width:7px;height:7px;padding:0;border:0;border-radius:999px;background:#ffffff99}.specialDots button.active{width:20px;background:#f5ca2e}
@@ -724,7 +726,7 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
                   disabled={saving}
                 />
                 <small>
-                  Upload multiple pictures/pages. Each image may be up to 25 MB. The Hub uploads pictures one at a time. The slideshow changes only when the user clicks Previous/Next on desktop or swipes on a phone.
+                  Upload multiple pictures/pages. Each image may be up to 25 MB. The Hub uploads pictures one at a time. Pictures change immediately when the user clicks Previous/Next on desktop or swipes on a phone.
                   {files.length
                     ? ` ${files.length} picture${files.length === 1 ? "" : "s"} selected.`
                     : ""}

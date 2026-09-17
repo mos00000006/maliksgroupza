@@ -1,25 +1,22 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS — ALL 20 STORES FIT ON DESKTOP V17
+STORE SPECIALS — INSTANT NEXT/PREVIOUS SLIDE V18
 
 REPLACE ONLY:
   app/store-specials.tsx
 
 FIX
 ---
-The Hub was loading all 20 stores, but a 5-column layout showed only 3 rows
-(15 stores) inside the visible area.
+Previously the viewer waited about 180ms before changing the image, so the old
+promotion page stayed visible after clicking Next/Previous.
 
-Desktop is now deliberately:
-  5 columns x 4 compact rows = 20 stores
+Now:
+- Next picture changes IMMEDIATELY on click.
+- Previous picture changes IMMEDIATELY on click.
+- The NEW picture receives a very short 0.14s flip-in effect.
+- Repeated clicks are no longer blocked by an "animating" state.
+- Mobile swipe also changes the picture immediately.
+- No automatic slideshow is reintroduced.
 
-The branch grid is 160px high with four 34px rows, so all 20 branch checkboxes
-fit inside the branch panel at once.
-
-Responsive:
-- Desktop: 5 columns x 4 rows
-- Smaller desktop: 4 columns, natural height
-- Tablet: 2 columns, natural height
-- Mobile: 1 column, natural height
-
-No branch scrollbar is used.
-No API/database/secret changes.
+No API changes.
+No database changes.
+No secret changes.
