@@ -494,9 +494,18 @@ export default function Home() {
     canManageTeam = ["Owner / Admin", "Developer / Technical Admin"].includes(
       currentUser.role || "",
     ),
+    fullCompanyNavigation =
+      canManageTeam ||
+      (currentUser.role === "Executive / EXCO" &&
+        currentUser.access_scope === "Full company"),
     readOnlyAccess =
       currentUser.role === "Read only" || currentUser.access_scope === "Read only",
-    availableNav = navigationForUser(currentUser);
+    availableNav = navigationForUser(currentUser),
+    sidebarNavigation = hrOnlyAccess
+      ? ["Employee Records"]
+      : fullCompanyNavigation
+        ? nav
+        : availableNav;
   useEffect(() => {
     const saved = window.localStorage.getItem("powerbuild-active-view");
     if (!saved || !nav.includes(saved)) return;
@@ -966,6 +975,9 @@ export default function Home() {
     await loadNotifications();
   };
   const openComposer = () => {
+    setMobileNavOpen(false);
+    setSidekickOpen(false);
+    setQuickActionsOpen(false);
     const context: Record<
       string,
       { project: string; task_type: string; task_group: string }
@@ -1298,7 +1310,7 @@ export default function Home() {
               <i>▦</i>Company Workspaces
             </button>
           )}
-          {availableNav.map((n) => {
+          {sidebarNavigation.map((n) => {
             return (
             <button
               key={n}
@@ -2411,15 +2423,24 @@ export default function Home() {
           }}
         />
       )}
-      {!hrOnlyAccess && (
-        <button
-          className="mobileAiFab"
-          onClick={() => setSidekickOpen(true)}
-          aria-label="Open AI Sidekick"
-        >
-          ✦ <span>AI</span>
-        </button>
-      )}
+      {!hrOnlyAccess &&
+        !open &&
+        !selected &&
+        !quickActionsOpen &&
+        !quickWorkflow &&
+        !photoTaskPickerOpen &&
+        !workspaceOpen &&
+        !teamOpen &&
+        !notificationsOpen &&
+        !mobileNavOpen && (
+          <button
+            className="mobileAiFab"
+            onClick={() => setSidekickOpen(true)}
+            aria-label="Open AI Sidekick"
+          >
+            ✦ <span>AI</span>
+          </button>
+        )}
       {sidekickOpen && !hrOnlyAccess && (
         <SidekickModal
           close={() => setSidekickOpen(false)}

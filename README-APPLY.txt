@@ -1,23 +1,28 @@
 POWERBUILD / MALIKS GROUP HUB
-VEHICLE + PHONE / SIM DROPDOWNS V6
+MOBILE FULL SIDEBAR + FLOATING AI FIX V7
 
-Replace only:
-  app/employee-records.tsx
+REPLACE ONLY:
+  app/page.tsx
+  app/mobile-improvements.css
 
-WHAT CHANGED
-------------
-Company Vehicle:
-- Vehicle make/model is now a dropdown.
-- Includes common South African bakkies, passenger vehicles, SUVs, vans and work vehicles.
-- "Other" is the final option.
-- Selecting Other opens a manual make/model field.
+WHAT IS FIXED
+-------------
+1. Mobile hamburger menu:
+   - Owner / Admin sees the complete sidebar.
+   - Developer / Technical Admin sees the complete sidebar.
+   - Executive / EXCO with Full Company access sees the complete sidebar.
+   - Human Resource (HR) remains restricted to Employee Records only.
+   - Restricted store users keep their normal permitted menu.
 
-Company Phone / SIM:
-- Phone/SIM item is now a dropdown.
-- Includes common Apple, Samsung, Huawei, Honor, Oppo, Xiaomi/Redmi, Vivo, Tecno,
-  Nokia/HMD, Motorola and Itel options.
-- Includes Vodacom, MTN, Telkom Mobile, Cell C, Rain and company eSIM/SIM-only options.
-- "Other" is the final option.
-- Selecting Other opens a manual item field.
+2. Entire mobile sidebar scrolls vertically as ONE surface:
+   PowerBuild logo -> Company Workspaces -> all modules -> AI Sidekick ->
+   Manage User Access -> user profile.
 
-No API, D1 migration, GitHub secret or deployment-workflow change is required.
+3. Floating AI button:
+   - disappears as soon as Add Task is opened;
+   - is hidden over task details, Quick Actions, workspaces, Team Access and Inbox;
+   - is hidden while the hamburger drawer is open;
+   - cannot cover the blue Create task button.
+
+No database migration.
+No GitHub secret changes.

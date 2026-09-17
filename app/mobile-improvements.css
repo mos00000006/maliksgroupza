@@ -705,3 +705,88 @@ aside > .user {
   aside .brand { padding-right: 42px; }
   .mobileQuickActionsFab { z-index: 38; }
 }
+
+
+/* ========================================================================
+   MOBILE FULL HUB SIDEBAR V7
+   ======================================================================== */
+@media (max-width: 720px) {
+  aside,
+  aside.mobileOpen {
+    position: fixed !important;
+    inset: 0 auto auto 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: min(350px, 92vw) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior-y: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    scrollbar-gutter: stable;
+    padding: 18px 16px calc(38px + env(safe-area-inset-bottom)) !important;
+  }
+
+  aside.mobileOpen {
+    transform: translateX(0) !important;
+  }
+
+  /* One scroll surface only — the navigation itself must not trap scrolling. */
+  aside nav {
+    display: block !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-bottom: 8px !important;
+  }
+
+  aside nav button {
+    display: flex !important;
+    width: 100% !important;
+    min-height: 46px !important;
+    margin: 2px 0 !important;
+    align-items: center !important;
+  }
+
+  aside > .brand,
+  aside > .company,
+  aside > p,
+  aside > nav,
+  aside > .aiSide,
+  aside > .inviteSide,
+  aside > .user {
+    flex: 0 0 auto !important;
+  }
+
+  aside .aiSide {
+    margin-top: 10px !important;
+    min-height: 44px !important;
+  }
+
+  aside .inviteSide {
+    margin-top: 8px !important;
+    min-height: 42px !important;
+  }
+
+  aside .user {
+    margin-top: 14px !important;
+    padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+  }
+
+  aside::-webkit-scrollbar { width: 7px; }
+  aside::-webkit-scrollbar-track { background: #122034; }
+  aside::-webkit-scrollbar-thumb {
+    background: #647a94;
+    border-radius: 999px;
+    border: 2px solid #122034;
+  }
+
+  /* Safety net: no floating AI over an open Hub modal. */
+  body:has(.overlay) .mobileAiFab {
+    display: none !important;
+  }
+}
