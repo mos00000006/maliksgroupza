@@ -257,18 +257,28 @@ export async function notifyUpcomingStoreSpecial(specialId: number) {
   await initStoreSpecialTables();
   const today = saDateString();
   const row = await env.DB.prepare(
-    `UPDATE store_specials
-     SET upcoming_notified_at=?
+    `SELECT *
+     FROM store_specials
      WHERE id=? AND active=1
        AND start_date>?
-       AND (upcoming_notified_at='' OR upcoming_notified_at IS NULL)
-     RETURNING *`,
+       AND (upcoming_notified_at='' OR upcoming_notified_at IS NULL)`,
   )
-    .bind(new Date().toISOString(), specialId, today)
+    .bind(specialId, today)
     .first<StoreSpecialRow>();
   if (!row) return false;
-  await sendToRelevantRecipients(row, "StoreSpecialUpcoming");
-  return true;
+
+  try {
+    await sendToRelevantRecipients(row, "StoreSpecialUpcoming");
+    await env.DB.prepare(
+      "UPDATE store_specials SET upcoming_notified_at=? WHERE id=? AND active=1",
+    )
+      .bind(new Date().toISOString(), specialId)
+      .run();
+    return true;
+  } catch (error) {
+    console.error("Upcoming store-special notification failed", error);
+    return false;
+  }
 }
 
 export async function syncStoreSpecialLifecycleNotifications() {
@@ -287,15 +297,18 @@ export async function syncStoreSpecialLifecycleNotifications() {
     .all<StoreSpecialRow>();
 
   for (const special of results) {
-    const claimed = await env.DB.prepare(
-      `UPDATE store_specials
-       SET started_notified_at=?
-       WHERE id=? AND active=1
-         AND (started_notified_at='' OR started_notified_at IS NULL)
-       RETURNING *`,
-    )
-      .bind(new Date().toISOString(), special.id)
-      .first<StoreSpecialRow>();
-    if (claimed) await sendToRelevantRecipients(claimed, "StoreSpecialStarted");
+    try {
+      await sendToRelevantRecipients(special, "StoreSpecialStarted");
+      await env.DB.prepare(
+        `UPDATE store_specials
+         SET started_notified_at=?
+         WHERE id=? AND active=1
+           AND (started_notified_at='' OR started_notified_at IS NULL)`,
+      )
+        .bind(new Date().toISOString(), special.id)
+        .run();
+    } catch (error) {
+      console.error(`Store-special start notification failed for ${special.id}`, error);
+    }
   }
 }

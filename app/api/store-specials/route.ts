@@ -195,39 +195,81 @@ export async function POST(req: Request) {
     return Response.json({ error: "Upload at least one promotion picture." }, { status: 400 });
 
   const now = new Date().toISOString();
-  const created = await env.DB.prepare(
-    `INSERT INTO store_specials
-      (title,description,start_date,end_date,all_branches,workspaces_json,active,created_by,created_at,updated_at,upcoming_notified_at,started_notified_at)
-     VALUES (?,?,?,?,?,?,1,?,?,?,'','')
-     RETURNING *`,
-  )
-    .bind(
-      title,
-      description,
-      startDate,
-      endDate,
-      allBranches ? 1 : 0,
-      JSON.stringify(branches),
-      user?.email || member.email,
-      now,
-      now,
-    )
-    .first<StoreSpecialRow>();
-
-  if (!created)
-    return Response.json({ error: "Special could not be created." }, { status: 500 });
 
   try {
-    await uploadImages(created.id, files);
+    const insertResult = await env.DB.prepare(
+      `INSERT INTO store_specials
+        (title,description,start_date,end_date,all_branches,workspaces_json,active,created_by,created_at,updated_at,upcoming_notified_at,started_notified_at)
+       VALUES (?,?,?,?,?,?,1,?,?,?,'','')`,
+    )
+      .bind(
+        title,
+        description,
+        startDate,
+        endDate,
+        allBranches ? 1 : 0,
+        JSON.stringify(branches),
+        user?.email || member.email,
+        now,
+        now,
+      )
+      .run();
+
+    const insertedId = Number(insertResult.meta?.last_row_id || 0);
+    const created =
+      insertedId > 0
+        ? await env.DB.prepare("SELECT * FROM store_specials WHERE id=?")
+            .bind(insertedId)
+            .first<StoreSpecialRow>()
+        : await env.DB.prepare(
+            `SELECT *
+             FROM store_specials
+             WHERE created_by=? AND created_at=? AND title=?
+             ORDER BY id DESC LIMIT 1`,
+          )
+            .bind(user?.email || member.email, now, title)
+            .first<StoreSpecialRow>();
+
+    if (!created)
+      return Response.json(
+        { error: "The promotion was inserted, but the Hub could not read it back from D1." },
+        { status: 500 },
+      );
+
+    try {
+      await uploadImages(created.id, files);
+    } catch (error) {
+      await env.DB.prepare("UPDATE store_specials SET active=0 WHERE id=?")
+        .bind(created.id)
+        .run();
+      return Response.json(
+        { error: error instanceof Error ? error.message : "Promotion pictures could not be uploaded." },
+        { status: 400 },
+      );
+    }
+
+    // Notifications are deliberately non-fatal: a promotion must never be lost
+    // because one recipient/push subscription has a problem.
+    try {
+      if (startDate > saDateString()) await notifyUpcomingStoreSpecial(created.id);
+      else await syncStoreSpecialLifecycleNotifications();
+    } catch (error) {
+      console.error("Store-special notification scheduling failed", error);
+    }
+
+    return Response.json({ special: created }, { status: 201 });
   } catch (error) {
-    await env.DB.prepare("UPDATE store_specials SET active=0 WHERE id=?").bind(created.id).run();
-    return Response.json({ error: error instanceof Error ? error.message : "Promotion pictures could not be uploaded." }, { status: 400 });
+    console.error("Store special creation failed", error);
+    const message = error instanceof Error ? error.message : String(error);
+    return Response.json(
+      {
+        error: message
+          ? `Special could not be created: ${message}`
+          : "Special could not be created because the database request failed.",
+      },
+      { status: 500 },
+    );
   }
-
-  if (startDate > saDateString()) await notifyUpcomingStoreSpecial(created.id);
-  else await syncStoreSpecialLifecycleNotifications();
-
-  return Response.json({ special: created }, { status: 201 });
 }
 
 export async function PATCH(req: Request) {
@@ -292,8 +334,12 @@ export async function PATCH(req: Request) {
   if (!updated)
     return Response.json({ error: "Special could not be updated." }, { status: 500 });
 
-  if (startDate > saDateString()) await notifyUpcomingStoreSpecial(id);
-  else await syncStoreSpecialLifecycleNotifications();
+  try {
+    if (startDate > saDateString()) await notifyUpcomingStoreSpecial(id);
+    else await syncStoreSpecialLifecycleNotifications();
+  } catch (error) {
+    console.error("Store-special update notification scheduling failed", error);
+  }
 
   return Response.json({ special: updated });
 }

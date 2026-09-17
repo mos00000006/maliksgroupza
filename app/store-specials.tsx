@@ -85,6 +85,18 @@ function branchLabel(special: StoreSpecial) {
   return `${special.workspaces.length} selected branches`;
 }
 
+async function responseMessage(response: Response, fallback: string) {
+  const text = await response.text();
+  if (!text) return fallback;
+  try {
+    const parsed = JSON.parse(text) as { error?: string };
+    return parsed.error || fallback;
+  } catch {
+    const clean = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    return clean ? `${fallback} ${clean.slice(0, 220)}` : fallback;
+  }
+}
+
 function PromotionCarousel({ images, title }: { images: SpecialImage[]; title: string }) {
   const [index, setIndex] = useState(0);
 
@@ -258,9 +270,8 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ id: editing.id, ...form }),
         });
-        const result = await response.json().catch(() => ({}));
         if (!response.ok) {
-          flash(result.error || "Special could not be updated.");
+          flash(await responseMessage(response, "Special could not be updated."));
           return;
         }
 
@@ -294,9 +305,8 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
           method: "POST",
           body: payload,
         });
-        const result = await response.json().catch(() => ({}));
         if (!response.ok) {
-          flash(result.error || "Special could not be created.");
+          flash(await responseMessage(response, "Special could not be created."));
           return;
         }
         flash(
