@@ -97,69 +97,19 @@ async function responseMessage(response: Response, fallback: string) {
   }
 }
 
-async function optimizePromotionImage(file: File) {
-  if (!file.type.startsWith("image/")) return file;
+function validatePromotionImages(selected: File[]) {
+  const maxBytes = 25 * 1024 * 1024;
+  if (selected.length > 12)
+    return { ok: false, error: "Choose a maximum of 12 promotion pictures at a time." };
 
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error(`Could not read ${file.name}.`));
-    };
-    img.src = url;
-  });
-
-  const maxDimension = 2200;
-  const longest = Math.max(image.naturalWidth, image.naturalHeight);
-  const scale = longest > maxDimension ? maxDimension / longest : 1;
-  const width = Math.max(1, Math.round(image.naturalWidth * scale));
-  const height = Math.max(1, Math.round(image.naturalHeight * scale));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext("2d");
-  if (!context) return file;
-
-  context.drawImage(image, 0, 0, width, height);
-
-  const targetType =
-    file.type === "image/png" && file.size < 1.8 * 1024 * 1024
-      ? "image/png"
-      : "image/jpeg";
-
-  const blob = await new Promise<Blob | null>((resolve) => {
-    if (targetType === "image/png") {
-      canvas.toBlob(resolve, "image/png");
-    } else {
-      canvas.toBlob(resolve, "image/jpeg", 0.84);
-    }
-  });
-
-  if (!blob) return file;
-
-  // Keep the original only when it is already smaller.
-  if (blob.size >= file.size && file.size <= 2.2 * 1024 * 1024) return file;
-
-  const extension = targetType === "image/png" ? ".png" : ".jpg";
-  const baseName = file.name.replace(/\.[^.]+$/, "") || "promotion";
-  return new File([blob], `${baseName}${extension}`, {
-    type: targetType,
-    lastModified: file.lastModified,
-  });
-}
-
-async function optimizePromotionImages(files: File[]) {
-  const optimized: File[] = [];
-  for (const file of files) {
-    optimized.push(await optimizePromotionImage(file));
+  for (const file of selected) {
+    if (!file.type.startsWith("image/"))
+      return { ok: false, error: `${file.name} is not an image file.` };
+    if (file.size > maxBytes)
+      return { ok: false, error: `${file.name} is larger than 25 MB.` };
   }
-  return optimized;
+
+  return { ok: true, error: "" };
 }
 
 function PromotionCarousel({ images, title }: { images: SpecialImage[]; title: string }) {
@@ -230,7 +180,6 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
   const [editing, setEditing] = useState<StoreSpecial | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [files, setFiles] = useState<File[]>([]);
-  const [optimizingImages, setOptimizingImages] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<StoreSpecial | null>(null);
@@ -320,48 +269,28 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
     }));
   };
 
-  const handlePromotionFiles = async (selected: File[]) => {
+  const handlePromotionFiles = (selected: File[]) => {
     if (!selected.length) {
       setFiles([]);
       return;
     }
 
-    const imageFiles = selected.filter((file) => file.type.startsWith("image/"));
-    if (imageFiles.length !== selected.length) {
-      flash("Only image files can be used for Store Specials.");
-      return;
-    }
-    if (selected.length > 12) {
-      flash("Choose a maximum of 12 promotion pictures at a time.");
-      return;
-    }
-
-    setOptimizingImages(true);
-    try {
-      const optimized = await optimizePromotionImages(selected);
-      const totalBytes = optimized.reduce((sum, file) => sum + file.size, 0);
-
-      // Keep the complete request well below Cloudflare's request-size ceiling.
-      if (totalBytes > 8 * 1024 * 1024) {
-        flash("The selected promotion pictures are still too large. Please choose fewer pictures at once.");
-        setFiles([]);
-        return;
-      }
-
-      setFiles(optimized);
-      flash(
-        `${optimized.length} promotion picture${optimized.length === 1 ? "" : "s"} prepared for upload.`,
-      );
-    } catch (error) {
-      flash(error instanceof Error ? error.message : "Promotion pictures could not be prepared.");
+    const validation = validatePromotionImages(selected);
+    if (!validation.ok) {
+      flash(validation.error);
       setFiles([]);
-    } finally {
-      setOptimizingImages(false);
+      return;
     }
+
+    setFiles(selected);
+    const totalMb = selected.reduce((sum, file) => sum + file.size, 0) / 1024 / 1024;
+    flash(
+      `${selected.length} promotion picture${selected.length === 1 ? "" : "s"} selected · ${totalMb.toFixed(1)} MB total.`,
+    );
   };
 
   const saveSpecial = async () => {
-    if (saving || optimizingImages) return;
+    if (saving) return;
     if (!form.title.trim()) return flash("Enter the special/promotion name.");
     if (!form.startDate || !form.endDate) return flash("Choose the start and end dates.");
     if (form.endDate < form.startDate) return flash("End date cannot be before start date.");
@@ -382,14 +311,25 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
         }
 
         if (files.length) {
-          const images = new FormData();
-          images.set("action", "addImages");
-          images.set("specialId", String(editing.id));
-          files.forEach((file) => images.append("images", file));
-          const upload = await fetch("/api/store-specials", { method: "POST", body: images });
-          const uploadResult = await upload.json().catch(() => ({}));
-          if (!upload.ok) {
-            flash(uploadResult.error || "Special saved, but pictures could not be uploaded.");
+          let failedUploads = 0;
+          for (const file of files) {
+            const images = new FormData();
+            images.set("action", "addImages");
+            images.set("specialId", String(editing.id));
+            images.append("images", file);
+
+            const upload = await fetch("/api/store-specials", {
+              method: "POST",
+              body: images,
+            });
+
+            if (!upload.ok) failedUploads += 1;
+          }
+
+          if (failedUploads > 0) {
+            flash(
+              `Special saved, but ${failedUploads} promotion picture${failedUploads === 1 ? "" : "s"} could not be uploaded.`,
+            );
             await load();
             return;
           }
@@ -397,6 +337,7 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
 
         flash("Special updated and affected stores notified.");
       } else {
+        // Create the promotion record first with NO image payload.
         const payload = new FormData();
         payload.set("action", "create");
         payload.set("title", form.title.trim());
@@ -405,7 +346,6 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
         payload.set("endDate", form.endDate);
         payload.set("allBranches", String(form.allBranches));
         payload.set("branches", JSON.stringify(form.branches));
-        files.forEach((file) => payload.append("images", file));
 
         const response = await fetch("/api/store-specials", {
           method: "POST",
@@ -415,11 +355,42 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
           flash(await responseMessage(response, "Special could not be created."));
           return;
         }
-        flash(
-          form.startDate > (data?.today || "")
-            ? "Special created. Upcoming-special notifications sent."
-            : "Special created. Start notifications sent.",
-        );
+
+        const createdResult = (await response.json()) as { special?: { id?: number }; warning?: string };
+        const specialId = Number(createdResult.special?.id || 0);
+        if (!specialId) {
+          flash("Special was created, but the Hub could not determine its record number.");
+          await load();
+          return;
+        }
+
+        // Upload ONE picture per request. Each picture may be up to 25 MB.
+        let failedUploads = 0;
+        for (const file of files) {
+          const images = new FormData();
+          images.set("action", "addImages");
+          images.set("specialId", String(specialId));
+          images.append("images", file);
+
+          const upload = await fetch("/api/store-specials", {
+            method: "POST",
+            body: images,
+          });
+
+          if (!upload.ok) failedUploads += 1;
+        }
+
+        if (failedUploads > 0) {
+          flash(
+            `Special created, but ${failedUploads} promotion picture${failedUploads === 1 ? "" : "s"} could not be uploaded.`,
+          );
+        } else {
+          flash(
+            form.startDate > (data?.today || "")
+              ? "Special created. Pictures uploaded and upcoming-special notifications sent."
+              : "Special created. Pictures uploaded and start notifications sent.",
+          );
+        }
       }
 
       setComposerOpen(false);
@@ -658,7 +629,7 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
 
               {files.length > 0 && (
                 <div style={{border:"1px solid #d9e6d9",background:"#f3fbf4",borderRadius:"9px",padding:"9px 11px",color:"#3f6750",fontSize:"7px",fontWeight:750}}>
-                  ✓ Pictures prepared for upload · {(files.reduce((sum, file) => sum + file.size, 0) / 1024 / 1024).toFixed(1)} MB total
+                  ✓ Pictures ready · {(files.reduce((sum, file) => sum + file.size, 0) / 1024 / 1024).toFixed(1)} MB total · max 25 MB per image
                 </div>
               )}
 
@@ -668,30 +639,22 @@ export default function StoreSpecials({ currentUser }: { currentUser: CurrentHub
                   type="file"
                   accept="image/*"
                   multiple
-                  onChange={(event) => void handlePromotionFiles(Array.from(event.target.files || []))}
-                  disabled={optimizingImages || saving}
+                  onChange={(event) => handlePromotionFiles(Array.from(event.target.files || []))}
+                  disabled={saving}
                 />
                 <small>
-                  Upload multiple pictures/pages. The Hub automatically resizes large photos before upload, turns them into a slideshow and changes slides every 5 seconds.
-                  {optimizingImages
-                    ? " Preparing pictures…"
-                    : files.length
-                      ? ` ${files.length} optimized picture${files.length === 1 ? "" : "s"} ready.`
-                      : ""}
+                  Upload multiple pictures/pages. Each image may be up to 25 MB. The Hub uploads pictures one at a time and turns them into a slideshow that changes every 5 seconds.
+                  {files.length
+                    ? ` ${files.length} picture${files.length === 1 ? "" : "s"} selected.`
+                    : ""}
                 </small>
               </label>
             </div>
 
             <footer>
               <button onClick={() => setComposerOpen(false)}>Cancel</button>
-              <button className="primary" disabled={saving || optimizingImages} onClick={() => void saveSpecial()}>
-                {optimizingImages
-                  ? "Preparing pictures…"
-                  : saving
-                    ? "Saving…"
-                    : editing
-                      ? "Save changes"
-                      : "Create & notify stores"}
+              <button className="primary" disabled={saving} onClick={() => void saveSpecial()}>
+                {saving ? "Saving / uploading…" : editing ? "Save changes" : "Create & notify stores"}
               </button>
             </footer>
           </section>

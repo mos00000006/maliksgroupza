@@ -1,26 +1,27 @@
 POWERBUILD / MALIKS GROUP HUB
-STORE SPECIALS PAYLOAD TOO LARGE FIX V3
+STORE SPECIALS — 25 MB PER IMAGE + SEQUENTIAL UPLOAD V4
 
-REPLACE ONLY:
+REPLACE:
   app/store-specials.tsx
+  app/api/store-specials/route.ts
 
-WHAT THIS FIXES
+NEW UPLOAD RULE
 ---------------
-The "Payload Too Large" error when creating a Store Special with large phone photos.
+- Every promotion image may be up to 25 MB.
+- Up to 12 images can be selected.
+- The Hub no longer sends all pictures inside the Create Special request.
+- It creates the promotion record FIRST.
+- It then uploads each image ONE AT A TIME.
+- This prevents multiple large files from making one oversized request.
 
-New behaviour:
-- Promotion images are resized/compressed in the browser BEFORE upload.
-- Maximum long edge: 2200px.
-- Large images are converted to high-quality JPEG at 84% quality.
-- Already-small PNG files can remain PNG.
-- The total prepared image batch is kept below 8 MB.
-- Up to 12 images can be selected at once.
-- The form shows when pictures are being prepared.
-- It also shows the final prepared upload size.
-- Create & notify stores is disabled until image optimization finishes.
+Example:
+  2 images x 20 MB = accepted.
+  They are uploaded as two separate ~20 MB requests instead of one ~40 MB request.
 
-The slideshow still uses the uploaded high-resolution images and changes every 5 seconds.
+If an image is over 25 MB:
+  The phone immediately tells the user which image is too large.
 
-No backend/API file needs replacing.
+The slideshow, branch permissions and promotion notifications are unchanged.
+
 No D1 migration.
-No GitHub secret.
+No new GitHub secret.

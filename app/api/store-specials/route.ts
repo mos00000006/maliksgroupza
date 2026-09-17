@@ -54,8 +54,8 @@ async function uploadImages(specialId: number, files: File[]) {
   for (const file of files) {
     if (!file.type.startsWith("image/"))
       throw new Error(`${file.name} is not an image file.`);
-    if (file.size > 12 * 1024 * 1024)
-      throw new Error(`${file.name} is larger than 12 MB.`);
+    if (file.size > 25 * 1024 * 1024)
+      throw new Error(`${file.name} is larger than 25 MB.`);
 
     const objectKey = `store-specials/${specialId}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
     await env.BUCKET.put(objectKey, await file.arrayBuffer(), {
@@ -191,8 +191,6 @@ export async function POST(req: Request) {
     return Response.json({ error: "Select at least one branch for the special." }, { status: 400 });
 
   const files = form.getAll("images").filter((entry): entry is File => entry instanceof File && entry.size > 0);
-  if (!files.length)
-    return Response.json({ error: "Upload at least one promotion picture." }, { status: 400 });
 
   const now = new Date().toISOString();
 
@@ -236,16 +234,21 @@ export async function POST(req: Request) {
         { status: 500 },
       );
 
-    try {
-      await uploadImages(created.id, files);
-    } catch (error) {
-      await env.DB.prepare("UPDATE store_specials SET active=0 WHERE id=?")
-        .bind(created.id)
-        .run();
-      return Response.json(
-        { error: error instanceof Error ? error.message : "Promotion pictures could not be uploaded." },
-        { status: 400 },
-      );
+    if (files.length) {
+      try {
+        await uploadImages(created.id, files);
+      } catch (error) {
+        return Response.json(
+          {
+            special: created,
+            warning:
+              error instanceof Error
+                ? error.message
+                : "The special was created, but one or more promotion pictures could not be uploaded.",
+          },
+          { status: 201 },
+        );
+      }
     }
 
     // Notifications are deliberately non-fatal: a promotion must never be lost
