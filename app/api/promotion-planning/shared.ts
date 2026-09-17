@@ -130,6 +130,38 @@ export async function initPromotionPlanningTables() {
       email TEXT PRIMARY KEY,
       last_seen_at TEXT NOT NULL
     )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS promotion_thoughts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plan_id INTEGER NOT NULL,
+      thought_type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      item_code TEXT NOT NULL DEFAULT '',
+      item_name TEXT NOT NULL DEFAULT '',
+      current_price TEXT NOT NULL DEFAULT '',
+      suggested_price TEXT NOT NULL DEFAULT '',
+      expected_qty TEXT NOT NULL DEFAULT '',
+      details TEXT NOT NULL DEFAULT '',
+      impact TEXT NOT NULL DEFAULT 'Medium',
+      status TEXT NOT NULL DEFAULT 'New',
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS promotion_thought_reactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      thought_id INTEGER NOT NULL,
+      reaction TEXT NOT NULL DEFAULT 'Agree',
+      comment TEXT NOT NULL DEFAULT '',
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`),
+    env.DB.prepare(
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_promotion_thought_reaction_user ON promotion_thought_reactions(thought_id,created_by)",
+    ),
+    env.DB.prepare(
+      "CREATE INDEX IF NOT EXISTS idx_promotion_thoughts_plan ON promotion_thoughts(plan_id,id)",
+    ),
   ]);
 }
 
@@ -337,3 +369,29 @@ export async function notifyOutstandingBranches(plan: PromotionPlanRow, outstand
     ),
   );
 }
+
+export async function notifyOutstandingManagers(plan: PromotionPlanRow, emails: string[]) {
+  const wanted = new Set(emails.map((email) => email.trim().toLowerCase()).filter(Boolean));
+  if (!wanted.size) return;
+
+  const recipients = (await planningRecipients()).filter((recipient) =>
+    wanted.has(recipient.email.trim().toLowerCase()),
+  );
+
+  const message = plan.input_deadline
+    ? `Your input is still needed for "${plan.title}". Please add your thoughts, votes or product ideas before ${plan.input_deadline}.`
+    : `Your input is still needed for "${plan.title}". Please add your thoughts, votes or product ideas.`;
+
+  await Promise.all(
+    recipients.map((recipient) =>
+      pushPlanningNotification(
+        recipient.email,
+        plan.id,
+        `Promotion planning reminder: ${plan.title}`,
+        message,
+        "PromotionPlanningReminder",
+      ),
+    ),
+  );
+}
+

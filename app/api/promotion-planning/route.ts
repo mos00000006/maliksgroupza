@@ -8,6 +8,7 @@ import {
   initPromotionPlanningTables,
   markPromotionPlanningSeen,
   notifyOutstandingBranches,
+  notifyOutstandingManagers,
   notifyPlanningOpened,
   parseBranches,
   recordPromotionPlanningActivity,
@@ -38,7 +39,7 @@ export async function GET(req: Request) {
   }
 
   const allowedBranches = await contributionBranches(member);
-  const [plans, suggestions, feedback, comments, decisions, decisionVotes, activity] = await Promise.all([
+  const [plans, suggestions, feedback, comments, decisions, decisionVotes, activity, thoughts, thoughtReactions, eligibleManagers] = await Promise.all([
     env.DB.prepare("SELECT * FROM promotion_plans ORDER BY id DESC LIMIT 12").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_suggestions ORDER BY id DESC").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_feedback ORDER BY id DESC").all<Record<string, unknown>>(),
@@ -46,6 +47,17 @@ export async function GET(req: Request) {
     env.DB.prepare("SELECT * FROM promotion_decisions ORDER BY id DESC").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_decision_votes ORDER BY id DESC").all<Record<string, unknown>>(),
     env.DB.prepare("SELECT * FROM promotion_planning_activity ORDER BY id DESC LIMIT 120").all<Record<string, unknown>>(),
+    env.DB.prepare("SELECT * FROM promotion_thoughts ORDER BY id DESC").all<Record<string, unknown>>(),
+    env.DB.prepare("SELECT * FROM promotion_thought_reactions ORDER BY id DESC").all<Record<string, unknown>>(),
+    env.DB.prepare(
+      `SELECT email,role
+       FROM team_members
+       WHERE active=1
+         AND role IN ('Owner / Admin','Developer / Technical Admin','Executive / EXCO','Regional Manager','Store Manager','Department Manager')
+         AND role<>'Human Resource (HR)'
+         AND lower(email) NOT LIKE 'sites-screenshot-service-%@chatgpt.com'
+       ORDER BY email`,
+    ).all<Record<string, unknown>>(),
   ]);
 
   return Response.json({
@@ -56,6 +68,9 @@ export async function GET(req: Request) {
     decisions: decisions.results,
     decisionVotes: decisionVotes.results,
     activity: activity.results,
+    thoughts: thoughts.results,
+    thoughtReactions: thoughtReactions.results,
+    eligibleManagers: eligibleManagers.results,
     unreadActivity,
     allowedBranches,
     permissions: {
@@ -119,9 +134,14 @@ export async function POST(req: Request) {
     return Response.json({ error: "Manager access is required to contribute." }, { status: 403 });
 
   const allowed = await contributionBranches(member);
-  const branch = text(p.branch);
-  if (!allowed.includes(branch))
-    return Response.json({ error: "Select a branch you are authorised to manage." }, { status: 403 });
+  // Promotion Planning is a management discussion, not a branch form.
+  // Keep a hidden context only for backward-compatible database columns.
+  const branch =
+    allowed.length === 1
+      ? allowed[0]
+      : allowed.length > 1
+        ? "Multiple assigned stores"
+        : "";
 
   if (action === "addSuggestion") {
     const planId = Number(p.planId || 0);
@@ -261,6 +281,81 @@ export async function POST(req: Request) {
     return Response.json({ ok: true });
   }
 
+  if (action === "addThought") {
+    const planId = Number(p.planId || 0);
+    const plan = await getPlan(planId);
+    if (!plan || plan.status === "Finalised")
+      return Response.json({ error: "This planning room is not open for new thoughts." }, { status: 400 });
+
+    const thoughtType = text(p.thoughtType);
+    const title = text(p.title);
+    if (!thoughtType || !title)
+      return Response.json({ error: "Thought type and title are required." }, { status: 400 });
+
+    await env.DB.prepare(
+      `INSERT INTO promotion_thoughts
+       (plan_id,thought_type,title,item_code,item_name,current_price,suggested_price,expected_qty,details,impact,status,created_by,created_at,updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,'New',?,?,?)`,
+    ).bind(
+      planId,
+      thoughtType,
+      title,
+      text(p.itemCode),
+      text(p.itemName),
+      text(p.currentPrice),
+      text(p.suggestedPrice),
+      text(p.expectedQty),
+      text(p.details),
+      text(p.impact) || "Medium",
+      user?.email || member.email,
+      now,
+      now,
+    ).run();
+
+    await recordPromotionPlanningActivity(
+      planId,
+      "Manager thought",
+      "",
+      `${text(p.thoughtType)}: ${title}`,
+      user?.email || member.email,
+    );
+
+    return Response.json({ ok: true });
+  }
+
+  if (action === "thoughtReaction") {
+    const thoughtId = Number(p.thoughtId || 0);
+    const reaction = text(p.reaction) || "Agree";
+    const comment = text(p.comment);
+    const email = (user?.email || member.email).toLowerCase();
+
+    await env.DB.prepare(
+      `INSERT INTO promotion_thought_reactions
+       (thought_id,reaction,comment,created_by,created_at,updated_at)
+       VALUES (?,?,?,?,?,?)
+       ON CONFLICT(thought_id,created_by) DO UPDATE SET
+         reaction=excluded.reaction,
+         comment=excluded.comment,
+         updated_at=excluded.updated_at`,
+    ).bind(thoughtId, reaction, comment, email, now, now).run();
+
+    const thought = await env.DB.prepare(
+      "SELECT plan_id,title FROM promotion_thoughts WHERE id=?",
+    ).bind(thoughtId).first<{ plan_id: number; title: string }>();
+
+    if (thought) {
+      await recordPromotionPlanningActivity(
+        thought.plan_id,
+        "Thought reaction",
+        "",
+        `${reaction}: ${thought.title}`,
+        user?.email || member.email,
+      );
+    }
+
+    return Response.json({ ok: true });
+  }
+
   return Response.json({ error: "Unknown planning action." }, { status: 400 });
 }
 
@@ -338,6 +433,83 @@ export async function PATCH(req: Request) {
       );
     }
     return Response.json({ ok: true });
+  }
+
+  if (action === "thoughtStatus") {
+    const id = Number(p.id || 0);
+    const status = text(p.status);
+    if (!["New","Discuss","Shortlist","Agreed","Closed"].includes(status))
+      return Response.json({ error: "Invalid thought status." }, { status: 400 });
+
+    await env.DB.prepare(
+      "UPDATE promotion_thoughts SET status=?,updated_at=? WHERE id=?",
+    ).bind(status, now, id).run();
+
+    const thought = await env.DB.prepare(
+      "SELECT plan_id,title FROM promotion_thoughts WHERE id=?",
+    ).bind(id).first<{ plan_id: number; title: string }>();
+
+    if (thought) {
+      await recordPromotionPlanningActivity(
+        thought.plan_id,
+        "Thought status",
+        "",
+        `${thought.title} moved to ${status}`,
+        member.email,
+      );
+    }
+
+    return Response.json({ ok: true });
+  }
+
+  if (action === "remindOutstandingManagers") {
+    const id = Number(p.id || 0);
+    const plan = await getPlan(id);
+    if (!plan) return Response.json({ error: "Planning room not found." }, { status: 404 });
+
+    const managerRows = await env.DB.prepare(
+      `SELECT email
+       FROM team_members
+       WHERE active=1
+         AND role IN ('Owner / Admin','Developer / Technical Admin','Executive / EXCO','Regional Manager','Store Manager','Department Manager')
+         AND role<>'Human Resource (HR)'
+         AND lower(email) NOT LIKE 'sites-screenshot-service-%@chatgpt.com'`,
+    ).all<{ email: string }>();
+
+    const [suggestions, comments, decisions, votes, thoughts, thoughtReactions] = await Promise.all([
+      env.DB.prepare("SELECT DISTINCT lower(created_by) AS email FROM promotion_suggestions WHERE plan_id=?").bind(id).all<{ email: string }>(),
+      env.DB.prepare("SELECT DISTINCT lower(created_by) AS email FROM promotion_comments WHERE plan_id=?").bind(id).all<{ email: string }>(),
+      env.DB.prepare("SELECT DISTINCT lower(created_by) AS email FROM promotion_decisions WHERE plan_id=?").bind(id).all<{ email: string }>(),
+      env.DB.prepare(
+        `SELECT DISTINCT lower(v.created_by) AS email
+         FROM promotion_decision_votes v
+         JOIN promotion_decisions d ON d.id=v.decision_id
+         WHERE d.plan_id=?`,
+      ).bind(id).all<{ email: string }>(),
+      env.DB.prepare("SELECT DISTINCT lower(created_by) AS email FROM promotion_thoughts WHERE plan_id=?").bind(id).all<{ email: string }>(),
+      env.DB.prepare(
+        `SELECT DISTINCT lower(r.created_by) AS email
+         FROM promotion_thought_reactions r
+         JOIN promotion_thoughts t ON t.id=r.thought_id
+         WHERE t.plan_id=?`,
+      ).bind(id).all<{ email: string }>(),
+    ]);
+
+    const contributed = new Set([
+      ...suggestions.results.map((r) => r.email),
+      ...comments.results.map((r) => r.email),
+      ...decisions.results.map((r) => r.email),
+      ...votes.results.map((r) => r.email),
+      ...thoughts.results.map((r) => r.email),
+      ...thoughtReactions.results.map((r) => r.email),
+    ].filter(Boolean));
+
+    const outstandingEmails = managerRows.results
+      .map((row) => row.email.trim().toLowerCase())
+      .filter((email) => !contributed.has(email));
+
+    await notifyOutstandingManagers(plan, outstandingEmails);
+    return Response.json({ ok: true, outstanding: outstandingEmails.length });
   }
 
   if (action === "remindOutstanding") {

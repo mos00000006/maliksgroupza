@@ -95,6 +95,37 @@ type Activity = {
   created_at: string;
 };
 
+type Thought = {
+  id: number;
+  plan_id: number;
+  thought_type: string;
+  title: string;
+  item_code: string;
+  item_name: string;
+  current_price: string;
+  suggested_price: string;
+  expected_qty: string;
+  details: string;
+  impact: string;
+  status: string;
+  created_by: string;
+  created_at: string;
+};
+
+type ThoughtReaction = {
+  id: number;
+  thought_id: number;
+  reaction: string;
+  comment: string;
+  created_by: string;
+  created_at: string;
+};
+
+type EligibleManager = {
+  email: string;
+  role: string;
+};
+
 type ApiData = {
   plans: Plan[];
   suggestions: Suggestion[];
@@ -103,6 +134,9 @@ type ApiData = {
   decisions: Decision[];
   decisionVotes: DecisionVote[];
   activity: Activity[];
+  thoughts: Thought[];
+  thoughtReactions: ThoughtReaction[];
+  eligibleManagers: EligibleManager[];
   unreadActivity: number;
   allowedBranches: string[];
   permissions: { canManage: boolean; canContribute: boolean };
@@ -130,6 +164,28 @@ const decisionTopics = [
   "Other",
 ];
 
+const thoughtTypes = [
+  "Product / Item Idea",
+  "Pricing Idea",
+  "Customer Demand",
+  "Stock / Availability",
+  "Competitor Insight",
+  "Promotion Mechanics",
+  "Marketing Idea",
+  "Display / Merchandising",
+  "Supplier Opportunity",
+  "Margin / Profitability",
+  "Risk / Concern",
+  "Other",
+];
+
+const thoughtReactionScore: Record<string, number> = {
+  "Strong idea": 3,
+  "Agree": 2,
+  "Consider": 1,
+  "Not for this promotion": -1,
+};
+
 const supportScore: Record<string, number> = { "Strong Yes": 3, "Yes": 2, "Maybe": 1, "No": -1 };
 const decisionScore: Record<string, number> = { "Support": 2, "Prefer alternative": 0, "Need discussion": -1 };
 
@@ -156,8 +212,10 @@ export default function PromotionPlanning({
   const [planModal, setPlanModal] = useState(false);
   const [ideaModal, setIdeaModal] = useState(false);
   const [decisionModal, setDecisionModal] = useState(false);
+  const [thoughtModal, setThoughtModal] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState<number | null>(null);
   const [decisionVoteOpen, setDecisionVoteOpen] = useState<number | null>(null);
+  const [thoughtReactionOpen, setThoughtReactionOpen] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [unreadAtOpen, setUnreadAtOpen] = useState(0);
 
@@ -168,20 +226,32 @@ export default function PromotionPlanning({
   });
 
   const [ideaForm, setIdeaForm] = useState({
-    branch:"", productCode:"", productName:"", category:"", brandSupplier:"",
+    productCode:"", productName:"", category:"", brandSupplier:"",
     currentPrice:"", proposedPrice:"", expectedQty:"", reason:"", competitorNote:"", displayIdea:"",
   });
 
   const [decisionForm, setDecisionForm] = useState({
-    branch:"",
     topic:"Promotion Date / Period",
     proposal:"",
     rationale:"",
   });
 
-  const [commentForm, setCommentForm] = useState({ branch:"", topic:"Products", comment:"" });
-  const [feedbackForm, setFeedbackForm] = useState({ branch:"", support:"Yes", comment:"" });
-  const [decisionVoteForm, setDecisionVoteForm] = useState({ branch:"", vote:"Support", comment:"" });
+  const [thoughtForm, setThoughtForm] = useState({
+    thoughtType:"Product / Item Idea",
+    title:"",
+    itemCode:"",
+    itemName:"",
+    currentPrice:"",
+    suggestedPrice:"",
+    expectedQty:"",
+    details:"",
+    impact:"Medium",
+  });
+
+  const [commentForm, setCommentForm] = useState({ topic:"Products", comment:"" });
+  const [feedbackForm, setFeedbackForm] = useState({ support:"Yes", comment:"" });
+  const [decisionVoteForm, setDecisionVoteForm] = useState({ vote:"Support", comment:"" });
+  const [thoughtReactionForm, setThoughtReactionForm] = useState({ reaction:"Agree", comment:"" });
 
   const flash = (value: string) => {
     setMessage(value);
@@ -209,12 +279,6 @@ export default function PromotionPlanning({
       setUnreadAtOpen((current) => current || Number(result.unreadActivity || 0));
       setPlanId((current) => current || Number(result.plans?.[0]?.id || 0));
 
-      const firstBranch = result.allowedBranches?.[0] || "";
-      setIdeaForm((f) => ({ ...f, branch: f.branch || firstBranch }));
-      setDecisionForm((f) => ({ ...f, branch: f.branch || firstBranch }));
-      setCommentForm((f) => ({ ...f, branch: f.branch || firstBranch }));
-      setFeedbackForm((f) => ({ ...f, branch: f.branch || firstBranch }));
-      setDecisionVoteForm((f) => ({ ...f, branch: f.branch || firstBranch }));
 
       if (markAsSeen) await markSeen();
     } finally {
@@ -245,6 +309,11 @@ export default function PromotionPlanning({
     [data, plan?.id],
   );
 
+  const thoughts = useMemo(
+    () => (data?.thoughts || []).filter((t) => t.plan_id === plan?.id),
+    [data, plan?.id],
+  );
+
   const activity = useMemo(
     () => (data?.activity || []).filter((a) => a.plan_id === plan?.id).slice(0, 35),
     [data, plan?.id],
@@ -254,6 +323,11 @@ export default function PromotionPlanning({
   const decisionVotes = useMemo(
     () => data?.decisionVotes || [],
     [data?.decisionVotes],
+  );
+
+  const thoughtReactions = useMemo(
+    () => data?.thoughtReactions || [],
+    [data?.thoughtReactions],
   );
 
   const scoreFor = (suggestionId: number) =>
@@ -266,24 +340,45 @@ export default function PromotionPlanning({
       .filter((v) => v.decision_id === decisionId)
       .reduce((sum, v) => sum + (decisionScore[v.vote] || 0), 0);
 
-  const responseBranches = useMemo(() => {
+  const contributors = useMemo(() => {
     const set = new Set<string>();
-    suggestions.forEach((s) => set.add(s.branch));
-    comments.forEach((c) => set.add(c.branch));
-    decisions.forEach((d) => set.add(d.branch));
-    decisionVotes.forEach((v) => {
-      if (decisions.some((d) => d.id === v.decision_id)) set.add(v.branch);
-    });
-    return set;
-  }, [suggestions, comments, decisions, decisionVotes]);
 
-  const totalBranches = plan?.branches.length || 0;
-  const outstanding = (plan?.branches || []).filter((b) => !responseBranches.has(b));
+    suggestions.forEach((item) => set.add(item.created_by.toLowerCase()));
+    comments.forEach((item) => set.add(item.created_by.toLowerCase()));
+    decisions.forEach((item) => set.add(item.created_by.toLowerCase()));
+    thoughts.forEach((item) => set.add(item.created_by.toLowerCase()));
+
+    decisionVotes.forEach((vote) => {
+      if (decisions.some((decision) => decision.id === vote.decision_id)) {
+        set.add(vote.created_by.toLowerCase());
+      }
+    });
+
+    thoughtReactions.forEach((reaction) => {
+      if (thoughts.some((thought) => thought.id === reaction.thought_id)) {
+        set.add(reaction.created_by.toLowerCase());
+      }
+    });
+
+    return set;
+  }, [suggestions, comments, decisions, thoughts, decisionVotes, thoughtReactions]);
+
+
+  const totalManagers = data?.eligibleManagers.length || 0;
+  const outstandingManagers = (data?.eligibleManagers || []).filter(
+    (manager) => !contributors.has(manager.email.toLowerCase()),
+  );
   const approved = suggestions.filter((s) => s.status === "Approved").length;
   const agreedDecisions = decisions.filter((d) => d.status === "Agreed").length;
   const openDecisions = decisions.filter((d) => d.status !== "Agreed" && d.status !== "Closed").length;
+  const thoughtScoreFor = (thoughtId: number) =>
+    thoughtReactions
+      .filter((reaction) => reaction.thought_id === thoughtId)
+      .reduce((sum, reaction) => sum + (thoughtReactionScore[reaction.reaction] || 0), 0);
+
   const topIdeas = [...suggestions].sort((a,b) => scoreFor(b.id) - scoreFor(a.id));
   const topDecisions = [...decisions].sort((a,b) => decisionScoreFor(b.id) - decisionScoreFor(a.id));
+  const topThoughts = [...thoughts].sort((a,b) => thoughtScoreFor(b.id) - thoughtScoreFor(a.id));
 
   const post = async (payload: Record<string, unknown>) => {
     setSaving(true);
@@ -343,6 +438,7 @@ export default function PromotionPlanning({
         .decisionRoom{background:#fff;border:1px solid #dbe4ec;border-radius:14px;padding:14px}.decisionRoomHeader{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}.decisionRoomHeader h3{margin:0;color:#213b54;font-size:14px}.decisionRoomHeader p{margin:4px 0 0;color:#788899;font-size:8px}.decisionRoomHeader button{border:0;background:#f5ca2e;color:#172438;border-radius:8px;padding:8px 11px;font:inherit;font-size:7px;font-weight:900;cursor:pointer}
         .decisionGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.decisionCard{border:1px solid #dfe7ee;border-radius:11px;padding:11px;background:#fbfcfd}.decisionTop{display:flex;justify-content:space-between;gap:8px}.decisionTopic{font-size:7px;color:#8d6d00;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.decisionCard h4{margin:4px 0 5px;color:#203951;font-size:11px}.decisionCard p{margin:0;color:#65788b;font-size:8px;line-height:1.5}.decisionMeta{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.decisionMeta span{background:#eef3f7;color:#546c84;border-radius:999px;padding:4px 7px;font-size:6.5px;font-weight:800}.decisionScore{min-width:56px;text-align:center;background:#172d46;color:#fff;border-radius:9px;padding:7px}.decisionScore b{display:block;font-size:14px}.decisionScore small{font-size:6px;color:#c6d5e3}.decisionActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.decisionActions button,.decisionActions select{border:1px solid #d7e0e9;border-radius:7px;background:#fff;padding:6px 8px;font:inherit;font-size:7px;font-weight:800;color:#405a73}
         .decisionStatus{display:inline-flex;padding:4px 7px;border-radius:99px;background:#edf2f6;color:#617388;font-size:6.5px;font-weight:850}.decisionStatus.Agreed{background:#dff4e7;color:#196a49}.decisionStatus.Discuss{background:#fff0ca;color:#8a6200}.decisionStatus.Closed{background:#e7ebef;color:#69798a}
+        .thoughtBoard{background:#fff;border:1px solid #dbe4ec;border-radius:14px;padding:14px}.thoughtBoardHeader{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}.thoughtBoardHeader h3{margin:0;color:#213b54;font-size:14px}.thoughtBoardHeader p{margin:4px 0 0;color:#788899;font-size:8px}.thoughtBoardHeader button{border:0;background:#172d46;color:#fff;border-radius:8px;padding:8px 11px;font:inherit;font-size:7px;font-weight:900;cursor:pointer}.thoughtGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.thoughtCard{border:1px solid #dfe7ee;border-radius:11px;padding:11px;background:#fbfcfd}.thoughtType{font-size:7px;color:#8d6d00;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.thoughtCard h4{margin:4px 0 5px;color:#203951;font-size:11px}.thoughtCard p{margin:0;color:#65788b;font-size:8px;line-height:1.5}.thoughtPrice{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:8px}.thoughtPrice span{background:#eef3f7;border-radius:8px;padding:6px;font-size:6.5px;color:#536b83}.thoughtPrice b{display:block;color:#233d56;font-size:8px;margin-top:2px}.thoughtActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.thoughtActions button,.thoughtActions select{border:1px solid #d7e0e9;border-radius:7px;background:#fff;padding:6px 8px;font:inherit;font-size:7px;font-weight:800;color:#405a73}.thoughtImpact{display:inline-flex;border-radius:999px;padding:4px 7px;background:#eef2f6;color:#5c7187;font-size:6.5px;font-weight:850}.thoughtImpact.High{background:#ffe2d9;color:#a5452d}.thoughtImpact.Low{background:#eaf2f8;color:#60788f}.thoughtStatus{display:inline-flex;border-radius:999px;padding:4px 7px;background:#edf2f6;color:#617388;font-size:6.5px;font-weight:850}.thoughtStatus.Shortlist,.thoughtStatus.Agreed{background:#dff4e7;color:#196a49}.thoughtStatus.Discuss{background:#fff0ca;color:#8a6200}
         .planColumns{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(320px,.85fr);gap:12px}.planPanel{background:#fff;border:1px solid #dbe4ec;border-radius:13px;padding:14px}.planPanelHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}.planPanelHeader h3{font-size:13px;color:#223c55;margin:0}.planPanelHeader button{border:1px solid #d4dee8;background:#172d46;color:#fff;border-radius:8px;padding:7px 10px;font:inherit;font-size:7px;font-weight:850;cursor:pointer}
         .ideaList{display:grid;gap:9px}.ideaCard{border:1px solid #dde5ed;border-radius:11px;padding:12px;background:#fbfcfd}.ideaTop{display:flex;justify-content:space-between;gap:10px}.ideaCard h4{margin:2px 0 4px;color:#203951;font-size:11px}.ideaCard p{margin:0;color:#6b7c8e;font-size:8px;line-height:1.5}.ideaMeta{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.ideaMeta span{background:#edf3f8;color:#526a82;border-radius:99px;padding:4px 7px;font-size:6.5px;font-weight:800}.ideaScore{min-width:56px;text-align:center;background:#172d46;color:#fff;border-radius:9px;padding:7px}.ideaScore b{display:block;font-size:14px}.ideaScore small{font-size:6px;color:#c6d5e3}.ideaActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.ideaActions button,.ideaActions select{border:1px solid #d7e0e9;border-radius:7px;background:#fff;padding:6px 8px;font:inherit;font-size:7px;font-weight:800;color:#405a73}
         .ideaStatus{display:inline-flex;padding:4px 7px;border-radius:99px;background:#eef2f6;color:#617388;font-size:6.5px;font-weight:850}.ideaStatus.Approved{background:#dff4e7;color:#196a49}.ideaStatus.Declined{background:#f8e2e4;color:#a43c48}.ideaStatus.Review{background:#fff0ca;color:#8a6200}
@@ -350,9 +446,9 @@ export default function PromotionPlanning({
         .comments,.activityFeed{display:grid;gap:7px;max-height:380px;overflow:auto}.comment,.activityItem{background:#f7f9fb;border:1px solid #e0e7ee;border-radius:9px;padding:9px}.comment b,.activityItem b{font-size:8px;color:#2f4962}.comment small,.activityItem small{display:block;color:#8995a2;font-size:6.5px;margin:2px 0 5px}.comment p,.activityItem p{font-size:8px;color:#536a80;margin:0;line-height:1.5}.activityItem{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start}.activityIcon{width:28px;height:28px;border-radius:9px;background:#172d46;color:#f5ca2e;display:grid;place-items:center;font-size:11px}
         .planEmpty{padding:24px;text-align:center;border:1px dashed #cbd7e2;border-radius:11px;color:#7a8998}.planEmpty b{display:block;color:#405a73;margin-bottom:4px}
         .planOverlay{position:fixed;inset:0;background:#0d1a2b99;z-index:95;display:grid;place-items:center;padding:12px}.planModal{width:min(760px,calc(100vw - 24px));max-height:calc(100dvh - 24px);background:#fff;border-radius:15px;overflow:hidden;display:flex;flex-direction:column}.planModal header{display:flex;justify-content:space-between;padding:15px 17px;border-bottom:1px solid #e3e9ef}.planModal header h3{margin:0;color:#203951}.planModal header button{border:0;background:#edf2f6;width:32px;height:32px;border-radius:8px}.planModalBody{padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;overflow:auto}.planModalBody label{display:grid;gap:5px;font-size:7px;font-weight:850;color:#40566e}.planModalBody input,.planModalBody select,.planModalBody textarea{border:1px solid #d5dfe8;border-radius:8px;padding:8px;font:inherit;font-size:8px}.planModalBody textarea{min-height:80px}.span2{grid-column:1/-1}.planModal footer{display:flex;justify-content:flex-end;gap:7px;padding:10px 15px;border-top:1px solid #e5ebf0}.planModal footer button{border:1px solid #d5dfe8;background:#fff;border-radius:8px;padding:8px 11px;font:inherit;font-size:7px;font-weight:850}.planModal footer .primary{background:#f5ca2e;border-color:#dfb91f;color:#172438}
-        @media(max-width:1100px){.planKpis{grid-template-columns:repeat(3,1fr)}.decisionGrid{grid-template-columns:1fr}}
+        @media(max-width:1100px){.planKpis{grid-template-columns:repeat(3,1fr)}.decisionGrid{grid-template-columns:1fr}.thoughtGrid{grid-template-columns:1fr 1fr}}
         @media(max-width:900px){.planColumns{grid-template-columns:1fr}.planHero{grid-template-columns:1fr}.planActions{justify-content:flex-start}}
-        @media(max-width:720px){.planTopBar{align-items:stretch;flex-direction:column}.planTopBar select{min-width:0;width:100%}.planKpis{grid-template-columns:1fr 1fr}.planModalBody{grid-template-columns:1fr}.span2{grid-column:auto}.planToast{left:12px;right:12px;top:82px}.ideaTop,.decisionTop{align-items:flex-start}}
+        @media(max-width:720px){.thoughtGrid{grid-template-columns:1fr}.planTopBar{align-items:stretch;flex-direction:column}.planTopBar select{min-width:0;width:100%}.planKpis{grid-template-columns:1fr 1fr}.planModalBody{grid-template-columns:1fr}.span2{grid-column:auto}.planToast{left:12px;right:12px;top:82px}.ideaTop,.decisionTop{align-items:flex-start}}
       `}</style>
 
       {message && <div className="planToast">{message}</div>}
@@ -379,6 +475,7 @@ export default function PromotionPlanning({
           )}
           {data?.permissions.canContribute && plan && plan.status !== "Finalised" && (
             <>
+              <button className="primary" onClick={() => setThoughtModal(true)}>＋ Add manager thought</button>
               <button className="primary" onClick={() => setDecisionModal(true)}>＋ Propose a decision</button>
               <button className="primary" onClick={() => setIdeaModal(true)}>＋ Suggest product</button>
             </>
@@ -400,38 +497,136 @@ export default function PromotionPlanning({
           </div>
 
           <div className="planKpis">
-            <article><span>Branches responded</span><b>{responseBranches.size}/{totalBranches}</b><small>Managers participating</small></article>
+            <article><span>Managers active</span><b>{contributors.size}/{totalManagers}</b><small>People contributing</small></article>
             <article><span>Open decisions</span><b>{openDecisions}</b><small>Still needs agreement</small></article>
             <article><span>Agreed decisions</span><b>{agreedDecisions}</b><small>Locked outcomes</small></article>
             <article><span>Product ideas</span><b>{suggestions.length}</b><small>Items proposed</small></article>
             <article><span>Approved items</span><b>{approved}</b><small>Current shortlist</small></article>
-            <article><span>Branch thoughts</span><b>{comments.length}</b><small>Market feedback</small></article>
+            <article><span>Manager thoughts</span><b>{thoughts.length}</b><small>Quick ideas & concerns</small></article>
           </div>
 
           <div className="participation">
             <div className="participationHeader">
-              <b>Branch participation · {totalBranches ? Math.round((responseBranches.size / totalBranches) * 100) : 0}% complete</b>
-              {data.permissions.canManage && outstanding.length > 0 && (
+              <b>Manager participation · {totalManagers ? Math.round((contributors.size / totalManagers) * 100) : 0}% complete</b>
+              {data.permissions.canManage && outstandingManagers.length > 0 && (
                 <button onClick={async () => {
-                  if (await patch({ action:"remindOutstanding", id:plan?.id })) {
-                    flash(`Reminder sent to ${outstanding.length} outstanding branch${outstanding.length === 1 ? "" : "es"}.`);
+                  const response = await patch({ action:"remindOutstandingManagers", id:plan?.id });
+                  if (response) {
+                    flash(`Reminder sent to ${outstandingManagers.length} manager${outstandingManagers.length === 1 ? "" : "s"} still to contribute.`);
                   }
-                }}>🔔 Remind outstanding branches</button>
+                }}>🔔 Remind managers still to contribute</button>
               )}
             </div>
             <div className="progress">
-              <span style={{width:`${totalBranches ? Math.min(100,(responseBranches.size/totalBranches)*100) : 0}%`}} />
+              <span style={{width:`${totalManagers ? Math.min(100,(contributors.size/totalManagers)*100) : 0}%`}} />
             </div>
-            {outstanding.length > 0 && (
-              <div className="outstanding">{outstanding.map((b) => <span key={b}>{b}</span>)}</div>
+            {outstandingManagers.length > 0 && (
+              <div className="outstanding">
+                {outstandingManagers.map((manager) => (
+                  <span key={manager.email}>{shortEmail(manager.email)} · {manager.role}</span>
+                ))}
+              </div>
             )}
+          </div>
+
+          <div className="thoughtBoard">
+            <div className="thoughtBoardHeader">
+              <div>
+                <h3>Manager Thoughts</h3>
+                <p>Quickly put an idea or concern on the table — item, pricing, customer demand, stock, competitors, marketing, margin or anything else. Other managers can react without another meeting.</p>
+              </div>
+              {data.permissions.canContribute && plan?.status !== "Finalised" && (
+                <button onClick={() => setThoughtModal(true)}>＋ Add thought</button>
+              )}
+            </div>
+
+            <div className="thoughtGrid">
+              {topThoughts.map((thought) => {
+                const reactions = thoughtReactions.filter((reaction) => reaction.thought_id === thought.id);
+                const mine = reactions.find((reaction) => reaction.created_by.toLowerCase() === currentUser.email.toLowerCase());
+
+                return (
+                  <article className="thoughtCard" key={thought.id}>
+                    <div className="decisionTop">
+                      <div>
+                        <span className="thoughtType">{thought.thought_type}</span>
+                        <h4>{thought.title}</h4>
+                        <p>{shortEmail(thought.created_by)}</p>
+                      </div>
+                      <div className="decisionScore">
+                        <b>{thoughtScoreFor(thought.id)}</b>
+                        <small>support</small>
+                      </div>
+                    </div>
+
+                    {thought.item_name && (
+                      <p style={{marginTop:"7px"}}>
+                        <b>Item:</b> {thought.item_name}{thought.item_code ? ` · ${thought.item_code}` : ""}
+                      </p>
+                    )}
+
+                    {(thought.current_price || thought.suggested_price || thought.expected_qty) && (
+                      <div className="thoughtPrice">
+                        <span>Current<b>{thought.current_price || "—"}</b></span>
+                        <span>Suggested<b>{thought.suggested_price || "—"}</b></span>
+                        <span>Qty / Need<b>{thought.expected_qty || "—"}</b></span>
+                      </div>
+                    )}
+
+                    {thought.details && <p style={{marginTop:"8px"}}>{thought.details}</p>}
+
+                    <div className="decisionMeta">
+                      <span className={`thoughtImpact ${thought.impact}`}>{thought.impact} impact</span>
+                      <span className={`thoughtStatus ${thought.status}`}>{thought.status}</span>
+                      <span>{reactions.length} reaction{reactions.length === 1 ? "" : "s"}</span>
+                    </div>
+
+                    <div className="thoughtActions">
+                      {data.permissions.canContribute && (
+                        <button onClick={() => {
+                          setThoughtReactionOpen(thought.id);
+                          setThoughtReactionForm({
+                            reaction:mine?.reaction || "Agree",
+                            comment:mine?.comment || "",
+                          });
+                        }}>
+                          {mine ? `Your view: ${mine.reaction}` : "React / comment"}
+                        </button>
+                      )}
+
+                      {data.permissions.canManage && (
+                        <select
+                          value={thought.status}
+                          onChange={async (event) => {
+                            await patch({ action:"thoughtStatus", id:thought.id, status:event.target.value });
+                          }}
+                        >
+                          <option>New</option>
+                          <option>Discuss</option>
+                          <option>Shortlist</option>
+                          <option>Agreed</option>
+                          <option>Closed</option>
+                        </select>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+
+              {!thoughts.length && (
+                <div className="planEmpty" style={{gridColumn:"1/-1"}}>
+                  <b>No manager thoughts yet</b>
+                  Add the first product, pricing, stock, competitor or customer-demand thought.
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="decisionRoom">
             <div className="decisionRoomHeader">
               <div>
                 <h3>Decision Room</h3>
-                <p>Agree the date, campaign theme, focus categories, deal mechanics, stock commitments, supplier support and marketing plan here instead of in a meeting.</p>
+                <p>Agree the date, campaign theme, focus categories, deal mechanics, stock commitments, supplier support and marketing plan here instead of holding another meeting.</p>
               </div>
               {data.permissions.canContribute && plan?.status !== "Finalised" && (
                 <button onClick={() => setDecisionModal(true)}>＋ Add proposal</button>
@@ -448,7 +643,7 @@ export default function PromotionPlanning({
                       <div>
                         <span className="decisionTopic">{decision.topic}</span>
                         <h4>{decision.proposal}</h4>
-                        <p>{decision.branch} · {shortEmail(decision.created_by)}</p>
+                        <p>{shortEmail(decision.created_by)}</p>
                       </div>
                       <div className="decisionScore">
                         <b>{decisionScoreFor(decision.id)}</b>
@@ -469,7 +664,6 @@ export default function PromotionPlanning({
                         <button onClick={() => {
                           setDecisionVoteOpen(decision.id);
                           setDecisionVoteForm({
-                            branch:data.allowedBranches[0] || "",
                             vote:mine?.vote || "Support",
                             comment:mine?.comment || "",
                           });
@@ -523,7 +717,7 @@ export default function PromotionPlanning({
                         <div>
                           <span className={`ideaStatus ${idea.status === "Approved" ? "Approved" : idea.status === "Declined" ? "Declined" : idea.status === "Under Review" ? "Review" : ""}`}>{idea.status}</span>
                           <h4>{idea.product_name}{idea.product_code ? ` · ${idea.product_code}` : ""}</h4>
-                          <p>{idea.branch} · {idea.category || "General"}{idea.brand_supplier ? ` · ${idea.brand_supplier}` : ""}</p>
+                          <p>{shortEmail(idea.created_by)} · {idea.category || "General"}{idea.brand_supplier ? ` · ${idea.brand_supplier}` : ""}</p>
                         </div>
                         <div className="ideaScore"><b>{scoreFor(idea.id)}</b><small>support score</small></div>
                       </div>
@@ -544,7 +738,6 @@ export default function PromotionPlanning({
                           <button onClick={() => {
                             setFeedbackOpen(idea.id);
                             setFeedbackForm({
-                              branch:data.allowedBranches[0] || "",
                               support:myFeedback?.support || "Yes",
                               comment:myFeedback?.comment || "",
                             });
@@ -571,7 +764,7 @@ export default function PromotionPlanning({
                 {!suggestions.length && (
                   <div className="planEmpty">
                     <b>No product ideas yet</b>
-                    Branch managers can start adding products they believe should be in the next promotion.
+                    Managers can start adding products they believe should be in the next promotion.
                   </div>
                 )}
               </div>
@@ -579,16 +772,10 @@ export default function PromotionPlanning({
 
             <div className="rightStack">
               <aside className="planPanel">
-                <div className="planPanelHeader"><h3>Branch thoughts</h3></div>
+                <div className="planPanelHeader"><h3>Discussion & general comments</h3></div>
 
                 {data.permissions.canContribute && (
                   <div className="commentComposer">
-                    {data.allowedBranches.length > 1 && (
-                      <select value={commentForm.branch} onChange={(e)=>setCommentForm({...commentForm,branch:e.target.value})}>
-                        {data.allowedBranches.map((b)=><option key={b}>{b}</option>)}
-                      </select>
-                    )}
-
                     <select value={commentForm.topic} onChange={(e)=>setCommentForm({...commentForm,topic:e.target.value})}>
                       {["Products","Pricing","Stock","Competitors","Marketing","Display / Merchandising","Customer Demand","Other"].map((t)=><option key={t}>{t}</option>)}
                     </select>
@@ -614,7 +801,7 @@ export default function PromotionPlanning({
                 <div className="comments">
                   {comments.map((c) => (
                     <div className="comment" key={c.id}>
-                      <b>{c.branch} · {c.topic}</b>
+                      <b>{c.topic}</b>
                       <small>{shortEmail(c.created_by)} · {new Date(c.created_at).toLocaleString()}</small>
                       <p>{c.comment}</p>
                     </div>
@@ -623,7 +810,7 @@ export default function PromotionPlanning({
                   {!comments.length && (
                     <div className="planEmpty">
                       <b>No branch comments yet</b>
-                      Comments from managers will appear here.
+                      Manager comments will appear here.
                     </div>
                   )}
                 </div>
@@ -637,7 +824,7 @@ export default function PromotionPlanning({
                       <div className="activityIcon">↻</div>
                       <div>
                         <b>{item.activity_type}</b>
-                        <small>{item.branch || shortEmail(item.created_by)} · {new Date(item.created_at).toLocaleString()}</small>
+                        <small>{shortEmail(item.created_by)} · {new Date(item.created_at).toLocaleString()}</small>
                         <p>{item.summary}</p>
                       </div>
                     </div>
@@ -749,13 +936,6 @@ export default function PromotionPlanning({
 
             <div className="planModalBody">
               <label>
-                Branch
-                <select value={decisionForm.branch} onChange={(e)=>setDecisionForm({...decisionForm,branch:e.target.value})}>
-                  {data?.allowedBranches.map((b)=><option key={b}>{b}</option>)}
-                </select>
-              </label>
-
-              <label>
                 Decision topic
                 <select value={decisionForm.topic} onChange={(e)=>setDecisionForm({...decisionForm,topic:e.target.value})}>
                   {decisionTopics.map((topic)=><option key={topic}>{topic}</option>)}
@@ -802,12 +982,127 @@ export default function PromotionPlanning({
         </div>
       )}
 
+      {thoughtModal && plan && (
+        <div className="planOverlay" onMouseDown={()=>setThoughtModal(false)}>
+          <section className="planModal" onMouseDown={(event)=>event.stopPropagation()}>
+            <header>
+              <h3>Add a manager thought</h3>
+              <button onClick={()=>setThoughtModal(false)}>×</button>
+            </header>
+
+            <div className="planModalBody">
+              <label>
+                Thought type
+                <select value={thoughtForm.thoughtType} onChange={(event)=>setThoughtForm({...thoughtForm,thoughtType:event.target.value})}>
+                  {thoughtTypes.map((type)=><option key={type}>{type}</option>)}
+                </select>
+              </label>
+
+              <label>
+                Impact
+                <select value={thoughtForm.impact} onChange={(event)=>setThoughtForm({...thoughtForm,impact:event.target.value})}>
+                  <option>High</option>
+                  <option>Medium</option>
+                  <option>Low</option>
+                </select>
+              </label>
+
+              <label className="span2">
+                Thought / idea title *
+                <input
+                  value={thoughtForm.title}
+                  onChange={(event)=>setThoughtForm({...thoughtForm,title:event.target.value})}
+                  placeholder="e.g. Put 20L economy paint under R300"
+                />
+              </label>
+
+              <label>
+                Item / product
+                <input
+                  value={thoughtForm.itemName}
+                  onChange={(event)=>setThoughtForm({...thoughtForm,itemName:event.target.value})}
+                  placeholder="Optional product name"
+                />
+              </label>
+
+              <label>
+                Product code
+                <input
+                  value={thoughtForm.itemCode}
+                  onChange={(event)=>setThoughtForm({...thoughtForm,itemCode:event.target.value})}
+                  placeholder="Optional"
+                />
+              </label>
+
+              <label>
+                Current price
+                <input
+                  value={thoughtForm.currentPrice}
+                  onChange={(event)=>setThoughtForm({...thoughtForm,currentPrice:event.target.value})}
+                  placeholder="e.g. R329.99"
+                />
+              </label>
+
+              <label>
+                Suggested promo price
+                <input
+                  value={thoughtForm.suggestedPrice}
+                  onChange={(event)=>setThoughtForm({...thoughtForm,suggestedPrice:event.target.value})}
+                  placeholder="e.g. R299.99"
+                />
+              </label>
+
+              <label>
+                Expected qty / requirement
+                <input
+                  value={thoughtForm.expectedQty}
+                  onChange={(event)=>setThoughtForm({...thoughtForm,expectedQty:event.target.value})}
+                  placeholder="e.g. 100 units / full pallet / high demand"
+                />
+              </label>
+
+              <label className="span2">
+                Explain your thought
+                <textarea
+                  value={thoughtForm.details}
+                  onChange={(event)=>setThoughtForm({...thoughtForm,details:event.target.value})}
+                  placeholder="Customer feedback, margin concern, competitor price, stock opportunity, why you think this will work, or what problem we should solve…"
+                />
+              </label>
+            </div>
+
+            <footer>
+              <button onClick={()=>setThoughtModal(false)}>Cancel</button>
+              <button className="primary" disabled={saving} onClick={async ()=>{
+                if (!thoughtForm.title.trim()) return flash("Enter the thought or idea.");
+                if (await post({ action:"addThought", planId:plan.id, ...thoughtForm })) {
+                  setThoughtModal(false);
+                  setThoughtForm({
+                    thoughtType:"Product / Item Idea",
+                    title:"",
+                    itemCode:"",
+                    itemName:"",
+                    currentPrice:"",
+                    suggestedPrice:"",
+                    expectedQty:"",
+                    details:"",
+                    impact:"Medium",
+                  });
+                  flash("Manager thought added.");
+                }
+              }}>
+                Add thought
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+
       {ideaModal && plan && (
         <div className="planOverlay" onMouseDown={()=>setIdeaModal(false)}>
           <section className="planModal" onMouseDown={(e)=>e.stopPropagation()}>
             <header><h3>Suggest a product for the next promotion</h3><button onClick={()=>setIdeaModal(false)}>×</button></header>
             <div className="planModalBody">
-              <label>Branch<select value={ideaForm.branch} onChange={(e)=>setIdeaForm({...ideaForm,branch:e.target.value})}>{data?.allowedBranches.map((b)=><option key={b}>{b}</option>)}</select></label>
               <label>Product code<input value={ideaForm.productCode} onChange={(e)=>setIdeaForm({...ideaForm,productCode:e.target.value})} /></label>
               <label className="span2">Product name *<input value={ideaForm.productName} onChange={(e)=>setIdeaForm({...ideaForm,productName:e.target.value})} placeholder="Exact product / pack size" /></label>
               <label>Category<select value={ideaForm.category} onChange={(e)=>setIdeaForm({...ideaForm,category:e.target.value})}><option value="">Select category</option>{categories.map((c)=><option key={c}>{c}</option>)}</select></label>
@@ -841,7 +1136,6 @@ export default function PromotionPlanning({
           <section className="planModal" onMouseDown={(e)=>e.stopPropagation()} style={{maxWidth:"560px"}}>
             <header><h3>Your view on this product</h3><button onClick={()=>setFeedbackOpen(null)}>×</button></header>
             <div className="planModalBody">
-              <label>Branch<select value={feedbackForm.branch} onChange={(e)=>setFeedbackForm({...feedbackForm,branch:e.target.value})}>{data?.allowedBranches.map((b)=><option key={b}>{b}</option>)}</select></label>
               <label>Support<select value={feedbackForm.support} onChange={(e)=>setFeedbackForm({...feedbackForm,support:e.target.value})}><option>Strong Yes</option><option>Yes</option><option>Maybe</option><option>No</option></select></label>
               <label className="span2">Manager comment<textarea value={feedbackForm.comment} onChange={(e)=>setFeedbackForm({...feedbackForm,comment:e.target.value})} placeholder="Why will / won't this work in your branch?" /></label>
             </div>
@@ -855,12 +1149,62 @@ export default function PromotionPlanning({
         </div>
       )}
 
+      {thoughtReactionOpen !== null && (
+        <div className="planOverlay" onMouseDown={()=>setThoughtReactionOpen(null)}>
+          <section className="planModal" onMouseDown={(event)=>event.stopPropagation()} style={{maxWidth:"560px"}}>
+            <header>
+              <h3>Your view on this thought</h3>
+              <button onClick={()=>setThoughtReactionOpen(null)}>×</button>
+            </header>
+
+            <div className="planModalBody">
+              <label>
+                Reaction
+                <select
+                  value={thoughtReactionForm.reaction}
+                  onChange={(event)=>setThoughtReactionForm({...thoughtReactionForm,reaction:event.target.value})}
+                >
+                  <option>Strong idea</option>
+                  <option>Agree</option>
+                  <option>Consider</option>
+                  <option>Not for this promotion</option>
+                </select>
+              </label>
+
+              <label className="span2">
+                Comment
+                <textarea
+                  value={thoughtReactionForm.comment}
+                  onChange={(event)=>setThoughtReactionForm({...thoughtReactionForm,comment:event.target.value})}
+                  placeholder="Add your reasoning, pricing concern, customer insight or alternative suggestion."
+                />
+              </label>
+            </div>
+
+            <footer>
+              <button onClick={()=>setThoughtReactionOpen(null)}>Cancel</button>
+              <button className="primary" disabled={saving} onClick={async ()=>{
+                if (await post({
+                  action:"thoughtReaction",
+                  thoughtId:thoughtReactionOpen,
+                  ...thoughtReactionForm,
+                })) {
+                  setThoughtReactionOpen(null);
+                  flash("Your view was saved.");
+                }
+              }}>
+                Save my view
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+
       {decisionVoteOpen !== null && (
         <div className="planOverlay" onMouseDown={()=>setDecisionVoteOpen(null)}>
           <section className="planModal" onMouseDown={(e)=>e.stopPropagation()} style={{maxWidth:"560px"}}>
             <header><h3>Your vote on this decision</h3><button onClick={()=>setDecisionVoteOpen(null)}>×</button></header>
             <div className="planModalBody">
-              <label>Branch<select value={decisionVoteForm.branch} onChange={(e)=>setDecisionVoteForm({...decisionVoteForm,branch:e.target.value})}>{data?.allowedBranches.map((b)=><option key={b}>{b}</option>)}</select></label>
               <label>Vote<select value={decisionVoteForm.vote} onChange={(e)=>setDecisionVoteForm({...decisionVoteForm,vote:e.target.value})}><option>Support</option><option>Prefer alternative</option><option>Need discussion</option></select></label>
               <label className="span2">Comment<textarea value={decisionVoteForm.comment} onChange={(e)=>setDecisionVoteForm({...decisionVoteForm,comment:e.target.value})} placeholder="Explain your view so everyone can decide without another meeting." /></label>
             </div>

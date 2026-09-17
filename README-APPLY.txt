@@ -1,44 +1,104 @@
 POWERBUILD / MALIKS GROUP HUB
-PROMOTION PLANNING BUILD FIX V3
+PROMOTION PLANNING V4 — MANAGER DISCUSSION + THOUGHT BOARD
 
 REPLACE:
-  app/store-specials.tsx
   app/promotion-planning.tsx
-  app/api/store-specials/route.ts
+  app/api/promotion-planning/route.ts
+  app/api/promotion-planning/shared.ts
 
-THIS FIXES THE GITHUB ACTION FAILURE
-------------------------------------
-Fatal error fixed:
-  app/store-specials.tsx
-  react-hooks/set-state-in-effect
+KEY CHANGE: NO BRANCH SELECTION IN THE DISCUSSION
+--------------------------------------------------
+Promotion Planning is now treated as one group management discussion.
 
-The initial Next Promotion Planning notification-badge refresh is now scheduled
-asynchronously with setTimeout(0), so React no longer detects a synchronous
-setState call from the effect body.
+The UI no longer asks managers to select a branch when:
+- proposing a decision;
+- voting on a decision;
+- suggesting a product;
+- voting/commenting on a product;
+- adding general comments;
+- adding manager thoughts.
 
-ALSO CLEANED
-------------
-Promotion Planning warnings:
-- Initial load effect dependency warning suppressed correctly.
-- decisionVotes is now memoised.
+Cards no longer display branch names either.
 
-Store Specials API warnings:
-- Removed unused allowedWorkspaces import.
-- Removed unused canAccessWorkspace import.
+Access control is still enforced from the signed-in user's Hub role and assigned
+workspaces, but the discussion itself feels like one management room.
 
-IMPORTANT: YOUR LOG ALSO SHOWS THIS FILE:
-  app/app/store-specials.tsx
+NEW: MANAGER THOUGHTS
+---------------------
+Managers now have a fast "Add manager thought" button.
 
-That is an accidental duplicate nested folder/file. It is NOT part of the Hub
-structure. In GitHub, delete:
-  app/app/store-specials.tsx
+Thought types:
+- Product / Item Idea
+- Pricing Idea
+- Customer Demand
+- Stock / Availability
+- Competitor Insight
+- Promotion Mechanics
+- Marketing Idea
+- Display / Merchandising
+- Supplier Opportunity
+- Margin / Profitability
+- Risk / Concern
+- Other
 
-If the app/app folder contains nothing else you intentionally created, delete
-the entire:
-  app/app/
+A thought can optionally include:
+- Item / product name
+- Product code
+- Current price
+- Suggested promotion price
+- Expected quantity / requirement
+- Full explanation
+- Impact: High / Medium / Low
 
-The warnings about <img> and the older Catalogue/Page hook dependency warnings
-are warnings only; they do not stop deployment.
+OTHER MANAGERS CAN REACT
+------------------------
+- Strong idea
+- Agree
+- Consider
+- Not for this promotion
+- Optional comment / alternative
 
-NO D1 MIGRATION.
-NO SECRET CHANGES.
+The Hub calculates a support score so useful thoughts rise to the top.
+
+HEAD OFFICE CONTROL
+-------------------
+Thought status:
+- New
+- Discuss
+- Shortlist
+- Agreed
+- Closed
+
+This allows quick thoughts to become actual promotion actions.
+
+MANAGER PARTICIPATION
+---------------------
+The dashboard now tracks managers, not branches:
+  Managers active / Managers invited
+
+Full-company users can see managers who have not contributed and send:
+  "Remind managers still to contribute"
+
+The participation calculation includes:
+- Manager thoughts
+- Thought reactions
+- Decision proposals
+- Decision votes
+- Product ideas
+- Product votes
+- General comments
+
+NOTIFICATION BADGE
+------------------
+The existing red Next Promotion Planning badge continues to count new thoughts,
+reactions, votes and comments since the user last opened the planning room.
+
+DATABASE
+--------
+No manual migration.
+
+New auto-created tables:
+- promotion_thoughts
+- promotion_thought_reactions
+
+No new GitHub secret.
