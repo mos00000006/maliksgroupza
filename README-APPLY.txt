@@ -1,33 +1,63 @@
 POWERBUILD / MALIKS GROUP HUB
-ROLLOUT & ONBOARDING — FULL VIEW FIX V2
+PROFESSIONAL COMPANY HUB STYLE V1
 
-REPLACE ONLY:
-  app/rollout-onboarding-centre.tsx
+ADD:
+  app/professional-hub.module.css
 
-WHAT THIS FIXES
----------------
-The Rollout & Onboarding page was wider than the available Hub content area,
-forcing the entire page to scroll left/right.
+REPLACE:
+  app/page.tsx
 
-This patch:
-- prevents page-level horizontal overflow
-- makes the 6 KPI cards shrink correctly
-- changes the two-column readiness area to use shrink-safe grid columns
-- keeps the role cards inside their panel
-- makes the user rollout table fit the desktop content width
-- assigns sensible table column widths
-- wraps long emails/workspace text instead of widening the page
-- changes to 3 KPI columns on narrower desktop windows
-- changes to 2 KPI columns on tablets / smaller windows
-- changes to 1 KPI column on very small screens
+THIS IS A VISUAL-ONLY PATCH
+---------------------------
+No API logic.
+No permissions changes.
+No workflow changes.
+No database changes.
+No role changes.
+No notification changes.
 
-On desktop, the page should now stay fully inside the Hub window with NO
-bottom left/right page scrollbar.
+The patch only adds a scoped corporate visual layer to the existing Hub shell.
 
-On smaller mobile/tablet widths, only the detailed user table may scroll inside
-its own box where necessary; the overall Hub page itself remains fixed to the
-screen width.
+STYLE UPGRADE
+-------------
+SIDEBAR
+- Deeper corporate navy gradient
+- Cleaner PowerBuild brand area
+- More refined company/workspace selector
+- Professional navigation spacing
+- Softer SVG icon colour
+- Yellow active indicator instead of a large loud highlight
+- Refined AI Sidekick button
+- Cleaner Manage User Access button
+- More polished signed-in user profile
+- Thin corporate sidebar scrollbar
 
-No API changes.
-No database migration.
+TOP HEADER
+- Executive breadcrumb-style PowerBuild Group label
+- Stronger page title hierarchy
+- Cleaner descriptive subtitle
+- White corporate header surface
+- Better alignment and spacing
+
+HEADER ACTIONS
+- Cleaner Search box
+- Refined Quick / Inbox / Access / Install / Add Task buttons
+- Subtle shadows and hover states
+- Cleaner notification badge
+- More professional yellow primary action
+
+GENERAL UI
+- Better modal shadow and borders
+- Cleaner table finishing
+- Consistent focus states
+- Subtle page background
+- Improved desktop/tablet/mobile responsiveness
+
+IMPORTANT
+---------
+This style is intentionally conservative and corporate.
+It keeps PowerBuild navy / yellow branding but avoids making the Hub look like
+a promotion pamphlet or consumer app.
+
+No migration.
 No secret changes.

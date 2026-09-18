@@ -13,6 +13,7 @@ import SystemControlCentre from "./system-control-centre";
 import SystemClientMonitor from "./system-client-monitor";
 import RolloutOnboardingCentre from "./rollout-onboarding-centre";
 import OnboardingGate from "./onboarding-gate";
+import styles from "./professional-hub.module.css";
 type Status = "Not started" | "In progress" | "Blocked" | "Returned" | "Complete";
 type QuickWorkflowKind = "audit" | "incident" | "capex" | "stock";
 type Task = {
@@ -1529,7 +1530,7 @@ export default function Home() {
       </main>
     );
   return (
-    <main className="shell">
+    <main className={`shell ${styles.professionalShell}`}>
       <SystemClientMonitor />
       <OnboardingGate currentUser={currentUser} />
       <aside className={mobileNavOpen ? "mobileOpen" : ""}>
