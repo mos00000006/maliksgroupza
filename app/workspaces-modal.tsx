@@ -152,6 +152,15 @@ export default function WorkspacesModal({
     }, 0);
     return () => clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
   const addWorkspace = async () => {
     if (!draft.name.trim()) {
       setError("Enter the new store name.");
@@ -345,8 +354,21 @@ export default function WorkspacesModal({
     }));
     const max = Math.max(1, ...statusData.map((x) => x.count));
     return (
-      <div className="overlay workspaceOverlay">
-        <div className="workspaceModal mondayWorkspace">
+      <div
+        className="overlay workspaceOverlay"
+        role="dialog"
+        aria-modal="true"
+        style={{
+          zIndex: 220,
+          isolation: "isolate",
+          background: "rgba(13, 23, 39, 0.72)",
+          backdropFilter: "blur(2px)",
+        }}
+      >
+        <div
+          className="workspaceModal mondayWorkspace"
+          style={{ position: "relative", zIndex: 221 }}
+        >
           <header>
             <span>
               <button
@@ -819,8 +841,23 @@ export default function WorkspacesModal({
   }
 
   return (
-    <div className="overlay" onMouseDown={close}>
-      <div className="workspaceModal" onMouseDown={(e) => e.stopPropagation()}>
+    <div
+      className="overlay workspaceOverlay"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={close}
+      style={{
+        zIndex: 220,
+        isolation: "isolate",
+        background: "rgba(13, 23, 39, 0.72)",
+        backdropFilter: "blur(2px)",
+      }}
+    >
+      <div
+        className="workspaceModal"
+        onMouseDown={(e) => e.stopPropagation()}
+        style={{ position: "relative", zIndex: 221 }}
+      >
         <header>
           <span>
             <h2>Company workspaces</h2>
