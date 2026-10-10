@@ -59,9 +59,6 @@ const apiResult = async (response: Response) => {
     can_manage?: boolean;
     product?: CatalogueProduct | null;
     ok?: boolean;
-    configured?: boolean;
-    missing?: number;
-    done?: boolean;
   };
 };
 
@@ -153,11 +150,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   const [success, setSuccess] = useState("");
   const [deleteProduct, setDeleteProduct] = useState<CatalogueProduct | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [aiConfigured, setAiConfigured] = useState(false);
-  const [missingImages, setMissingImages] = useState(0);
-  const [generatingImages, setGeneratingImages] = useState(false);
-  const [aiProgress, setAiProgress] = useState("");
-  const aiStopRequested = useRef(false);
   const requestId = useRef(0);
   const pageSize = 12;
 
@@ -183,20 +175,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       setPage(result.page || 1);
       setPages(result.pages || 1);
       setTotal(result.total || 0);
-      const managerAccess = Boolean(result.can_manage);
-      setCanManage(managerAccess);
-      if (managerAccess) {
-        void fetch("/api/catalogue/ai-image")
-          .then(apiResult)
-          .then((status) => {
-            setAiConfigured(Boolean(status.configured));
-            setMissingImages(Number(status.missing || 0));
-          })
-          .catch(() => setAiConfigured(false));
-      } else {
-        setAiConfigured(false);
-        setMissingImages(0);
-      }
+      setCanManage(Boolean(result.can_manage));
     } catch (caught) {
       if (id !== requestId.current) return;
       setError(caught instanceof Error ? caught.message : "Could not load the catalogue.");
@@ -209,91 +188,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     const timer = window.setTimeout(() => void load(1, query), 220);
     return () => window.clearTimeout(timer);
   }, [query]);
-
-  const refreshAiStatus = async () => {
-    if (!canManage) return;
-    try {
-      const response = await fetch("/api/catalogue/ai-image");
-      const result = await apiResult(response);
-      setAiConfigured(Boolean(result.configured));
-      setMissingImages(Number(result.missing || 0));
-    } catch {
-      setAiConfigured(false);
-    }
-  };
-
-  const generateSinglePicture = async (id: number) => {
-    if (generatingImages || !canManage) return;
-    setGeneratingImages(true);
-    setError("");
-    setSuccess("");
-    try {
-      const response = await fetch("/api/catalogue/ai-image", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      const result = await apiResult(response);
-      setMissingImages(Number(result.missing || 0));
-      setSuccess("Product picture generated and saved to the catalogue.");
-      window.setTimeout(() => setSuccess(""), 2600);
-      await load(page, query, true);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not generate the product picture.");
-    } finally {
-      setGeneratingImages(false);
-      await refreshAiStatus();
-    }
-  };
-
-  const generateAllMissingPictures = async () => {
-    if (generatingImages || !canManage || missingImages <= 0) return;
-    if (!aiConfigured) {
-      setError("Catalogue AI pictures need OPENAI_API_KEY configured on the Hub.");
-      return;
-    }
-    const confirmed = window.confirm(
-      `Generate ${missingImages} missing catalogue pictures now? This uses the Hub's configured OpenAI API and may incur API usage charges.`,
-    );
-    if (!confirmed) return;
-
-    aiStopRequested.current = false;
-    setGeneratingImages(true);
-    setError("");
-    setSuccess("");
-    const starting = missingImages;
-    let generated = 0;
-    let remaining = missingImages;
-    try {
-      while (remaining > 0 && !aiStopRequested.current) {
-        const response = await fetch("/api/catalogue/ai-image", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: "{}",
-        });
-        const result = await apiResult(response);
-        remaining = Number(result.missing || 0);
-        generated += 1;
-        setMissingImages(remaining);
-        setAiProgress(`${generated} of ${starting}`);
-        if (generated % 4 === 0 || remaining === 0) await load(page, query, true);
-        if (result.done) break;
-      }
-      if (aiStopRequested.current) {
-        setSuccess(`Picture generation stopped. ${remaining} catalogue pictures still need images.`);
-      } else {
-        setSuccess(`Generated ${generated} catalogue product picture${generated === 1 ? "" : "s"}.`);
-      }
-      window.setTimeout(() => setSuccess(""), 3600);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Catalogue picture generation stopped because of an error.");
-    } finally {
-      setGeneratingImages(false);
-      setAiProgress("");
-      await load(page, query, true);
-      await refreshAiStatus();
-    }
-  };
 
   const openAdd = () => {
     if (!canManage) return;
@@ -403,34 +297,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
         {expectedManager && canManage && <em>Catalogue administrator</em>}
       </div>
 
-      {canManage && (
-        <div className="catalogueAiPanel">
-          <div>
-            <b>AI catalogue pictures</b>
-            <small>
-              {missingImages > 0
-                ? `${missingImages} product${missingImages === 1 ? "" : "s"} still need a picture.`
-                : "All active catalogue products have a picture."}
-              {!aiConfigured && " Image generation is not configured on this deployment."}
-            </small>
-          </div>
-          {generatingImages ? (
-            <div className="catalogueAiActions">
-              <span>{aiProgress ? `Generating ${aiProgress}` : "Generating picture…"}</span>
-              <button onClick={() => { aiStopRequested.current = true; }}>Stop after current</button>
-            </div>
-          ) : (
-            <button
-              className="primary catalogueAiGenerate"
-              disabled={!aiConfigured || missingImages <= 0}
-              onClick={() => void generateAllMissingPictures()}
-            >
-              Generate missing pictures
-            </button>
-          )}
-        </div>
-      )}
-
       {success && <div className="catalogueSuccess">✓ {success}</div>}
       {error && !editorOpen && <div className="catalogueError">{error}</div>}
 
@@ -462,14 +328,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                   <p>{product.description || "No product description added yet."}</p>
                   {canManage && (
                     <div className="catalogueManageActions">
-                      {!product.image_url && (
-                        <button
-                          disabled={generatingImages || !aiConfigured}
-                          onClick={() => void generateSinglePicture(product.id)}
-                        >
-                          Generate picture
-                        </button>
-                      )}
                       <button onClick={() => openEdit(product)}>Edit</button>
                       <button className="dangerText" onClick={() => setDeleteProduct(product)}>Remove</button>
                     </div>

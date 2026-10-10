@@ -1,0 +1,4 @@
+When applying this patch to an existing Hub source tree, DELETE:
+app/api/catalogue/ai-image/route.ts
+
+If the ai-image directory becomes empty, it may also be removed.
