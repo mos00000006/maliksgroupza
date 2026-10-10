@@ -183,7 +183,20 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       setPage(result.page || 1);
       setPages(result.pages || 1);
       setTotal(result.total || 0);
-      setCanManage(Boolean(result.can_manage));
+      const managerAccess = Boolean(result.can_manage);
+      setCanManage(managerAccess);
+      if (managerAccess) {
+        void fetch("/api/catalogue/ai-image")
+          .then(apiResult)
+          .then((status) => {
+            setAiConfigured(Boolean(status.configured));
+            setMissingImages(Number(status.missing || 0));
+          })
+          .catch(() => setAiConfigured(false));
+      } else {
+        setAiConfigured(false);
+        setMissingImages(0);
+      }
     } catch (caught) {
       if (id !== requestId.current) return;
       setError(caught instanceof Error ? caught.message : "Could not load the catalogue.");
@@ -208,10 +221,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       setAiConfigured(false);
     }
   };
-
-  useEffect(() => {
-    if (canManage) void refreshAiStatus();
-  }, [canManage]);
 
   const generateSinglePicture = async (id: number) => {
     if (generatingImages || !canManage) return;
