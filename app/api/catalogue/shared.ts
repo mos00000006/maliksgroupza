@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { PREPARED_STOCK, PREPARED_STOCK_SEED_KEY } from "./prepared-stock";
 
 export const CATALOGUE_MANAGERS = new Set([
   "moyanamoses006@icloud.com",
@@ -8,6 +9,51 @@ export const CATALOGUE_MANAGERS = new Set([
 
 export const canManageCatalogue = (email?: string | null) =>
   Boolean(email && CATALOGUE_MANAGERS.has(email.trim().toLowerCase()));
+
+async function seedPreparedStock() {
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS catalogue_seed_versions (
+      seed_key TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL
+    )`,
+  ).run();
+
+  const applied = await env.DB.prepare(
+    "SELECT seed_key FROM catalogue_seed_versions WHERE seed_key=?",
+  )
+    .bind(PREPARED_STOCK_SEED_KEY)
+    .first<{ seed_key: string }>();
+  if (applied) return;
+
+  const now = new Date().toISOString();
+  const createdBy = `system:${PREPARED_STOCK_SEED_KEY}`;
+  const statements = PREPARED_STOCK.map((item) =>
+    env.DB.prepare(
+      `INSERT OR IGNORE INTO catalogue_products
+       (code,name,description,category,image_name,image_type,image_size,image_key,active,created_by,created_at,updated_by,updated_at)
+       VALUES (?,?,?,?, '', '', 0, '', 1, ?, ?, ?, ?)`,
+    ).bind(
+      item.code,
+      item.description,
+      item.description,
+      item.category,
+      createdBy,
+      now,
+      createdBy,
+      now,
+    ),
+  );
+
+  for (let index = 0; index < statements.length; index += 50) {
+    await env.DB.batch(statements.slice(index, index + 50));
+  }
+
+  await env.DB.prepare(
+    "INSERT OR REPLACE INTO catalogue_seed_versions (seed_key,applied_at) VALUES (?,?)",
+  )
+    .bind(PREPARED_STOCK_SEED_KEY, now)
+    .run();
+}
 
 export async function initCatalogueTable() {
   await env.DB.prepare(
@@ -31,6 +77,7 @@ export async function initCatalogueTable() {
   await env.DB.prepare(
     "CREATE INDEX IF NOT EXISTS catalogue_products_active_name_idx ON catalogue_products(active,name)",
   ).run();
+  await seedPreparedStock();
 }
 
 export const productResponse = (row: Record<string, unknown>) => ({
