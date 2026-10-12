@@ -1,11 +1,11 @@
-Optional Nexa font files for wholesale catalogue PDF export
+Optional Nexa font support for Wholesale Division PDF export
 
-Place Nexa font files here if you want the browser-generated wholesale catalogue PDF to use them consistently across all devices.
+The PDF exporter first tries a locally installed Nexa font on the device generating the catalogue.
 
-Supported filenames:
+For consistent Nexa typography on every device, licensed Nexa font files can be placed in this folder using these filenames:
 - Nexa-Regular.otf
 - Nexa-Book.otf
 - Nexa-Bold.otf
 - Nexa-Heavy.otf
 
-If these files are not present, the export will still work and will fall back to locally installed Nexa (if available) or Arial.
+Font files are intentionally not included in this package. If no Nexa font is available, the PDF remains functional and uses the browser fallback font.

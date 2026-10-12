@@ -10,22 +10,30 @@ export type WholesaleCatalogueProduct = {
 type PdfImage = { bytes: Uint8Array; width: number; height: number };
 type ProgressFn = (message: string, percent: number) => void;
 type LoadedImage = { element: HTMLImageElement; width: number; height: number };
+type CategoryPlan = {
+  category: string;
+  items: WholesaleCatalogueProduct[];
+  productPages: number;
+  coverPage: number;
+  endPage: number;
+};
 
 const encoder = new TextEncoder();
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
 const CANVAS_W = 1240;
 const CANVAS_H = 1754;
+
 const BLUE = "#0b4f94";
 const DEEP_BLUE = "#17344f";
 const NAVY = "#0f2350";
 const YELLOW = "#ffd23f";
-const GOLD = "#f7c948";
-const LIGHT = "#f4f7fb";
-const MID = "#dde6f0";
+const LIGHT = "#f5f8fc";
+const MID = "#d9e3ee";
 const TEXT = "#0f172a";
-const MUTED = "#5b6b80";
+const MUTED = "#66768a";
 const WHITE = "#ffffff";
+const SOFT_BLUE = "#eaf2fb";
 const FONT_REGULAR = '"Nexa", "Nexa Regular", Arial, sans-serif';
 const FONT_BOLD = '"Nexa", "Nexa Bold", Arial, sans-serif';
 
@@ -116,43 +124,8 @@ const cleanText = (value: string) =>
     .trim();
 
 const safeCategory = (value: string) => cleanText(value || "General") || "General";
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-const blobToJpeg = async (blob: Blob, maxDimension = 420, quality = 0.76): Promise<PdfImage> => {
-  const objectUrl = URL.createObjectURL(blob);
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("Could not read catalogue image."));
-      img.src = objectUrl;
-    });
-    const sourceW = image.naturalWidth || image.width;
-    const sourceH = image.naturalHeight || image.height;
-    const scale = Math.min(1, maxDimension / Math.max(sourceW, sourceH));
-    const width = Math.max(1, Math.round(sourceW * scale));
-    const height = Math.max(1, Math.round(sourceH * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Could not prepare catalogue image.");
-    ctx.fillStyle = WHITE;
-    ctx.fillRect(0, 0, width, height);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(image, 0, 0, width, height);
-    const dataUrl = canvas.toDataURL("image/jpeg", quality);
-    const binary = atob(dataUrl.split(",")[1]);
-    const output = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) output[index] = binary.charCodeAt(index);
-    return { bytes: output, width, height };
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-};
-
-const canvasToJpeg = async (canvas: HTMLCanvasElement, quality = 0.88): Promise<PdfImage> => {
+const canvasToJpeg = (canvas: HTMLCanvasElement, quality = 0.86): PdfImage => {
   const dataUrl = canvas.toDataURL("image/jpeg", quality);
   const binary = atob(dataUrl.split(",")[1]);
   const output = new Uint8Array(binary.length);
@@ -243,11 +216,10 @@ const wrapCanvasText = (
     }
     if (current) lines.push(current);
     current = word;
-    if (lines.length === maxLines) break;
+    if (lines.length >= maxLines) break;
   }
   if (current && lines.length < maxLines) lines.push(current);
 
-  if (lines.length > maxLines) lines.length = maxLines;
   if (lines.length === maxLines && words.join(" ") !== lines.join(" ")) {
     let last = lines[maxLines - 1];
     while (last.length > 1 && ctx.measureText(`${last}...`).width > maxWidth) last = last.slice(0, -1);
@@ -295,6 +267,52 @@ const drawImageContain = (
   ctx.drawImage(image.element, drawX, drawY, drawW, drawH);
 };
 
+const drawLogo = (
+  ctx: CanvasRenderingContext2D,
+  logo: LoadedImage | null,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) => {
+  if (logo) {
+    drawImageContain(ctx, logo, x, y, width, height);
+    return;
+  }
+  ctx.fillStyle = BLUE;
+  ctx.font = `900 28px ${FONT_BOLD}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText("POWERBUILD", x, y + height / 2);
+};
+
+const drawFooter = (
+  ctx: CanvasRenderingContext2D,
+  page: number,
+  totalPages: number,
+) => {
+  ctx.fillStyle = WHITE;
+  ctx.fillRect(0, CANVAS_H - 92, CANVAS_W, 92);
+  ctx.fillStyle = YELLOW;
+  ctx.fillRect(0, CANVAS_H - 92, CANVAS_W, 7);
+  ctx.fillStyle = NAVY;
+  ctx.fillRect(0, CANVAS_H - 85, CANVAS_W, 85);
+
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = WHITE;
+  ctx.font = `700 18px ${FONT_BOLD}`;
+  ctx.textAlign = "left";
+  ctx.fillText("POWERBUILD WHOLESALE DIVISION", 54, CANVAS_H - 54);
+
+  ctx.font = `600 17px ${FONT_REGULAR}`;
+  ctx.textAlign = "center";
+  ctx.fillText("www.powerbuild.co.za  ·  For orders & enquiries, contact your PowerBuild representative", CANVAS_W / 2, CANVAS_H - 30);
+
+  ctx.font = `700 17px ${FONT_BOLD}`;
+  ctx.textAlign = "right";
+  ctx.fillText(`${page} / ${totalPages}`, CANVAS_W - 54, CANVAS_H - 54);
+};
+
 const drawCoverPage = async (productCount: number, cover: LoadedImage | null) => {
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W;
@@ -307,55 +325,260 @@ const drawCoverPage = async (productCount: number, cover: LoadedImage | null) =>
 
   if (cover) {
     drawImageCover(ctx, cover, 0, 0, CANVAS_W, CANVAS_H);
-    drawRoundedRect(ctx, 82, 1464, CANVAS_W - 164, 172, 30, "rgba(255,255,255,0.94)", MID, 2);
+    const panelY = 1454;
+    drawRoundedRect(ctx, 92, panelY, CANVAS_W - 184, 176, 28, "rgba(255,255,255,0.96)", MID, 2);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillStyle = BLUE;
     ctx.font = `900 34px ${FONT_BOLD}`;
-    ctx.textAlign = "center";
-    ctx.fillText(`${productCount} PRODUCTS · LIVE HUB EDITION`, CANVAS_W / 2, 1510);
+    ctx.fillText(`${productCount} PRODUCTS · LIVE HUB EDITION`, CANVAS_W / 2, panelY + 54);
     ctx.fillStyle = DEEP_BLUE;
     ctx.font = `600 24px ${FONT_REGULAR}`;
-    ctx.fillText("Generated from the PowerBuild Company Hub", CANVAS_W / 2, 1560);
+    ctx.fillText("Generated from the PowerBuild Company Hub", CANVAS_W / 2, panelY + 102);
     ctx.fillStyle = MUTED;
-    ctx.font = `500 18px ${FONT_REGULAR}`;
-    ctx.fillText(new Date().toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" }), CANVAS_W / 2, 1605);
+    ctx.font = `600 18px ${FONT_REGULAR}`;
+    ctx.fillText(new Date().toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" }), CANVAS_W / 2, panelY + 142);
   } else {
-    ctx.fillStyle = "#eaf1fb";
+    const gradient = ctx.createLinearGradient(0, 0, CANVAS_W, CANVAS_H);
+    gradient.addColorStop(0, "#eff5fc");
+    gradient.addColorStop(1, "#ffffff");
+    ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
     ctx.fillStyle = BLUE;
-    ctx.fillRect(0, 0, CANVAS_W, 260);
+    ctx.fillRect(0, 0, CANVAS_W, 270);
     ctx.fillStyle = YELLOW;
-    ctx.fillRect(0, 232, CANVAS_W, 18);
-    ctx.fillStyle = NAVY;
-    ctx.fillRect(0, CANVAS_H - 140, CANVAS_W, 140);
+    ctx.fillRect(0, 240, CANVAS_W, 18);
 
-    ctx.fillStyle = WHITE;
     ctx.textAlign = "center";
-    ctx.font = `900 54px ${FONT_BOLD}`;
-    ctx.fillText("POWERBUILD", CANVAS_W / 2, 95);
-    ctx.font = `900 70px ${FONT_BOLD}`;
+    ctx.fillStyle = WHITE;
+    ctx.font = `900 58px ${FONT_BOLD}`;
+    ctx.fillText("POWERBUILD", CANVAS_W / 2, 130);
     ctx.fillStyle = BLUE;
-    ctx.fillText("WHOLESALE", CANVAS_W / 2, 540);
-    ctx.fillText("DIVISION", CANVAS_W / 2, 625);
-    ctx.font = `900 42px ${FONT_BOLD}`;
+    ctx.font = `900 74px ${FONT_BOLD}`;
+    ctx.fillText("WHOLESALE DIVISION", CANVAS_W / 2, 610);
     ctx.fillStyle = NAVY;
-    ctx.fillText("PRODUCT CATALOGUE", CANVAS_W / 2, 710);
+    ctx.font = `900 44px ${FONT_BOLD}`;
+    ctx.fillText("PRODUCT CATALOGUE", CANVAS_W / 2, 690);
 
-    drawRoundedRect(ctx, 300, 785, 640, 120, 28, WHITE, MID, 2);
+    drawRoundedRect(ctx, 314, 785, 612, 128, 26, WHITE, MID, 2);
     ctx.fillStyle = BLUE;
     ctx.font = `900 38px ${FONT_BOLD}`;
-    ctx.fillText(`${productCount} PRODUCTS`, CANVAS_W / 2, 830);
+    ctx.fillText(`${productCount} PRODUCTS`, CANVAS_W / 2, 833);
     ctx.fillStyle = MUTED;
     ctx.font = `600 24px ${FONT_REGULAR}`;
-    ctx.fillText("Generated from the PowerBuild Company Hub", CANVAS_W / 2, 878);
+    ctx.fillText("Live catalogue edition", CANVAS_W / 2, 879);
 
+    ctx.fillStyle = NAVY;
+    ctx.fillRect(0, CANVAS_H - 155, CANVAS_W, 155);
+    ctx.fillStyle = YELLOW;
+    ctx.fillRect(0, CANVAS_H - 155, CANVAS_W, 9);
     ctx.fillStyle = WHITE;
-    ctx.font = `700 28px ${FONT_BOLD}`;
-    ctx.fillText("PAINT · PLUMBING · DOORS & WINDOWS", CANVAS_W / 2, CANVAS_H - 96);
-    ctx.font = `700 24px ${FONT_BOLD}`;
-    ctx.fillText("FASTENERS · FENCING · WATERPROOFING & ROOFING & MANY MORE", CANVAS_W / 2, CANVAS_H - 56);
+    ctx.font = `700 25px ${FONT_BOLD}`;
+    ctx.fillText("PAINT · PLUMBING · DOORS & WINDOWS · FASTENERS · FENCING · ROOFING & MORE", CANVAS_W / 2, CANVAS_H - 82);
+    ctx.font = `700 20px ${FONT_BOLD}`;
+    ctx.fillText("www.powerbuild.co.za", CANVAS_W / 2, CANVAS_H - 39);
   }
 
   return canvasToJpeg(canvas, 0.9);
+};
+
+const drawContentsPage = async (
+  plans: CategoryPlan[],
+  logo: LoadedImage | null,
+  totalPages: number,
+) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = CANVAS_W;
+  canvas.height = CANVAS_H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not create PDF page.");
+
+  ctx.fillStyle = LIGHT;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  drawRoundedRect(ctx, 36, 30, CANVAS_W - 72, 132, 26, WHITE, MID, 2);
+  drawLogo(ctx, logo, 62, 52, 190, 86);
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = BLUE;
+  ctx.font = `900 48px ${FONT_BOLD}`;
+  ctx.fillText("CONTENTS", CANVAS_W - 66, 82);
+  ctx.fillStyle = MUTED;
+  ctx.font = `600 21px ${FONT_REGULAR}`;
+  ctx.fillText("Wholesale product categories", CANVAS_W - 66, 124);
+
+  const startY = 216;
+  const rowH = 112;
+  plans.forEach((plan, index) => {
+    const y = startY + index * rowH;
+    drawShadow(ctx, 10, "rgba(15, 23, 42, 0.06)", 3);
+    drawRoundedRect(ctx, 58, y, CANVAS_W - 116, 88, 18, WHITE, "#e0e8f1", 1.5);
+    clearShadow(ctx);
+
+    drawRoundedRect(ctx, 76, y + 18, 54, 52, 14, index % 2 === 0 ? BLUE : NAVY);
+    ctx.fillStyle = WHITE;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `900 20px ${FONT_BOLD}`;
+    ctx.fillText(String(index + 1).padStart(2, "0"), 103, y + 44);
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = TEXT;
+    ctx.font = `900 25px ${FONT_BOLD}`;
+    ctx.fillText(plan.category.toUpperCase(), 154, y + 34);
+    ctx.fillStyle = MUTED;
+    ctx.font = `600 18px ${FONT_REGULAR}`;
+    ctx.fillText(`${plan.items.length} products`, 154, y + 62);
+
+    drawRoundedRect(ctx, CANVAS_W - 260, y + 17, 176, 54, 16, SOFT_BLUE, "#c9dced", 1.5);
+    ctx.textAlign = "center";
+    ctx.fillStyle = BLUE;
+    ctx.font = `900 20px ${FONT_BOLD}`;
+    const pageText = plan.coverPage === plan.endPage ? `PAGE ${plan.coverPage}` : `PAGES ${plan.coverPage}-${plan.endPage}`;
+    ctx.fillText(pageText, CANVAS_W - 172, y + 44);
+  });
+
+  drawFooter(ctx, 2, totalPages);
+  return canvasToJpeg(canvas, 0.88);
+};
+
+const selectCategoryImages = (items: WholesaleCatalogueProduct[], imageMap: Map<number, LoadedImage>) => {
+  const selected: Array<{ product: WholesaleCatalogueProduct; image: LoadedImage | null }> = [];
+  for (const product of items) {
+    const image = imageMap.get(product.id) ?? null;
+    if (image) selected.push({ product, image });
+    if (selected.length >= 3) break;
+  }
+  if (selected.length < 3) {
+    for (const product of items) {
+      if (selected.some((entry) => entry.product.id === product.id)) continue;
+      selected.push({ product, image: null });
+      if (selected.length >= 3) break;
+    }
+  }
+  return selected;
+};
+
+const drawCategoryCoverPage = async (
+  plan: CategoryPlan,
+  logo: LoadedImage | null,
+  imageMap: Map<number, LoadedImage>,
+  totalPages: number,
+) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = CANVAS_W;
+  canvas.height = CANVAS_H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not create PDF page.");
+
+  const gradient = ctx.createLinearGradient(0, 0, CANVAS_W, CANVAS_H);
+  gradient.addColorStop(0, "#eaf3fd");
+  gradient.addColorStop(0.48, "#ffffff");
+  gradient.addColorStop(1, "#f4f7fb");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  ctx.fillStyle = BLUE;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(CANVAS_W, 0);
+  ctx.lineTo(CANVAS_W, 255);
+  ctx.lineTo(0, 360);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = YELLOW;
+  ctx.beginPath();
+  ctx.moveTo(0, 332);
+  ctx.lineTo(CANVAS_W, 226);
+  ctx.lineTo(CANVAS_W, 249);
+  ctx.lineTo(0, 355);
+  ctx.closePath();
+  ctx.fill();
+
+  drawLogo(ctx, logo, 70, 62, 226, 115);
+  ctx.fillStyle = WHITE;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.font = `900 30px ${FONT_BOLD}`;
+  ctx.fillText("WHOLESALE DIVISION", CANVAS_W - 78, 92);
+  ctx.font = `600 21px ${FONT_REGULAR}`;
+  ctx.fillText("PRODUCT CATALOGUE", CANVAS_W - 78, 137);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = NAVY;
+  ctx.font = `900 58px ${FONT_BOLD}`;
+  const titleLines = wrapCanvasText(ctx, plan.category.toUpperCase(), CANVAS_W - 160, 2);
+  drawCenteredLines(ctx, titleLines, CANVAS_W / 2, 420, 68, NAVY);
+
+  drawRoundedRect(ctx, CANVAS_W / 2 - 150, 565, 300, 62, 22, YELLOW);
+  ctx.fillStyle = NAVY;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `900 24px ${FONT_BOLD}`;
+  ctx.fillText(`${plan.items.length} PRODUCTS`, CANVAS_W / 2, 596);
+
+  ctx.fillStyle = MUTED;
+  ctx.font = `600 21px ${FONT_REGULAR}`;
+  ctx.fillText("Wholesale product range", CANVAS_W / 2, 660);
+
+  const samples = selectCategoryImages(plan.items, imageMap);
+  const cardW = 326;
+  const cardH = 450;
+  const gap = 24;
+  const totalW = cardW * 3 + gap * 2;
+  const left = (CANVAS_W - totalW) / 2;
+  const top = 730;
+
+  samples.forEach(({ product, image }, index) => {
+    const x = left + index * (cardW + gap);
+    drawShadow(ctx, 18, "rgba(15, 23, 42, 0.10)", 6);
+    drawRoundedRect(ctx, x, top, cardW, cardH, 24, WHITE, "#d7e1eb", 1.8);
+    clearShadow(ctx);
+
+    const imageX = x + 22;
+    const imageY = top + 24;
+    const imageW = cardW - 44;
+    const imageH = 292;
+    drawRoundedRect(ctx, imageX, imageY, imageW, imageH, 18, LIGHT, MID, 1.5);
+    if (image) {
+      drawImageContain(ctx, image, imageX + 12, imageY + 12, imageW - 24, imageH - 24);
+    } else {
+      ctx.fillStyle = BLUE;
+      ctx.font = `900 18px ${FONT_BOLD}`;
+      ctx.textAlign = "center";
+      ctx.fillText("PRODUCT IMAGE", x + cardW / 2, imageY + imageH / 2 - 8);
+      ctx.fillStyle = MUTED;
+      ctx.font = `600 15px ${FONT_REGULAR}`;
+      ctx.fillText("Image pending", x + cardW / 2, imageY + imageH / 2 + 22);
+    }
+
+    const productName = cleanText(product.name || product.description || product.code);
+    ctx.font = `900 21px ${FONT_BOLD}`;
+    const productLines = wrapCanvasText(ctx, productName, cardW - 42, 3);
+    drawCenteredLines(ctx, productLines, x + cardW / 2, top + 338, 25, TEXT);
+
+    drawRoundedRect(ctx, x + 65, top + 404, cardW - 130, 30, 15, SOFT_BLUE);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = BLUE;
+    ctx.font = `800 15px ${FONT_BOLD}`;
+    ctx.fillText(`CODE: ${cleanText(product.code)}`, x + cardW / 2, top + 419);
+  });
+
+  drawRoundedRect(ctx, 170, 1250, CANVAS_W - 340, 112, 28, WHITE, MID, 1.6);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = DEEP_BLUE;
+  ctx.font = `700 21px ${FONT_BOLD}`;
+  ctx.fillText("BROWSE THE COMPLETE RANGE ON THE FOLLOWING PAGES", CANVAS_W / 2, 1290);
+  ctx.fillStyle = MUTED;
+  ctx.font = `600 18px ${FONT_REGULAR}`;
+  ctx.fillText("All active products from the Company Hub catalogue are included.", CANVAS_W / 2, 1331);
+
+  drawFooter(ctx, plan.coverPage, totalPages);
+  return canvasToJpeg(canvas, 0.88);
 };
 
 const drawProductCard = (
@@ -367,64 +590,58 @@ const drawProductCard = (
   width: number,
   height: number,
 ) => {
-  drawShadow(ctx, 14, "rgba(15, 23, 42, 0.08)", 4);
-  drawRoundedRect(ctx, x, y, width, height, 18, WHITE, "#d6e0ea", 2);
+  drawShadow(ctx, 12, "rgba(15, 23, 42, 0.075)", 4);
+  drawRoundedRect(ctx, x, y, width, height, 20, WHITE, "#d8e2ec", 1.6);
   clearShadow(ctx);
 
-  drawRoundedRect(ctx, x + 14, y + 14, width - 28, 44, 14, BLUE);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = WHITE;
-  ctx.font = `900 19px ${FONT_BOLD}`;
-  ctx.fillText(cleanText(product.code), x + width / 2, y + 36);
-
   const imageFrameX = x + 18;
-  const imageFrameY = y + 74;
+  const imageFrameY = y + 18;
   const imageFrameW = width - 36;
-  const imageFrameH = height - 180;
-  drawRoundedRect(ctx, imageFrameX, imageFrameY, imageFrameW, imageFrameH, 16, LIGHT, MID, 1.6);
+  const imageFrameH = height - 150;
+  drawRoundedRect(ctx, imageFrameX, imageFrameY, imageFrameW, imageFrameH, 16, LIGHT, MID, 1.4);
 
   if (image) {
     drawImageContain(ctx, image, imageFrameX + 10, imageFrameY + 10, imageFrameW - 20, imageFrameH - 20);
   } else {
-    drawRoundedRect(ctx, imageFrameX + imageFrameW / 2 - 36, imageFrameY + 24, 72, 72, 16, WHITE, MID, 2);
-    ctx.strokeStyle = "#9aa8b7";
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.moveTo(imageFrameX + imageFrameW / 2 - 14, imageFrameY + 44);
-    ctx.lineTo(imageFrameX + imageFrameW / 2 + 14, imageFrameY + 72);
-    ctx.moveTo(imageFrameX + imageFrameW / 2 - 14, imageFrameY + 72);
-    ctx.lineTo(imageFrameX + imageFrameW / 2 + 14, imageFrameY + 44);
-    ctx.stroke();
-    ctx.fillStyle = BLUE;
-    ctx.font = `800 17px ${FONT_BOLD}`;
+    ctx.fillStyle = "#9aa8b7";
+    ctx.font = `900 17px ${FONT_BOLD}`;
     ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.fillText("PRODUCT IMAGE", x + width / 2, imageFrameY + imageFrameH / 2 - 4);
+    ctx.textBaseline = "middle";
+    ctx.fillText("PRODUCT IMAGE", x + width / 2, imageFrameY + imageFrameH / 2 - 10);
     ctx.fillStyle = MUTED;
-    ctx.font = `600 15px ${FONT_REGULAR}`;
-    ctx.fillText("Upload image in catalogue to show here", x + width / 2, imageFrameY + imageFrameH / 2 + 24);
+    ctx.font = `600 14px ${FONT_REGULAR}`;
+    ctx.fillText("Upload in catalogue", x + width / 2, imageFrameY + imageFrameH / 2 + 20);
   }
 
   const name = cleanText(product.name || product.description || product.code);
-  const subtitle = cleanText(product.description && product.description !== product.name ? product.description : "");
-  ctx.fillStyle = TEXT;
-  ctx.font = `900 20px ${FONT_BOLD}`;
-  const nameLines = wrapCanvasText(ctx, name, width - 36, 3);
-  drawCenteredLines(ctx, nameLines, x + width / 2, y + height - 90, 23, TEXT);
+  ctx.font = `900 18px ${FONT_BOLD}`;
+  const nameLines = wrapCanvasText(ctx, name, width - 34, 2);
+  const nameTop = y + height - 118;
+  drawCenteredLines(ctx, nameLines, x + width / 2, nameTop, 22, TEXT);
 
-  if (subtitle) {
-    ctx.fillStyle = MUTED;
-    ctx.font = `600 15px ${FONT_REGULAR}`;
-    const subLines = wrapCanvasText(ctx, subtitle, width - 36, 2);
-    drawCenteredLines(ctx, subLines, x + width / 2, y + height - 28 - subLines.length * 16, 18, MUTED);
+  const subtitle = cleanText(product.description && product.description !== product.name ? product.description : "");
+  if (subtitle && nameLines.length < 2) {
+    ctx.font = `600 13px ${FONT_REGULAR}`;
+    const subtitleLines = wrapCanvasText(ctx, subtitle, width - 38, 1);
+    drawCenteredLines(ctx, subtitleLines, x + width / 2, nameTop + 45, 16, MUTED);
   }
+
+  const badgeWidth = Math.min(width - 42, Math.max(130, ctx.measureText(cleanText(product.code)).width + 78));
+  const badgeX = x + (width - badgeWidth) / 2;
+  const badgeY = y + height - 48;
+  drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, 31, 15, YELLOW);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = NAVY;
+  ctx.font = `900 14px ${FONT_BOLD}`;
+  ctx.fillText(`CODE: ${cleanText(product.code)}`, x + width / 2, badgeY + 16);
 };
 
 const drawProductPage = async (
   category: string,
   items: WholesaleCatalogueProduct[],
   imageMap: Map<number, LoadedImage>,
+  logo: LoadedImage | null,
   categoryPage: number,
   categoryPages: number,
   absolutePage: number,
@@ -436,33 +653,36 @@ const drawProductPage = async (
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not create PDF page.");
 
-  ctx.fillStyle = "#eff4f9";
+  ctx.fillStyle = "#eef3f8";
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  drawRoundedRect(ctx, 34, 28, CANVAS_W - 68, 54, 18, BLUE);
-  ctx.fillStyle = WHITE;
+  drawRoundedRect(ctx, 34, 28, CANVAS_W - 68, 74, 22, WHITE, MID, 1.5);
+  drawLogo(ctx, logo, 54, 40, 154, 50);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `900 28px ${FONT_BOLD}`;
+  ctx.fillStyle = BLUE;
+  ctx.font = `900 25px ${FONT_BOLD}`;
   ctx.fillText("WHOLESALE DIVISION", CANVAS_W / 2, 55);
+  ctx.fillStyle = MUTED;
+  ctx.font = `600 15px ${FONT_REGULAR}`;
+  ctx.fillText("PRODUCT CATALOGUE", CANVAS_W / 2, 80);
 
-  drawRoundedRect(ctx, 54, 102, CANVAS_W - 108, 50, 18, NAVY);
+  drawRoundedRect(ctx, 54, 122, CANVAS_W - 108, 55, 18, NAVY);
   ctx.fillStyle = WHITE;
-  ctx.font = `900 28px ${FONT_BOLD}`;
+  ctx.font = `900 25px ${FONT_BOLD}`;
   const categoryLabel = categoryPages > 1 ? `${category.toUpperCase()} · ${categoryPage} / ${categoryPages}` : category.toUpperCase();
-  ctx.fillText(categoryLabel, CANVAS_W / 2, 127);
-
+  ctx.fillText(categoryLabel, CANVAS_W / 2, 149);
   ctx.fillStyle = YELLOW;
-  ctx.fillRect(84, 170, CANVAS_W - 168, 6);
+  ctx.fillRect(84, 194, CANVAS_W - 168, 6);
 
   const gridX = 44;
-  const gridY = 206;
+  const gridY = 224;
   const cols = 4;
-  const rows = 5;
+  const rows = 4;
   const gapX = 18;
   const gapY = 18;
   const cardW = (CANVAS_W - gridX * 2 - gapX * (cols - 1)) / cols;
-  const cardH = (CANVAS_H - gridY - 112 - gapY * (rows - 1)) / rows;
+  const cardH = (CANVAS_H - gridY - 124 - gapY * (rows - 1)) / rows;
 
   items.forEach((product, index) => {
     const row = Math.floor(index / cols);
@@ -472,48 +692,45 @@ const drawProductPage = async (
     drawProductCard(ctx, product, imageMap.get(product.id) ?? null, x, y, cardW, cardH);
   });
 
-  drawRoundedRect(ctx, 40, CANVAS_H - 70, CANVAS_W - 80, 34, 17, WHITE, MID, 1.5);
-  ctx.fillStyle = BLUE;
-  ctx.font = `800 18px ${FONT_BOLD}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("www.powerbuild.co.za", CANVAS_W / 2, CANVAS_H - 53);
-  ctx.fillStyle = MUTED;
-  ctx.font = `600 16px ${FONT_REGULAR}`;
-  ctx.textAlign = "left";
-  ctx.fillText(`Page ${absolutePage} of ${totalPages}`, 60, CANVAS_H - 53);
-  ctx.textAlign = "right";
-  ctx.fillText("Generated from catalogue records", CANVAS_W - 60, CANVAS_H - 53);
-
-  return canvasToJpeg(canvas, 0.9);
+  drawFooter(ctx, absolutePage, totalPages);
+  return canvasToJpeg(canvas, 0.86);
 };
 
 const tryLoadNexaFonts = async () => {
   if (typeof window === "undefined" || !("fonts" in document) || typeof FontFace === "undefined") return;
-  const candidates = [
-    { family: "Nexa", url: "/fonts/Nexa-Regular.otf", weight: "400" },
-    { family: "Nexa", url: "/fonts/Nexa-Book.otf", weight: "500" },
-    { family: "Nexa", url: "/fonts/Nexa-Bold.otf", weight: "700" },
-    { family: "Nexa", url: "/fonts/Nexa-Heavy.otf", weight: "900" },
+
+  const fonts = [
+    { weight: "400", local: 'local("Nexa Regular"), local("Nexa")', file: "/fonts/Nexa-Regular.otf" },
+    { weight: "500", local: 'local("Nexa Book"), local("Nexa")', file: "/fonts/Nexa-Book.otf" },
+    { weight: "700", local: 'local("Nexa Bold"), local("Nexa")', file: "/fonts/Nexa-Bold.otf" },
+    { weight: "900", local: 'local("Nexa Heavy"), local("Nexa Bold"), local("Nexa")', file: "/fonts/Nexa-Heavy.otf" },
   ];
 
   await Promise.all(
-    candidates.map(async ({ family, url, weight }) => {
+    fonts.map(async ({ weight, local, file }) => {
       try {
-        const font = new FontFace(family, `url(${url})`, { weight });
-        await font.load();
-        document.fonts.add(font);
+        const localFont = new FontFace("Nexa", local, { weight });
+        await localFont.load();
+        document.fonts.add(localFont);
+        return;
       } catch {
-        // Font files are optional. If not present, the export falls back to Arial.
+        // Try a bundled font file next.
+      }
+      try {
+        const bundledFont = new FontFace("Nexa", `url(${file})`, { weight });
+        await bundledFont.load();
+        document.fonts.add(bundledFont);
+      } catch {
+        // Export remains usable with the browser fallback font.
       }
     }),
   );
 
   try {
-    await document.fonts.load(`400 16px ${FONT_REGULAR}`);
-    await document.fonts.load(`900 16px ${FONT_BOLD}`);
+    await document.fonts.load('400 16px "Nexa"');
+    await document.fonts.load('900 16px "Nexa"');
   } catch {
-    // Ignore font load issues and continue with browser fallback fonts.
+    // Ignore font loading issues and use the fallback stack.
   }
 };
 
@@ -536,12 +753,29 @@ export async function downloadWholesaleCatalogue(
     groups.get(category)!.push(product);
   }
 
-  onProgress?.("Preparing PowerBuild cover...", 16);
+  const pageCapacity = 16;
+  let nextPage = 3; // Page 1 cover, page 2 contents.
+  const plans: CategoryPlan[] = Array.from(groups.entries()).map(([category, items]) => {
+    const productPages = Math.ceil(items.length / pageCapacity);
+    const coverPage = nextPage;
+    const endPage = coverPage + productPages;
+    nextPage = endPage + 1;
+    return { category, items, productPages, coverPage, endPage };
+  });
+  const totalPages = nextPage - 1;
+
+  onProgress?.("Preparing PowerBuild branding...", 10);
   let cover: LoadedImage | null = null;
+  let logo: LoadedImage | null = null;
   try {
     cover = await loadImageElement("/wholesale-division-cover.jpg");
   } catch {
     cover = null;
+  }
+  try {
+    logo = await loadImageElement("/powerbuild-logo-transparent.png");
+  } catch {
+    logo = null;
   }
 
   const productsWithImages = sorted.filter((product) => Boolean(product.image_url));
@@ -560,38 +794,13 @@ export async function downloadWholesaleCatalogue(
         // Product remains in the PDF with a styled placeholder.
       }
       completed += 1;
-      const percent = 18 + Math.round((completed / Math.max(1, productsWithImages.length)) * 36);
+      const percent = 12 + Math.round((completed / Math.max(1, productsWithImages.length)) * 31);
       onProgress?.(`Loading catalogue pictures ${completed}/${productsWithImages.length}...`, percent);
     }
   });
   await Promise.all(workers);
 
-  const pageCapacity = 20;
-  const totalProductPages = Array.from(groups.values()).reduce((sum, items) => sum + Math.ceil(items.length / pageCapacity), 0);
-  const totalPages = totalProductPages + 1;
-
-  onProgress?.("Rendering wholesale catalogue pages...", 60);
-  const renderedPages: PdfImage[] = [];
-  renderedPages.push(await drawCoverPage(products.length, cover));
-
-  let absolutePage = 1;
-  let builtPages = 0;
-  for (const [category, items] of groups) {
-    for (let start = 0; start < items.length; start += pageCapacity) {
-      const slice = items.slice(start, start + pageCapacity);
-      builtPages += 1;
-      absolutePage += 1;
-      const categoryPage = Math.floor(start / pageCapacity) + 1;
-      const categoryPages = Math.ceil(items.length / pageCapacity);
-      renderedPages.push(
-        await drawProductPage(category, slice, imageMap, categoryPage, categoryPages, absolutePage, totalPages),
-      );
-      const percent = 60 + Math.round((builtPages / Math.max(1, totalProductPages)) * 32);
-      onProgress?.(`Building catalogue pages ${builtPages}/${totalProductPages}...`, percent);
-    }
-  }
-
-  onProgress?.("Finalising PDF download...", 94);
+  onProgress?.("Creating cover and contents...", 46);
   const pdf = new PdfWriter();
   const catalogRef = pdf.reserve();
   const pagesRef = pdf.reserve();
@@ -607,7 +816,48 @@ export async function downloadWholesaleCatalogue(
     pageRefs.push(pageRef);
   };
 
-  renderedPages.forEach((page, index) => addPage(page, `Pg${index + 1}`));
+  addPage(await drawCoverPage(products.length, cover), "Pg1");
+  addPage(await drawContentsPage(plans, logo, totalPages), "Pg2");
+
+  let built = 0;
+  const renderTotal = plans.reduce((sum, plan) => sum + 1 + plan.productPages, 0);
+  for (const plan of plans) {
+    addPage(
+      await drawCategoryCoverPage(plan, logo, imageMap, totalPages),
+      `Pg${plan.coverPage}`,
+    );
+    built += 1;
+    onProgress?.(
+      `Building ${plan.category} section...`,
+      48 + Math.round((built / Math.max(1, renderTotal)) * 46),
+    );
+
+    for (let start = 0; start < plan.items.length; start += pageCapacity) {
+      const slice = plan.items.slice(start, start + pageCapacity);
+      const categoryPage = Math.floor(start / pageCapacity) + 1;
+      const absolutePage = plan.coverPage + categoryPage;
+      addPage(
+        await drawProductPage(
+          plan.category,
+          slice,
+          imageMap,
+          logo,
+          categoryPage,
+          plan.productPages,
+          absolutePage,
+          totalPages,
+        ),
+        `Pg${absolutePage}`,
+      );
+      built += 1;
+      onProgress?.(
+        `Building catalogue page ${absolutePage}/${totalPages}...`,
+        48 + Math.round((built / Math.max(1, renderTotal)) * 46),
+      );
+    }
+  }
+
+  onProgress?.("Finalising PDF download...", 96);
   pdf.set(pagesRef, `<< /Type /Pages /Kids [${pageRefs.map((ref) => `${ref} 0 R`).join(" ")}] /Count ${pageRefs.length} >>`);
   pdf.set(catalogRef, `<< /Type /Catalog /Pages ${pagesRef} 0 R >>`);
 
@@ -624,6 +874,7 @@ export async function downloadWholesaleCatalogue(
   window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
 
   releaseImage(cover);
+  releaseImage(logo);
   imageMap.forEach((image) => releaseImage(image));
   onProgress?.("Wholesale catalogue downloaded.", 100);
 }
