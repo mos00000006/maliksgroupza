@@ -1830,3 +1830,144 @@ button:disabled { cursor: default; }
   .employeeOverlay { padding: 7px; }
   .employeeToast { left: 12px; right: 12px; top: 82px; max-width: none; }
 }
+
+/* Catalogue PDF downloads - PowerBuild wholesale catalogue */
+.catalogueHeroActions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 11px 12px;
+}
+.catalogueHeroActions > label {
+  grid-column: 1 / -1;
+  min-height: 58px;
+}
+.cataloguePdfActions {
+  grid-column: 1 / span 2;
+  display: grid;
+  grid-template-columns: minmax(0, .88fr) minmax(0, 1.22fr);
+  gap: 10px;
+  min-width: 0;
+}
+.cataloguePdfButton {
+  min-width: 0;
+  min-height: 52px;
+  padding: 9px 13px;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.12;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.cataloguePdfButton span {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  height: 27px;
+  padding: 0 6px;
+  border-radius: 7px;
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: .6px;
+}
+.cataloguePdfButton.original {
+  background: rgba(255,255,255,.08);
+  color: #fff;
+}
+.cataloguePdfButton.original span {
+  background: #fff;
+  color: #123258;
+}
+.cataloguePdfButton.wholesale {
+  border-color: #f4cf24;
+  background: linear-gradient(135deg, #ffe548 0%, #f4cf24 100%);
+  color: #172438;
+  box-shadow: 0 10px 24px rgba(244,207,36,.18);
+}
+.cataloguePdfButton.wholesale span {
+  background: #172438;
+  color: #f4cf24;
+}
+.cataloguePdfButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 11px 26px rgba(0,0,0,.14);
+}
+.cataloguePdfButton:disabled {
+  cursor: wait;
+  opacity: .7;
+}
+.catalogueHeroActions > .primary {
+  grid-column: 3;
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 52px;
+  justify-self: stretch;
+}
+.cataloguePdfProgress {
+  margin: -4px 0 18px;
+  padding: 13px 15px 12px;
+  border: 1px solid #d8e5f5;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+  box-shadow: 0 5px 16px rgba(23,36,56,.05);
+}
+.cataloguePdfProgress > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #17365e;
+  font-size: 11px;
+}
+.cataloguePdfProgress > div span {
+  color: #7c6a00;
+  font-weight: 900;
+}
+.cataloguePdfProgress > i {
+  display: block;
+  height: 7px;
+  margin: 9px 0 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5edf7;
+}
+.cataloguePdfProgress > i span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1769e8, #f4cf24);
+  transition: width .22s ease;
+}
+.cataloguePdfProgress small {
+  color: #718096;
+  font-size: 9.5px;
+}
+@media (max-width: 980px) {
+  .catalogueHeroActions {
+    grid-template-columns: 1fr;
+  }
+  .catalogueHeroActions > label,
+  .cataloguePdfActions,
+  .catalogueHeroActions > .primary {
+    grid-column: 1;
+  }
+  .catalogueHeroActions > .primary {
+    max-width: none !important;
+  }
+}
+@media (max-width: 620px) {
+  .cataloguePdfActions {
+    grid-template-columns: 1fr;
+  }
+  .cataloguePdfButton {
+    min-height: 48px;
+  }
+}

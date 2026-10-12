@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { downloadWholesaleCatalogue } from "./catalogue-pdf";
 
 type CatalogueProduct = {
   id: number;
@@ -150,6 +151,9 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   const [success, setSuccess] = useState("");
   const [deleteProduct, setDeleteProduct] = useState<CatalogueProduct | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfStatus, setPdfStatus] = useState("");
+  const [pdfProgress, setPdfProgress] = useState(0);
   const requestId = useRef(0);
   const pageSize = 12;
 
@@ -258,6 +262,50 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     }
   };
 
+
+  const loadAllCatalogueProducts = async () => {
+    const collected: CatalogueProduct[] = [];
+    let exportPage = 1;
+    let exportPages = 1;
+    do {
+      const params = new URLSearchParams({ page: String(exportPage), pageSize: "48" });
+      const response = await fetch(`/api/catalogue?${params.toString()}`);
+      const result = await apiResult(response);
+      collected.push(...(result.products || []));
+      exportPages = Math.max(1, Number(result.pages || 1));
+      setPdfStatus(`Loading catalogue products ${Math.min(exportPage, exportPages)}/${exportPages}...`);
+      setPdfProgress(Math.min(18, Math.round((exportPage / exportPages) * 18)));
+      exportPage += 1;
+    } while (exportPage <= exportPages);
+    return collected;
+  };
+
+  const downloadWholesalePdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    setError("");
+    setPdfStatus("Loading all catalogue products...");
+    setPdfProgress(2);
+    try {
+      const allProducts = await loadAllCatalogueProducts();
+      if (!allProducts.length) throw new Error("There are no catalogue products to include in the wholesale PDF.");
+      await downloadWholesaleCatalogue(allProducts, (message, percent) => {
+        setPdfStatus(message);
+        setPdfProgress(percent);
+      });
+      window.setTimeout(() => {
+        setPdfStatus("");
+        setPdfProgress(0);
+      }, 2600);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The wholesale catalogue PDF could not be created.");
+      setPdfStatus("");
+      setPdfProgress(0);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const remove = async () => {
     if (!deleteProduct || deleting || !canManage) return;
     setDeleting(true);
@@ -294,6 +342,23 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
               placeholder="Search product or code…"
             />
           </label>
+          <div className="cataloguePdfActions">
+            <a
+              className="cataloguePdfButton original"
+              href="/wholesale-division-original.pdf"
+              download="PowerBuild_Wholesale_Division_Original.pdf"
+            >
+              <span>PDF</span> Download original PDF
+            </a>
+            <button
+              type="button"
+              className="cataloguePdfButton wholesale"
+              disabled={pdfBusy}
+              onClick={() => void downloadWholesalePdf()}
+            >
+              <span>PDF</span> {pdfBusy ? "Building wholesale PDF..." : "Download wholesale division PDF"}
+            </button>
+          </div>
           {canManage && (
             <button className="primary" onClick={openAdd}>＋ Add catalogue product</button>
           )}
@@ -307,6 +372,13 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       </div>
 
       {success && <div className="catalogueSuccess">✓ {success}</div>}
+      {pdfStatus && (
+        <div className="cataloguePdfProgress" aria-live="polite">
+          <div><b>{pdfStatus}</b><span>{pdfProgress}%</span></div>
+          <i><span style={{ width: `${Math.max(2, pdfProgress)}%` }} /></i>
+          <small>The wholesale PDF is built on this device so the Cloudflare Worker is not overloaded.</small>
+        </div>
+      )}
       {error && !editorOpen && <div className="catalogueError">{error}</div>}
 
       {loading ? (

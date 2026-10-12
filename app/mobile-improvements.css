@@ -850,3 +850,9 @@ aside nav button.active {
     height: 19px;
   }
 }
+
+/* Catalogue PDF action buttons */
+@media (max-width: 760px) {
+  .catalogueHeroActions .cataloguePdfActions { width: 100%; display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .catalogueHeroActions .cataloguePdfButton { width: 100%; min-height: 48px; }
+}
