@@ -353,66 +353,67 @@ const drawCoverPage = async (productCount: number, cover: LoadedImage | null) =>
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not create PDF page.");
 
-  const bg = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
-  bg.addColorStop(0, "#f7fbff");
-  bg.addColorStop(0.55, "#eef4fb");
-  bg.addColorStop(1, "#ffffff");
-  ctx.fillStyle = bg;
+  ctx.fillStyle = WHITE;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Decorative brand shapes
+  // Clean premium background with light blueprint feel
+  ctx.fillStyle = "#f8fbff";
+  ctx.fillRect(0, 0, CANVAS_W, 420);
   ctx.fillStyle = BLUE;
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(CANVAS_W * 0.34, 0);
-  ctx.lineTo(CANVAS_W * 0.23, 250);
-  ctx.lineTo(0, 250);
-  ctx.closePath();
-  ctx.fill();
-
+  ctx.fillRect(0, 0, CANVAS_W, 84);
   ctx.fillStyle = YELLOW;
   ctx.beginPath();
-  ctx.moveTo(CANVAS_W * 0.78, 0);
+  ctx.moveTo(CANVAS_W - 350, 0);
   ctx.lineTo(CANVAS_W, 0);
-  ctx.lineTo(CANVAS_W, 120);
-  ctx.lineTo(CANVAS_W * 0.72, 210);
+  ctx.lineTo(CANVAS_W, 110);
+  ctx.lineTo(CANVAS_W - 420, 110);
   ctx.closePath();
   ctx.fill();
 
-  drawShadow(ctx, 28, "rgba(15, 23, 42, 0.10)", 8);
-  drawRoundedRect(ctx, 92, 92, CANVAS_W - 184, CANVAS_H - 184, 34, WHITE, MID, 2);
-  clearShadow(ctx);
+  ctx.strokeStyle = "rgba(11, 79, 148, 0.10)";
+  ctx.lineWidth = 3;
+  for (const [x, y, w, h] of [
+    [120, 150, 240, 170],
+    [290, 120, 320, 220],
+    [1730, 135, 420, 240],
+    [1880, 170, 240, 160],
+  ] as const) {
+    ctx.strokeRect(x, y, w, h);
+  }
+  ctx.beginPath();
+  ctx.moveTo(120, 330); ctx.lineTo(650, 330);
+  ctx.moveTo(1730, 360); ctx.lineTo(2260, 360);
+  ctx.moveTo(460, 120); ctx.lineTo(460, 340);
+  ctx.moveTo(1960, 135); ctx.lineTo(1960, 375);
+  ctx.stroke();
 
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-
-  drawRoundedRect(ctx, CANVAS_W / 2 - 160, 165, 320, 64, 24, BLUE);
+  drawRoundedRect(ctx, CANVAS_W / 2 - 165, 130, 330, 64, 24, BLUE);
   ctx.fillStyle = WHITE;
   ctx.font = `900 34px ${FONT_BOLD}`;
-  ctx.fillText("POWERBUILD", CANVAS_W / 2, 197);
+  ctx.fillText("POWERBUILD", CANVAS_W / 2, 162);
 
   ctx.fillStyle = NAVY;
-  ctx.font = `900 86px ${FONT_BOLD}`;
-  ctx.fillText("WHOLESALE", CANVAS_W / 2, 350);
-  ctx.fillText("DIVISION", CANVAS_W / 2, 440);
-
+  ctx.font = `900 90px ${FONT_BOLD}`;
+  ctx.fillText("WHOLESALE", CANVAS_W / 2, 290);
+  ctx.fillText("DIVISION", CANVAS_W / 2, 390);
   ctx.fillStyle = BLUE;
-  ctx.font = `900 42px ${FONT_BOLD}`;
-  ctx.fillText("PRODUCT CATALOGUE", CANVAS_W / 2, 535);
+  ctx.font = `900 40px ${FONT_BOLD}`;
+  ctx.fillText("PRODUCT CATALOGUE", CANVAS_W / 2, 485);
+  drawRoundedRect(ctx, CANVAS_W / 2 - 160, 535, 320, 12, 6, YELLOW);
 
-  drawRoundedRect(ctx, CANVAS_W / 2 - 220, 590, 440, 14, 7, YELLOW);
-
-  // Hero image / visual block
-  const heroX = 190;
-  const heroY = 670;
-  const heroW = CANVAS_W - 380;
-  const heroH = 930;
-  drawShadow(ctx, 24, "rgba(11, 79, 148, 0.14)", 10);
-  drawRoundedRect(ctx, heroX, heroY, heroW, heroH, 30, SOFT_BLUE, "#d7e3ef", 2);
+  const heroX = 140;
+  const heroY = 640;
+  const heroW = CANVAS_W - 280;
+  const heroH = 1760;
+  drawShadow(ctx, 28, "rgba(15, 23, 42, 0.12)", 10);
+  drawRoundedRect(ctx, heroX, heroY, heroW, heroH, 28, WHITE, MID, 2);
   clearShadow(ctx);
+
   ctx.save();
   ctx.beginPath();
-  const r = 30;
+  const r = 26;
   ctx.moveTo(heroX + r, heroY);
   ctx.arcTo(heroX + heroW, heroY, heroX + heroW, heroY + heroH, r);
   ctx.arcTo(heroX + heroW, heroY + heroH, heroX, heroY + heroH, r);
@@ -421,61 +422,44 @@ const drawCoverPage = async (productCount: number, cover: LoadedImage | null) =>
   ctx.closePath();
   ctx.clip();
   if (cover) {
-    drawImageCover(ctx, cover, heroX + 2, heroY + 2, heroW - 4, heroH - 4);
-    ctx.fillStyle = "rgba(15, 35, 80, 0.14)";
-    ctx.fillRect(heroX, heroY, heroW, heroH);
+    drawImageContain(ctx, cover, heroX + 24, heroY + 24, heroW - 48, heroH - 200);
   } else {
     const heroBg = ctx.createLinearGradient(heroX, heroY, heroX + heroW, heroY + heroH);
     heroBg.addColorStop(0, "#0b4f94");
     heroBg.addColorStop(1, "#17344f");
     ctx.fillStyle = heroBg;
     ctx.fillRect(heroX, heroY, heroW, heroH);
-
-    ctx.fillStyle = "rgba(255,255,255,0.12)";
-    for (let i = 0; i < 6; i += 1) {
-      drawRoundedRect(ctx, heroX + 70 + i * 110, heroY + 130 + (i % 2) * 28, 72, 420, 20, "rgba(255,255,255,0.10)");
-    }
-    ctx.fillStyle = "rgba(255,255,255,0.09)";
-    ctx.beginPath();
-    ctx.moveTo(heroX + heroW - 180, heroY + 40);
-    ctx.lineTo(heroX + heroW + 40, heroY + 260);
-    ctx.lineTo(heroX + heroW + 40, heroY + 620);
-    ctx.lineTo(heroX + heroW - 280, heroY + 300);
-    ctx.closePath();
-    ctx.fill();
-
     ctx.fillStyle = WHITE;
-    ctx.font = `900 40px ${FONT_BOLD}`;
-    ctx.fillText("LIVE CATALOGUE EDITION", heroX + heroW / 2, heroY + heroH / 2 - 32);
-    ctx.font = `600 28px ${FONT_REGULAR}`;
-    ctx.fillText("All active products from the Company Hub", heroX + heroW / 2, heroY + heroH / 2 + 22);
-    ctx.fillText("presented in PowerBuild wholesale format", heroX + heroW / 2, heroY + heroH / 2 + 64);
+    ctx.font = `900 54px ${FONT_BOLD}`;
+    ctx.fillText("POWERBUILD WHOLESALE DIVISION", CANVAS_W / 2, heroY + heroH / 2 - 30);
+    ctx.font = `600 34px ${FONT_REGULAR}`;
+    ctx.fillText("Live catalogue edition", CANVAS_W / 2, heroY + heroH / 2 + 28);
   }
   ctx.restore();
 
-  drawRoundedRect(ctx, 245, 1650, CANVAS_W - 490, 140, 28, WHITE, MID, 2);
+  drawRoundedRect(ctx, 310, 2450, CANVAS_W - 620, 120, 24, WHITE, MID, 2);
   ctx.fillStyle = BLUE;
-  ctx.font = `900 40px ${FONT_BOLD}`;
-  ctx.fillText(`${productCount} PRODUCTS`, CANVAS_W / 2, 1700);
+  ctx.font = `900 42px ${FONT_BOLD}`;
+  ctx.fillText(`${productCount} PRODUCTS`, CANVAS_W / 2, 2490);
   ctx.fillStyle = MUTED;
-  ctx.font = `700 24px ${FONT_REGULAR}`;
-  ctx.fillText("LIVE HUB WHOLESALE PDF", CANVAS_W / 2, 1748);
+  ctx.font = `700 22px ${FONT_REGULAR}`;
+  ctx.fillText("LIVE HUB WHOLESALE PDF", CANVAS_W / 2, 2535);
 
   const dateText = new Date().toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" });
-  drawRoundedRect(ctx, 420, 1825, CANVAS_W - 840, 50, 18, SOFT_BLUE, "#d5e2ee", 1.5);
+  drawRoundedRect(ctx, 640, 2598, CANVAS_W - 1280, 46, 16, SOFT_BLUE, "#d8e3ef", 1.5);
   ctx.fillStyle = DEEP_BLUE;
-  ctx.font = `700 22px ${FONT_REGULAR}`;
-  ctx.fillText(dateText, CANVAS_W / 2, 1850);
+  ctx.font = `700 20px ${FONT_REGULAR}`;
+  ctx.fillText(dateText, CANVAS_W / 2, 2621);
 
   ctx.fillStyle = NAVY;
-  ctx.fillRect(0, CANVAS_H - 120, CANVAS_W, 120);
+  ctx.fillRect(0, CANVAS_H - 118, CANVAS_W, 118);
   ctx.fillStyle = YELLOW;
-  ctx.fillRect(0, CANVAS_H - 120, CANVAS_W, 8);
+  ctx.fillRect(0, CANVAS_H - 118, CANVAS_W, 8);
   ctx.fillStyle = WHITE;
-  ctx.font = `700 23px ${FONT_BOLD}`;
-  ctx.fillText("PAINT · PLUMBING · DOORS & WINDOWS · FASTENERS · FENCING · ROOFING & MORE", CANVAS_W / 2, CANVAS_H - 69);
+  ctx.font = `700 22px ${FONT_BOLD}`;
+  ctx.fillText("PAINT · PLUMBING · DOORS & WINDOWS · FASTENERS · FENCING · ROOFING & MORE", CANVAS_W / 2, CANVAS_H - 66);
   ctx.font = `700 20px ${FONT_REGULAR}`;
-  ctx.fillText("www.powerbuild.co.za", CANVAS_W / 2, CANVAS_H - 32);
+  ctx.fillText("www.powerbuild.co.za", CANVAS_W / 2, CANVAS_H - 30);
 
   return canvasToJpeg(canvas, 0.985);
 };
