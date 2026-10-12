@@ -530,8 +530,8 @@ aside > .user {
   .catalogueCardBody p { font-size: 9.5px; -webkit-line-clamp: 2; }
   .catalogueManageActions { gap: 6px; padding-top: 10px; }
   .catalogueManageActions button { min-height: 32px; padding: 6px 9px; }
-  .cataloguePager { gap: 8px; }
-  .cataloguePager button { min-width: 94px; padding: 9px 10px; }
+  .cataloguePager { gap: 6px; padding: 10px; }
+  .cataloguePager button { min-width: 34px; height: 34px; padding: 0 8px; font-size: 11px; }
   .catalogueFormGrid { grid-template-columns: 1fr; padding: 17px; }
   .catalogueFormGrid label.wide { grid-column: auto; }
   .catalogueEditor > header { padding: 18px 17px 14px; }
@@ -543,7 +543,6 @@ aside > .user {
   .catalogueCardBody { min-height: 170px; }
   .catalogueCardBody h3 { font-size: 15px; }
   .catalogueCardBody p { font-size: 10.5px; }
-  .cataloguePager span { display: none; }
 }
 
 /* PowerBuild phone / Home Screen quick actions */

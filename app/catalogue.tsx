@@ -339,19 +339,19 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
 
           {pages > 1 && (
             <nav className="cataloguePager" aria-label="Catalogue pages">
-              <button
-                disabled={page <= 1 || loading}
-                onClick={() => void load(page - 1, query)}
-              >
-                ← Previous
-              </button>
-              <span>Page <b>{page}</b> of <b>{pages}</b></span>
-              <button
-                disabled={page >= pages || loading}
-                onClick={() => void load(page + 1, query)}
-              >
-                Next →
-              </button>
+              {Array.from({ length: pages }, (_, index) => index + 1).map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  className={pageNumber === page ? "active" : ""}
+                  aria-current={pageNumber === page ? "page" : undefined}
+                  aria-label={`Go to catalogue page ${pageNumber}`}
+                  disabled={loading || pageNumber === page}
+                  onClick={() => void load(pageNumber, query)}
+                >
+                  {pageNumber}
+                </button>
+              ))}
             </nav>
           )}
         </>
