@@ -530,8 +530,12 @@ aside > .user {
   .catalogueCardBody p { font-size: 9.5px; -webkit-line-clamp: 2; }
   .catalogueManageActions { gap: 6px; padding-top: 10px; }
   .catalogueManageActions button { min-height: 32px; padding: 6px 9px; }
-  .cataloguePager { gap: 6px; padding: 10px; }
-  .cataloguePager button { min-width: 34px; height: 34px; padding: 0 8px; font-size: 11px; }
+  .cataloguePager { gap: 5px; padding: 4px 0; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
+  .cataloguePager::-webkit-scrollbar { display: none; }
+  .cataloguePagerNumbers { gap: 5px; }
+  .cataloguePager button { min-width: 36px; height: 36px; padding: 0 8px; border-radius: 8px; font-size: 11px; flex: 0 0 auto; }
+  .cataloguePagerArrow { min-width: 40px !important; font-size: 16px !important; }
+  .cataloguePagerGap { width: 17px; line-height: 36px; font-size: 15px; flex: 0 0 auto; }
   .catalogueFormGrid { grid-template-columns: 1fr; padding: 17px; }
   .catalogueFormGrid label.wide { grid-column: auto; }
   .catalogueEditor > header { padding: 18px 17px 14px; }

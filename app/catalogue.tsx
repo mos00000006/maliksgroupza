@@ -158,6 +158,15 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     [currentUserEmail],
   );
 
+  const visiblePageItems = useMemo<(number | string)[]>(() => {
+    if (pages <= 7) return Array.from({ length: pages }, (_, index) => index + 1);
+
+    if (page <= 4) return [1, 2, 3, 4, 5, "right-gap", pages];
+    if (page >= pages - 3) return [1, "left-gap", pages - 4, pages - 3, pages - 2, pages - 1, pages];
+
+    return [1, "left-gap", page - 1, page, page + 1, "right-gap", pages];
+  }, [page, pages]);
+
   const load = async (targetPage = page, search = query, quiet = false) => {
     const id = ++requestId.current;
     if (!quiet) setLoading(true);
@@ -339,19 +348,45 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
 
           {pages > 1 && (
             <nav className="cataloguePager" aria-label="Catalogue pages">
-              {Array.from({ length: pages }, (_, index) => index + 1).map((pageNumber) => (
-                <button
-                  key={pageNumber}
-                  type="button"
-                  className={pageNumber === page ? "active" : ""}
-                  aria-current={pageNumber === page ? "page" : undefined}
-                  aria-label={`Go to catalogue page ${pageNumber}`}
-                  disabled={loading || pageNumber === page}
-                  onClick={() => void load(pageNumber, query)}
-                >
-                  {pageNumber}
-                </button>
-              ))}
+              <button
+                type="button"
+                className="cataloguePagerArrow"
+                aria-label="Go to previous catalogue page"
+                disabled={loading || page <= 1}
+                onClick={() => void load(page - 1, query)}
+              >
+                <span aria-hidden="true">←</span>
+              </button>
+
+              <div className="cataloguePagerNumbers" aria-label={`Page ${page} of ${pages}`}>
+                {visiblePageItems.map((item) =>
+                  typeof item === "number" ? (
+                    <button
+                      key={item}
+                      type="button"
+                      className={item === page ? "active" : ""}
+                      aria-current={item === page ? "page" : undefined}
+                      aria-label={`Go to catalogue page ${item}`}
+                      disabled={loading || item === page}
+                      onClick={() => void load(item, query)}
+                    >
+                      {item}
+                    </button>
+                  ) : (
+                    <span key={item} className="cataloguePagerGap" aria-hidden="true">…</span>
+                  ),
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="cataloguePagerArrow"
+                aria-label="Go to next catalogue page"
+                disabled={loading || page >= pages}
+                onClick={() => void load(page + 1, query)}
+              >
+                <span aria-hidden="true">→</span>
+              </button>
             </nav>
           )}
         </>
