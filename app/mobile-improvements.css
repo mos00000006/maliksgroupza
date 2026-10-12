@@ -856,3 +856,189 @@ aside nav button.active {
   .catalogueHeroActions .cataloguePdfActions { width: 100%; display: grid; grid-template-columns: 1fr; gap: 8px; }
   .catalogueHeroActions .cataloguePdfButton { width: 100%; min-height: 48px; }
 }
+
+/* Catalogue mobile polish — 12 Oct 2026 */
+@media (max-width: 760px) {
+  .catalogueModule {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .catalogueHero {
+    gap: 16px;
+    padding: 18px 15px;
+  }
+
+  .catalogueHeroIntro small { font-size: 9px; }
+  .catalogueHeroIntro h2 { font-size: 24px; line-height: 1.08; }
+  .catalogueHeroIntro p { max-width: none; font-size: 11px; line-height: 1.5; }
+
+  .catalogueHeroActions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .catalogueHeroActions > label,
+  .cataloguePdfActions,
+  .catalogueHeroActions > .primary {
+    width: 100%;
+    grid-column: 1 !important;
+  }
+
+  .catalogueHeroActions > label {
+    min-height: 50px;
+    border-radius: 12px;
+  }
+
+  .catalogueHeroActions input {
+    min-width: 0;
+    min-height: 46px;
+    font-size: 16px; /* avoids iOS input zoom */
+  }
+
+  .cataloguePdfButton,
+  .catalogueHeroActions > .primary {
+    min-height: 50px !important;
+    border-radius: 12px;
+    font-size: 11px;
+    touch-action: manipulation;
+  }
+
+  .catalogueSummary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    overflow: visible;
+  }
+  .catalogueSummary > span { min-width: 0; width: 100%; }
+  .catalogueSummary em { grid-column: 1 / -1; justify-self: start; }
+
+  .cataloguePdfProgress {
+    margin: 0 0 14px;
+    padding: 12px;
+    border-radius: 12px;
+  }
+  .cataloguePdfProgress > div { align-items: flex-start; font-size: 10.5px; }
+  .cataloguePdfProgress > div b { min-width: 0; overflow-wrap: anywhere; }
+  .cataloguePdfProgress small { display: block; font-size: 10.5px; line-height: 1.45; }
+
+  .catalogueCard {
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  .catalogueImage img {
+    object-fit: contain !important;
+    object-position: center center !important;
+  }
+  .catalogueImage > b {
+    max-width: calc(100% - 4px);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    line-height: 1.15;
+  }
+
+  .catalogueManageActions button {
+    min-height: 44px;
+    padding: 9px 12px;
+    touch-action: manipulation;
+  }
+
+  .cataloguePager {
+    width: 100%;
+    margin-top: 14px;
+    padding: 8px 2px calc(8px + env(safe-area-inset-bottom));
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .cataloguePager::-webkit-scrollbar { display: none; }
+  .cataloguePager button {
+    min-width: 42px;
+    height: 42px;
+    padding: 0 10px;
+    flex: 0 0 auto;
+    touch-action: manipulation;
+  }
+  .cataloguePagerArrow { min-width: 46px !important; }
+
+  .catalogueEditorOverlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .catalogueEditor {
+    width: 100%;
+    max-height: calc(100dvh - env(safe-area-inset-top));
+    border-radius: 20px 20px 0 0;
+    overscroll-behavior: contain;
+  }
+  .catalogueEditor > header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 16px 15px 13px;
+    background: #fff;
+  }
+  .catalogueEditor > header > button {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+  }
+  .catalogueFormGrid {
+    gap: 13px;
+    padding: 16px 15px 18px;
+  }
+  .catalogueFormGrid label { font-size: 11px; }
+  .catalogueFormGrid input,
+  .catalogueFormGrid textarea {
+    min-height: 48px;
+    padding: 12px;
+    font-size: 16px; /* avoids iOS input zoom */
+  }
+  .catalogueFormGrid textarea { min-height: 120px; }
+  .catalogueFormGrid label > small { font-size: 10px; line-height: 1.4; }
+  .catalogueEditor > footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    padding: 12px 15px calc(12px + env(safe-area-inset-bottom));
+    background: #fff;
+  }
+  .catalogueEditor > footer button {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+  }
+
+  .catalogueDeleteOverlay {
+    align-items: flex-end;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  }
+  .deleteConfirmModal { width: 100%; max-width: 480px; }
+}
+
+@media (max-width: 600px) {
+  .catalogueGrid { grid-template-columns: 1fr; gap: 14px; }
+  .catalogueImage { height: 290px; padding: 12px 12px 10px; }
+  .catalogueImage img { height: calc(100% - 46px); }
+  .catalogueCardBody { min-height: 0; padding: 14px; }
+  .catalogueCardBody > small { font-size: 8.5px; }
+  .catalogueCardBody h3 { font-size: 15px; line-height: 1.35; }
+  .catalogueCardBody p { font-size: 11px; line-height: 1.45; -webkit-line-clamp: 3; }
+}
+
+@media (max-width: 390px) {
+  .catalogueModule { padding-left: 9px; padding-right: 9px; }
+  .catalogueHero { padding: 16px 13px; }
+  .catalogueImage { height: 260px; }
+  .cataloguePager button { min-width: 40px; height: 40px; padding: 0 8px; }
+  .cataloguePagerArrow { min-width: 44px !important; }
+}

@@ -24,6 +24,27 @@ const PAGE_H = 841.89;
 const CANVAS_W = 2480;
 const CANVAS_H = 3508;
 
+const pageRenderScale = () => {
+  if (typeof window === "undefined") return 1;
+  const width = Math.min(window.innerWidth || 9999, window.screen?.width || 9999);
+  if (width <= 760) return 0.8;
+  if (width <= 1024) return 0.9;
+  return 1;
+};
+
+const createPageCanvas = () => {
+  const scale = pageRenderScale();
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(CANVAS_W * scale);
+  canvas.height = Math.round(CANVAS_H * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not create PDF page.");
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  return { canvas, ctx };
+};
+
 const BLUE = "#0b4f94";
 const DEEP_BLUE = "#17344f";
 const NAVY = "#0f2350";
@@ -347,11 +368,7 @@ const drawFooter = (
 };
 
 const drawCoverPage = async (productCount: number, cover: LoadedImage | null) => {
-  const canvas = document.createElement("canvas");
-  canvas.width = CANVAS_W;
-  canvas.height = CANVAS_H;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not create PDF page.");
+  const { canvas, ctx } = createPageCanvas();
 
   ctx.fillStyle = WHITE;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -469,11 +486,7 @@ const drawContentsPage = async (
   logo: LoadedImage | null,
   totalPages: number,
 ) => {
-  const canvas = document.createElement("canvas");
-  canvas.width = CANVAS_W;
-  canvas.height = CANVAS_H;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not create PDF page.");
+  const { canvas, ctx } = createPageCanvas();
 
   ctx.fillStyle = LIGHT;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -547,11 +560,7 @@ const drawCategoryCoverPage = async (
   imageMap: Map<number, LoadedImage>,
   totalPages: number,
 ) => {
-  const canvas = document.createElement("canvas");
-  canvas.width = CANVAS_W;
-  canvas.height = CANVAS_H;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not create PDF page.");
+  const { canvas, ctx } = createPageCanvas();
 
   const gradient = ctx.createLinearGradient(0, 0, CANVAS_W, CANVAS_H);
   gradient.addColorStop(0, "#eaf3fd");
@@ -730,11 +739,7 @@ const drawProductPage = async (
   absolutePage: number,
   totalPages: number,
 ) => {
-  const canvas = document.createElement("canvas");
-  canvas.width = CANVAS_W;
-  canvas.height = CANVAS_H;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not create PDF page.");
+  const { canvas, ctx } = createPageCanvas();
 
   ctx.fillStyle = "#eef3f8";
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
