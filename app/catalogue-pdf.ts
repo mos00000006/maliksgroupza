@@ -21,8 +21,8 @@ type CategoryPlan = {
 const encoder = new TextEncoder();
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
-const CANVAS_W = 1240;
-const CANVAS_H = 1754;
+const CANVAS_W = 1654;
+const CANVAS_H = 2339;
 
 const BLUE = "#0b4f94";
 const DEEP_BLUE = "#17344f";
@@ -125,7 +125,7 @@ const cleanText = (value: string) =>
 
 const safeCategory = (value: string) => cleanText(value || "General") || "General";
 
-const canvasToJpeg = (canvas: HTMLCanvasElement, quality = 0.86): PdfImage => {
+const canvasToJpeg = (canvas: HTMLCanvasElement, quality = 0.92): PdfImage => {
   const dataUrl = canvas.toDataURL("image/jpeg", quality);
   const binary = atob(dataUrl.split(",")[1]);
   const output = new Uint8Array(binary.length);
@@ -243,6 +243,8 @@ const drawCenteredLines = (
 };
 
 const drawImageCover = (ctx: CanvasRenderingContext2D, image: LoadedImage, x: number, y: number, width: number, height: number) => {
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   const scale = Math.max(width / image.width, height / image.height);
   const drawW = image.width * scale;
   const drawH = image.height * scale;
@@ -259,6 +261,8 @@ const drawImageContain = (
   width: number,
   height: number,
 ) => {
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   const scale = Math.min(width / image.width, height / image.height);
   const drawW = image.width * scale;
   const drawH = image.height * scale;
@@ -320,67 +324,131 @@ const drawCoverPage = async (productCount: number, cover: LoadedImage | null) =>
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not create PDF page.");
 
-  ctx.fillStyle = WHITE;
+  const bg = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+  bg.addColorStop(0, "#f7fbff");
+  bg.addColorStop(0.55, "#eef4fb");
+  bg.addColorStop(1, "#ffffff");
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
+  // Decorative brand shapes
+  ctx.fillStyle = BLUE;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(CANVAS_W * 0.34, 0);
+  ctx.lineTo(CANVAS_W * 0.23, 250);
+  ctx.lineTo(0, 250);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = YELLOW;
+  ctx.beginPath();
+  ctx.moveTo(CANVAS_W * 0.78, 0);
+  ctx.lineTo(CANVAS_W, 0);
+  ctx.lineTo(CANVAS_W, 120);
+  ctx.lineTo(CANVAS_W * 0.72, 210);
+  ctx.closePath();
+  ctx.fill();
+
+  drawShadow(ctx, 28, "rgba(15, 23, 42, 0.10)", 8);
+  drawRoundedRect(ctx, 92, 92, CANVAS_W - 184, CANVAS_H - 184, 34, WHITE, MID, 2);
+  clearShadow(ctx);
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  drawRoundedRect(ctx, CANVAS_W / 2 - 160, 165, 320, 64, 24, BLUE);
+  ctx.fillStyle = WHITE;
+  ctx.font = `900 34px ${FONT_BOLD}`;
+  ctx.fillText("POWERBUILD", CANVAS_W / 2, 197);
+
+  ctx.fillStyle = NAVY;
+  ctx.font = `900 86px ${FONT_BOLD}`;
+  ctx.fillText("WHOLESALE", CANVAS_W / 2, 350);
+  ctx.fillText("DIVISION", CANVAS_W / 2, 440);
+
+  ctx.fillStyle = BLUE;
+  ctx.font = `900 42px ${FONT_BOLD}`;
+  ctx.fillText("PRODUCT CATALOGUE", CANVAS_W / 2, 535);
+
+  drawRoundedRect(ctx, CANVAS_W / 2 - 220, 590, 440, 14, 7, YELLOW);
+
+  // Hero image / visual block
+  const heroX = 190;
+  const heroY = 670;
+  const heroW = CANVAS_W - 380;
+  const heroH = 930;
+  drawShadow(ctx, 24, "rgba(11, 79, 148, 0.14)", 10);
+  drawRoundedRect(ctx, heroX, heroY, heroW, heroH, 30, SOFT_BLUE, "#d7e3ef", 2);
+  clearShadow(ctx);
+  ctx.save();
+  ctx.beginPath();
+  const r = 30;
+  ctx.moveTo(heroX + r, heroY);
+  ctx.arcTo(heroX + heroW, heroY, heroX + heroW, heroY + heroH, r);
+  ctx.arcTo(heroX + heroW, heroY + heroH, heroX, heroY + heroH, r);
+  ctx.arcTo(heroX, heroY + heroH, heroX, heroY, r);
+  ctx.arcTo(heroX, heroY, heroX + heroW, heroY, r);
+  ctx.closePath();
+  ctx.clip();
   if (cover) {
-    drawImageCover(ctx, cover, 0, 0, CANVAS_W, CANVAS_H);
-    const panelY = 1454;
-    drawRoundedRect(ctx, 92, panelY, CANVAS_W - 184, 176, 28, "rgba(255,255,255,0.96)", MID, 2);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = BLUE;
-    ctx.font = `900 34px ${FONT_BOLD}`;
-    ctx.fillText(`${productCount} PRODUCTS · LIVE HUB EDITION`, CANVAS_W / 2, panelY + 54);
-    ctx.fillStyle = DEEP_BLUE;
-    ctx.font = `600 24px ${FONT_REGULAR}`;
-    ctx.fillText("Generated from the PowerBuild Company Hub", CANVAS_W / 2, panelY + 102);
-    ctx.fillStyle = MUTED;
-    ctx.font = `600 18px ${FONT_REGULAR}`;
-    ctx.fillText(new Date().toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" }), CANVAS_W / 2, panelY + 142);
+    drawImageCover(ctx, cover, heroX + 2, heroY + 2, heroW - 4, heroH - 4);
+    ctx.fillStyle = "rgba(15, 35, 80, 0.14)";
+    ctx.fillRect(heroX, heroY, heroW, heroH);
   } else {
-    const gradient = ctx.createLinearGradient(0, 0, CANVAS_W, CANVAS_H);
-    gradient.addColorStop(0, "#eff5fc");
-    gradient.addColorStop(1, "#ffffff");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    const heroBg = ctx.createLinearGradient(heroX, heroY, heroX + heroW, heroY + heroH);
+    heroBg.addColorStop(0, "#0b4f94");
+    heroBg.addColorStop(1, "#17344f");
+    ctx.fillStyle = heroBg;
+    ctx.fillRect(heroX, heroY, heroW, heroH);
 
-    ctx.fillStyle = BLUE;
-    ctx.fillRect(0, 0, CANVAS_W, 270);
-    ctx.fillStyle = YELLOW;
-    ctx.fillRect(0, 240, CANVAS_W, 18);
+    ctx.fillStyle = "rgba(255,255,255,0.12)";
+    for (let i = 0; i < 6; i += 1) {
+      drawRoundedRect(ctx, heroX + 70 + i * 110, heroY + 130 + (i % 2) * 28, 72, 420, 20, "rgba(255,255,255,0.10)");
+    }
+    ctx.fillStyle = "rgba(255,255,255,0.09)";
+    ctx.beginPath();
+    ctx.moveTo(heroX + heroW - 180, heroY + 40);
+    ctx.lineTo(heroX + heroW + 40, heroY + 260);
+    ctx.lineTo(heroX + heroW + 40, heroY + 620);
+    ctx.lineTo(heroX + heroW - 280, heroY + 300);
+    ctx.closePath();
+    ctx.fill();
 
-    ctx.textAlign = "center";
     ctx.fillStyle = WHITE;
-    ctx.font = `900 58px ${FONT_BOLD}`;
-    ctx.fillText("POWERBUILD", CANVAS_W / 2, 130);
-    ctx.fillStyle = BLUE;
-    ctx.font = `900 74px ${FONT_BOLD}`;
-    ctx.fillText("WHOLESALE DIVISION", CANVAS_W / 2, 610);
-    ctx.fillStyle = NAVY;
-    ctx.font = `900 44px ${FONT_BOLD}`;
-    ctx.fillText("PRODUCT CATALOGUE", CANVAS_W / 2, 690);
-
-    drawRoundedRect(ctx, 314, 785, 612, 128, 26, WHITE, MID, 2);
-    ctx.fillStyle = BLUE;
-    ctx.font = `900 38px ${FONT_BOLD}`;
-    ctx.fillText(`${productCount} PRODUCTS`, CANVAS_W / 2, 833);
-    ctx.fillStyle = MUTED;
-    ctx.font = `600 24px ${FONT_REGULAR}`;
-    ctx.fillText("Live catalogue edition", CANVAS_W / 2, 879);
-
-    ctx.fillStyle = NAVY;
-    ctx.fillRect(0, CANVAS_H - 155, CANVAS_W, 155);
-    ctx.fillStyle = YELLOW;
-    ctx.fillRect(0, CANVAS_H - 155, CANVAS_W, 9);
-    ctx.fillStyle = WHITE;
-    ctx.font = `700 25px ${FONT_BOLD}`;
-    ctx.fillText("PAINT · PLUMBING · DOORS & WINDOWS · FASTENERS · FENCING · ROOFING & MORE", CANVAS_W / 2, CANVAS_H - 82);
-    ctx.font = `700 20px ${FONT_BOLD}`;
-    ctx.fillText("www.powerbuild.co.za", CANVAS_W / 2, CANVAS_H - 39);
+    ctx.font = `900 40px ${FONT_BOLD}`;
+    ctx.fillText("LIVE CATALOGUE EDITION", heroX + heroW / 2, heroY + heroH / 2 - 32);
+    ctx.font = `600 28px ${FONT_REGULAR}`;
+    ctx.fillText("All active products from the Company Hub", heroX + heroW / 2, heroY + heroH / 2 + 22);
+    ctx.fillText("presented in PowerBuild wholesale format", heroX + heroW / 2, heroY + heroH / 2 + 64);
   }
+  ctx.restore();
 
-  return canvasToJpeg(canvas, 0.9);
+  drawRoundedRect(ctx, 245, 1650, CANVAS_W - 490, 140, 28, WHITE, MID, 2);
+  ctx.fillStyle = BLUE;
+  ctx.font = `900 40px ${FONT_BOLD}`;
+  ctx.fillText(`${productCount} PRODUCTS`, CANVAS_W / 2, 1700);
+  ctx.fillStyle = MUTED;
+  ctx.font = `700 24px ${FONT_REGULAR}`;
+  ctx.fillText("LIVE HUB WHOLESALE PDF", CANVAS_W / 2, 1748);
+
+  const dateText = new Date().toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" });
+  drawRoundedRect(ctx, 420, 1825, CANVAS_W - 840, 50, 18, SOFT_BLUE, "#d5e2ee", 1.5);
+  ctx.fillStyle = DEEP_BLUE;
+  ctx.font = `700 22px ${FONT_REGULAR}`;
+  ctx.fillText(dateText, CANVAS_W / 2, 1850);
+
+  ctx.fillStyle = NAVY;
+  ctx.fillRect(0, CANVAS_H - 120, CANVAS_W, 120);
+  ctx.fillStyle = YELLOW;
+  ctx.fillRect(0, CANVAS_H - 120, CANVAS_W, 8);
+  ctx.fillStyle = WHITE;
+  ctx.font = `700 23px ${FONT_BOLD}`;
+  ctx.fillText("PAINT · PLUMBING · DOORS & WINDOWS · FASTENERS · FENCING · ROOFING & MORE", CANVAS_W / 2, CANVAS_H - 69);
+  ctx.font = `700 20px ${FONT_REGULAR}`;
+  ctx.fillText("www.powerbuild.co.za", CANVAS_W / 2, CANVAS_H - 32);
+
+  return canvasToJpeg(canvas, 0.96);
 };
 
 const drawContentsPage = async (
@@ -578,7 +646,7 @@ const drawCategoryCoverPage = async (
   ctx.fillText("All active products from the Company Hub catalogue are included.", CANVAS_W / 2, 1331);
 
   drawFooter(ctx, plan.coverPage, totalPages);
-  return canvasToJpeg(canvas, 0.88);
+  return canvasToJpeg(canvas, 0.93);
 };
 
 const drawProductCard = (
@@ -693,7 +761,7 @@ const drawProductPage = async (
   });
 
   drawFooter(ctx, absolutePage, totalPages);
-  return canvasToJpeg(canvas, 0.86);
+  return canvasToJpeg(canvas, 0.92);
 };
 
 const tryLoadNexaFonts = async () => {
