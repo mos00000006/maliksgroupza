@@ -47,8 +47,14 @@ jobs:
         run: npx wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc
 
       - name: Deploy full Hub
-        run: npx wrangler deploy --config dist/server/wrangler.json
-
-      - name: Sync AI Sidekick secret
-        if: ${{ env.OPENAI_API_KEY != '' }}
-        run: printf '%s' "$OPENAI_API_KEY" | npx wrangler secret put OPENAI_API_KEY --config .deploy/wrangler.jsonc
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${OPENAI_API_KEY:-}" ]; then
+            umask 077
+            printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY" > .deploy/worker-secrets.env
+            npx wrangler deploy --config dist/server/wrangler.json --secrets-file .deploy/worker-secrets.env
+            rm -f .deploy/worker-secrets.env
+          else
+            npx wrangler deploy --config dist/server/wrangler.json
+          fi
