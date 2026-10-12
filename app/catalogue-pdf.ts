@@ -661,7 +661,7 @@ const drawCategoryCoverPage = async (
     ctx.textBaseline = "middle";
     ctx.fillStyle = BLUE;
     ctx.font = `800 15px ${FONT_BOLD}`;
-    const publicCode = product.code.startsWith("WHPDF-") ? "WHOLESALE RANGE" : `CODE: ${cleanText(product.code)}`;
+    const publicCode = `CODE: ${cleanText(product.code)}`;
     ctx.fillText(publicCode, x + cardW / 2, top + 419);
   });
 
@@ -724,7 +724,7 @@ const drawProductCard = (
     drawCenteredLines(ctx, subtitleLines, x + width / 2, nameTop + 45, 16, MUTED);
   }
 
-  const publicCode = product.code.startsWith("WHPDF-") ? "WHOLESALE RANGE" : `CODE: ${cleanText(product.code)}`;
+  const publicCode = `CODE: ${cleanText(product.code)}`;
   const badgeWidth = Math.min(width - 42, Math.max(130, ctx.measureText(publicCode).width + 78));
   const badgeX = x + (width - badgeWidth) / 2;
   const badgeY = y + height - 48;

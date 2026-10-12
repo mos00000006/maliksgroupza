@@ -394,7 +394,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                   ) : (
                     <div><i>▧</i><small>Product image</small></div>
                   )}
-                  <b>{product.code.startsWith("WHPDF-") ? "WHOLESALE RANGE" : product.code}</b>
+                  <b>{product.code}</b>
                 </div>
                 <div className="catalogueCardBody">
                   <small>{product.category || "General"}</small>

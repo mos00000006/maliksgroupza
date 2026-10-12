@@ -521,9 +521,9 @@ aside > .user {
   .catalogueSummary em { white-space: nowrap; }
   .catalogueGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
   .catalogueCard { border-radius: 15px; }
-  .catalogueImage { height: 160px; padding: 10px; }
+  .catalogueImage { height: 160px; padding: 10px 10px 9px; gap: 8px; }
   .catalogueImage::after { inset: 9px; border-radius: 11px; }
-  .catalogueImage > b { left: 10px; bottom: 10px; padding: 6px 8px; font-size: 9px; }
+  .catalogueImage > b { padding: 6px 8px; font-size: 9px; max-width: 100%; }
   .catalogueCardBody { min-height: 176px; padding: 12px; }
   .catalogueCardBody > small { padding: 4px 7px; font-size: 8px; }
   .catalogueCardBody h3 { margin-top: 8px; font-size: 12px; }
