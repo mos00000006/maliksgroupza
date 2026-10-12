@@ -125,6 +125,35 @@ const cleanText = (value: string) =>
 
 const safeCategory = (value: string) => cleanText(value || "General") || "General";
 
+const CATEGORY_ORDER = [
+  "Plumbing",
+  "Electrical & Lighting",
+  "Paints & Allied",
+  "Waterproofing",
+  "Roofing & Gutters",
+  "Timber",
+  "Boards & Ceilings",
+  "Insulation",
+  "Bricks & Blocks",
+  "Steel & Metal",
+  "Doors & Frames",
+  "Windows",
+  "Fencing",
+  "Locksets",
+  "Fasteners",
+  "Ironmongery",
+  "Tools",
+  "Garden",
+  "Homeware",
+  "General Hardware",
+  "Adhesives & Chemicals",
+] as const;
+
+const categoryRank = (value: string) => {
+  const index = CATEGORY_ORDER.indexOf(safeCategory(value) as (typeof CATEGORY_ORDER)[number]);
+  return index === -1 ? CATEGORY_ORDER.length : index;
+};
+
 const canvasToJpeg = (canvas: HTMLCanvasElement, quality = 0.92): PdfImage => {
   const dataUrl = canvas.toDataURL("image/jpeg", quality);
   const binary = atob(dataUrl.split(",")[1]);
@@ -811,8 +840,10 @@ export async function downloadWholesaleCatalogue(
   await tryLoadNexaFonts();
 
   const sorted = [...products].sort((a, b) => {
-    const categoryCompare = safeCategory(a.category).localeCompare(safeCategory(b.category));
+    const categoryCompare = categoryRank(a.category) - categoryRank(b.category);
     if (categoryCompare) return categoryCompare;
+    const labelCompare = safeCategory(a.category).localeCompare(safeCategory(b.category));
+    if (labelCompare) return labelCompare;
     return cleanText(a.name || a.description || a.code).localeCompare(cleanText(b.name || b.description || b.code));
   });
 
