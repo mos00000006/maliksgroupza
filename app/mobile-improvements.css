@@ -1042,3 +1042,82 @@ aside nav button.active {
   .cataloguePager button { min-width: 40px; height: 40px; padding: 0 8px; }
   .cataloguePagerArrow { min-width: 44px !important; }
 }
+
+/* Mobile catalogue pagination: keep Previous / Next permanently visible */
+@media (max-width: 760px) {
+  .cataloguePager {
+    display: grid !important;
+    grid-template-columns: 48px minmax(0, 1fr) 48px;
+    align-items: center;
+    justify-content: stretch;
+    width: 100%;
+    max-width: 100%;
+    gap: 7px;
+    overflow: visible !important;
+    padding: 10px max(2px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(2px, env(safe-area-inset-left));
+    box-sizing: border-box;
+  }
+
+  .cataloguePagerNumbers {
+    min-width: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    padding: 2px 1px 4px;
+  }
+  .cataloguePagerNumbers::-webkit-scrollbar { display: none; }
+
+  .cataloguePagerNumbers > button,
+  .cataloguePagerNumbers > .cataloguePagerGap {
+    flex: 0 0 auto;
+    scroll-snap-align: center;
+  }
+
+  .cataloguePagerArrow {
+    position: relative;
+    z-index: 4;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 46px !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center;
+    border-radius: 12px !important;
+    background: #fff !important;
+    box-shadow: 0 6px 16px rgba(8, 41, 83, .12) !important;
+    touch-action: manipulation;
+  }
+
+  .cataloguePagerArrow:not(:disabled) {
+    border-color: #0b4fb3;
+    color: #0b4fb3;
+  }
+
+  .cataloguePagerArrow:disabled {
+    opacity: .38;
+  }
+
+  .cataloguePager button {
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 390px) {
+  .cataloguePager {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 5px;
+  }
+  .cataloguePagerArrow {
+    height: 44px !important;
+  }
+  .cataloguePagerNumbers {
+    gap: 5px;
+  }
+}
