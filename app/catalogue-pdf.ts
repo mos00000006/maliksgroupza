@@ -439,7 +439,28 @@ const drawCoverPage = async (productCount: number, cover: LoadedImage | null) =>
   ctx.closePath();
   ctx.clip();
   if (cover) {
-    drawImageContain(ctx, cover, heroX + 24, heroY + 24, heroW - 48, heroH - 200);
+    drawImageCover(ctx, cover, heroX, heroY, heroW, heroH);
+    ctx.fillStyle = "rgba(255,255,255,0.16)";
+    ctx.fillRect(heroX, heroY, heroW, heroH);
+
+    const posterW = Math.min(heroW - 260, 1280);
+    const posterH = heroH - 170;
+    const posterX = heroX + (heroW - posterW) / 2;
+    const posterY = heroY + 84;
+
+    drawRoundedRect(ctx, posterX, posterY, posterW, posterH, 26, "rgba(255,255,255,0.92)", "rgba(255,255,255,0.55)", 2);
+    ctx.save();
+    ctx.beginPath();
+    const pr = 24;
+    ctx.moveTo(posterX + pr, posterY);
+    ctx.arcTo(posterX + posterW, posterY, posterX + posterW, posterY + posterH, pr);
+    ctx.arcTo(posterX + posterW, posterY + posterH, posterX, posterY + posterH, pr);
+    ctx.arcTo(posterX, posterY + posterH, posterX, posterY, pr);
+    ctx.arcTo(posterX, posterY, posterX + posterW, posterY, pr);
+    ctx.closePath();
+    ctx.clip();
+    drawImageContain(ctx, cover, posterX + 18, posterY + 18, posterW - 36, posterH - 36);
+    ctx.restore();
   } else {
     const heroBg = ctx.createLinearGradient(heroX, heroY, heroX + heroW, heroY + heroH);
     heroBg.addColorStop(0, "#0b4f94");
