@@ -69,7 +69,7 @@ export async function PATCH(
       )
       .first<Record<string, unknown>>();
     const oldKey = String(existing.image_key || "");
-    if (newImageKey && oldKey && oldKey !== newImageKey)
+    if (newImageKey && oldKey && oldKey !== newImageKey && !oldKey.startsWith("static:"))
       await env.BUCKET.delete(oldKey).catch(() => undefined);
     return Response.json({ product: row ? productResponse(row) : null });
   } catch (error) {
@@ -101,7 +101,7 @@ export async function DELETE(
   )
     .bind(member.email, new Date().toISOString(), id)
     .run();
-  if (existing.image_key)
+  if (existing.image_key && !existing.image_key.startsWith("static:"))
     await env.BUCKET.delete(existing.image_key).catch(() => undefined);
   return Response.json({ ok: true });
 }

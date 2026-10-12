@@ -1,0 +1,13 @@
+PowerBuild wholesale catalogue consolidation patch - 12 October 2026
+
+Replace/copy the included files into the matching repository paths.
+
+IMPORTANT cleanup:
+- Delete `public/wholesale-division-original.pdf` from the repository if it still exists. The Hub no longer links to it.
+
+This patch:
+- adds all source-derived products represented in the original wholesale catalogue to the Company Hub catalogue
+- bundles source product images
+- attaches those images to catalogue records without replacing user-uploaded images
+- removes the Download Original PDF button
+- keeps Download Wholesale Division PDF as the only PDF download control

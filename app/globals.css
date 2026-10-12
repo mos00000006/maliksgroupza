@@ -1843,7 +1843,7 @@ button:disabled { cursor: default; }
 .cataloguePdfActions {
   grid-column: 1 / span 2;
   display: grid;
-  grid-template-columns: minmax(0, .88fr) minmax(0, 1.22fr);
+  grid-template-columns: 1fr;
   gap: 10px;
   min-width: 0;
 }
@@ -1877,14 +1877,6 @@ button:disabled { cursor: default; }
   font-size: 9px;
   font-weight: 1000;
   letter-spacing: .6px;
-}
-.cataloguePdfButton.original {
-  background: rgba(255,255,255,.08);
-  color: #fff;
-}
-.cataloguePdfButton.original span {
-  background: #fff;
-  color: #123258;
 }
 .cataloguePdfButton.wholesale {
   border-color: #f4cf24;

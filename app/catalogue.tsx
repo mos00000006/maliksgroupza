@@ -343,13 +343,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
             />
           </label>
           <div className="cataloguePdfActions">
-            <a
-              className="cataloguePdfButton original"
-              href="/wholesale-division-original.pdf"
-              download="PowerBuild_Wholesale_Division_Original.pdf"
-            >
-              <span>PDF</span> Download original PDF
-            </a>
             <button
               type="button"
               className="cataloguePdfButton wholesale"
