@@ -1,0 +1,4 @@
+Optional cleanup after applying this patch:
+Delete app/api/catalogue/prepared-stock.ts from the repository.
+The fixed app no longer imports it; catalogue stock is seeded by drizzle/0012_catalogue_prepared_stock.sql instead.
+Leaving the old file in the repository will not be used by the fixed runtime, but deleting it keeps the project clean.

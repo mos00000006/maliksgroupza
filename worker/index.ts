@@ -33,6 +33,17 @@ interface ExecutionContext {
 
 type AccessIdentity = { email?: string; name?: string };
 
+let cachedAccessIssuer = "";
+let cachedAccessJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+
+function accessJwksFor(issuer: string) {
+  if (!cachedAccessJwks || cachedAccessIssuer !== issuer) {
+    cachedAccessIssuer = issuer;
+    cachedAccessJwks = createRemoteJWKSet(new URL(`${issuer}/cdn-cgi/access/certs`));
+  }
+  return cachedAccessJwks;
+}
+
 async function getAccessIdentity(
   request: Request,
   env: Env,
@@ -60,8 +71,7 @@ async function getAccessIdentity(
   const issuer = teamDomain.startsWith("https://")
     ? teamDomain
     : `https://${teamDomain}`;
-  const jwks = createRemoteJWKSet(new URL(`${issuer}/cdn-cgi/access/certs`));
-  const { payload } = await jwtVerify(token, jwks, {
+  const { payload } = await jwtVerify(token, accessJwksFor(issuer), {
     issuer,
     audience,
   });
@@ -102,38 +112,16 @@ function accessPage(title: string, message: string, status = 403) {
   );
 }
 
-async function authorisedMember(email: string, fullName: string, env: Env) {
+async function authorisedMember(email: string, _fullName: string, env: Env) {
+  void _fullName;
   if (!email) return { email: "", member: null as HubMember | null };
-
-  await env.DB.prepare(
-    `CREATE TABLE IF NOT EXISTS team_members (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      role TEXT NOT NULL DEFAULT 'Member',
-      department TEXT NOT NULL DEFAULT 'Operations',
-      active INTEGER NOT NULL DEFAULT 1,
-      created_by TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )`,
-  ).run();
 
   const ownerEmail = env.OWNER_EMAIL.trim().toLowerCase();
   if (email === ownerEmail) {
-    await env.DB.prepare(
-      `INSERT INTO team_members (name,email,role,department,active,created_by,created_at)
-       VALUES (?,?,?,?,1,?,?)
-       ON CONFLICT(email) DO UPDATE SET active=1,role='Owner / Admin'`,
-    )
-      .bind(
-        fullName || env.OWNER_NAME || email,
-        ownerEmail,
-        "Owner / Admin",
-        "Executive",
-        ownerEmail,
-        new Date().toISOString(),
-      )
-      .run();
+    return {
+      email,
+      member: { email: ownerEmail, role: "Owner / Admin", active: 1 } as HubMember,
+    };
   }
 
   const member = await env.DB.prepare(
