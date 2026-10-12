@@ -632,7 +632,8 @@ const drawCategoryCoverPage = async (
     ctx.textBaseline = "middle";
     ctx.fillStyle = BLUE;
     ctx.font = `800 15px ${FONT_BOLD}`;
-    ctx.fillText(`CODE: ${cleanText(product.code)}`, x + cardW / 2, top + 419);
+    const publicCode = product.code.startsWith("WHPDF-") ? "WHOLESALE RANGE" : `CODE: ${cleanText(product.code)}`;
+    ctx.fillText(publicCode, x + cardW / 2, top + 419);
   });
 
   drawRoundedRect(ctx, 170, 1250, CANVAS_W - 340, 112, 28, WHITE, MID, 1.6);
@@ -694,7 +695,8 @@ const drawProductCard = (
     drawCenteredLines(ctx, subtitleLines, x + width / 2, nameTop + 45, 16, MUTED);
   }
 
-  const badgeWidth = Math.min(width - 42, Math.max(130, ctx.measureText(cleanText(product.code)).width + 78));
+  const publicCode = product.code.startsWith("WHPDF-") ? "WHOLESALE RANGE" : `CODE: ${cleanText(product.code)}`;
+  const badgeWidth = Math.min(width - 42, Math.max(130, ctx.measureText(publicCode).width + 78));
   const badgeX = x + (width - badgeWidth) / 2;
   const badgeY = y + height - 48;
   drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, 31, 15, YELLOW);
@@ -702,7 +704,7 @@ const drawProductCard = (
   ctx.textBaseline = "middle";
   ctx.fillStyle = NAVY;
   ctx.font = `900 14px ${FONT_BOLD}`;
-  ctx.fillText(`CODE: ${cleanText(product.code)}`, x + width / 2, badgeY + 16);
+  ctx.fillText(publicCode, x + width / 2, badgeY + 16);
 };
 
 const drawProductPage = async (
