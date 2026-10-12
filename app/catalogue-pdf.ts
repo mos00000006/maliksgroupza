@@ -21,8 +21,8 @@ type CategoryPlan = {
 const encoder = new TextEncoder();
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
-const CANVAS_W = 1654;
-const CANVAS_H = 2339;
+const CANVAS_W = 2480;
+const CANVAS_H = 3508;
 
 const BLUE = "#0b4f94";
 const DEEP_BLUE = "#17344f";
@@ -154,7 +154,7 @@ const categoryRank = (value: string) => {
   return index === -1 ? CATEGORY_ORDER.length : index;
 };
 
-const canvasToJpeg = (canvas: HTMLCanvasElement, quality = 0.92): PdfImage => {
+const canvasToJpeg = (canvas: HTMLCanvasElement, quality = 0.97): PdfImage => {
   const dataUrl = canvas.toDataURL("image/jpeg", quality);
   const binary = atob(dataUrl.split(",")[1]);
   const output = new Uint8Array(binary.length);
@@ -477,7 +477,7 @@ const drawCoverPage = async (productCount: number, cover: LoadedImage | null) =>
   ctx.font = `700 20px ${FONT_REGULAR}`;
   ctx.fillText("www.powerbuild.co.za", CANVAS_W / 2, CANVAS_H - 32);
 
-  return canvasToJpeg(canvas, 0.96);
+  return canvasToJpeg(canvas, 0.985);
 };
 
 const drawContentsPage = async (
@@ -537,7 +537,7 @@ const drawContentsPage = async (
   });
 
   drawFooter(ctx, 2, totalPages);
-  return canvasToJpeg(canvas, 0.88);
+  return canvasToJpeg(canvas, 0.975);
 };
 
 const selectCategoryImages = (items: WholesaleCatalogueProduct[], imageMap: Map<number, LoadedImage>) => {
@@ -676,7 +676,7 @@ const drawCategoryCoverPage = async (
   ctx.fillText("All active products from the Company Hub catalogue are included.", CANVAS_W / 2, 1331);
 
   drawFooter(ctx, plan.coverPage, totalPages);
-  return canvasToJpeg(canvas, 0.93);
+  return canvasToJpeg(canvas, 0.98);
 };
 
 const drawProductCard = (
@@ -792,7 +792,7 @@ const drawProductPage = async (
   });
 
   drawFooter(ctx, absolutePage, totalPages);
-  return canvasToJpeg(canvas, 0.92);
+  return canvasToJpeg(canvas, 0.98);
 };
 
 const tryLoadNexaFonts = async () => {
