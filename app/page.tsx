@@ -1791,7 +1791,7 @@ export default function Home() {
         ) : isEmployeeRecordsView ? (
           <EmployeeRecords currentUser={currentUser} />
         ) : isBuyerWorkspaceView ? (
-          <BuyerWorkspace currentUser={currentUser} />
+          <BuyerWorkspace currentUser={currentUser} onNavigate={(view) => { setActive(view); setSearch(""); }} />
         ) : isStockOrdersView ? (
           <StockOrdersWorkspace currentUser={currentUser} />
         ) : isStoreSpecialsView ? (

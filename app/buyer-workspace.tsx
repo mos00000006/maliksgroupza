@@ -99,6 +99,44 @@ type SendHistory = {
   sent_at: string;
   notes: string;
 };
+type BranchStockLine = {
+  id?: number;
+  product_code: string;
+  description: string;
+  category: string;
+  quantity_requested: number;
+  quantity_confirmed: number;
+  quantity_dispatched: number;
+  unit: string;
+  branch_notes: string;
+  warehouse_notes: string;
+};
+type BranchStockOrder = {
+  id: number;
+  stock_order_number: string;
+  branch_workspace: string;
+  requested_by_email: string;
+  requested_by_name: string;
+  order_date: string;
+  required_date: string;
+  priority: string;
+  status: string;
+  branch_notes: string;
+  warehouse_notes: string;
+  buyer_email: string;
+  buyer_name: string;
+  sent_at: string;
+  confirmed_at: string;
+  expected_delivery_date: string;
+  dispatch_reference: string;
+  completed_at: string;
+  updated_at: string;
+  lines: BranchStockLine[];
+};
+type StockOrdersPayload = {
+  orders?: BranchStockOrder[];
+  error?: string;
+};
 type Workspace = { id: number; name: string; type: string; region: string; manager: string };
 type CatalogueResult = { id: number; code: string; name: string; category: string; description: string };
 type BuyerData = {
@@ -109,7 +147,7 @@ type BuyerData = {
   workspaces: Workspace[];
   permissions: { canApprove: boolean; canManage: boolean; buyerOnly: boolean };
 };
-type Tab = "dashboard" | "orders" | "suppliers" | "quotes" | "receiving" | "history";
+type Tab = "dashboard" | "branch-orders" | "orders" | "suppliers" | "quotes" | "receiving" | "history";
 
 type OrderDraft = {
   id: number;
@@ -220,10 +258,11 @@ const supplierOrderMessage = (order: BuyerOrder) => {
   return `Good day ${order.supplier_name},\n\nPlease find PowerBuild purchase order ${order.po_number}.\nRequired date: ${order.required_date || "As agreed"}\nDelivery: ${order.delivery_method}${order.delivery_address ? ` - ${order.delivery_address}` : ""}\nTotal incl VAT: ${money.format(Number(order.total || 0))}\n\n${lines}\n\nThe Excel purchase order has been downloaded from our Hub for attachment.\nRegards,\nPowerBuild Buying`;
 };
 
-export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUser }) {
+export default function BuyerWorkspace({ currentUser, onNavigate }: { currentUser: CurrentUser; onNavigate?: (view: string) => void }) {
   const [data, setData] = useState<BuyerData>({
     orders: [], suppliers: [], quotes: [], sendHistory: [], workspaces: [], permissions: { canApprove: false, canManage: true, buyerOnly: true },
   });
+  const [branchOrders, setBranchOrders] = useState<BranchStockOrder[]>([]);
   const [tab, setTab] = useState<Tab>("dashboard");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -240,23 +279,34 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
   const [catalogueBusy, setCatalogueBusy] = useState(false);
   const [receivingOrder, setReceivingOrder] = useState<BuyerOrder | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
     try {
-      const response = await fetch("/api/buyer", { cache: "no-store" });
-      const result = (await response.json()) as BuyerData & { error?: string };
-      if (!response.ok) throw new Error(result.error || "Buyer Workspace could not be loaded.");
+      const [buyerResponse, stockResponse] = await Promise.all([
+        fetch("/api/buyer", { cache: "no-store" }),
+        fetch("/api/stock-orders", { cache: "no-store" }),
+      ]);
+      const result = (await buyerResponse.json()) as BuyerData & { error?: string };
+      if (!buyerResponse.ok) throw new Error(result.error || "Buyer Workspace could not be loaded.");
       setData(result);
+
+      const stockResult = (await stockResponse.json().catch(() => ({}))) as StockOrdersPayload;
+      if (stockResponse.ok) setBranchOrders(stockResult.orders || []);
+      else setBranchOrders([]);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Buyer Workspace could not be loaded.");
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { void load(); }, 0);
-    return () => window.clearTimeout(timer);
+    const starter = window.setTimeout(() => { void load(true); }, 0);
+    const refresh = window.setInterval(() => { void load(false); }, 15000);
+    return () => {
+      window.clearTimeout(starter);
+      window.clearInterval(refresh);
+    };
   }, [load]);
 
   const post = useCallback(async (body: Record<string, unknown>) => {
@@ -276,14 +326,25 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
     return data.orders.filter((order) => `${order.po_number} ${order.supplier_name} ${order.store_workspace} ${order.status} ${order.quote_reference}`.toLowerCase().includes(q));
   }, [data.orders, search]);
 
+  const filteredBranchOrders = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return branchOrders;
+    return branchOrders.filter((order) => `${order.stock_order_number} ${order.branch_workspace} ${order.requested_by_name} ${order.requested_by_email} ${order.status} ${order.priority}`.toLowerCase().includes(q));
+  }, [branchOrders, search]);
+
+  const branchQueue = useMemo(
+    () => branchOrders.filter((order) => ["Sent to Warehouse", "Under Review"].includes(order.status)),
+    [branchOrders],
+  );
+
   const dashboard = useMemo(() => {
     const pending = data.orders.filter((order) => order.approval_status === "Pending approval").length;
     const open = data.orders.filter((order) => !["Received", "Cancelled"].includes(order.status)).length;
     const awaiting = data.orders.filter((order) => ["Awaiting delivery", "Part received"].includes(order.delivery_status)).length;
     const spend = data.orders.filter((order) => order.status !== "Cancelled").reduce((sum, order) => sum + Number(order.total || 0), 0);
     const overdue = data.orders.filter((order) => order.required_date && order.required_date < today() && !["Received", "Cancelled"].includes(order.status)).length;
-    return { pending, open, awaiting, spend, overdue };
-  }, [data.orders]);
+    return { pending, open, awaiting, spend, overdue, branchQueue: branchQueue.length };
+  }, [branchQueue.length, data.orders]);
 
   const orderTotals = useMemo(() => {
     const subtotal = orderDraft.lines.reduce((sum, line) => sum + calculateLine(line).line_total_ex_vat, 0);
@@ -447,7 +508,7 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
         <div>
           <small>POWERBUILD PROCUREMENT CONTROL</small>
           <h2>Buyer Workspace</h2>
-          <p>Build purchase orders, compare supplier pricing, manage suppliers, track deliveries and export a live Excel buying pack.</p>
+          <p>Control supplier purchase orders and receive live stock requests from every branch, with confirmed quantities flowing back to the stores.</p>
           <span className="buyerUserTag">Signed in buyer: {currentUser.name || currentUser.email}</span>
         </div>
         <div className="buyerHeroActions">
@@ -463,12 +524,13 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
         <article><small>PENDING APPROVAL</small><b>{dashboard.pending}</b><span>Waiting for management</span></article>
         <article><small>AWAITING DELIVERY</small><b>{dashboard.awaiting}</b><span>Ordered / part received</span></article>
         <article><small>OVERDUE</small><b className={dashboard.overdue ? "buyerDangerText" : ""}>{dashboard.overdue}</b><span>Past required date</span></article>
+        <article><small>BRANCH QUEUE</small><b className={dashboard.branchQueue ? "buyerDangerText" : ""}>{dashboard.branchQueue}</b><span>Waiting for warehouse buyer</span></article>
         <article><small>TOTAL ORDER VALUE</small><b>{money.format(dashboard.spend)}</b><span>Excludes cancelled orders</span></article>
       </div>
 
       <nav className="buyerTabs" aria-label="Buyer Workspace sections">
         {([
-          ["dashboard", "Overview"], ["orders", "Purchase Orders"], ["suppliers", "Suppliers"], ["quotes", "Quote Comparison"], ["receiving", "Receiving / Follow-up"], ["history", "Sent History"],
+          ["dashboard", "Overview"], ["branch-orders", `Branch Orders${branchQueue.length ? ` (${branchQueue.length})` : ""}`], ["orders", "Purchase Orders"], ["suppliers", "Suppliers"], ["quotes", "Quote Comparison"], ["receiving", "Receiving / Follow-up"], ["history", "Sent History"],
         ] as Array<[Tab, string]>).map(([value, label]) => (
           <button key={value} className={tab === value ? "active" : ""} onClick={() => setTab(value)}>{label}</button>
         ))}
@@ -478,6 +540,18 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
 
       {!loading && tab === "dashboard" && (
         <div className="buyerDashboardGrid">
+          <section className="buyerPanel buyerPanelWide">
+            <header><div><small>BRANCH → HEAD OFFICE WAREHOUSE</small><h3>Incoming Branch Stock Orders</h3></div><button onClick={() => setTab("branch-orders")}>View branch orders</button></header>
+            <div className="buyerActionList">
+              {(branchQueue.length ? branchQueue : branchOrders.filter((order) => order.status !== "Completed")).slice(0, 8).map((order) => (
+                <button key={order.id} onClick={() => setTab("branch-orders")}>
+                  <span><b>{order.stock_order_number}</b><small>{order.branch_workspace} · {order.lines.length} line{order.lines.length === 1 ? "" : "s"} · {order.requested_by_name || order.requested_by_email}</small></span>
+                  <em>{order.status === "Draft" ? "Draft — not sent" : order.status}</em>
+                </button>
+              ))}
+              {!branchOrders.length && <p>No branch stock orders have been created yet.</p>}
+            </div>
+          </section>
           <section className="buyerPanel">
             <header><div><small>CONTROL QUEUE</small><h3>Orders needing attention</h3></div><button onClick={() => setTab("orders")}>View all</button></header>
             <div className="buyerActionList">
@@ -504,6 +578,16 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
             <OrderTable orders={data.orders.slice(0, 8)} onEdit={openEditOrder} onExport={(order) => exportWorkbook([order], `${order.po_number}.xlsx`)} canApprove={data.permissions.canApprove} onAction={updateOrderAction} busy={busy} suppliers={data.suppliers} onSend={sendSupplierOrder} compact />
           </section>
         </div>
+      )}
+
+      {!loading && tab === "branch-orders" && (
+        <section className="buyerPanel buyerPanelFull">
+          <header className="buyerListHeader">
+            <div><small>HEAD OFFICE WAREHOUSE QUEUE</small><h3>Branch Stock Orders</h3><p>Orders created by branches appear here automatically. Submitted orders are ready for buyer review and confirmation.</p></div>
+            <div><label className="buyerSearch">⌕ <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search order, branch, status…" /></label><button className="buyerPrimaryBtn" onClick={() => onNavigate?.("Stock Orders")}>Open Stock Orders</button></div>
+          </header>
+          <BranchOrderTable orders={filteredBranchOrders} onOpen={() => onNavigate?.("Stock Orders")} />
+        </section>
       )}
 
       {!loading && tab === "orders" && (
@@ -666,6 +750,22 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
       )}
     </section>
   );
+}
+
+function BranchOrderTable({ orders, onOpen }: { orders: BranchStockOrder[]; onOpen: (order: BranchStockOrder) => void }) {
+  return <div className="buyerTableWrap"><table className="buyerTable"><thead><tr><th>Stock Order</th><th>Branch</th><th>Requested By</th><th>Required</th><th>Priority</th><th>Status</th><th>Lines</th><th>Action</th></tr></thead><tbody>
+    {orders.map((order) => <tr key={order.id}>
+      <td><b>{order.stock_order_number}</b><small>{order.order_date || "—"}</small></td>
+      <td><b>{order.branch_workspace}</b><small>{order.branch_notes || "Branch replenishment"}</small></td>
+      <td>{order.requested_by_name || "—"}<small>{order.requested_by_email || ""}</small></td>
+      <td>{order.required_date || "—"}<small>{order.expected_delivery_date ? `ETA ${order.expected_delivery_date}` : ""}</small></td>
+      <td><span className={`buyerPill ${order.priority === "Urgent" || order.priority === "High" ? "warn" : ""}`}>{order.priority || "Normal"}</span></td>
+      <td><span className={`buyerPill ${order.status === "Confirmed" || order.status === "Completed" ? "good" : ["Sent to Warehouse", "Under Review"].includes(order.status) ? "warn" : ""}`}>{order.status === "Draft" ? "Draft — not sent" : order.status}</span></td>
+      <td><b>{order.lines.length}</b><small>{order.lines.reduce((sum, line) => sum + Number(line.quantity_requested || 0), 0)} units requested</small></td>
+      <td><button className="buyerTextBtn" onClick={() => onOpen(order)}>{["Sent to Warehouse", "Under Review"].includes(order.status) ? "Review / Confirm" : "Open"}</button></td>
+    </tr>)}
+    {!orders.length && <tr><td colSpan={8}>No branch stock orders found.</td></tr>}
+  </tbody></table></div>;
 }
 
 function OrderTable({ orders, onEdit, onExport, canApprove, onAction, busy, suppliers, onSend, compact = false }: {

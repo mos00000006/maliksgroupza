@@ -2514,7 +2514,7 @@ button:disabled { cursor: default; }
 .buyerPrimaryBtn:disabled,.buyerSecondaryBtn:disabled,.buyerRowActions button:disabled { opacity:.55; cursor:not-allowed; }
 .buyerNotice { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 16px; padding:11px 14px; border:1px solid #cfe0f4; border-radius:11px; background:#f4f9ff; color:#21466f; font-size:11px; font-weight:800; }
 .buyerNotice button { border:0; background:transparent; color:#21466f; font-size:18px; cursor:pointer; }
-.buyerKpis { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+.buyerKpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:14px; }
 .buyerKpis article { min-width:0; padding:16px 17px; border:1px solid #dde6ef; border-radius:14px; background:#fff; box-shadow:0 8px 22px rgba(24,47,75,.05); }
 .buyerKpis small { display:block; color:#7b8ba0; font-size:8px; font-weight:950; letter-spacing:.75px; }
 .buyerKpis b { display:block; margin:8px 0 4px; color:#172c48; font-size:21px; line-height:1; }
