@@ -225,7 +225,10 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   const post = useCallback(async (body: Record<string, unknown>) => {
     const response = await fetch("/api/buyer", {

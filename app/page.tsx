@@ -777,8 +777,9 @@ export default function Home() {
     if (nav.includes(active)) window.localStorage.setItem("powerbuild-active-view", active);
   }, [active]);
   useEffect(() => {
-    if (loading || !currentUser.email || !availableNav.length) return;
-    if (!availableNav.includes(active)) setActive(availableNav[0]);
+    if (loading || !currentUser.email || !availableNav.length || availableNav.includes(active)) return;
+    const timer = window.setTimeout(() => setActive(availableNav[0]), 0);
+    return () => window.clearTimeout(timer);
   }, [active, availableNav, currentUser.email, loading]);
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("invite");
