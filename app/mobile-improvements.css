@@ -528,6 +528,9 @@ aside > .user {
   .catalogueCardBody > small { padding: 4px 7px; font-size: 8px; }
   .catalogueCardBody h3 { margin-top: 8px; font-size: 12px; }
   .catalogueCardBody p { font-size: 9.5px; -webkit-line-clamp: 2; }
+  .catalogueVariantCodes { margin-top: 9px; gap: 5px; }
+  .catalogueVariantCodes span { padding: 6px 8px; }
+  .catalogueVariantCodes strong, .catalogueVariantCodes em { font-size: 9px; }
   .catalogueManageActions { gap: 6px; padding-top: 10px; }
   .catalogueManageActions button { min-height: 32px; padding: 6px 9px; }
   .cataloguePager { gap: 5px; padding: 4px 0; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
@@ -1033,6 +1036,7 @@ aside nav button.active {
   .catalogueCardBody > small { font-size: 8.5px; }
   .catalogueCardBody h3 { font-size: 15px; line-height: 1.35; }
   .catalogueCardBody p { font-size: 11px; line-height: 1.45; -webkit-line-clamp: 3; }
+  .catalogueVariantCodes strong, .catalogueVariantCodes em { font-size: 9.5px; }
 }
 
 @media (max-width: 390px) {

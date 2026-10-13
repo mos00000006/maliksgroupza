@@ -945,6 +945,36 @@ td select {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
+
+.catalogueVariantCodes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+.catalogueVariantCodes span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border: 1px solid #d9e3ef;
+  border-radius: 10px;
+  background: #f7faff;
+}
+.catalogueVariantCodes strong {
+  color: #1264d9;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .4px;
+}
+.catalogueVariantCodes em {
+  color: #132039;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  word-break: break-word;
+}
 .catalogueManageActions {
   display: flex;
   flex-wrap: wrap;

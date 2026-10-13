@@ -134,6 +134,22 @@ async function optimiseCatalogueImage(file: File) {
   return new File([blob], `${baseName}.webp`, { type: "image/webp", lastModified: Date.now() });
 }
 
+
+const getVariantCodes = (product: CatalogueProduct) => {
+  const text = `${product.category || ""} ${product.description || ""}`.toUpperCase();
+  const baseCode = (product.code || "").trim();
+  if (!baseCode) return [] as { label: string; code: string }[];
+
+  const variants: { label: string; code: string }[] = [];
+  if (text.includes("5L / 20L")) {
+    variants.push({ label: "5L CODE", code: `${baseCode}-5L` });
+    variants.push({ label: "20L CODE", code: `${baseCode}-20L` });
+  } else if (text.includes("5L")) {
+    variants.push({ label: "5L CODE", code: `${baseCode}-5L` });
+  }
+  return variants;
+};
+
 export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?: string }) {
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
   const [page, setPage] = useState(1);
@@ -400,6 +416,20 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                   <small>{product.category || "General"}</small>
                   <h3>{product.name}</h3>
                   <p>{product.description || "No product description added yet."}</p>
+                  {(() => {
+                    const variantCodes = getVariantCodes(product);
+                    if (!variantCodes.length) return null;
+                    return (
+                      <div className="catalogueVariantCodes">
+                        {variantCodes.map((variant) => (
+                          <span key={`${product.id}-${variant.code}`}>
+                            <strong>{variant.label}</strong>
+                            <em>{variant.code}</em>
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   {canManage && (
                     <div className="catalogueManageActions">
                       <button onClick={() => openEdit(product)}>Edit</button>

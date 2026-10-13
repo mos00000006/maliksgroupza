@@ -693,6 +693,21 @@ const drawCategoryCoverPage = async (
   return canvasToJpeg(canvas, 0.98);
 };
 
+
+const getVariantCodes = (product: WholesaleCatalogueProduct) => {
+  const text = `${product.category || ""} ${product.description || ""}`.toUpperCase();
+  const baseCode = cleanText(product.code || "");
+  if (!baseCode) return [] as { label: string; code: string }[];
+  const variants: { label: string; code: string }[] = [];
+  if (text.includes("5L / 20L")) {
+    variants.push({ label: "5L CODE", code: `${baseCode}-5L` });
+    variants.push({ label: "20L CODE", code: `${baseCode}-20L` });
+  } else if (text.includes("5L")) {
+    variants.push({ label: "5L CODE", code: `${baseCode}-5L` });
+  }
+  return variants;
+};
+
 const drawProductCard = (
   ctx: CanvasRenderingContext2D,
   product: WholesaleCatalogueProduct,
@@ -732,16 +747,35 @@ const drawProductCard = (
   drawCenteredLines(ctx, nameLines, x + width / 2, nameTop, 22, TEXT);
 
   const subtitle = cleanText(product.description && product.description !== product.name ? product.description : "");
+  let codeBadgeOffset = 0;
   if (subtitle && nameLines.length < 2) {
     ctx.font = `600 13px ${FONT_REGULAR}`;
     const subtitleLines = wrapCanvasText(ctx, subtitle, width - 38, 1);
     drawCenteredLines(ctx, subtitleLines, x + width / 2, nameTop + 45, 16, MUTED);
   }
 
+  const variantCodes = getVariantCodes(product);
+  if (variantCodes.length) {
+    let variantY = nameTop + (subtitle && nameLines.length < 2 ? 68 : 44);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const variant of variantCodes.slice(0, 2)) {
+      const text = `${variant.label}: ${variant.code}`;
+      ctx.font = `800 11px ${FONT_BOLD}`;
+      const vw = Math.min(width - 44, Math.max(126, ctx.measureText(text).width + 24));
+      const vx = x + (width - vw) / 2;
+      drawRoundedRect(ctx, vx, variantY - 11, vw, 22, 11, "#f7faff", "#d9e3ef", 1);
+      ctx.fillStyle = BLUE;
+      ctx.fillText(text, x + width / 2, variantY);
+      variantY += 26;
+    }
+    codeBadgeOffset = variantCodes.length * 26 + 4;
+  }
+
   const publicCode = `CODE: ${cleanText(product.code)}`;
   const badgeWidth = Math.min(width - 42, Math.max(130, ctx.measureText(publicCode).width + 78));
   const badgeX = x + (width - badgeWidth) / 2;
-  const badgeY = y + height - 48;
+  const badgeY = y + height - 48 - codeBadgeOffset;
   drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, 31, 15, YELLOW);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
