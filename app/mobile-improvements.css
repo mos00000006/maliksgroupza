@@ -1033,6 +1033,11 @@ aside nav button.active {
   .catalogueCardBody > small { font-size: 8.5px; }
   .catalogueCardBody h3 { font-size: 15px; line-height: 1.35; }
   .catalogueCardBody p { font-size: 11px; line-height: 1.45; -webkit-line-clamp: 3; }
+  .catalogueCard--tommy .catalogueCardBody h3 { min-height: 0; -webkit-line-clamp: 2; }
+  .catalogueTommyVariant { gap: 7px; margin-top: 5px; }
+  .catalogueTommyVariant span { padding: 8px 9px 7px; }
+  .catalogueTommyVariant em { font-size: 7.5px; }
+  .catalogueTommyVariant strong { font-size: 10.5px; }
   .catalogueAssortedBadge { margin-top: 10px; padding: 7px 11px; font-size: 9px; }
 }
 

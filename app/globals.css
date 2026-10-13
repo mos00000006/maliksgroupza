@@ -948,6 +948,65 @@ td select {
 
 
 
+
+.catalogueCard--tommy {
+  border-color: #d6e2ef;
+}
+.catalogueCard--tommy .catalogueImage {
+  background:
+    radial-gradient(circle at 78% 14%, rgba(255, 217, 26, .16), transparent 34%),
+    linear-gradient(145deg, #ffffff 0%, #f5f8fc 100%);
+}
+.catalogueCard--tommy .catalogueImage > b {
+  background: #11233b;
+  color: #ffd91a;
+  border: 1px solid rgba(255, 217, 26, .28);
+  box-shadow: 0 5px 14px rgba(10,21,38,.16);
+}
+.catalogueCard--tommy .catalogueCardBody > small {
+  background: #edf4ff;
+  color: #0b63d8;
+}
+.catalogueCard--tommy .catalogueCardBody h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  min-height: 39px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.catalogueTommyVariant {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+.catalogueTommyVariant span {
+  min-width: 0;
+  padding: 9px 10px 8px;
+  border: 1px solid #dbe5f0;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+.catalogueTommyVariant em {
+  display: block;
+  margin-bottom: 3px;
+  color: #7a8798;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: .8px;
+}
+.catalogueTommyVariant strong {
+  display: block;
+  overflow: hidden;
+  color: #14243b;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .catalogueAssortedBadge {
   align-self: flex-start;
   margin-top: 11px;

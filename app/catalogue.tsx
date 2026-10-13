@@ -140,6 +140,14 @@ const isAssortedProduct = (product: CatalogueProduct) => {
   return text.includes("5L / 20L") || text.includes("5L/20L") || text.includes("ASSORTED");
 };
 
+
+const getTommyFixVariant = (product: CatalogueProduct) => {
+  if (!product.name.toUpperCase().startsWith("TOMMY FIX")) return null;
+  const match = (product.description || "").trim().match(/^(.+?)\s*-\s*(\d+\s*PCS)$/i);
+  if (!match) return null;
+  return { size: match[1].trim(), pack: match[2].trim().toUpperCase() };
+};
+
 export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?: string }) {
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
   const [page, setPage] = useState(1);
@@ -394,8 +402,9 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
           <div className="catalogueGrid">
             {products.map((product) => {
               const assorted = isAssortedProduct(product);
+              const tommyFixVariant = getTommyFixVariant(product);
               return (
-              <article className={`catalogueCard${assorted ? " catalogueCard--assorted" : ""}`} key={product.id}>
+              <article className={`catalogueCard${assorted ? " catalogueCard--assorted" : ""}${tommyFixVariant ? " catalogueCard--tommy" : ""}`} key={product.id}>
                 <div className="catalogueImage">
                   {product.image_url ? (
                     <img src={product.image_url} alt={product.name} loading="lazy" />
@@ -407,7 +416,14 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                 <div className="catalogueCardBody">
                   <small>{product.category || "General"}</small>
                   <h3>{product.name}</h3>
-                  <p>{product.description || "No product description added yet."}</p>
+                  {tommyFixVariant ? (
+                    <div className="catalogueTommyVariant" aria-label={`Variant ${tommyFixVariant.size}, pack ${tommyFixVariant.pack}`}>
+                      <span><em>SIZE</em><strong>{tommyFixVariant.size}</strong></span>
+                      <span><em>PACK</em><strong>{tommyFixVariant.pack}</strong></span>
+                    </div>
+                  ) : (
+                    <p>{product.description || "No product description added yet."}</p>
+                  )}
                   {assorted && <div className="catalogueAssortedBadge">ASSORTED</div>}
                   {canManage && (
                     <div className="catalogueManageActions">

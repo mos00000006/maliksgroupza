@@ -1,8 +1,5 @@
-Apply this patch into the existing maliksgroupza project.
+Replace the existing file:
+  drizzle/0018_catalogue_assorted_display.sql
+with the file in this patch, then rerun the same D1 migration command.
 
-Included files:
-- drizzle/0019_tommy_fix_fastener_variants.sql
-- TOMMY-FIX-FASTENER-VARIANTS-2026-10-13.md
-
-This patch removes grouped Tommy Fix fastener range cards (P09-09 to P09-19)
-and creates one separate catalogue item for each Tommy Fix variant.
+Because migration 0018 failed, Cloudflare has not recorded it as successful, so it is safe to retry after replacing the file.
