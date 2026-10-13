@@ -1,24 +1,8 @@
-POWERBUILD / MALIKS GROUP HUB
-COMPANY WORKSPACES MODAL LAYER FIX V1
+Apply this patch into the existing maliksgroupza project.
 
-REPLACE ONLY:
-  app/workspaces-modal.tsx
+Included files:
+- drizzle/0019_tommy_fix_fastener_variants.sql
+- TOMMY-FIX-FASTENER-VARIANTS-2026-10-13.md
 
-FIXES THE SCREENSHOT ISSUE
---------------------------
-The Executive Overview header was appearing ABOVE the Company Workspaces modal.
-
-The workspace modal now:
-- uses a dedicated high z-index (220)
-- always sits above the Hub header/sidebar/page content
-- uses isolation to prevent stacking-context conflicts
-- dims and slightly blurs the background
-- locks background/body scrolling while open
-- restores scrolling automatically when closed
-- applies the same fix to both:
-    * Company Workspaces list
-    * Individual workspace board
-
-No database changes.
-No API changes.
-No secret changes.
+This patch removes grouped Tommy Fix fastener range cards (P09-09 to P09-19)
+and creates one separate catalogue item for each Tommy Fix variant.
