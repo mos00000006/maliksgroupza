@@ -135,19 +135,9 @@ async function optimiseCatalogueImage(file: File) {
 }
 
 
-const getVariantCodes = (product: CatalogueProduct) => {
-  const text = `${product.category || ""} ${product.description || ""}`.toUpperCase();
-  const baseCode = (product.code || "").trim();
-  if (!baseCode) return [] as { label: string; code: string }[];
-
-  const variants: { label: string; code: string }[] = [];
-  if (text.includes("5L / 20L")) {
-    variants.push({ label: "5L CODE", code: `${baseCode}-5L` });
-    variants.push({ label: "20L CODE", code: `${baseCode}-20L` });
-  } else if (text.includes("5L")) {
-    variants.push({ label: "5L CODE", code: `${baseCode}-5L` });
-  }
-  return variants;
+const isAssortedProduct = (product: CatalogueProduct) => {
+  const text = `${product.name || ""} ${product.description || ""}`.toUpperCase();
+  return text.includes("5L / 20L") || text.includes("5L/20L") || text.includes("ASSORTED");
 };
 
 export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?: string }) {
@@ -403,35 +393,22 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
         <>
           <div className="catalogueGrid">
             {products.map((product) => {
-              const variantCodes = getVariantCodes(product);
-              const hasVariantCodes = variantCodes.length > 0;
+              const assorted = isAssortedProduct(product);
               return (
-              <article className={`catalogueCard${hasVariantCodes ? " catalogueCard--variants" : ""}`} key={product.id}>
+              <article className={`catalogueCard${assorted ? " catalogueCard--assorted" : ""}`} key={product.id}>
                 <div className="catalogueImage">
                   {product.image_url ? (
                     <img src={product.image_url} alt={product.name} loading="lazy" />
                   ) : (
                     <div><i>▧</i><small>Product image</small></div>
                   )}
-                  {!hasVariantCodes && <b>{product.code}</b>}
+                  {!assorted && <b>{product.code}</b>}
                 </div>
                 <div className="catalogueCardBody">
                   <small>{product.category || "General"}</small>
                   <h3>{product.name}</h3>
                   <p>{product.description || "No product description added yet."}</p>
-                  {hasVariantCodes && (
-                    <div className="catalogueVariantCodesWrap">
-                      <div className="catalogueVariantCodesTitle">AVAILABLE SIZE CODES</div>
-                      <div className="catalogueVariantCodes">
-                        {variantCodes.map((variant) => (
-                          <span key={`${product.id}-${variant.code}`}>
-                            <strong>{variant.label}</strong>
-                            <em>{variant.code}</em>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {assorted && <div className="catalogueAssortedBadge">ASSORTED</div>}
                   {canManage && (
                     <div className="catalogueManageActions">
                       <button onClick={() => openEdit(product)}>Edit</button>
@@ -503,14 +480,14 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
             {error && <div className="catalogueError">{error}</div>}
             <div className="catalogueFormGrid">
               <label>
-                Product code
+                Product code / catalogue reference
                 <input
                   autoFocus
                   value={draft.code}
                   onChange={(event) => setDraft({ ...draft, code: event.target.value })}
                   placeholder="e.g. PVC110RR"
                 />
-                <small>Use the exact product code used in your catalogue and reporting.</small>
+                <small>Internal catalogue reference. For assorted 5L / 20L ranges, this code is kept for administration but is not shown on the product card.</small>
               </label>
               <label>
                 Product name

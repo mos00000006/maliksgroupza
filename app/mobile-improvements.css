@@ -528,11 +528,6 @@ aside > .user {
   .catalogueCardBody > small { padding: 4px 7px; font-size: 8px; }
   .catalogueCardBody h3 { margin-top: 8px; font-size: 12px; }
   .catalogueCardBody p { font-size: 9.5px; -webkit-line-clamp: 2; }
-  .catalogueVariantCodesWrap { margin-top: 10px; padding: 8px; border-radius: 12px; }
-  .catalogueVariantCodesTitle { margin-bottom: 6px; font-size: 8px; }
-  .catalogueVariantCodes { margin-top: 0; gap: 5px; }
-  .catalogueVariantCodes span { padding: 6px 8px; }
-  .catalogueVariantCodes strong, .catalogueVariantCodes em { font-size: 9px; }
   .catalogueManageActions { gap: 6px; padding-top: 10px; }
   .catalogueManageActions button { min-height: 32px; padding: 6px 9px; }
   .cataloguePager { gap: 5px; padding: 4px 0; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
@@ -1038,9 +1033,7 @@ aside nav button.active {
   .catalogueCardBody > small { font-size: 8.5px; }
   .catalogueCardBody h3 { font-size: 15px; line-height: 1.35; }
   .catalogueCardBody p { font-size: 11px; line-height: 1.45; -webkit-line-clamp: 3; }
-  .catalogueVariantCodesWrap { padding: 9px; }
-  .catalogueVariantCodesTitle { font-size: 8.5px; }
-  .catalogueVariantCodes strong, .catalogueVariantCodes em { font-size: 9.5px; }
+  .catalogueAssortedBadge { margin-top: 10px; padding: 7px 11px; font-size: 9px; }
 }
 
 @media (max-width: 390px) {
@@ -1128,4 +1121,11 @@ aside nav button.active {
   .cataloguePagerNumbers {
     gap: 5px;
   }
+}
+
+@media (max-width: 600px) {
+  .catalogueSizeCodeFields { grid-template-columns: 1fr; gap: 9px; padding: 10px; }
+  .catalogueSizeCodeIntro { grid-column: 1; }
+  .catalogueSizeCodeIntro b { font-size: 12px; }
+  .catalogueSizeCodeIntro small { font-size: 10px; }
 }
