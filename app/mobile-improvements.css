@@ -528,7 +528,9 @@ aside > .user {
   .catalogueCardBody > small { padding: 4px 7px; font-size: 8px; }
   .catalogueCardBody h3 { margin-top: 8px; font-size: 12px; }
   .catalogueCardBody p { font-size: 9.5px; -webkit-line-clamp: 2; }
-  .catalogueVariantCodes { margin-top: 9px; gap: 5px; }
+  .catalogueVariantCodesWrap { margin-top: 10px; padding: 8px; border-radius: 12px; }
+  .catalogueVariantCodesTitle { margin-bottom: 6px; font-size: 8px; }
+  .catalogueVariantCodes { margin-top: 0; gap: 5px; }
   .catalogueVariantCodes span { padding: 6px 8px; }
   .catalogueVariantCodes strong, .catalogueVariantCodes em { font-size: 9px; }
   .catalogueManageActions { gap: 6px; padding-top: 10px; }
@@ -1036,6 +1038,8 @@ aside nav button.active {
   .catalogueCardBody > small { font-size: 8.5px; }
   .catalogueCardBody h3 { font-size: 15px; line-height: 1.35; }
   .catalogueCardBody p { font-size: 11px; line-height: 1.45; -webkit-line-clamp: 3; }
+  .catalogueVariantCodesWrap { padding: 9px; }
+  .catalogueVariantCodesTitle { font-size: 8.5px; }
   .catalogueVariantCodes strong, .catalogueVariantCodes em { font-size: 9.5px; }
 }
 

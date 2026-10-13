@@ -402,24 +402,26 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       ) : (
         <>
           <div className="catalogueGrid">
-            {products.map((product) => (
-              <article className="catalogueCard" key={product.id}>
+            {products.map((product) => {
+              const variantCodes = getVariantCodes(product);
+              const hasVariantCodes = variantCodes.length > 0;
+              return (
+              <article className={`catalogueCard${hasVariantCodes ? " catalogueCard--variants" : ""}`} key={product.id}>
                 <div className="catalogueImage">
                   {product.image_url ? (
                     <img src={product.image_url} alt={product.name} loading="lazy" />
                   ) : (
                     <div><i>▧</i><small>Product image</small></div>
                   )}
-                  <b>{product.code}</b>
+                  {!hasVariantCodes && <b>{product.code}</b>}
                 </div>
                 <div className="catalogueCardBody">
                   <small>{product.category || "General"}</small>
                   <h3>{product.name}</h3>
                   <p>{product.description || "No product description added yet."}</p>
-                  {(() => {
-                    const variantCodes = getVariantCodes(product);
-                    if (!variantCodes.length) return null;
-                    return (
+                  {hasVariantCodes && (
+                    <div className="catalogueVariantCodesWrap">
+                      <div className="catalogueVariantCodesTitle">AVAILABLE SIZE CODES</div>
                       <div className="catalogueVariantCodes">
                         {variantCodes.map((variant) => (
                           <span key={`${product.id}-${variant.code}`}>
@@ -428,8 +430,8 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                           </span>
                         ))}
                       </div>
-                    );
-                  })()}
+                    </div>
+                  )}
                   {canManage && (
                     <div className="catalogueManageActions">
                       <button onClick={() => openEdit(product)}>Edit</button>
@@ -438,7 +440,8 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                   )}
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
 
           {pages > 1 && (

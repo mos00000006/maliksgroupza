@@ -950,7 +950,29 @@ td select {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 0;
+}
+
+.catalogueVariantCodesWrap {
+  margin-top: 12px;
+  padding: 10px 10px 11px;
+  border: 1px solid #dce7f4;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fbfdff 0%, #f4f8fd 100%);
+}
+.catalogueVariantCodesTitle {
+  margin-bottom: 8px;
+  color: #6d7c91;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+}
+.catalogueVariantCodes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 0;
 }
 .catalogueVariantCodes span {
   display: flex;
