@@ -529,7 +529,7 @@ td select {
   background: #eef1f4;
   padding: 10px;
   border-radius: 8px;
-  min-height: 190px;
+  min-height: 206px;
 }
 .lane > h3 {
   font-size: 10px;
@@ -926,24 +926,28 @@ td select {
   text-transform: uppercase;
 }
 .catalogueCardBody h3 {
-  min-height: 0;
+  display: -webkit-box;
+  min-height: 39px;
   margin: 10px 0 7px;
+  overflow: hidden;
   color: #132039;
   font-size: 15px;
   font-weight: 800;
   line-height: 1.3;
   letter-spacing: -.1px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .catalogueCardBody p {
   display: -webkit-box;
-  min-height: 0;
+  min-height: 33px;
   margin: 0;
   overflow: hidden;
   color: #718096;
   font-size: 11px;
   line-height: 1.5;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
 }
 
 
@@ -1007,6 +1011,13 @@ td select {
   white-space: nowrap;
 }
 
+
+.catalogueCard--assorted .catalogueCardBody p {
+  color: #66778d;
+}
+.catalogueCard--assorted .catalogueAssortedBadge {
+  margin-top: 12px;
+}
 .catalogueAssortedBadge {
   align-self: flex-start;
   margin-top: 11px;

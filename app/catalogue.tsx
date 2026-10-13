@@ -141,6 +141,18 @@ const isAssortedProduct = (product: CatalogueProduct) => {
 };
 
 
+
+const getCatalogueDisplayDescription = (product: CatalogueProduct, assorted: boolean, tommyFixVariant: { size: string; pack: string } | null) => {
+  if (tommyFixVariant) return "";
+  const raw = (product.description || "").trim();
+  if (!assorted) return raw || "No product description added yet.";
+  const text = raw.toUpperCase();
+  if (text.includes("5L / 20L") || text.includes("5L/20L")) return "Available in assorted 5L & 20L sizes.";
+  if (text.includes("5L") && !text.includes("20L")) return "Available in assorted 5L sizes.";
+  if (text.includes("20L") && !text.includes("5L")) return "Available in assorted 20L sizes.";
+  return "Available in assorted options.";
+};
+
 const getTommyFixVariant = (product: CatalogueProduct) => {
   if (!product.name.toUpperCase().startsWith("TOMMY FIX")) return null;
   const match = (product.description || "").trim().match(/^(.+?)\s*-\s*(\d+\s*PCS)$/i);
@@ -403,6 +415,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
             {products.map((product) => {
               const assorted = isAssortedProduct(product);
               const tommyFixVariant = getTommyFixVariant(product);
+              const displayDescription = getCatalogueDisplayDescription(product, assorted, tommyFixVariant);
               return (
               <article className={`catalogueCard${assorted ? " catalogueCard--assorted" : ""}${tommyFixVariant ? " catalogueCard--tommy" : ""}`} key={product.id}>
                 <div className="catalogueImage">
@@ -422,7 +435,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                       <span><em>PACK</em><strong>{tommyFixVariant.pack}</strong></span>
                     </div>
                   ) : (
-                    <p>{product.description || "No product description added yet."}</p>
+                    <p>{displayDescription}</p>
                   )}
                   {assorted && <div className="catalogueAssortedBadge">ASSORTED</div>}
                   {canManage && (
