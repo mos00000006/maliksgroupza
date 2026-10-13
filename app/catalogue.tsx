@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildWholesaleLeafletPages, downloadWholesaleCatalogue } from "./catalogue-pdf";
 
 type CatalogueProduct = {
@@ -160,6 +160,9 @@ const getTommyFixVariant = (product: CatalogueProduct) => {
   return { size: match[1].trim(), pack: match[2].trim().toUpperCase() };
 };
 
+const isLeafletMobileViewport = () =>
+  typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
+
 export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?: string }) {
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
   const [page, setPage] = useState(1);
@@ -183,8 +186,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   const [leafletOpen, setLeafletOpen] = useState(false);
   const [leafletPages, setLeafletPages] = useState<string[]>([]);
   const [leafletPage, setLeafletPage] = useState(0);
-  const leafletUrlsRef = useRef<string[]>([]);
-  const leafletViewerRef = useRef<HTMLElement | null>(null);
   const requestId = useRef(0);
   const pageSize = 12;
 
@@ -228,15 +229,36 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     }
   };
 
+  const moveLeaflet = useCallback((direction: -1 | 1) => {
+    if (!leafletPages.length) return;
+    if (isLeafletMobileViewport()) {
+      setLeafletPage((current) => Math.max(0, Math.min(current + direction, leafletPages.length - 1)));
+      return;
+    }
+    setLeafletPage((current) => {
+      if (direction > 0) {
+        if (current === 0) return Math.min(1, leafletPages.length - 1);
+        return Math.min(current + 2, leafletPages.length - 1);
+      }
+      if (current <= 1) return 0;
+      return Math.max(1, current - 2);
+    });
+  }, [leafletPages.length]);
+
+  const closeWholesaleLeaflet = useCallback(() => {
+    setLeafletOpen(false);
+    setLeafletPage(0);
+    window.setTimeout(() => setLeafletPages([]), 120);
+  }, []);
+
   useEffect(() => {
     const timer = window.setTimeout(() => void load(1, query), 220);
     return () => window.clearTimeout(timer);
   }, [query]);
 
   useEffect(() => () => {
-    leafletUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    leafletUrlsRef.current = [];
-  }, []);
+    leafletPages.forEach((url) => URL.revokeObjectURL(url));
+  }, [leafletPages]);
 
   useEffect(() => {
     if (!leafletOpen) return;
@@ -254,7 +276,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [leafletOpen, leafletPage, leafletPages.length]);
+  }, [leafletOpen, closeWholesaleLeaflet, moveLeaflet]);
 
   const openAdd = () => {
     if (!canManage) return;
@@ -360,30 +382,11 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     }
   };
 
-  const isLeafletMobile = () =>
-    typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
-
   const normaliseLeafletPage = (target: number) => {
     const max = Math.max(0, leafletPages.length - 1);
     const bounded = Math.max(0, Math.min(target, max));
-    if (isLeafletMobile() || bounded === 0) return bounded;
+    if (isLeafletMobileViewport() || bounded === 0) return bounded;
     return bounded % 2 === 1 ? bounded : Math.max(1, bounded - 1);
-  };
-
-  const moveLeaflet = (direction: -1 | 1) => {
-    if (!leafletPages.length) return;
-    if (isLeafletMobile()) {
-      setLeafletPage((current) => Math.max(0, Math.min(current + direction, leafletPages.length - 1)));
-      return;
-    }
-    setLeafletPage((current) => {
-      if (direction > 0) {
-        if (current === 0) return Math.min(1, leafletPages.length - 1);
-        return Math.min(current + 2, leafletPages.length - 1);
-      }
-      if (current <= 1) return 0;
-      return Math.max(1, current - 2);
-    });
   };
 
   const viewWholesaleLeaflet = async () => {
@@ -399,9 +402,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
         setPdfStatus(message);
         setPdfProgress(percent);
       });
-      leafletUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       const nextUrls = pageBlobs.map((blob) => URL.createObjectURL(blob));
-      leafletUrlsRef.current = nextUrls;
       setLeafletPages(nextUrls);
       setLeafletPage(0);
       setLeafletOpen(true);
@@ -416,18 +417,8 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     }
   };
 
-  const closeWholesaleLeaflet = () => {
-    setLeafletOpen(false);
-    setLeafletPage(0);
-    window.setTimeout(() => {
-      leafletUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      leafletUrlsRef.current = [];
-      setLeafletPages([]);
-    }, 120);
-  };
-
   const toggleLeafletFullscreen = async () => {
-    const viewer = leafletViewerRef.current;
+    const viewer = document.getElementById("catalogue-leaflet-viewer");
     if (!viewer) return;
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
@@ -612,7 +603,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       {leafletOpen && leafletPages.length > 0 && (
         <div className="catalogueLeafletOverlay" role="presentation" onMouseDown={closeWholesaleLeaflet}>
           <section
-            ref={leafletViewerRef}
+            id="catalogue-leaflet-viewer"
             className="catalogueLeafletViewer catalogueLeafletFlipbook"
             role="dialog"
             aria-modal="true"
@@ -667,11 +658,11 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
 
             <footer className="catalogueLeafletFooter">
               <div className="catalogueLeafletPageReadout">
-                Page {leafletPage + 1}{leafletPage > 0 && leafletPage + 1 < leafletPages.length && !isLeafletMobile() ? `–${leafletPage + 2}` : ""} of {leafletPages.length}
+                Page {leafletPage + 1} of {leafletPages.length}
               </div>
               <div className="catalogueLeafletThumbnails" aria-label="Leaflet pages">
                 {leafletPages.map((pageUrl, index) => {
-                  const active = index === leafletPage || (!isLeafletMobile() && leafletPage > 0 && index === leafletPage + 1);
+                  const active = index === leafletPage;
                   return (
                     <button
                       type="button"
