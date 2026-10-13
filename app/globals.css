@@ -2739,3 +2739,160 @@ button:disabled { cursor: default; }
   background: #f6f9fd;
   color: #2c405c;
 }
+
+.workspaceGrid button span .workspaceManagerLabel {
+  display: block;
+  margin-top: 3px;
+  color: #60758f;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+/* Stock order editor V2 — no overlapping table cells */
+.stockOrderEditorGrid {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #dce5ef;
+  border-radius: 12px;
+  background: #fff;
+}
+.stockOrderEditorHeader,
+.stockOrderEditorRow {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.65fr) minmax(130px, .85fr) minmax(118px, .72fr) minmax(86px, .5fr) minmax(220px, 1.45fr) 52px;
+  gap: 10px;
+  align-items: start;
+}
+.stockOrderEditorHeader {
+  padding: 10px 12px;
+  border-bottom: 1px solid #dce5ef;
+  background: #f4f7fa;
+}
+.stockOrderEditorHeader span {
+  min-width: 0;
+  color: #6f7f93;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1.25;
+  letter-spacing: .45px;
+  text-transform: uppercase;
+}
+.stockOrderEditorBody { width: 100%; }
+.stockOrderEditorRow {
+  padding: 12px;
+  border-bottom: 1px solid #edf1f5;
+}
+.stockOrderEditorRow:last-child { border-bottom: 0; }
+.stockOrderEditorRow label,
+.stockOrderRemoveCell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+.stockOrderEditorRow label > span,
+.stockOrderRemoveCell > span {
+  display: none;
+  color: #73849a;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1.2;
+  letter-spacing: .45px;
+  text-transform: uppercase;
+}
+.stockOrderEditorRow input,
+.stockOrderEditorRow textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #dbe4ee;
+  border-radius: 9px;
+  background: #fff;
+  color: #30455e;
+  font-size: 10px;
+  line-height: 1.35;
+  outline: 0;
+}
+.stockOrderEditorRow input {
+  min-height: 40px;
+  padding: 9px 10px;
+}
+.stockOrderEditorRow textarea {
+  min-height: 56px;
+  padding: 9px 10px;
+  resize: vertical;
+}
+.stockOrderProductCell textarea { min-height: 54px; }
+.stockOrderNotesCell textarea { min-height: 96px; }
+.stockOrderRemoveCell {
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 3px;
+}
+.stockOrderRemoveCell .buyerRemoveLine {
+  width: 40px;
+  height: 40px;
+  margin: 0;
+}
+
+/* Switch to card rows before the columns become cramped. */
+@media (max-width: 1180px) {
+  .stockOrderEditorHeader { display: none; }
+  .stockOrderEditorGrid {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .stockOrderEditorBody {
+    display: grid;
+    gap: 12px;
+  }
+  .stockOrderEditorRow {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, .8fr) minmax(0, .7fr) minmax(0, .6fr) 48px;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid #dce5ef;
+    border-radius: 12px;
+    background: #fff;
+  }
+  .stockOrderEditorRow label > span,
+  .stockOrderRemoveCell > span { display: block; }
+  .stockOrderProductCell,
+  .stockOrderNotesCell { grid-column: 1 / -1; }
+  .stockOrderNotesCell { grid-row: 3; }
+  .stockOrderRemoveCell {
+    grid-column: 5;
+    grid-row: 2;
+    align-self: end;
+    padding: 0 0 1px;
+  }
+  .stockOrderRemoveCell > span { visibility: hidden; }
+}
+
+@media (max-width: 760px) {
+  .stockOrderEditorRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 11px;
+    padding: 12px;
+  }
+  .stockOrderProductCell,
+  .stockOrderNotesCell { grid-column: 1 / -1; }
+  .stockOrderRemoveCell {
+    grid-column: 2;
+    grid-row: auto;
+    align-items: flex-end;
+  }
+  .stockOrderRemoveCell > span { visibility: visible; }
+}
+
+@media (max-width: 480px) {
+  .stockOrderEditorRow { grid-template-columns: 1fr; }
+  .stockOrderProductCell,
+  .stockOrderNotesCell,
+  .stockOrderRemoveCell { grid-column: 1; }
+  .stockOrderRemoveCell { align-items: flex-start; }
+}

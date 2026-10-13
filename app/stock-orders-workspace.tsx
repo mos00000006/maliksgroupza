@@ -351,16 +351,26 @@ export default function StockOrdersWorkspace({ currentUser }: { currentUser: Cur
                 {catalogueResults.length > 0 && <div className="buyerCatalogueResults">{catalogueResults.map((product) => <button key={product.id} onClick={() => addCatalogueProduct(product)}><span><b>{product.code}</b><small>{product.name}</small></span><em>＋ Add</em></button>)}</div>}
               </div>
               <div className="buyerOrderLinesHeader"><div><small>ORDER LINES</small><h4>Products & Requested Quantities</h4></div><button onClick={() => setDraft((current) => ({ ...current, lines: [...current.lines, blankLine()] }))}>＋ Add line</button></div>
-              <div className="buyerLinesTableWrap"><table className="buyerLinesTable stockLinesTable"><thead><tr><th>Code / Product</th><th>Category</th><th>Qty Requested</th><th>Unit</th><th>Branch Notes</th><th></th></tr></thead><tbody>
-                {draft.lines.map((line,index) => <tr key={`${index}-${line.product_code}`}>
-                  <td data-label="Code / Product"><input value={line.product_code} onChange={(event) => setDraft((current) => ({ ...current, lines: current.lines.map((item,i) => i===index ? { ...item, product_code:event.target.value } : item) }))} placeholder="Code" /><textarea value={line.description} onChange={(event) => setDraft((current) => ({ ...current, lines: current.lines.map((item,i) => i===index ? { ...item, description:event.target.value } : item) }))} placeholder="Product description" /></td>
-                  <td data-label="Category"><input value={line.category} onChange={(event) => setDraft((current) => ({ ...current, lines: current.lines.map((item,i) => i===index ? { ...item, category:event.target.value } : item) }))} /></td>
-                  <td data-label="Qty Requested"><input type="number" min="0" step="0.01" value={line.quantity_requested} onChange={(event) => setDraft((current) => ({ ...current, lines: current.lines.map((item,i) => i===index ? { ...item, quantity_requested:Number(event.target.value) } : item) }))} /></td>
-                  <td data-label="Unit"><input value={line.unit} onChange={(event) => setDraft((current) => ({ ...current, lines: current.lines.map((item,i) => i===index ? { ...item, unit:event.target.value } : item) }))} /></td>
-                  <td data-label="Branch Notes"><textarea value={line.branch_notes} onChange={(event) => setDraft((current) => ({ ...current, lines: current.lines.map((item,i) => i===index ? { ...item, branch_notes:event.target.value } : item) }))} placeholder="Size, colour, pack or instruction" /></td>
-                  <td data-label=""><button className="buyerRemoveLine" onClick={() => setDraft((current) => ({ ...current, lines: current.lines.filter((_,i) => i!==index) }))}>×</button></td>
-                </tr>)}
-              </tbody></table></div>
+              <div className="stockOrderEditorGrid" role="table" aria-label="Branch stock order lines">
+                <div className="stockOrderEditorHeader" role="row">
+                  <span role="columnheader">Code / Product</span>
+                  <span role="columnheader">Category</span>
+                  <span role="columnheader">Qty Requested</span>
+                  <span role="columnheader">Unit</span>
+                  <span role="columnheader">Branch Notes</span>
+                  <span aria-hidden="true"></span>
+                </div>
+                <div className="stockOrderEditorBody">
+                  {draft.lines.map((line,index) => <div className="stockOrderEditorRow" role="row" key={`${index}-${line.product_code}`}>
+                    <label className="stockOrderProductCell"><span>Code / Product</span><input value={line.product_code} onChange={(event) => setDraft((current) => ({ ...current, lines: current.lines.map((item,i) => i===index ? { ...item, product_code:event.target.value } : item) }))} placeholder="Code" /><textarea value={line.description} onChange={(event) => setDraft((current) => ({ ...current, lines: current.lines.map((item,i) => i===index ? { ...item, description:event.target.value } : item) }))} placeholder="Product description" /></label>
+                    <label><span>Category</span><input value={line.category} onChange={(event) => setDraft((current) => ({ ...current, lines: current.lines.map((item,i) => i===index ? { ...item, category:event.target.value } : item) }))} placeholder="Category" /></label>
+                    <label><span>Qty Requested</span><input type="number" min="0" step="0.01" value={line.quantity_requested} onChange={(event) => setDraft((current) => ({ ...current, lines: current.lines.map((item,i) => i===index ? { ...item, quantity_requested:Number(event.target.value) } : item) }))} /></label>
+                    <label><span>Unit</span><input value={line.unit} onChange={(event) => setDraft((current) => ({ ...current, lines: current.lines.map((item,i) => i===index ? { ...item, unit:event.target.value } : item) }))} /></label>
+                    <label className="stockOrderNotesCell"><span>Branch Notes</span><textarea value={line.branch_notes} onChange={(event) => setDraft((current) => ({ ...current, lines: current.lines.map((item,i) => i===index ? { ...item, branch_notes:event.target.value } : item) }))} placeholder="Size, colour, pack or instruction" /></label>
+                    <div className="stockOrderRemoveCell"><span>Remove</span><button className="buyerRemoveLine" type="button" aria-label={`Remove line ${index + 1}`} onClick={() => setDraft((current) => ({ ...current, lines: current.lines.filter((_,i) => i!==index) }))}>×</button></div>
+                  </div>)}
+                </div>
+              </div>
               <div className="buyerOrderBottom"><label>Branch order notes<textarea value={draft.branch_notes} onChange={(event) => setDraft({ ...draft, branch_notes:event.target.value })} placeholder="Reason for order, urgent stock-outs, promotion requirements or special instructions…" /></label><div className="stockOrderSummary"><small>TOTAL LINES</small><b>{draft.lines.filter((line) => line.description.trim() && Number(line.quantity_requested)>0).length}</b><span>Order is sent to Head Office warehouse after submission.</span></div></div>
             </div>
             <footer><button onClick={() => setEditorOpen(false)}>Cancel</button><button className="buyerSecondaryBtn" onClick={() => void saveOrder(false)} disabled={busy}>{busy ? "Saving…" : "Save Draft"}</button><button className="buyerPrimaryBtn" onClick={() => void saveOrder(true)} disabled={busy}>{busy ? "Sending…" : "Send to Warehouse Buyer"}</button></footer>
