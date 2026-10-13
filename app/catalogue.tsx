@@ -325,6 +325,8 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   }, [clearLeafletDragTimer]);
 
   const startLeafletSwipe = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input, select, textarea")) return;
     if (leafletFlip || leafletDrag || event.button !== 0) return;
     clearLeafletDragTimer();
     leafletSwipeRef.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
@@ -813,7 +815,11 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                 className="catalogueLeafletNav catalogueLeafletPrev"
                 aria-label="Previous leaflet page"
                 disabled={leafletPage <= 0 || Boolean(leafletFlip) || Boolean(leafletDrag)}
-                onClick={() => moveLeaflet(-1)}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  moveLeaflet(-1);
+                }}
               >
                 ‹
               </button>
@@ -861,7 +867,11 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                 className="catalogueLeafletNav catalogueLeafletNext"
                 aria-label="Next leaflet page"
                 disabled={leafletPage >= leafletPages.length - 1 || Boolean(leafletFlip) || Boolean(leafletDrag)}
-                onClick={() => moveLeaflet(1)}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  moveLeaflet(1);
+                }}
               >
                 ›
               </button>
