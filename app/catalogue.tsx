@@ -22,6 +22,18 @@ type CatalogueDraft = {
   category: string;
 };
 
+type LeafletTurnState = {
+  direction: -1 | 1;
+  target: number;
+  front: number;
+  back: number;
+};
+
+type LeafletDragState = LeafletTurnState & {
+  progress: number;
+  settling?: "commit" | "cancel";
+};
+
 
 const emptyDraft: CatalogueDraft = {
   code: "",
@@ -163,6 +175,14 @@ const getTommyFixVariant = (product: CatalogueProduct) => {
 const isLeafletMobileViewport = () =>
   typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
 
+const leafletTurnTransform = (direction: -1 | 1, progress: number, cover: boolean) => {
+  const bounded = Math.max(0, Math.min(progress, 1));
+  const rotation = bounded * 180 * (direction > 0 ? -1 : 1);
+  return cover
+    ? `translate(-50%, -50%) rotateY(${rotation}deg)`
+    : `translateY(-50%) rotateY(${rotation}deg)`;
+};
+
 const CATALOGUE_PAGE_SIZE = 12;
 
 export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?: string }) {
@@ -188,9 +208,12 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   const [leafletOpen, setLeafletOpen] = useState(false);
   const [leafletPages, setLeafletPages] = useState<string[]>([]);
   const [leafletPage, setLeafletPage] = useState(0);
-  const [leafletFlip, setLeafletFlip] = useState<{ direction: -1 | 1; target: number; front: number; back: number } | null>(null);
+  const [leafletFlip, setLeafletFlip] = useState<LeafletTurnState | null>(null);
+  const [leafletDrag, setLeafletDrag] = useState<LeafletDragState | null>(null);
   const leafletSwipeRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  const leafletDragRef = useRef<LeafletDragState | null>(null);
   const leafletFlipTimerRef = useRef<number | null>(null);
+  const leafletDragTimerRef = useRef<number | null>(null);
   const requestId = useRef(0);
 
   const expectedManager = useMemo(
@@ -233,8 +256,8 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     }
   }, []);
 
-  const moveLeaflet = useCallback((direction: -1 | 1) => {
-    if (!leafletPages.length || leafletFlip) return;
+  const getLeafletTurn = useCallback((direction: -1 | 1): LeafletTurnState | null => {
+    if (!leafletPages.length) return null;
 
     const mobile = isLeafletMobileViewport();
     const current = leafletPage;
@@ -250,7 +273,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       target = current <= 1 ? 0 : Math.max(1, current - 2);
     }
 
-    if (target === current) return;
+    if (target === current) return null;
 
     const front = mobile
       ? current
@@ -263,54 +286,141 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
         ? target
         : (target === 0 ? 0 : Math.min(target + 1, leafletPages.length - 1));
 
+    return { direction, target, front, back };
+  }, [leafletPage, leafletPages.length]);
+
+  const moveLeaflet = useCallback((direction: -1 | 1) => {
+    if (leafletFlip || leafletDrag) return;
+    const turn = getLeafletTurn(direction);
+    if (!turn) return;
+
     if (leafletFlipTimerRef.current) window.clearTimeout(leafletFlipTimerRef.current);
-    setLeafletFlip({ direction, target, front, back });
+    setLeafletFlip(turn);
     leafletFlipTimerRef.current = window.setTimeout(() => {
-      setLeafletPage(target);
+      setLeafletPage(turn.target);
       setLeafletFlip(null);
       leafletFlipTimerRef.current = null;
     }, 520);
-  }, [leafletFlip, leafletPage, leafletPages.length]);
+  }, [getLeafletTurn, leafletDrag, leafletFlip]);
+
+  const clearLeafletDragTimer = useCallback(() => {
+    if (!leafletDragTimerRef.current) return;
+    window.clearTimeout(leafletDragTimerRef.current);
+    leafletDragTimerRef.current = null;
+  }, []);
 
   const closeWholesaleLeaflet = useCallback(() => {
     if (leafletFlipTimerRef.current) {
       window.clearTimeout(leafletFlipTimerRef.current);
       leafletFlipTimerRef.current = null;
     }
+    clearLeafletDragTimer();
     leafletSwipeRef.current = null;
+    leafletDragRef.current = null;
+    setLeafletDrag(null);
     setLeafletFlip(null);
     setLeafletOpen(false);
     setLeafletPage(0);
     window.setTimeout(() => setLeafletPages([]), 120);
-  }, []);
+  }, [clearLeafletDragTimer]);
 
   const startLeafletSwipe = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (leafletFlip || event.button !== 0) return;
+    if (leafletFlip || leafletDrag || event.button !== 0) return;
+    clearLeafletDragTimer();
     leafletSwipeRef.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+    leafletDragRef.current = null;
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
-      // Pointer capture is optional; swipe still works without it.
+      // Pointer capture is optional; controlled drag still works without it.
     }
-  }, [leafletFlip]);
+  }, [clearLeafletDragTimer, leafletDrag, leafletFlip]);
 
-  const finishLeafletSwipe = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+  const updateLeafletSwipe = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const start = leafletSwipeRef.current;
-    leafletSwipeRef.current = null;
     if (!start || start.pointerId !== event.pointerId || leafletFlip) return;
 
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
-    const isHorizontalSwipe = Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.15;
-    if (!isHorizontalSwipe) return;
+    const horizontalIntent = Math.abs(dx) >= 8 && Math.abs(dx) > Math.abs(dy) * 1.05;
+    if (!horizontalIntent) return;
+
+    const direction: -1 | 1 = dx < 0 ? 1 : -1;
+    const turn = getLeafletTurn(direction);
+    if (!turn) {
+      leafletDragRef.current = null;
+      setLeafletDrag(null);
+      return;
+    }
 
     event.preventDefault();
-    moveLeaflet(dx < 0 ? 1 : -1);
-  }, [leafletFlip, moveLeaflet]);
+    const stageWidth = Math.max(1, event.currentTarget.getBoundingClientRect().width);
+    const travel = stageWidth * (isLeafletMobileViewport() ? 0.72 : 0.42);
+    const progress = Math.max(0, Math.min(Math.abs(dx) / Math.max(120, travel), 1));
+    const nextDrag: LeafletDragState = { ...turn, progress };
+    leafletDragRef.current = nextDrag;
+    setLeafletDrag(nextDrag);
+  }, [getLeafletTurn, leafletFlip]);
+
+  const finishLeafletSwipe = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = leafletSwipeRef.current;
+    leafletSwipeRef.current = null;
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      // Pointer capture may already have been released by the browser.
+    }
+
+    const drag = leafletDragRef.current;
+    if (!start || start.pointerId !== event.pointerId || !drag || leafletFlip) {
+      leafletDragRef.current = null;
+      setLeafletDrag(null);
+      return;
+    }
+
+    event.preventDefault();
+    clearLeafletDragTimer();
+
+    // The page follows the hand. It only turns after the user deliberately
+    // drags roughly halfway across the page; a short swipe snaps back.
+    if (drag.progress >= 0.45) {
+      const settled: LeafletDragState = { ...drag, progress: 1, settling: "commit" };
+      leafletDragRef.current = settled;
+      setLeafletDrag(settled);
+      leafletDragTimerRef.current = window.setTimeout(() => {
+        setLeafletPage(drag.target);
+        leafletDragRef.current = null;
+        setLeafletDrag(null);
+        leafletDragTimerRef.current = null;
+      }, 260);
+    } else {
+      const settled: LeafletDragState = { ...drag, progress: 0, settling: "cancel" };
+      leafletDragRef.current = settled;
+      setLeafletDrag(settled);
+      leafletDragTimerRef.current = window.setTimeout(() => {
+        leafletDragRef.current = null;
+        setLeafletDrag(null);
+        leafletDragTimerRef.current = null;
+      }, 210);
+    }
+  }, [clearLeafletDragTimer, leafletFlip]);
 
   const cancelLeafletSwipe = useCallback(() => {
     leafletSwipeRef.current = null;
-  }, []);
+    const drag = leafletDragRef.current;
+    if (!drag) return;
+    clearLeafletDragTimer();
+    const settled: LeafletDragState = { ...drag, progress: 0, settling: "cancel" };
+    leafletDragRef.current = settled;
+    setLeafletDrag(settled);
+    leafletDragTimerRef.current = window.setTimeout(() => {
+      leafletDragRef.current = null;
+      setLeafletDrag(null);
+      leafletDragTimerRef.current = null;
+    }, 210);
+  }, [clearLeafletDragTimer]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(1, query), 220);
@@ -323,6 +433,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
 
   useEffect(() => () => {
     if (leafletFlipTimerRef.current) window.clearTimeout(leafletFlipTimerRef.current);
+    if (leafletDragTimerRef.current) window.clearTimeout(leafletDragTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -691,8 +802,9 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
             </header>
 
             <div
-              className={`catalogueLeafletStage${leafletFlip ? " is-flipping" : ""}`}
+              className={`catalogueLeafletStage${leafletFlip ? " is-flipping" : ""}${leafletDrag ? " is-dragging" : ""}`}
               onPointerDown={startLeafletSwipe}
+              onPointerMove={updateLeafletSwipe}
               onPointerUp={finishLeafletSwipe}
               onPointerCancel={cancelLeafletSwipe}
             >
@@ -700,7 +812,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                 type="button"
                 className="catalogueLeafletNav catalogueLeafletPrev"
                 aria-label="Previous leaflet page"
-                disabled={leafletPage <= 0 || Boolean(leafletFlip)}
+                disabled={leafletPage <= 0 || Boolean(leafletFlip) || Boolean(leafletDrag)}
                 onClick={() => moveLeaflet(-1)}
               >
                 ‹
@@ -728,13 +840,27 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                     </span>
                   </figure>
                 )}
+                {leafletDrag && !leafletFlip && (
+                  <figure
+                    className={`catalogueLeafletTurnPage catalogueLeafletTurnPage--controlled ${leafletDrag.direction > 0 ? "catalogueLeafletTurnPage--controlled-next" : "catalogueLeafletTurnPage--controlled-prev"}${leafletPage === 0 ? " catalogueLeafletTurnPage--cover" : ""}${leafletDrag.settling ? " is-settling" : ""}`}
+                    style={{ transform: leafletTurnTransform(leafletDrag.direction, leafletDrag.progress, leafletPage === 0) }}
+                    aria-hidden="true"
+                  >
+                    <span className="catalogueLeafletTurnFace catalogueLeafletTurnFront">
+                      <img src={leafletPages[leafletDrag.front]} alt="" draggable={false} />
+                    </span>
+                    <span className="catalogueLeafletTurnFace catalogueLeafletTurnBack">
+                      <img src={leafletPages[leafletDrag.back]} alt="" draggable={false} />
+                    </span>
+                  </figure>
+                )}
               </div>
 
               <button
                 type="button"
                 className="catalogueLeafletNav catalogueLeafletNext"
                 aria-label="Next leaflet page"
-                disabled={leafletPage >= leafletPages.length - 1 || Boolean(leafletFlip)}
+                disabled={leafletPage >= leafletPages.length - 1 || Boolean(leafletFlip) || Boolean(leafletDrag)}
                 onClick={() => moveLeaflet(1)}
               >
                 ›
@@ -744,7 +870,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
             <footer className="catalogueLeafletFooter">
               <div className="catalogueLeafletPageReadout">
                 <strong>Page {leafletPage + 1} of {leafletPages.length}</strong>
-                <span>Swipe or drag to flip pages</span>
+                <span>Hold and drag — release past halfway to turn</span>
               </div>
               <div className="catalogueLeafletThumbnails" aria-label="Leaflet pages">
                 {leafletPages.map((pageUrl, index) => {

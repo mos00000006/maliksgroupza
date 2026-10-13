@@ -1834,6 +1834,7 @@ button:disabled { cursor: default; }
 }
 .catalogueLeafletStage:active { cursor: grabbing; }
 .catalogueLeafletStage.is-flipping { cursor: default; }
+.catalogueLeafletStage.is-dragging { cursor: grabbing; }
 .catalogueLeafletSpread {
   position: relative;
   width: min(1060px, 100%);
@@ -1905,6 +1906,26 @@ button:disabled { cursor: default; }
 .catalogueLeafletTurnPage--cover.catalogueLeafletTurnPage--next {
   transform-origin: left center;
   animation: catalogueLeafletFlipCoverNext .52s cubic-bezier(.58,.05,.16,.96) forwards;
+}
+
+.catalogueLeafletTurnPage--controlled {
+  will-change: transform;
+}
+.catalogueLeafletTurnPage--controlled-next {
+  right: 0;
+  transform-origin: left center;
+}
+.catalogueLeafletTurnPage--controlled-prev {
+  left: 0;
+  transform-origin: right center;
+}
+.catalogueLeafletTurnPage--cover.catalogueLeafletTurnPage--controlled {
+  left: 50%;
+  right: auto;
+  transform-origin: left center;
+}
+.catalogueLeafletTurnPage--controlled.is-settling {
+  transition: transform .24s cubic-bezier(.2,.72,.25,1);
 }
 .catalogueLeafletTurnFace {
   position: absolute;
