@@ -12,7 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   await initStoreSpecialTables();
-  const member = await getHubMember();
+  const member = await getHubMember({ allowBuyerAccess: true });
   if (!member) return new Response("Not found", { status: 404 });
 
   const { id } = await params;

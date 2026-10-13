@@ -83,7 +83,7 @@ export async function GET() {
   await initStoreSpecialTables();
   await syncStoreSpecialLifecycleNotifications();
 
-  const member = await getHubMember();
+  const member = await getHubMember({ allowBuyerAccess: true });
   if (!member)
     return Response.json({ error: "Hub access is not active." }, { status: 403 });
 

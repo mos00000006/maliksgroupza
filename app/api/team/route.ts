@@ -153,6 +153,7 @@ export async function POST(req: Request) {
       "Regional Manager",
       "Store Manager",
       "Department Manager",
+      "Buyer",
       "Human Resource (HR)",
       "Member / Contributor",
       "Read only",
@@ -165,7 +166,7 @@ export async function POST(req: Request) {
     requestedScope = ["Full company", "Selected workspaces", "Assigned workspace", "Read only"].includes(String(p.access_scope))
       ? String(p.access_scope)
       : "Assigned workspace",
-    accessScope = role === "Human Resource (HR)"
+    accessScope = role === "Human Resource (HR)" || role === "Buyer"
       ? "Assigned workspace"
       : requestedScope === "Full company" && !["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO"].includes(role)
         ? "Assigned workspace"
@@ -179,17 +180,21 @@ export async function POST(req: Request) {
     validNames = new Set(activeWorkspaces.map((workspace) => workspace.name)),
     validWorkspaces = requestedWorkspaces.filter((workspace) => validNames.has(workspace)),
     workspaceAccess = JSON.stringify(
-      accessScope === "Full company"
-        ? []
-        : accessScope === "Assigned workspace"
-          ? validWorkspaces.slice(0, 1)
-          : validWorkspaces,
+      role === "Buyer"
+        ? ["Buyer Workspace"]
+        : accessScope === "Full company"
+          ? []
+          : accessScope === "Assigned workspace"
+            ? validWorkspaces.slice(0, 1)
+            : validWorkspaces,
     ),
     department = role === "Human Resource (HR)"
       ? "Human Resources"
-      : accessScope === "Assigned workspace" && validWorkspaces[0]
-        ? validWorkspaces[0]
-        : String(p.department || "Operations"),
+      : role === "Buyer"
+        ? "Buying"
+        : accessScope === "Assigned workspace" && validWorkspaces[0]
+          ? validWorkspaces[0]
+          : String(p.department || "Operations"),
     inviteToken = crypto.randomUUID().replaceAll("-", ""),
     inviteUrl = new URL(
       `/?invite=${encodeURIComponent(inviteToken)}&install=1`,
@@ -300,6 +305,7 @@ export async function PATCH(req: Request) {
       "Regional Manager",
       "Store Manager",
       "Department Manager",
+      "Buyer",
       "Human Resource (HR)",
       "Member / Contributor",
       "Read only",
@@ -309,7 +315,7 @@ export async function PATCH(req: Request) {
     requestedScope = ["Full company", "Selected workspaces", "Assigned workspace", "Read only"].includes(String(p.access_scope))
       ? String(p.access_scope)
       : "Assigned workspace",
-    accessScope = role === "Human Resource (HR)"
+    accessScope = role === "Human Resource (HR)" || role === "Buyer"
       ? "Assigned workspace"
       : requestedScope === "Full company" && !["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO"].includes(role)
         ? "Assigned workspace"
@@ -322,11 +328,13 @@ export async function PATCH(req: Request) {
     ).all<{ name: string }>(),
     validNames = new Set(activeWorkspaces.map((workspace) => workspace.name)),
     validWorkspaces = requestedWorkspaces.filter((workspace) => validNames.has(workspace)),
-    assigned = accessScope === "Full company"
-      ? []
-      : accessScope === "Assigned workspace" || role === "Human Resource (HR)"
-        ? validWorkspaces.slice(0, 1)
-        : validWorkspaces;
+    assigned = role === "Buyer"
+      ? ["Buyer Workspace"]
+      : accessScope === "Full company"
+        ? []
+        : accessScope === "Assigned workspace" || role === "Human Resource (HR)"
+          ? validWorkspaces.slice(0, 1)
+          : validWorkspaces;
   if (role === "Owner / Admin" && email !== fallbackOwner.email)
     return Response.json(
       { error: "Sulliman Alikutti is the sole Hub owner. Assign another access role." },
@@ -347,9 +355,11 @@ export async function PATCH(req: Request) {
     );
   const department = role === "Human Resource (HR)"
     ? "Human Resources"
-    : accessScope === "Assigned workspace"
-      ? assigned[0]
-      : String(p.department || "Operations");
+    : role === "Buyer"
+      ? "Buying"
+      : accessScope === "Assigned workspace"
+        ? assigned[0]
+        : String(p.department || "Operations");
   const row = await env.DB.prepare(
     "UPDATE team_members SET name=?,role=?,department=?,access_scope=?,workspace_access=? WHERE lower(email)=? RETURNING *",
   )

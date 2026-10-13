@@ -6,6 +6,7 @@ import OperationalView, { type HubTask } from "./operational-view";
 import SopLibrary from "./sop-library";
 import PwaInstallButton from "./pwa-install-button";
 import Catalogue from "./catalogue";
+import BuyerWorkspace from "./buyer-workspace";
 import StoreControls from "./store-controls";
 import EmployeeRecords from "./employee-records";
 import StoreSpecials from "./store-specials";
@@ -100,6 +101,7 @@ const nav = [
   "Daily Checklists",
   "Store Ranking",
   "Employee Records",
+  "Buyer Workspace",
   "Wholesale Division",
   "Developments",
   "Financials & P&L",
@@ -208,6 +210,16 @@ function SidebarIcon({ name }: { name: string }) {
           <path d="M14 9h4M14 12h4M14 15h3" />
         </svg>
       );
+    case "Buyer Workspace":
+      return (
+        <svg {...common}>
+          <path d="M4 6h16v13H4z" />
+          <path d="M8 6V4h8v2" />
+          <path d="M4 10h16" />
+          <path d="M8 14h3M8 17h5" />
+          <path d="m15.5 14.5 1.4 1.4 2.8-3" />
+        </svg>
+      );
     case "Wholesale Division":
       return (
         <svg {...common}>
@@ -311,8 +323,10 @@ function SidebarIcon({ name }: { name: string }) {
   }
 }
 const HUMAN_RESOURCE_ROLE = "Human Resource (HR)";
+const BUYER_ROLE = "Buyer";
 const navigationForUser = (user: CurrentHubUser) => {
   if (user.role === HUMAN_RESOURCE_ROLE) return ["Employee Records"];
+  if (user.role === BUYER_ROLE) return ["Buyer Workspace", "Store Specials", "Our Catalogue"];
   let workspaceAccess: string[] = [];
   if (Array.isArray(user.workspace_access)) workspaceAccess = user.workspace_access;
   else {
@@ -511,9 +525,11 @@ export default function Home() {
     setEmailDeliveryReady(Boolean(j.email_delivery_ready));
     if (j.current_user) {
       const hrOnly = j.current_user.role === HUMAN_RESOURCE_ROLE;
-      taskAlertsAllowed.current = !hrOnly;
+      const buyerOnly = j.current_user.role === BUYER_ROLE;
+      const restrictedOnly = hrOnly || buyerOnly;
+      taskAlertsAllowed.current = !restrictedOnly;
       setCurrentUser(j.current_user);
-      if (hrOnly) {
+      if (restrictedOnly) {
         setNotifications([]);
         notificationIds.current = new Set();
         notificationSyncReady.current = false;
@@ -722,6 +738,7 @@ export default function Home() {
     else void badgeNavigator.clearAppBadge?.();
   }, [notifications]);
   const hrOnlyAccess = currentUser.role === HUMAN_RESOURCE_ROLE,
+    buyerOnlyAccess = currentUser.role === BUYER_ROLE,
     canManageTeam = ["Owner / Admin", "Developer / Technical Admin"].includes(
       currentUser.role || "",
     ),
@@ -734,7 +751,9 @@ export default function Home() {
     availableNav = navigationForUser(currentUser),
     sidebarNavigation = hrOnlyAccess
       ? ["Employee Records"]
-      : fullCompanyNavigation
+      : buyerOnlyAccess
+        ? ["Buyer Workspace", "Store Specials", "Our Catalogue"]
+        : fullCompanyNavigation
         ? nav.filter(
             (item) =>
               !["System Control Centre", "Rollout & Onboarding"].includes(item) ||
@@ -757,6 +776,10 @@ export default function Home() {
   useEffect(() => {
     if (nav.includes(active)) window.localStorage.setItem("powerbuild-active-view", active);
   }, [active]);
+  useEffect(() => {
+    if (loading || !currentUser.email || !availableNav.length) return;
+    if (!availableNav.includes(active)) setActive(availableNav[0]);
+  }, [active, availableNav, currentUser.email, loading]);
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("invite");
     if (!token) return;
@@ -834,6 +857,7 @@ export default function Home() {
     "Daily Checklists": "Daily manager opening-to-closing compliance and exception control.",
     "Store Ranking": "Executive operational ranking across the store network.",
     "Employee Records": "Store employee files, daily attendance, lateness and disciplinary warning history.",
+    "Buyer Workspace": "Purchase orders, suppliers, quote comparison, delivery follow-through and Excel buying packs.",
     "Wholesale Division": "Wholesale projects, targets and assigned actions.",
     Developments: "New-store, relocation and expansion budgets, costs and opening readiness.",
     "Financials & P&L":
@@ -1511,6 +1535,7 @@ export default function Home() {
   const unread = notifications.filter((n) => !n.read_at).length;
   const isStoreControlView = ["Store Audits", "Daily Checklists", "Store Ranking"].includes(active);
   const isEmployeeRecordsView = active === "Employee Records";
+  const isBuyerWorkspaceView = active === "Buyer Workspace";
   const isStoreSpecialsView = active === "Store Specials";
   const isSystemControlView = active === "System Control Centre";
   const isRolloutOnboardingView = active === "Rollout & Onboarding";
@@ -1546,7 +1571,29 @@ export default function Home() {
             <small>COMPANY HUB</small>
           </span>
         </div>
-        {!hrOnlyAccess ? (
+        {hrOnlyAccess ? (
+          <>
+            <div className="company">
+              <i>HR</i>
+              <span>
+                <b>Human Resources</b>
+                <small>Employee Records only</small>
+              </span>
+            </div>
+            <p>EMPLOYEE RECORDS</p>
+          </>
+        ) : buyerOnlyAccess ? (
+          <>
+            <div className="company">
+              <i>BY</i>
+              <span>
+                <b>Buying / Procurement</b>
+                <small>Buyer Workspace access</small>
+              </span>
+            </div>
+            <p>BUYER ACCESS</p>
+          </>
+        ) : (
           <>
             <button
               className="company"
@@ -1563,20 +1610,9 @@ export default function Home() {
             </button>
             <p>WORKSPACE</p>
           </>
-        ) : (
-          <>
-            <div className="company">
-              <i>HR</i>
-              <span>
-                <b>Human Resources</b>
-                <small>Employee Records only</small>
-              </span>
-            </div>
-            <p>EMPLOYEE RECORDS</p>
-          </>
         )}
         <nav>
-          {!hrOnlyAccess && (
+          {!hrOnlyAccess && !buyerOnlyAccess && (
             <button
               onClick={() => {
                 setWorkspaceOpen(true);
@@ -1616,7 +1652,7 @@ export default function Home() {
             );
           })}
         </nav>
-        {!hrOnlyAccess && (
+        {!hrOnlyAccess && !buyerOnlyAccess && (
           <button
             className="aiSide"
             onClick={() => {
@@ -1671,7 +1707,7 @@ export default function Home() {
             </p>
           </div>
           <div className="actions">
-            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isStoreSpecialsView && !isSystemControlView && !isRolloutOnboardingView && (
+            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStoreSpecialsView && !isSystemControlView && !isRolloutOnboardingView && (
               <label>
                 ⌕
                 <input
@@ -1681,7 +1717,7 @@ export default function Home() {
                 />
               </label>
             )}
-            {!hrOnlyAccess && (
+            {!hrOnlyAccess && !buyerOnlyAccess && (
               <>
                 <button
                   className="quickActionsHeaderBtn"
@@ -1703,7 +1739,7 @@ export default function Home() {
               </button>
             )}
             <PwaInstallButton />
-            {!readOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isStoreSpecialsView && !isSystemControlView && !isRolloutOnboardingView && (
+            {!readOnlyAccess && !buyerOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStoreSpecialsView && !isSystemControlView && !isRolloutOnboardingView && (
               <button className="primary" onClick={openComposer}>
                 ＋ Add task
               </button>
@@ -1721,6 +1757,8 @@ export default function Home() {
           />
         ) : isEmployeeRecordsView ? (
           <EmployeeRecords currentUser={currentUser} />
+        ) : isBuyerWorkspaceView ? (
+          <BuyerWorkspace currentUser={currentUser} />
         ) : isStoreSpecialsView ? (
           <StoreSpecials currentUser={currentUser} />
         ) : isSystemControlView ? (
@@ -1770,7 +1808,7 @@ export default function Home() {
           />
         )}
       </section>
-      {!hrOnlyAccess && !open && !quickActionsOpen && !quickWorkflow && !photoTaskPickerOpen && (
+      {!hrOnlyAccess && !buyerOnlyAccess && !open && !quickActionsOpen && !quickWorkflow && !photoTaskPickerOpen && (
         <button
           className="mobileQuickActionsFab"
           onClick={() => setQuickActionsOpen(true)}
@@ -1787,7 +1825,7 @@ export default function Home() {
         accept="image/*"
         onChange={uploadQuickPhoto}
       />
-      {quickActionsOpen && !hrOnlyAccess && (
+      {quickActionsOpen && !hrOnlyAccess && !buyerOnlyAccess && (
         <div className="overlay quickActionsOverlay" onMouseDown={() => setQuickActionsOpen(false)}>
           <section className="quickActionsSheet" onMouseDown={(event) => event.stopPropagation()}>
             <header>
@@ -2332,19 +2370,22 @@ export default function Home() {
                           "Executive / EXCO",
                         ].includes(role);
                       const isHr = role === HUMAN_RESOURCE_ROLE;
+                      const isBuyer = role === BUYER_ROLE;
                       setMemberDraft({
                         ...memberDraft,
                         role,
-                        department: isHr ? "Human Resources" : memberDraft.department,
+                        department: isHr ? "Human Resources" : isBuyer ? "Buying" : memberDraft.department,
                         access_scope:
-                          isHr
+                          isHr || isBuyer
                             ? "Assigned workspace"
                             : !elevated && memberDraft.access_scope === "Full company"
                               ? "Assigned workspace"
                               : memberDraft.access_scope,
-                        workspace_access: isHr
-                          ? memberDraft.workspace_access.slice(0, 1)
-                          : memberDraft.workspace_access,
+                        workspace_access: isBuyer
+                          ? ["Buyer Workspace"]
+                          : isHr
+                            ? memberDraft.workspace_access.slice(0, 1)
+                            : memberDraft.workspace_access,
                       });
                     }}
                   >
@@ -2357,6 +2398,7 @@ export default function Home() {
                     <option>Regional Manager</option>
                     <option>Store Manager</option>
                     <option>Department Manager</option>
+                    <option>{BUYER_ROLE}</option>
                     <option>{HUMAN_RESOURCE_ROLE}</option>
                     <option>Member / Contributor</option>
                     <option>Read only</option>
@@ -2365,8 +2407,8 @@ export default function Home() {
                 <label>
                   Department / Store
                   <input
-                    value={memberDraft.role === HUMAN_RESOURCE_ROLE ? "Human Resources" : memberDraft.department}
-                    readOnly={memberDraft.role === HUMAN_RESOURCE_ROLE}
+                    value={memberDraft.role === HUMAN_RESOURCE_ROLE ? "Human Resources" : memberDraft.role === BUYER_ROLE ? "Buying" : memberDraft.department}
+                    readOnly={memberDraft.role === HUMAN_RESOURCE_ROLE || memberDraft.role === BUYER_ROLE}
                     onChange={(e) =>
                       setMemberDraft({
                         ...memberDraft,
@@ -2380,7 +2422,7 @@ export default function Home() {
                   Access level
                   <select
                     value={memberDraft.access_scope}
-                    disabled={memberDraft.role === HUMAN_RESOURCE_ROLE}
+                    disabled={memberDraft.role === HUMAN_RESOURCE_ROLE || memberDraft.role === BUYER_ROLE}
                     onChange={(e) =>
                       setMemberDraft({
                         ...memberDraft,
@@ -2412,7 +2454,16 @@ export default function Home() {
                   </span>
                 </div>
               )}
-              {memberDraft.access_scope === "Assigned workspace" && (
+              {memberDraft.role === BUYER_ROLE && (
+                <div className="accessEditNotice">
+                  <span>
+                    <b>Buyer — restricted procurement access</b><br />
+                    This user can only access Buyer Workspace, Store Specials and Our Catalogue. Company workspaces,
+                    dashboards, financials, employee records, wholesale CRM, SOPs, AI Sidekick, Quick Actions and Inbox are hidden.
+                  </span>
+                </div>
+              )}
+              {memberDraft.access_scope === "Assigned workspace" && memberDraft.role !== BUYER_ROLE && (
                 <div className="workspaceAccessPicker singleWorkspacePicker">
                   <b>
                     {memberDraft.role === HUMAN_RESOURCE_ROLE
@@ -2438,7 +2489,7 @@ export default function Home() {
                   </select>
                 </div>
               )}
-              {["Selected workspaces", "Read only"].includes(memberDraft.access_scope) && (
+              {memberDraft.role !== BUYER_ROLE && ["Selected workspaces", "Read only"].includes(memberDraft.access_scope) && (
                 <div className="workspaceAccessPicker">
                   <b>
                     {memberDraft.access_scope === "Read only"
@@ -2592,6 +2643,10 @@ export default function Home() {
                 attendance, lateness, warnings and HR history, but has no access to tasks, company dashboards or Hub task notifications
               </p>
               <p>
+                <b>Buyer</b> — Buyer Workspace, Our Catalogue and Store Specials only; creates purchase orders,
+                compares supplier quotes, maintains suppliers, tracks deliveries and exports buying sheets to Excel
+              </p>
+              <p>
                 <b>Member / Contributor</b> — creates and updates assigned work
               </p>
               <p>
@@ -2606,7 +2661,7 @@ export default function Home() {
           </div>
         </div>
       )}
-      {notificationsOpen && !hrOnlyAccess && (
+      {notificationsOpen && !hrOnlyAccess && !buyerOnlyAccess && (
         <div
           className="overlay"
           onMouseDown={() => setNotificationsOpen(false)}
@@ -2704,6 +2759,7 @@ export default function Home() {
         />
       )}
       {!hrOnlyAccess &&
+        !buyerOnlyAccess &&
         !open &&
         !selected &&
         !quickActionsOpen &&
@@ -2721,7 +2777,7 @@ export default function Home() {
             ✦ <span>AI</span>
           </button>
         )}
-      {sidekickOpen && !hrOnlyAccess && (
+      {sidekickOpen && !hrOnlyAccess && !buyerOnlyAccess && (
         <SidekickModal
           close={() => setSidekickOpen(false)}
           openSops={() => {
@@ -2730,7 +2786,7 @@ export default function Home() {
           }}
         />
       )}
-      {popupNotification && !hrOnlyAccess && (
+      {popupNotification && !hrOnlyAccess && !buyerOnlyAccess && (
         <button
           className="taskNotificationPopup"
           onClick={() => {

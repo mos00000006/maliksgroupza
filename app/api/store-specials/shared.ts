@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import type { HubMember } from "../access";
-import { allowedWorkspaces, canAccessWorkspace, canWrite } from "../access";
+import { BUYER_ROLE, allowedWorkspaces, canAccessWorkspace, canWrite } from "../access";
 import { sendPushNotification } from "../push/shared";
 import { initTeamTables } from "../team/shared";
 
@@ -106,6 +106,7 @@ export function memberCanSeeStoreSpecial(
   special: Pick<StoreSpecialRow, "all_branches" | "workspaces_json">,
 ) {
   if (!member) return false;
+  if (member.role === BUYER_ROLE) return true;
   if (Number(special.all_branches) === 1) return true;
   const targets = parseSpecialWorkspaces(special.workspaces_json);
   return targets.some((workspace) => canAccessWorkspace(member, workspace));
@@ -131,6 +132,8 @@ export async function listStoreBranches(member: HubMember) {
     if (!name) return false;
     return !nonBranchPattern.test(`${name} ${type}`);
   });
+
+  if (member.role === BUYER_ROLE) return branches;
 
   const allowed = allowedWorkspaces(member);
 

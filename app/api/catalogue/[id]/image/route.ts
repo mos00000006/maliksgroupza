@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   await initCatalogueTable();
-  const member = await getHubMember();
+  const member = await getHubMember({ allowBuyerAccess: true });
   if (!member) return new Response("Not found", { status: 404 });
   const { id } = await params;
   const row = await env.DB.prepare(

@@ -12,12 +12,37 @@ export type HubMember = {
 };
 
 export const HUMAN_RESOURCE_ROLE = "Human Resource (HR)";
+export const BUYER_ROLE = "Buyer";
 
 export function isHumanResourceRole(member: HubMember | null | undefined) {
   return Boolean(member && member.role === HUMAN_RESOURCE_ROLE);
 }
 
-export async function getHubMember(options: { allowEmployeeRecordsOnly?: boolean } = {}) {
+
+export function isBuyerRole(member: HubMember | null | undefined) {
+  return Boolean(member && member.role === BUYER_ROLE);
+}
+
+export function canAccessBuyerWorkspace(member: HubMember | null | undefined) {
+  return Boolean(
+    member &&
+      (member.role === BUYER_ROLE ||
+        member.role === "Owner / Admin" ||
+        member.role === "Developer / Technical Admin" ||
+        (member.role === "Executive / EXCO" && member.access_scope === "Full company")),
+  );
+}
+
+export function canApproveBuyerOrders(member: HubMember | null | undefined) {
+  return Boolean(
+    member &&
+      (member.role === "Owner / Admin" ||
+        member.role === "Developer / Technical Admin" ||
+        (member.role === "Executive / EXCO" && member.access_scope === "Full company")),
+  );
+}
+
+export async function getHubMember(options: { allowEmployeeRecordsOnly?: boolean; allowBuyerAccess?: boolean } = {}) {
   await initTeamTables();
   const user = await getAuthenticatedUser();
   if (!user?.email) return null;
@@ -31,6 +56,7 @@ export async function getHubMember(options: { allowEmployeeRecordsOnly?: boolean
   // HR is intentionally isolated from the general Hub. Only Employee Records
   // may opt in to this role by passing allowEmployeeRecordsOnly=true.
   if (isHumanResourceRole(member) && !options.allowEmployeeRecordsOnly) return null;
+  if (isBuyerRole(member) && !options.allowBuyerAccess) return null;
   return member;
 }
 

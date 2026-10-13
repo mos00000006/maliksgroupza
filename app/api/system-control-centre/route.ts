@@ -62,6 +62,7 @@ const NAV_MODULES = [
   "Daily Checklists",
   "Store Ranking",
   "Employee Records",
+  "Buyer Workspace",
   "Wholesale Division",
   "Developments",
   "Financials & P&L",
@@ -311,6 +312,7 @@ function parseWorkspaceAccess(value: string) {
 
 function modulesForMember(member: TeamRow) {
   if (member.role === "Human Resource (HR)") return ["Employee Records"];
+  if (member.role === "Buyer") return ["Buyer Workspace", "Store Specials", "Our Catalogue"];
 
   const fullCompany =
     member.role === "Owner / Admin" ||
