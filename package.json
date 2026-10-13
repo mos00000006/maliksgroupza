@@ -13,7 +13,7 @@
     "start": "vinext start",
     "test": "npm run build && node --experimental-loader ./scripts/cloudflare-loader.mjs --test tests/*.test.mjs",
     "check": "npm run lint && npm run test",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern app/app/** --ignore-pattern **/app/app/** --ignore-pattern github_ci_guard/** --ignore-pattern **/github_ci_guard/**",
+    "lint": "eslint .",
     "config:production": "node scripts/prepare-cloudflare-config.mjs",
     "deploy": "npm run check && npm run config:production && wrangler deploy --config dist/server/wrangler.json",
     "db:generate": "drizzle-kit generate",
