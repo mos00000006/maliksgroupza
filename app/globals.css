@@ -1828,8 +1828,14 @@ button:disabled { cursor: default; }
   background:
     radial-gradient(circle at 50% 24%, rgba(255,255,255,.12), transparent 42%),
     linear-gradient(180deg, #263b53 0%, #15283e 100%);
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
 }
+.catalogueLeafletStage:active { cursor: grabbing; }
+.catalogueLeafletStage.is-flipping { cursor: default; }
 .catalogueLeafletSpread {
+  position: relative;
   width: min(1060px, 100%);
   height: 100%;
   min-height: 0;
@@ -1867,6 +1873,82 @@ button:disabled { cursor: default; }
   object-fit: contain;
   background: #fff;
   user-select: none;
+}
+
+.catalogueLeafletTurnPage {
+  position: absolute;
+  z-index: 8;
+  top: 50%;
+  width: calc(50% - 4px);
+  height: min(100%, 760px);
+  margin: 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  filter: drop-shadow(0 18px 28px rgba(0,0,0,.28));
+}
+.catalogueLeafletTurnPage--next {
+  right: 0;
+  transform-origin: left center;
+  animation: catalogueLeafletFlipNext .52s cubic-bezier(.58,.05,.16,.96) forwards;
+}
+.catalogueLeafletTurnPage--prev {
+  left: 0;
+  transform-origin: right center;
+  animation: catalogueLeafletFlipPrev .52s cubic-bezier(.58,.05,.16,.96) forwards;
+}
+.catalogueLeafletTurnPage--cover {
+  left: 50%;
+  right: auto;
+  width: min(520px, 80%);
+  transform: translate(-50%, -50%);
+}
+.catalogueLeafletTurnPage--cover.catalogueLeafletTurnPage--next {
+  transform-origin: left center;
+  animation: catalogueLeafletFlipCoverNext .52s cubic-bezier(.58,.05,.16,.96) forwards;
+}
+.catalogueLeafletTurnFace {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #fff;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.catalogueLeafletTurnFace img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+.catalogueLeafletTurnBack {
+  transform: rotateY(180deg);
+}
+.catalogueLeafletTurnPage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0,0,0,.24), transparent 24%, transparent 76%, rgba(255,255,255,.16));
+  opacity: .6;
+  backface-visibility: hidden;
+}
+@keyframes catalogueLeafletFlipNext {
+  0% { transform: translateY(-50%) rotateY(0deg); }
+  45% { transform: translateY(-50%) rotateY(-92deg) scaleX(.985); }
+  100% { transform: translateY(-50%) rotateY(-180deg); }
+}
+@keyframes catalogueLeafletFlipPrev {
+  0% { transform: translateY(-50%) rotateY(0deg); }
+  45% { transform: translateY(-50%) rotateY(92deg) scaleX(.985); }
+  100% { transform: translateY(-50%) rotateY(180deg); }
+}
+@keyframes catalogueLeafletFlipCoverNext {
+  0% { transform: translate(-50%, -50%) rotateY(0deg); }
+  48% { transform: translate(-50%, -50%) rotateY(-92deg) scaleX(.985); }
+  100% { transform: translate(-50%, -50%) rotateY(-180deg); }
 }
 .catalogueLeafletNav {
   position: absolute;
@@ -1907,11 +1989,20 @@ button:disabled { cursor: default; }
   background: #10243c;
 }
 .catalogueLeafletPageReadout {
-  min-width: 110px;
+  min-width: 132px;
+  display: grid;
+  gap: 3px;
   color: #fff;
+  text-align: center;
+}
+.catalogueLeafletPageReadout strong {
   font-size: 10px;
   font-weight: 900;
-  text-align: center;
+}
+.catalogueLeafletPageReadout span {
+  color: #9fb3ca;
+  font-size: 8px;
+  font-weight: 700;
 }
 .catalogueLeafletThumbnails {
   min-width: 0;
@@ -2307,6 +2398,24 @@ button:disabled { cursor: default; }
   .catalogueLeafletClose { width: 38px; }
   .catalogueLeafletStage { padding: 10px 48px 8px; }
   .catalogueLeafletSpread { width: 100%; gap: 0; }
+  .catalogueLeafletTurnPage,
+  .catalogueLeafletTurnPage--cover {
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .catalogueLeafletTurnPage--next {
+    transform-origin: left center;
+    animation: catalogueLeafletMobileFlipNext .52s cubic-bezier(.58,.05,.16,.96) forwards;
+  }
+  .catalogueLeafletTurnPage--prev {
+    transform-origin: right center;
+    animation: catalogueLeafletMobileFlipPrev .52s cubic-bezier(.58,.05,.16,.96) forwards;
+  }
+  .catalogueLeafletTurnPage--cover.catalogueLeafletTurnPage--next {
+    animation: catalogueLeafletMobileFlipNext .52s cubic-bezier(.58,.05,.16,.96) forwards;
+  }
   .catalogueLeafletPage,
   .catalogueLeafletSpread--cover .catalogueLeafletPage {
     width: 100%;
@@ -2336,6 +2445,18 @@ button:disabled { cursor: default; }
     width: 42px;
     height: 58px;
   }
+}
+
+
+@keyframes catalogueLeafletMobileFlipNext {
+  0% { transform: translateY(-50%) rotateY(0deg); }
+  48% { transform: translateY(-50%) rotateY(-94deg); }
+  100% { transform: translateY(-50%) rotateY(-180deg); }
+}
+@keyframes catalogueLeafletMobileFlipPrev {
+  0% { transform: translateY(-50%) rotateY(0deg); }
+  48% { transform: translateY(-50%) rotateY(94deg); }
+  100% { transform: translateY(-50%) rotateY(180deg); }
 }
 
 .catalogueSizeCodeFields {

@@ -1,9 +1,5 @@
-Replace these two files in the repository exactly:
+Replace these files in the root of the existing Malik's Group Hub repository:
 - app/catalogue.tsx
-- app/catalogue-pdf.ts
+- app/globals.css
 
-Important: if the repository contains this accidental duplicate file, delete it:
-- app/app/store-specials.tsx
-
-Then commit/push and rerun:
-  npm run check
+No database migration is required.
