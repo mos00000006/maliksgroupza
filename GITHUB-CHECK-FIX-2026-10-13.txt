@@ -1,0 +1,23 @@
+GITHUB CHECK FIX — 13 OCTOBER 2026
+
+The GitHub log you sent is still running the OLD app/catalogue.tsx.
+
+In the corrected file:
+  - moveLeaflet is declared before the keyboard useEffect.
+  - closeWholesaleLeaflet is declared before the keyboard useEffect.
+  - the keyboard useEffect depends on both callbacks.
+  - load is wrapped with useCallback and included in its effect dependency list.
+  - drawImageCover was removed from catalogue-pdf.ts.
+  - app/app/** is ignored by ESLint as a safety net against accidental nested copies.
+
+IMPORTANT:
+Replace the actual GitHub files at:
+  app/catalogue.tsx
+  app/catalogue-pdf.ts
+  eslint.config.mjs
+
+Also delete the accidental nested folder if it exists:
+  app/app/
+
+Then rerun:
+  npm run check
