@@ -351,9 +351,7 @@ const navigationForUser = (user: CurrentHubUser) => {
   const accessAdmin = ["Owner / Admin", "Developer / Technical Admin"].includes(
       user.role || "",
     ),
-    fullCompany =
-      accessAdmin ||
-      (user.role === "Executive / EXCO" && user.access_scope === "Full company"),
+    fullCompany = accessAdmin || user.access_scope === "Full company",
     wholesale = fullCompany || workspaceAccess.includes("Wholesale Division");
   return nav.filter((item) => {
     const employeeRecordsAccess =
@@ -760,9 +758,7 @@ export default function Home() {
       currentUser.role || "",
     ),
     fullCompanyNavigation =
-      canManageTeam ||
-      (currentUser.role === "Executive / EXCO" &&
-        currentUser.access_scope === "Full company"),
+      canManageTeam || currentUser.access_scope === "Full company",
     readOnlyAccess =
       currentUser.role === "Read only" || currentUser.access_scope === "Read only",
     availableNav = navigationForUser(currentUser),

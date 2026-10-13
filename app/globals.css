@@ -2686,3 +2686,9 @@ button:disabled { cursor: default; }
   .stockOrderMeta { grid-template-columns:1fr 1fr; }
   .stockFlowSteps span { grid-template-columns:32px 1fr; }
 }
+
+.buyerReadOnlyNotice {
+  border-color: #c9d7e8;
+  background: #f6f9fd;
+  color: #2c405c;
+}

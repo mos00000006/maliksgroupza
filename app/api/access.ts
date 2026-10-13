@@ -34,7 +34,16 @@ export function canAccessBuyerWorkspace(member: HubMember | null | undefined) {
       (member.role === BUYER_ROLE ||
         member.role === "Owner / Admin" ||
         member.role === "Developer / Technical Admin" ||
-        (member.role === "Executive / EXCO" && member.access_scope === "Full company")),
+        member.access_scope === "Full company"),
+  );
+}
+
+export function canManageBuyerWorkspace(member: HubMember | null | undefined) {
+  return Boolean(
+    member &&
+      (member.role === BUYER_ROLE ||
+        member.role === "Owner / Admin" ||
+        member.role === "Developer / Technical Admin"),
   );
 }
 
@@ -46,7 +55,7 @@ export function canAccessStockOrders(member: HubMember | null | undefined) {
         member.role === BUYER_ROLE ||
         member.role === "Owner / Admin" ||
         member.role === "Developer / Technical Admin" ||
-        (member.role === "Executive / EXCO" && member.access_scope === "Full company") ||
+        member.access_scope === "Full company" ||
         ["Regional Manager", "Store Manager", "Department Manager"].includes(member.role)),
   );
 }

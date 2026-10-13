@@ -3,7 +3,7 @@ import {
   BUYER_ROLE,
   canAccessBuyerWorkspace,
   canApproveBuyerOrders,
-  canWrite,
+  canManageBuyerWorkspace,
   getHubMember,
 } from "../access";
 
@@ -41,7 +41,7 @@ function parseCategories(value: unknown) {
 }
 
 function privileged(member: Awaited<ReturnType<typeof getHubMember>>) {
-  return Boolean(member && member.role !== BUYER_ROLE && canAccessBuyerWorkspace(member));
+  return Boolean(member && (canManageBuyerWorkspace(member) || canApproveBuyerOrders(member)) && member.role !== BUYER_ROLE);
 }
 
 function orderOwnerAllowed(member: NonNullable<Awaited<ReturnType<typeof getHubMember>>>, row: Row) {
@@ -161,7 +161,7 @@ export async function GET() {
     workspaces: workspaceRows.results,
     permissions: {
       canApprove: canApproveBuyerOrders(member),
-      canManage: canWrite(member),
+      canManage: canManageBuyerWorkspace(member),
       buyerOnly,
     },
   });
@@ -171,10 +171,15 @@ export async function POST(req: Request) {
   const member = await getHubMember({ allowBuyerAccess: true });
   if (!member || !canAccessBuyerWorkspace(member))
     return Response.json({ error: "Buyer Workspace access required." }, { status: 403 });
-  if (!canWrite(member)) return Response.json({ error: "Buyer Workspace is read only for this account." }, { status: 403 });
 
   const payload = (await req.json()) as Record<string, unknown>;
   const action = clean(payload.action);
+  const canManage = canManageBuyerWorkspace(member);
+  const canApprove = canApproveBuyerOrders(member);
+  if (!canManage && !canApprove)
+    return Response.json({ error: "Buyer Workspace is read only for this full-company account." }, { status: 403 });
+  if (!canManage && !["approveOrder", "returnOrder"].includes(action))
+    return Response.json({ error: "This full-company account can view Buyer Workspace but cannot change buying records." }, { status: 403 });
   const now = new Date().toISOString();
 
   try {

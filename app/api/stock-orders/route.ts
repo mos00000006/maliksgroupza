@@ -40,7 +40,7 @@ function isFullStockUser(member: NonNullable<Awaited<ReturnType<typeof getHubMem
     member.role === BUYER_ROLE ||
       member.role === "Owner / Admin" ||
       member.role === "Developer / Technical Admin" ||
-      (member.role === "Executive / EXCO" && member.access_scope === "Full company"),
+      member.access_scope === "Full company",
   );
 }
 

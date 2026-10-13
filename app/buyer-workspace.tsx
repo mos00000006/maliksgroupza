@@ -509,15 +509,16 @@ export default function BuyerWorkspace({ currentUser, onNavigate }: { currentUse
           <small>POWERBUILD PROCUREMENT CONTROL</small>
           <h2>Buyer Workspace</h2>
           <p>Control supplier purchase orders and receive live stock requests from every branch, with confirmed quantities flowing back to the stores.</p>
-          <span className="buyerUserTag">Signed in buyer: {currentUser.name || currentUser.email}</span>
+          <span className="buyerUserTag">{data.permissions.buyerOnly ? "Signed in buyer" : data.permissions.canManage ? "Procurement access" : "Full-company view"}: {currentUser.name || currentUser.email}</span>
         </div>
         <div className="buyerHeroActions">
           <button className="buyerSecondaryBtn" onClick={() => exportWorkbook()} disabled={loading}>⇩ Download Excel</button>
-          <button className="buyerPrimaryBtn" onClick={openNewOrder}>＋ New purchase order</button>
+          {data.permissions.canManage && <button className="buyerPrimaryBtn" onClick={openNewOrder}>＋ New purchase order</button>}
         </div>
       </div>
 
       {message && <div className="buyerNotice" role="status"><span>{message}</span><button onClick={() => setMessage("")}>×</button></div>}
+      {!data.permissions.canManage && !data.permissions.buyerOnly && <div className="buyerNotice buyerReadOnlyNotice" role="status"><span>Full-company visibility: you can see Buyer Workspace and all branch stock orders. Buying changes remain controlled by the Buyer / procurement administrators.</span></div>}
 
       <div className="buyerKpis">
         <article><small>OPEN ORDERS</small><b>{dashboard.open}</b><span>Active purchase orders</span></article>
@@ -565,17 +566,17 @@ export default function BuyerWorkspace({ currentUser, onNavigate }: { currentUse
             </div>
           </section>
           <section className="buyerPanel">
-            <header><div><small>SUPPLIER CONTROL</small><h3>Preferred supplier register</h3></div><button onClick={() => { setSupplierDraft(blankSupplier()); setSupplierOpen(true); }}>＋ Add</button></header>
+            <header><div><small>SUPPLIER CONTROL</small><h3>Preferred supplier register</h3></div>{data.permissions.canManage && <button onClick={() => { setSupplierDraft(blankSupplier()); setSupplierOpen(true); }}>＋ Add</button>}</header>
             <div className="buyerSupplierMini">
               {data.suppliers.slice(0, 7).map((supplier) => (
-                <button key={supplier.id} onClick={() => editSupplier(supplier)}><span><b>{supplier.name}</b><small>{supplier.payment_terms || "Terms not captured"}</small></span><em>{supplier.supplier_type}</em></button>
+                <button key={supplier.id} disabled={!data.permissions.canManage} onClick={() => data.permissions.canManage && editSupplier(supplier)}><span><b>{supplier.name}</b><small>{supplier.payment_terms || "Terms not captured"}</small></span><em>{supplier.supplier_type}</em></button>
               ))}
               {!data.suppliers.length && <p>Add your preferred and secondary suppliers.</p>}
             </div>
           </section>
           <section className="buyerPanel buyerPanelWide">
             <header><div><small>RECENT BUYING</small><h3>Latest purchase orders</h3></div><button onClick={() => setTab("orders")}>Purchase orders</button></header>
-            <OrderTable orders={data.orders.slice(0, 8)} onEdit={openEditOrder} onExport={(order) => exportWorkbook([order], `${order.po_number}.xlsx`)} canApprove={data.permissions.canApprove} onAction={updateOrderAction} busy={busy} suppliers={data.suppliers} onSend={sendSupplierOrder} compact />
+            <OrderTable orders={data.orders.slice(0, 8)} onEdit={openEditOrder} onExport={(order) => exportWorkbook([order], `${order.po_number}.xlsx`)} canApprove={data.permissions.canApprove} canManage={data.permissions.canManage} onAction={updateOrderAction} busy={busy} suppliers={data.suppliers} onSend={sendSupplierOrder} compact />
           </section>
         </div>
       )}
@@ -594,9 +595,9 @@ export default function BuyerWorkspace({ currentUser, onNavigate }: { currentUse
         <section className="buyerPanel buyerPanelFull">
           <header className="buyerListHeader">
             <div><small>PURCHASE ORDER REGISTER</small><h3>Purchase Orders</h3></div>
-            <div><label className="buyerSearch">⌕ <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search PO, supplier, store…" /></label><button className="buyerPrimaryBtn" onClick={openNewOrder}>＋ New PO</button></div>
+            <div><label className="buyerSearch">⌕ <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search PO, supplier, store…" /></label>{data.permissions.canManage && <button className="buyerPrimaryBtn" onClick={openNewOrder}>＋ New PO</button>}</div>
           </header>
-          <OrderTable orders={filteredOrders} onEdit={openEditOrder} onExport={(order) => exportWorkbook([order], `${order.po_number}.xlsx`)} canApprove={data.permissions.canApprove} onAction={updateOrderAction} busy={busy} suppliers={data.suppliers} onSend={sendSupplierOrder} />
+          <OrderTable orders={filteredOrders} onEdit={openEditOrder} onExport={(order) => exportWorkbook([order], `${order.po_number}.xlsx`)} canApprove={data.permissions.canApprove} canManage={data.permissions.canManage} onAction={updateOrderAction} busy={busy} suppliers={data.suppliers} onSend={sendSupplierOrder} />
         </section>
       )}
 
@@ -768,11 +769,12 @@ function BranchOrderTable({ orders, onOpen }: { orders: BranchStockOrder[]; onOp
   </tbody></table></div>;
 }
 
-function OrderTable({ orders, onEdit, onExport, canApprove, onAction, busy, suppliers, onSend, compact = false }: {
+function OrderTable({ orders, onEdit, onExport, canApprove, canManage, onAction, busy, suppliers, onSend, compact = false }: {
   orders: BuyerOrder[];
   onEdit: (order: BuyerOrder) => void;
   onExport: (order: BuyerOrder) => void;
   canApprove: boolean;
+  canManage: boolean;
   onAction: (action: string, id: number, extra?: Record<string, unknown>) => Promise<void>;
   busy: boolean;
   suppliers: Supplier[];
@@ -788,7 +790,7 @@ function OrderTable({ orders, onEdit, onExport, canApprove, onAction, busy, supp
       <td><span className={`buyerPill ${order.approval_status === "Approved" ? "good" : order.approval_status === "Pending approval" ? "warn" : ""}`}>{order.approval_status}</span></td>
       <td><b>{money.format(Number(order.total || 0))}</b><small>{order.lines.length} line{order.lines.length === 1 ? "" : "s"}</small></td>
       {!compact && <td>{order.delivery_status}<small>{order.expected_delivery_date || "No ETA"}</small></td>}
-      <td><div className="buyerRowActions"><button onClick={() => onEdit(order)}>Open</button><button onClick={() => onExport(order)}>Excel</button>{canApprove && order.approval_status === "Pending approval" && <><button className="approve" disabled={busy} onClick={() => void onAction("approveOrder", order.id)}>Approve</button><button className="return" disabled={busy} onClick={() => void onAction("returnOrder", order.id)}>Return</button></>}{order.approval_status === "Approved" && order.status === "Approved" && <button className="approve" disabled={busy} onClick={() => void onAction("setOrderStatus", order.id, { status: "Ordered" })}>Mark ordered</button>}{sendable && (supplier?.whatsapp_number || supplier?.phone) && <button className="approve" disabled={busy} onClick={() => void onSend(order, "WhatsApp")}>WhatsApp</button>}{sendable && supplier?.email && <button className="approve" disabled={busy} onClick={() => void onSend(order, "Email")}>Email</button>}{order.last_sent_at && <small>Sent {order.last_sent_channel}</small>}</div></td>
+      <td><div className="buyerRowActions">{canManage && <button onClick={() => onEdit(order)}>Open</button>}<button onClick={() => onExport(order)}>Excel</button>{canApprove && order.approval_status === "Pending approval" && <><button className="approve" disabled={busy} onClick={() => void onAction("approveOrder", order.id)}>Approve</button><button className="return" disabled={busy} onClick={() => void onAction("returnOrder", order.id)}>Return</button></>}{canManage && order.approval_status === "Approved" && order.status === "Approved" && <button className="approve" disabled={busy} onClick={() => void onAction("setOrderStatus", order.id, { status: "Ordered" })}>Mark ordered</button>}{canManage && sendable && (supplier?.whatsapp_number || supplier?.phone) && <button className="approve" disabled={busy} onClick={() => void onSend(order, "WhatsApp")}>WhatsApp</button>}{canManage && sendable && supplier?.email && <button className="approve" disabled={busy} onClick={() => void onSend(order, "Email")}>Email</button>}{order.last_sent_at && <small>Sent {order.last_sent_channel}</small>}</div></td>
     </tr>; })}
     {!orders.length && <tr><td colSpan={8}>No purchase orders found.</td></tr>}
   </tbody></table></div>;
