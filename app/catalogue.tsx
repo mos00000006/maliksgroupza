@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { downloadWholesaleCatalogue } from "./catalogue-pdf";
+import { buildWholesaleCataloguePdf, downloadWholesaleCatalogue } from "./catalogue-pdf";
 
 type CatalogueProduct = {
   id: number;
@@ -180,6 +180,8 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfStatus, setPdfStatus] = useState("");
   const [pdfProgress, setPdfProgress] = useState(0);
+  const [leafletOpen, setLeafletOpen] = useState(false);
+  const [leafletUrl, setLeafletUrl] = useState("");
   const requestId = useRef(0);
   const pageSize = 12;
 
@@ -227,6 +229,10 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     const timer = window.setTimeout(() => void load(1, query), 220);
     return () => window.clearTimeout(timer);
   }, [query]);
+
+  useEffect(() => () => {
+    if (leafletUrl) URL.revokeObjectURL(leafletUrl);
+  }, [leafletUrl]);
 
   const openAdd = () => {
     if (!canManage) return;
@@ -332,6 +338,38 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     }
   };
 
+  const viewWholesaleLeaflet = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    setError("");
+    setPdfStatus("Loading all catalogue products...");
+    setPdfProgress(2);
+    try {
+      const allProducts = await loadAllCatalogueProducts();
+      if (!allProducts.length) throw new Error("There are no catalogue products to include in the wholesale leaflet.");
+      const blob = await buildWholesaleCataloguePdf(allProducts, (message, percent) => {
+        setPdfStatus(message);
+        setPdfProgress(percent);
+      });
+      if (leafletUrl) URL.revokeObjectURL(leafletUrl);
+      const nextUrl = URL.createObjectURL(blob);
+      setLeafletUrl(nextUrl);
+      setLeafletOpen(true);
+      setPdfStatus("");
+      setPdfProgress(0);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The wholesale leaflet could not be opened.");
+      setPdfStatus("");
+      setPdfProgress(0);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  const closeWholesaleLeaflet = () => {
+    setLeafletOpen(false);
+  };
+
   const remove = async () => {
     if (!deleteProduct || deleting || !canManage) return;
     setDeleting(true);
@@ -369,6 +407,14 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
             />
           </label>
           <div className="cataloguePdfActions">
+            <button
+              type="button"
+              className="cataloguePdfButton leaflet"
+              disabled={pdfBusy}
+              onClick={() => void viewWholesaleLeaflet()}
+            >
+              <span>VIEW</span> {pdfBusy ? "Preparing leaflet..." : "View leaflet"}
+            </button>
             <button
               type="button"
               className="cataloguePdfButton wholesale"
@@ -494,6 +540,30 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
             </nav>
           )}
         </>
+      )}
+
+      {leafletOpen && leafletUrl && (
+        <div className="catalogueLeafletOverlay" role="presentation" onMouseDown={closeWholesaleLeaflet}>
+          <section
+            className="catalogueLeafletViewer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="PowerBuild Wholesale Division leaflet"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <small>POWERBUILD WHOLESALE DIVISION</small>
+                <h3>View Leaflet</h3>
+              </div>
+              <div className="catalogueLeafletViewerActions">
+                <a href={leafletUrl} target="_blank" rel="noreferrer">Open full screen</a>
+                <button type="button" onClick={closeWholesaleLeaflet} aria-label="Close leaflet">×</button>
+              </div>
+            </header>
+            <iframe src={`${leafletUrl}#toolbar=1&navpanes=0&view=FitH`} title="PowerBuild Wholesale Division leaflet" />
+          </section>
+        </div>
       )}
 
       {editorOpen && canManage && (

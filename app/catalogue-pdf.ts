@@ -768,7 +768,7 @@ const tryLoadNexaFonts = async () => {
   }
 };
 
-export async function downloadWholesaleCatalogue(
+export async function buildWholesaleCataloguePdf(
   products: WholesaleCatalogueProduct[],
   onProgress?: ProgressFn,
 ) {
@@ -893,13 +893,26 @@ export async function downloadWholesaleCatalogue(
     }
   }
 
-  onProgress?.("Finalising PDF download...", 96);
+  onProgress?.("Finalising wholesale leaflet...", 96);
   pdf.set(pagesRef, `<< /Type /Pages /Kids [${pageRefs.map((ref) => `${ref} 0 R`).join(" ")}] /Count ${pageRefs.length} >>`);
   pdf.set(catalogRef, `<< /Type /Catalog /Pages ${pagesRef} 0 R >>`);
 
   const output = pdf.build(catalogRef);
   const pdfBuffer = output.buffer.slice(output.byteOffset, output.byteOffset + output.byteLength) as ArrayBuffer;
   const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+
+  releaseImage(cover);
+  releaseImage(logo);
+  imageMap.forEach((image) => releaseImage(image));
+  onProgress?.("Wholesale leaflet ready.", 100);
+  return blob;
+}
+
+export async function downloadWholesaleCatalogue(
+  products: WholesaleCatalogueProduct[],
+  onProgress?: ProgressFn,
+) {
+  const blob = await buildWholesaleCataloguePdf(products, onProgress);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -908,9 +921,5 @@ export async function downloadWholesaleCatalogue(
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-
-  releaseImage(cover);
-  releaseImage(logo);
-  imageMap.forEach((image) => releaseImage(image));
   onProgress?.("Wholesale catalogue downloaded.", 100);
 }
