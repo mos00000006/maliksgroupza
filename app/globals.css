@@ -567,7 +567,8 @@ td select {
   position: fixed;
   inset: 0;
   background: #0d17277a;
-  z-index: 10;
+  /* Global Hub overlays must sit above the workspace header/sidebar. */
+  z-index: 2000;
   display: grid;
   place-items: center;
   padding: 18px;

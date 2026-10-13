@@ -496,6 +496,8 @@
 .professionalShell :global(.quickActionsOverlay),
 .professionalShell :global(.quickWorkflowOverlay),
 .professionalShell :global(.deleteConfirmOverlay) {
+  /* Keep Inbox, Quick, Access and all global dialogs above the active workspace header. */
+  z-index: 2000 !important;
   backdrop-filter: blur(3px);
 }
 
