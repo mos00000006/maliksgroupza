@@ -382,8 +382,8 @@ export default function WorkspacesModal({
               </button>
               <h2>{selected.name}</h2>
               <p>
-                {selected.type} · {selected.region} ·{" "}
-                {selected.manager || "Manager not assigned"}
+                {selected.type} · {selected.region && selected.region !== "Unassigned" ? selected.region : "Region not assigned"} ·{" "}
+                Manager: {selected.manager || "Not assigned"}
               </p>
             </span>
             <div>
@@ -908,7 +908,10 @@ export default function WorkspacesModal({
                 <span>
                   <b>{w.name}</b>
                   <small>
-                    {w.type} · {w.region}
+                    {w.type}{w.region && w.region !== "Unassigned" ? ` · ${w.region}` : ""}
+                  </small>
+                  <small className="workspaceManagerLabel">
+                    Manager: {w.manager || "Not assigned"}
                   </small>
                 </span>
                 <em>Open board →</em>

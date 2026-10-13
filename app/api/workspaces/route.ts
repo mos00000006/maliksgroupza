@@ -57,10 +57,46 @@ export async function GET() {
   if (!member) return Response.json({ error: "Hub access is not active." }, { status: 403 });
   const { results } = await env.DB.prepare(
     "SELECT * FROM workspaces WHERE active=1 ORDER BY CASE type WHEN 'Head Office' THEN 0 WHEN 'DC' THEN 1 WHEN 'Wholesale Division' THEN 2 ELSE 3 END,name",
-  ).all();
+  ).all<Record<string, unknown>>();
+
+  // A Store Manager is assigned through Access / Team Members. Historically the
+  // workspace.manager field was only populated when a workspace was created,
+  // so adding a Store Manager later did not update Company Workspaces. Resolve
+  // the live manager from the team assignment and keep the stored value as a
+  // fallback for older/manual workspaces.
+  const managerByWorkspace = new Map<string, string>();
+  try {
+    const { results: managers } = await env.DB.prepare(
+      "SELECT name,workspace_access FROM team_members WHERE active=1 AND role='Store Manager' ORDER BY name",
+    ).all<{ name: string; workspace_access: string }>();
+    for (const manager of managers) {
+      let assigned: string[] = [];
+      try {
+        const parsed = JSON.parse(manager.workspace_access || "[]");
+        if (Array.isArray(parsed)) assigned = parsed.map((value) => String(value).trim()).filter(Boolean);
+      } catch {
+        assigned = [];
+      }
+      for (const workspaceName of assigned) {
+        if (!managerByWorkspace.has(workspaceName.toLowerCase())) {
+          managerByWorkspace.set(workspaceName.toLowerCase(), manager.name);
+        }
+      }
+    }
+  } catch {
+    // Team table may not yet exist during first-time bootstrap. In that case,
+    // use the manager value already stored on the workspace record.
+  }
+
+  const enriched = results.map((workspace) => ({
+    ...workspace,
+    manager:
+      managerByWorkspace.get(String(workspace.name || "").toLowerCase()) ||
+      String(workspace.manager || ""),
+  }));
   const allowed = allowedWorkspaces(member);
   return Response.json({
-    workspaces: allowed === null ? results : results.filter((workspace) => allowed.includes(String(workspace.name))),
+    workspaces: allowed === null ? enriched : enriched.filter((workspace) => allowed.includes(String(workspace.name))),
   });
 }
 export async function POST(req: Request) {
