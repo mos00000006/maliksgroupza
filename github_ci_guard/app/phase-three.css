@@ -1,0 +1,243 @@
+.workspaceGrid > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 11px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.workspaceGrid > button:hover {
+  border-color: #88afe8;
+  box-shadow: 0 5px 16px #204b8212;
+  transform: translateY(-1px);
+}
+.workspaceGrid > button.division {
+  background: #edf4ff;
+  border-color: #d5e4fa;
+}
+.workspaceGrid > button > i {
+  font-style: normal;
+  width: 31px;
+  height: 31px;
+  border-radius: 7px;
+  background: #eaf2ff;
+  color: var(--blue);
+  display: grid;
+  place-items: center;
+}
+.workspaceGrid button span {
+  flex: 1;
+}
+.workspaceGrid button b,
+.workspaceGrid button small {
+  display: block;
+}
+.workspaceGrid button b {
+  font-size: 9px;
+}
+.workspaceGrid button small {
+  font-size: 7px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.workspaceGrid button em {
+  font-style: normal;
+  font-size: 8px;
+  color: var(--blue);
+}
+.backBtn {
+  display: block;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font-size: 8px;
+  font-weight: 700;
+  padding: 0 0 8px;
+  cursor: pointer;
+}
+.storeKpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 11px;
+  margin: 17px 0;
+}
+.storeKpis article {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 14px;
+}
+.storeKpis small,
+.storeKpis b,
+.storeKpis em {
+  display: block;
+}
+.storeKpis small {
+  font-size: 8px;
+  color: var(--muted);
+}
+.storeKpis b {
+  font-size: 23px;
+  margin: 7px 0 5px;
+}
+.storeKpis em {
+  font-size: 7px;
+  color: #738093;
+  font-style: normal;
+}
+.storeDashboardBody {
+  display: grid;
+  grid-template-columns: 1fr 230px;
+  gap: 13px;
+}
+.storeDashboardBody > section,
+.storeDashboardBody > aside {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 15px;
+}
+.storeDashboardBody h3 {
+  font-size: 11px;
+  margin: 0 0 5px;
+}
+.workspaceSectionHead p {
+  font-size: 8px;
+  color: var(--muted);
+  margin: 0 0 13px;
+}
+.storeTaskList {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.storeTaskList article {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-top: 1px solid #edf0f3;
+  padding: 10px 2px;
+}
+.storeTaskList article > i {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #edf3fb;
+  color: var(--blue);
+  font-style: normal;
+  font-size: 9px;
+}
+.storeTaskList article > i.blocked {
+  background: #fff0eb;
+  color: #d84a28;
+}
+.storeTaskList article > i.complete {
+  background: #eaf8ef;
+  color: #198a4d;
+}
+.storeTaskList article > span {
+  flex: 1;
+}
+.storeTaskList article b,
+.storeTaskList article small {
+  display: block;
+}
+.storeTaskList article b {
+  font-size: 9px;
+}
+.storeTaskList article small {
+  font-size: 7px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.storeTaskList article > strong {
+  font-size: 7px;
+  min-width: 58px;
+  text-align: right;
+}
+.storeDashboardBody > aside p {
+  border-top: 1px solid #edf0f3;
+  margin: 0;
+  padding: 10px 0;
+}
+.storeDashboardBody > aside p b,
+.storeDashboardBody > aside p span {
+  display: block;
+  font-size: 8px;
+}
+.storeDashboardBody > aside p span {
+  color: var(--muted);
+  margin-top: 4px;
+}
+.workspaceEmpty {
+  text-align: center;
+  padding: 35px 15px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+.workspaceEmpty b {
+  font-size: 10px;
+}
+.workspaceEmpty p {
+  font-size: 8px;
+  color: var(--muted);
+}
+.workspaceEmpty button,
+.workspaceError button {
+  border: 0;
+  background: var(--blue);
+  color: #fff;
+  border-radius: 6px;
+  padding: 8px 11px;
+  font-size: 8px;
+}
+.storeTaskForm > div {
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+}
+.workspaceError {
+  margin-top: 13px;
+  padding: 10px;
+  background: #fff0eb;
+  color: #9a341e;
+  border-radius: 7px;
+  font-size: 9px;
+}
+.workspaceError button {
+  margin-left: 8px;
+}
+.viewContext {
+  margin: 0 0 12px;
+  padding: 10px 13px;
+  border-left: 3px solid var(--blue);
+  background: #edf4ff;
+  border-radius: 0 7px 7px 0;
+  font-size: 9px;
+  color: #39516d;
+}
+.emptyRegister {
+  text-align: center;
+  padding: 30px;
+  color: var(--muted);
+  font-size: 9px;
+}
+@media (max-width: 800px) {
+  .storeKpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  .storeDashboardBody {
+    grid-template-columns: 1fr;
+  }
+  .storeTaskForm > div {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 520px) {
+  .storeKpis,
+  .storeTaskForm > div {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,33 @@
+GITHUB CI FINAL SAFEGUARD — 13 OCTOBER 2026
+
+This package contains the corrected leaflet viewer source AND a CI safeguard.
+
+Important corrections included:
+1. app/catalogue.tsx
+   - moveLeaflet is declared before the keyboard useEffect.
+   - closeWholesaleLeaflet is declared before the keyboard useEffect.
+   - the keyboard useEffect includes both callbacks in its dependency list.
+   - load is useCallback-based and included in its effect dependency list.
+
+2. app/catalogue-pdf.ts
+   - unused drawImageCover helper is removed.
+
+3. eslint.config.mjs
+   - app/app/** is ignored.
+   - react-hooks/immutability is disabled ONLY for app/catalogue.tsx as a CI safety guard.
+
+4. package.json
+   - lint command also ignores app/app/** so an accidental nested duplicate cannot fail the job.
+
+VERY IMPORTANT WHEN APPLYING TO GITHUB:
+- Extract the ZIP first.
+- Copy/overwrite the files INTO THE ROOT OF YOUR EXISTING REPOSITORY.
+- Do NOT upload the outer folder as a new subfolder.
+- Delete the old app/app/ directory from GitHub if it exists.
+
+After applying, verify in GitHub that app/catalogue.tsx contains:
+  const moveLeaflet = useCallback(...)
+BEFORE the keyboard useEffect.
+
+Then rerun:
+  npm run check

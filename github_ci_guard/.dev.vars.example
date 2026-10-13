@@ -1,0 +1,5 @@
+# Copy this file to .dev.vars for local development only.
+# Never commit real secret values.
+OPENAI_API_KEY="replace-with-development-key"
+RESEND_API_KEY="replace-with-development-key"
+INVITE_FROM_EMAIL="hub@your-company-domain.co.za"

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `sop_training_sop_member_unique` ON `sop_training_records` (`sop_id`,`member_email`);

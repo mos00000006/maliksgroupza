@@ -1,0 +1,1140 @@
+/* Task safety and responsive navigation improvements */
+.mobileMenuBtn,
+.mobileNavBackdrop,
+.mobileAiFab,
+.mobileSidebarClose {
+  display: none;
+}
+
+.taskHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 14px;
+}
+.detail > header .deleteTaskBtn {
+  width: auto;
+  height: 30px;
+  border-radius: 7px;
+  padding: 0 12px;
+  background: #fff1f1;
+  color: #c4323f;
+  border: 1px solid #f0c8cc;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.detail > header .deleteTaskBtn:hover {
+  background: #ffe4e6;
+  border-color: #e7a9af;
+}
+.detail > header .taskCloseBtn {
+  flex: 0 0 30px;
+}
+
+/* AI Sidekick is a true slide-in drawer instead of a centred modal. */
+.sidekickOverlay {
+  place-items: stretch;
+  justify-items: end;
+  padding: 0;
+}
+.sidekickDrawer {
+  width: min(560px, 94vw);
+  max-height: 100vh;
+  height: 100vh;
+  border-radius: 16px 0 0 16px;
+  padding: 23px;
+  box-shadow: -22px 0 65px #07112645;
+  animation: sidekickSlideIn 180ms ease-out;
+  overscroll-behavior: contain;
+}
+.sidekickSwipeHandle {
+  display: none;
+}
+@keyframes sidekickSlideIn {
+  from { transform: translateX(100%); opacity: .72; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@media (max-width: 720px) {
+  body {
+    overflow-x: hidden;
+  }
+  aside {
+    width: min(300px, 86vw);
+    padding: 18px 14px;
+    transform: translateX(-105%);
+    transition: transform 180ms ease-out;
+    box-shadow: 18px 0 50px #07112632;
+    z-index: 50;
+  }
+  aside.mobileOpen {
+    transform: translateX(0);
+  }
+  aside .brand span,
+  aside .company span,
+  aside > p,
+  aside nav button,
+  aside .user span {
+    display: initial;
+  }
+  aside nav button {
+    display: flex;
+  }
+  aside .brand {
+    padding-left: 8px;
+  }
+  aside .brandLogoMark {
+    width: 52px;
+    height: 40px;
+  }
+  aside .company {
+    padding: 10px;
+  }
+  aside .user {
+    justify-content: flex-start;
+  }
+  aside nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: 10px;
+  }
+  .aiSide {
+    font-size: 10px;
+  }
+  .aiSide:after {
+    content: none;
+  }
+  .mobileNavBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    border: 0;
+    background: #0d172778;
+  }
+  .main {
+    margin-left: 0;
+    padding: 0 14px 92px;
+    width: 100%;
+    max-width: none;
+  }
+  .main > header {
+    min-height: 82px;
+    height: auto;
+    padding: 13px 0;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+  }
+  .mobileMenuBtn {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid #dfe4ea;
+    background: #fff;
+    border-radius: 9px;
+    color: #26364c;
+    font-size: 19px;
+    cursor: pointer;
+  }
+  .headerTitle {
+    min-width: 0;
+  }
+  .main h1 {
+    font-size: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .main > header p {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .actions {
+    grid-column: 1 / -1;
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+  .actions label {
+    display: flex;
+    order: 5;
+    width: 100%;
+    height: 40px;
+  }
+  .actions button {
+    min-height: 38px;
+  }
+  .actions .primary {
+    font-size: 10px;
+  }
+  .actions .primary:after {
+    content: none;
+  }
+  .tablewrap {
+    max-width: calc(100vw - 28px);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  table {
+    min-width: 760px;
+  }
+  .board {
+    grid-template-columns: 1fr;
+  }
+  .modal,
+  .teamModal,
+  .workspaceModal,
+  .detail {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+  }
+  .overlay:not(.sidekickOverlay) {
+    align-items: end;
+    padding: 0;
+  }
+  .detail,
+  .workspaceModal,
+  .teamModal {
+    max-height: 94vh;
+  }
+  .taskOverlay {
+    padding: 0;
+  }
+  .detail > header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #fff;
+    padding: 16px;
+    align-items: flex-start;
+  }
+  .detail > header h2 {
+    font-size: 17px;
+  }
+  .taskHeaderActions {
+    flex-direction: column-reverse;
+    align-items: flex-end;
+    gap: 6px;
+  }
+  .detail > header .deleteTaskBtn {
+    height: 29px;
+  }
+  .detailBody {
+    grid-template-columns: 1fr;
+  }
+  .detailBody > section {
+    padding: 16px;
+  }
+  .facts {
+    grid-template-columns: 1fr 1fr;
+  }
+  .files {
+    padding: 16px !important;
+  }
+  .mobileAiFab {
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    z-index: 35;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    border-radius: 999px;
+    padding: 12px 15px;
+    color: #fff;
+    background: linear-gradient(135deg, #4938a1, #1769e8);
+    box-shadow: 0 12px 32px #173c7844;
+    font-weight: 800;
+    font-size: 11px;
+  }
+  .sidekickOverlay {
+    background: #0d172759;
+  }
+  .sidekickDrawer {
+    width: min(94vw, 520px);
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 18px 0 0 18px;
+    padding: 14px;
+  }
+  .sidekickSwipeHandle {
+    display: block;
+    width: 36px;
+    height: 4px;
+    border-radius: 99px;
+    margin: 0 auto 10px;
+    background: #c8d0db;
+  }
+  .sidekickModal > header {
+    padding-bottom: 12px;
+  }
+  .sidekickModal h2 {
+    font-size: 16px;
+  }
+  .sidekickModal header p {
+    font-size: 9px;
+  }
+  .aiMark {
+    width: 35px;
+    height: 35px;
+  }
+  .promptGrid {
+    grid-template-columns: 1fr;
+  }
+  .aiBody {
+    min-height: calc(100dvh - 92px);
+    display: flex;
+    flex-direction: column;
+  }
+  .aiBody > section {
+    flex: 1;
+    overflow-y: auto;
+  }
+  .aiBody > footer {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    flex-direction: column;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .aiBody footer button {
+    min-height: 42px;
+  }
+}
+
+@media (max-width: 430px) {
+  .main {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .main > header {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+  .actions button {
+    flex: 1 1 auto;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+  .facts {
+    grid-template-columns: 1fr;
+  }
+  .detail > header {
+    gap: 8px;
+  }
+  .detail > header h2 {
+    font-size: 15px;
+  }
+  .taskHeaderActions {
+    margin-left: 6px;
+  }
+  .sidekickDrawer {
+    width: 96vw;
+  }
+}
+
+/* Sidebar scrolling fix: keep the full navigation usable on short/mobile viewports. */
+aside {
+  height: 100vh;
+  max-height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+}
+
+aside > .brand,
+aside > .company,
+aside > p,
+aside > nav,
+aside > .aiSide,
+aside > .inviteSide,
+aside > .user {
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  aside {
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+
+  /* The whole drawer scrolls as one surface. Avoid a nested scroll area in nav. */
+  aside nav {
+    flex: 0 0 auto;
+    min-height: auto;
+    overflow: visible;
+    padding-bottom: 8px;
+  }
+
+  aside .aiSide {
+    margin-top: 10px;
+    min-height: 42px;
+  }
+
+  aside .inviteSide {
+    margin-top: 8px;
+    min-height: 40px;
+  }
+
+  aside .user {
+    margin-top: 14px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+}
+
+
+/* Hub-branded task delete confirmation. Replaces browser window.confirm so the
+   browser origin is never displayed in the confirmation dialog. */
+.deleteConfirmOverlay {
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 18, 33, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.deleteConfirmModal {
+  width: min(430px, calc(100vw - 32px));
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(2, 12, 27, 0.28);
+  padding: 28px;
+  text-align: center;
+  color: #172033;
+}
+
+.deleteConfirmIcon {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fff0f0;
+  color: #c62828;
+  font-weight: 900;
+  font-size: 24px;
+}
+
+.deleteConfirmModal h2 {
+  margin: 0 0 10px;
+  font-size: 24px;
+}
+
+.deleteConfirmModal p {
+  margin: 0 0 8px;
+  line-height: 1.5;
+  color: #354052;
+}
+
+.deleteConfirmModal small {
+  display: block;
+  color: #7a8493;
+  line-height: 1.45;
+}
+
+.deleteConfirmActions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.deleteConfirmActions button {
+  min-width: 120px;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.deleteConfirmCancel {
+  border: 1px solid #d9dfe8;
+  background: #ffffff;
+  color: #263247;
+}
+
+.deleteConfirmButton {
+  border: 1px solid #b42323;
+  background: #c62828;
+  color: #ffffff;
+}
+
+.deleteConfirmActions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 520px) {
+  .deleteConfirmOverlay {
+    padding: 16px;
+  }
+  .deleteConfirmModal {
+    padding: 24px 18px 20px;
+    border-radius: 18px;
+  }
+  .deleteConfirmActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .deleteConfirmActions button {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+/* Catalogue responsive layout */
+@media (max-width: 1180px) {
+  .catalogueGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .catalogueHero { align-items: flex-start; }
+  .catalogueHeroActions { flex-direction: column; align-items: stretch; }
+}
+@media (max-width: 900px) {
+  .catalogueGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .catalogueHero { flex-direction: column; }
+  .catalogueHeroActions { width: 100%; flex-direction: row; }
+  .catalogueHeroActions label { min-width: 0; flex: 1 1 auto; }
+}
+@media (max-width: 720px) {
+  .catalogueModule { padding-top: 14px; }
+  .catalogueHero { padding: 19px 17px; border-radius: 14px; }
+  .catalogueHero h2 { font-size: 23px; }
+  .catalogueHeroActions { flex-direction: column; align-items: stretch; }
+  .catalogueHeroActions label { width: 100%; }
+  .catalogueSummary { overflow-x: auto; padding-bottom: 2px; }
+  .catalogueSummary > span { min-width: 132px; }
+  .catalogueSummary em { white-space: nowrap; }
+  .catalogueGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+  .catalogueCard { border-radius: 15px; }
+  .catalogueImage { height: 160px; padding: 10px 10px 9px; gap: 8px; }
+  .catalogueImage::after { inset: 9px; border-radius: 11px; }
+  .catalogueImage > b { padding: 6px 8px; font-size: 9px; max-width: 100%; }
+  .catalogueCardBody { min-height: 188px; padding: 12px; }
+  .catalogueCardBody > small { padding: 4px 7px; font-size: 8px; }
+  .catalogueCardBody h3 { min-height: 32px; margin-top: 8px; font-size: 12px; line-height: 1.3; -webkit-line-clamp: 2; }
+  .catalogueCardBody p { min-height: 28px; font-size: 9.5px; line-height: 1.45; -webkit-line-clamp: 2; }
+  .catalogueManageActions { gap: 6px; padding-top: 10px; }
+  .catalogueManageActions button { min-height: 32px; padding: 6px 9px; }
+  .cataloguePager { gap: 5px; padding: 4px 0; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
+  .cataloguePager::-webkit-scrollbar { display: none; }
+  .cataloguePagerNumbers { gap: 5px; }
+  .cataloguePager button { min-width: 36px; height: 36px; padding: 0 8px; border-radius: 8px; font-size: 11px; flex: 0 0 auto; }
+  .cataloguePagerArrow { min-width: 40px !important; font-size: 16px !important; }
+  .cataloguePagerGap { width: 17px; line-height: 36px; font-size: 15px; flex: 0 0 auto; }
+  .catalogueFormGrid { grid-template-columns: 1fr; padding: 17px; }
+  .catalogueFormGrid label.wide { grid-column: auto; }
+  .catalogueEditor > header { padding: 18px 17px 14px; }
+  .catalogueEditor > footer { padding: 13px 17px 17px; }
+}
+@media (max-width: 430px) {
+  .catalogueGrid { grid-template-columns: 1fr; gap: 14px; }
+  .catalogueImage { height: 230px; }
+  .catalogueCardBody { min-height: 182px; }
+  .catalogueCardBody h3 { min-height: 38px; font-size: 15px; line-height: 1.32; }
+  .catalogueCardBody p { min-height: 31px; font-size: 10.5px; line-height: 1.45; }
+}
+
+/* PowerBuild phone / Home Screen quick actions */
+@media (max-width: 720px) {
+  .quickActionsHeaderBtn {
+    display: none;
+  }
+  .mobileQuickActionsFab {
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    z-index: 40;
+    min-width: 92px;
+    height: 48px;
+    border: 0;
+    border-radius: 24px;
+    background: #172438;
+    color: #fff;
+    box-shadow: 0 13px 32px rgba(10, 25, 50, .32);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 17px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .02em;
+  }
+  .mobileQuickActionsFab i {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #f4c51d;
+    color: #172438;
+    display: grid;
+    place-items: center;
+    font-size: 17px;
+    line-height: 1;
+    font-style: normal;
+  }
+  .quickActionsOverlay {
+    z-index: 90;
+    padding: 0;
+    align-items: end !important;
+  }
+  .quickActionsSheet,
+  .quickPhotoSheet {
+    width: 100%;
+    max-width: none;
+    max-height: 90dvh;
+    overflow-y: auto;
+    border-radius: 22px 22px 0 0;
+    padding: 19px 16px calc(20px + env(safe-area-inset-bottom));
+    box-shadow: 0 -20px 60px rgba(7, 17, 38, .25);
+  }
+  .quickActionsSheet::before,
+  .quickPhotoSheet::before {
+    content: "";
+    display: block;
+    width: 44px;
+    height: 4px;
+    border-radius: 4px;
+    background: #d5dce5;
+    margin: -7px auto 15px;
+  }
+  .quickActionsSheet > header,
+  .quickPhotoSheet > header {
+    margin-bottom: 15px;
+  }
+  .quickActionsSheet > header h2,
+  .quickPhotoSheet > header h2 {
+    font-size: 21px;
+  }
+  .quickActionsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+  .quickActionsGrid > button {
+    min-height: 118px;
+    padding: 13px;
+    border-radius: 14px;
+  }
+  .quickActionsGrid > button > i {
+    width: 36px;
+    height: 36px;
+  }
+  .quickActionsGrid > button b {
+    font-size: 10px;
+  }
+  .quickActionsGrid > button small {
+    font-size: 8px;
+  }
+  .quickPhotoTaskList {
+    max-height: 64dvh;
+  }
+  .quickPhotoTaskList > button {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+  .quickPhotoTaskList > button em {
+    grid-column: 2;
+    margin-top: -3px;
+  }
+}
+
+@media (max-width: 390px) {
+  .quickActionsGrid > button {
+    min-height: 112px;
+    padding: 12px;
+  }
+  .mobileQuickActionsFab {
+    right: 12px;
+  }
+}
+
+
+/* Mobile navigation V5 — full drawer scroll + visible scroll affordance */
+@media (max-width: 720px) {
+  aside {
+    position: fixed;
+    top: 0;
+    bottom: auto;
+    left: 0;
+    width: min(330px, 92vw);
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    scrollbar-gutter: stable;
+    padding: 18px 14px calc(28px + env(safe-area-inset-bottom));
+  }
+  aside nav {
+    flex: 0 0 auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  aside::-webkit-scrollbar { width: 6px; }
+  aside::-webkit-scrollbar-track { background: #132033; }
+  aside::-webkit-scrollbar-thumb { background: #60748d; border-radius: 999px; }
+  .mobileSidebarClose {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    margin: -8px 0 -34px auto;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #3c4b61;
+    border-radius: 9px;
+    background: #223149;
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  aside .brand { padding-right: 42px; }
+  .mobileQuickActionsFab { z-index: 38; }
+}
+
+
+/* ========================================================================
+   MOBILE FULL HUB SIDEBAR V7
+   ======================================================================== */
+@media (max-width: 720px) {
+  aside,
+  aside.mobileOpen {
+    position: fixed !important;
+    inset: 0 auto auto 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: min(350px, 92vw) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior-y: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    scrollbar-gutter: stable;
+    padding: 18px 16px calc(38px + env(safe-area-inset-bottom)) !important;
+  }
+
+  aside.mobileOpen {
+    transform: translateX(0) !important;
+  }
+
+  /* One scroll surface only — the navigation itself must not trap scrolling. */
+  aside nav {
+    display: block !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-bottom: 8px !important;
+  }
+
+  aside nav button {
+    display: flex !important;
+    width: 100% !important;
+    min-height: 46px !important;
+    margin: 2px 0 !important;
+    align-items: center !important;
+  }
+
+  aside > .brand,
+  aside > .company,
+  aside > p,
+  aside > nav,
+  aside > .aiSide,
+  aside > .inviteSide,
+  aside > .user {
+    flex: 0 0 auto !important;
+  }
+
+  aside .aiSide {
+    margin-top: 10px !important;
+    min-height: 44px !important;
+  }
+
+  aside .inviteSide {
+    margin-top: 8px !important;
+    min-height: 42px !important;
+  }
+
+  aside .user {
+    margin-top: 14px !important;
+    padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+  }
+
+  aside::-webkit-scrollbar { width: 7px; }
+  aside::-webkit-scrollbar-track { background: #122034; }
+  aside::-webkit-scrollbar-thumb {
+    background: #647a94;
+    border-radius: 999px;
+    border: 2px solid #122034;
+  }
+
+  /* Safety net: no floating AI over an open Hub modal. */
+  body:has(.overlay) .mobileAiFab {
+    display: none !important;
+  }
+}
+
+
+/* ========================================================================
+   POWERBUILD SIDEBAR ICON SYSTEM V8
+   Clean vector icons replace the old text/glyph symbols.
+   ======================================================================== */
+.sidebarNavIcon {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  flex: 0 0 22px !important;
+  display: grid !important;
+  place-items: center !important;
+  margin-right: 1px;
+  border-radius: 6px;
+  color: #8fb0d7;
+  font-style: normal !important;
+  line-height: 1 !important;
+  transition:
+    color .18s ease,
+    background .18s ease,
+    transform .18s ease;
+}
+
+.sidebarNavIcon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  overflow: visible;
+}
+
+aside nav button:hover .sidebarNavIcon {
+  color: #c9ddf6;
+  transform: translateX(1px);
+}
+
+aside nav button.active .sidebarNavIcon {
+  color: #f5c928;
+  background: rgba(246, 202, 47, .10);
+}
+
+aside nav button.active {
+  box-shadow: inset 3px 0 0 #f5c928;
+}
+
+@media (max-width: 720px) {
+  .sidebarNavIcon {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+  }
+
+  .sidebarNavIcon svg {
+    width: 19px;
+    height: 19px;
+  }
+}
+
+/* Catalogue PDF action buttons */
+@media (max-width: 760px) {
+  .catalogueHeroActions .cataloguePdfActions { width: 100%; display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .catalogueHeroActions .cataloguePdfButton { width: 100%; min-height: 48px; }
+}
+
+/* Catalogue mobile polish — 12 Oct 2026 */
+@media (max-width: 760px) {
+  .catalogueModule {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .catalogueHero {
+    gap: 16px;
+    padding: 18px 15px;
+  }
+
+  .catalogueHeroIntro small { font-size: 9px; }
+  .catalogueHeroIntro h2 { font-size: 24px; line-height: 1.08; }
+  .catalogueHeroIntro p { max-width: none; font-size: 11px; line-height: 1.5; }
+
+  .catalogueHeroActions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .catalogueHeroActions > label,
+  .cataloguePdfActions,
+  .catalogueHeroActions > .primary {
+    width: 100%;
+    grid-column: 1 !important;
+  }
+
+  .catalogueHeroActions > label {
+    min-height: 50px;
+    border-radius: 12px;
+  }
+
+  .catalogueHeroActions input {
+    min-width: 0;
+    min-height: 46px;
+    font-size: 16px; /* avoids iOS input zoom */
+  }
+
+  .cataloguePdfButton,
+  .catalogueHeroActions > .primary {
+    min-height: 50px !important;
+    border-radius: 12px;
+    font-size: 11px;
+    touch-action: manipulation;
+  }
+
+  .catalogueSummary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    overflow: visible;
+  }
+  .catalogueSummary > span { min-width: 0; width: 100%; }
+  .catalogueSummary em { grid-column: 1 / -1; justify-self: start; }
+
+  .cataloguePdfProgress {
+    margin: 0 0 14px;
+    padding: 12px;
+    border-radius: 12px;
+  }
+  .cataloguePdfProgress > div { align-items: flex-start; font-size: 10.5px; }
+  .cataloguePdfProgress > div b { min-width: 0; overflow-wrap: anywhere; }
+  .cataloguePdfProgress small { display: block; font-size: 10.5px; line-height: 1.45; }
+
+  .catalogueCard {
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  .catalogueImage img {
+    object-fit: contain !important;
+    object-position: center center !important;
+  }
+  .catalogueImage > b {
+    max-width: calc(100% - 4px);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    line-height: 1.15;
+  }
+
+  .catalogueManageActions button {
+    min-height: 44px;
+    padding: 9px 12px;
+    touch-action: manipulation;
+  }
+
+  .cataloguePager {
+    width: 100%;
+    margin-top: 14px;
+    padding: 8px 2px calc(8px + env(safe-area-inset-bottom));
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .cataloguePager::-webkit-scrollbar { display: none; }
+  .cataloguePager button {
+    min-width: 42px;
+    height: 42px;
+    padding: 0 10px;
+    flex: 0 0 auto;
+    touch-action: manipulation;
+  }
+  .cataloguePagerArrow { min-width: 46px !important; }
+
+  .catalogueEditorOverlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .catalogueEditor {
+    width: 100%;
+    max-height: calc(100dvh - env(safe-area-inset-top));
+    border-radius: 20px 20px 0 0;
+    overscroll-behavior: contain;
+  }
+  .catalogueEditor > header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 16px 15px 13px;
+    background: #fff;
+  }
+  .catalogueEditor > header > button {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+  }
+  .catalogueFormGrid {
+    gap: 13px;
+    padding: 16px 15px 18px;
+  }
+  .catalogueFormGrid label { font-size: 11px; }
+  .catalogueFormGrid input,
+  .catalogueFormGrid textarea {
+    min-height: 48px;
+    padding: 12px;
+    font-size: 16px; /* avoids iOS input zoom */
+  }
+  .catalogueFormGrid textarea { min-height: 120px; }
+  .catalogueFormGrid label > small { font-size: 10px; line-height: 1.4; }
+  .catalogueEditor > footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    padding: 12px 15px calc(12px + env(safe-area-inset-bottom));
+    background: #fff;
+  }
+  .catalogueEditor > footer button {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+  }
+
+  .catalogueDeleteOverlay {
+    align-items: flex-end;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  }
+  .deleteConfirmModal { width: 100%; max-width: 480px; }
+}
+
+@media (max-width: 600px) {
+  .catalogueGrid { grid-template-columns: 1fr; gap: 14px; }
+  .catalogueImage { height: 290px; padding: 12px 12px 10px; }
+  .catalogueImage img { height: calc(100% - 46px); }
+  .catalogueCardBody { min-height: 188px; padding: 14px; }
+  .catalogueCardBody > small { font-size: 8.5px; }
+  .catalogueCardBody h3 { min-height: 38px; font-size: 15px; line-height: 1.35; -webkit-line-clamp: 2; }
+  .catalogueCardBody p { min-height: 34px; font-size: 11px; line-height: 1.45; -webkit-line-clamp: 2; }
+  .catalogueCard--tommy .catalogueCardBody h3 { min-height: 0; -webkit-line-clamp: 2; }
+  .catalogueTommyVariant { gap: 7px; margin-top: 5px; }
+  .catalogueTommyVariant span { padding: 8px 9px 7px; }
+  .catalogueTommyVariant em { font-size: 7.5px; }
+  .catalogueTommyVariant strong { font-size: 10.5px; }
+  .catalogueAssortedBadge { margin-top: 10px; padding: 7px 11px; font-size: 9px; }
+}
+
+@media (max-width: 390px) {
+  .catalogueModule { padding-left: 9px; padding-right: 9px; }
+  .catalogueHero { padding: 16px 13px; }
+  .catalogueImage { height: 260px; }
+  .cataloguePager button { min-width: 40px; height: 40px; padding: 0 8px; }
+  .cataloguePagerArrow { min-width: 44px !important; }
+}
+
+/* Mobile catalogue pagination: keep Previous / Next permanently visible */
+@media (max-width: 760px) {
+  .cataloguePager {
+    display: grid !important;
+    grid-template-columns: 48px minmax(0, 1fr) 48px;
+    align-items: center;
+    justify-content: stretch;
+    width: 100%;
+    max-width: 100%;
+    gap: 7px;
+    overflow: visible !important;
+    padding: 10px max(2px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(2px, env(safe-area-inset-left));
+    box-sizing: border-box;
+  }
+
+  .cataloguePagerNumbers {
+    min-width: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    padding: 2px 1px 4px;
+  }
+  .cataloguePagerNumbers::-webkit-scrollbar { display: none; }
+
+  .cataloguePagerNumbers > button,
+  .cataloguePagerNumbers > .cataloguePagerGap {
+    flex: 0 0 auto;
+    scroll-snap-align: center;
+  }
+
+  .cataloguePagerArrow {
+    position: relative;
+    z-index: 4;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 46px !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center;
+    border-radius: 12px !important;
+    background: #fff !important;
+    box-shadow: 0 6px 16px rgba(8, 41, 83, .12) !important;
+    touch-action: manipulation;
+  }
+
+  .cataloguePagerArrow:not(:disabled) {
+    border-color: #0b4fb3;
+    color: #0b4fb3;
+  }
+
+  .cataloguePagerArrow:disabled {
+    opacity: .38;
+  }
+
+  .cataloguePager button {
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 390px) {
+  .cataloguePager {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 5px;
+  }
+  .cataloguePagerArrow {
+    height: 44px !important;
+  }
+  .cataloguePagerNumbers {
+    gap: 5px;
+  }
+}
+
+@media (max-width: 600px) {
+  .catalogueSizeCodeFields { grid-template-columns: 1fr; gap: 9px; padding: 10px; }
+  .catalogueSizeCodeIntro { grid-column: 1; }
+  .catalogueSizeCodeIntro b { font-size: 12px; }
+  .catalogueSizeCodeIntro small { font-size: 10px; }
+}
+
+@media (max-width: 820px) {
+  .catalogueCard--assorted .catalogueAssortedBadge { margin-top: 10px; }
+}
