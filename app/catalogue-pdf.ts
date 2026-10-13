@@ -23,8 +23,10 @@ const PAGE_W = 595.28;
 const PAGE_H = 841.89;
 const CANVAS_W = 2480;
 const CANVAS_H = 3508;
+let renderScaleOverride: number | null = null;
 
 const pageRenderScale = () => {
+  if (renderScaleOverride !== null) return renderScaleOverride;
   if (typeof window === "undefined") return 1;
   const width = Math.min(window.innerWidth || 9999, window.screen?.width || 9999);
   if (width <= 760) return 0.8;
@@ -906,6 +908,133 @@ export async function buildWholesaleCataloguePdf(
   imageMap.forEach((image) => releaseImage(image));
   onProgress?.("Wholesale leaflet ready.", 100);
   return blob;
+}
+
+
+export async function buildWholesaleLeafletPages(
+  products: WholesaleCatalogueProduct[],
+  onProgress?: ProgressFn,
+) {
+  await tryLoadNexaFonts();
+
+  const sorted = [...products].sort((a, b) => {
+    const categoryCompare = categoryRank(a.category) - categoryRank(b.category);
+    if (categoryCompare) return categoryCompare;
+    const labelCompare = safeCategory(a.category).localeCompare(safeCategory(b.category));
+    if (labelCompare) return labelCompare;
+    return cleanText(a.name || a.description || a.code).localeCompare(cleanText(b.name || b.description || b.code));
+  });
+
+  const groups = new Map<string, WholesaleCatalogueProduct[]>();
+  for (const product of sorted) {
+    const category = safeCategory(product.category);
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category)!.push(product);
+  }
+
+  const pageCapacity = 16;
+  let nextPage = 3;
+  const plans: CategoryPlan[] = Array.from(groups.entries()).map(([category, items]) => {
+    const productPages = Math.ceil(items.length / pageCapacity);
+    const coverPage = nextPage;
+    const endPage = coverPage + productPages;
+    nextPage = endPage + 1;
+    return { category, items, productPages, coverPage, endPage };
+  });
+  const totalPages = nextPage - 1;
+
+  onProgress?.("Preparing interactive leaflet...", 6);
+  let cover: LoadedImage | null = null;
+  let logo: LoadedImage | null = null;
+  try {
+    cover = await loadImageElement("/wholesale-division-cover-v2.png");
+  } catch {
+    cover = null;
+  }
+  try {
+    logo = await loadImageElement("/powerbuild-logo-transparent.png");
+  } catch {
+    logo = null;
+  }
+
+  const productsWithImages = sorted.filter((product) => Boolean(product.image_url));
+  const imageMap = new Map<number, LoadedImage>();
+  const concurrency = 5;
+  let completed = 0;
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(concurrency, productsWithImages.length) }, async () => {
+    while (true) {
+      const current = cursor++;
+      if (current >= productsWithImages.length) return;
+      const product = productsWithImages[current];
+      try {
+        imageMap.set(product.id, await loadImageElement(product.image_url));
+      } catch {
+        // The page renderer will show the styled placeholder.
+      }
+      completed += 1;
+      const percent = 8 + Math.round((completed / Math.max(1, productsWithImages.length)) * 32);
+      onProgress?.(`Loading leaflet pictures ${completed}/${productsWithImages.length}...`, percent);
+    }
+  });
+  await Promise.all(workers);
+
+  const pages: Blob[] = [];
+  const pushPage = (image: PdfImage) => {
+    const buffer = image.bytes.buffer.slice(image.bytes.byteOffset, image.bytes.byteOffset + image.bytes.byteLength) as ArrayBuffer;
+    pages.push(new Blob([buffer], { type: "image/jpeg" }));
+  };
+
+  const originalOverride = renderScaleOverride;
+  renderScaleOverride = typeof window !== "undefined" && Math.min(window.innerWidth, window.screen?.width || window.innerWidth) <= 760 ? 0.36 : 0.44;
+
+  try {
+    onProgress?.("Creating leaflet pages...", 44);
+    pushPage(await drawCoverPage(products.length, cover));
+    pushPage(await drawContentsPage(plans, logo, totalPages));
+
+    let built = 0;
+    const renderTotal = plans.reduce((sum, plan) => sum + 1 + plan.productPages, 0);
+    for (const plan of plans) {
+      pushPage(await drawCategoryCoverPage(plan, logo, imageMap, totalPages));
+      built += 1;
+      onProgress?.(
+        `Preparing ${plan.category} pages...`,
+        46 + Math.round((built / Math.max(1, renderTotal)) * 50),
+      );
+
+      for (let start = 0; start < plan.items.length; start += pageCapacity) {
+        const slice = plan.items.slice(start, start + pageCapacity);
+        const categoryPage = Math.floor(start / pageCapacity) + 1;
+        const absolutePage = plan.coverPage + categoryPage;
+        pushPage(
+          await drawProductPage(
+            plan.category,
+            slice,
+            imageMap,
+            logo,
+            categoryPage,
+            plan.productPages,
+            absolutePage,
+            totalPages,
+          ),
+        );
+        built += 1;
+        onProgress?.(
+          `Preparing leaflet page ${absolutePage}/${totalPages}...`,
+          46 + Math.round((built / Math.max(1, renderTotal)) * 50),
+        );
+      }
+    }
+  } finally {
+    renderScaleOverride = originalOverride;
+    releaseImage(cover);
+    releaseImage(logo);
+    imageMap.forEach((image) => releaseImage(image));
+  }
+
+  onProgress?.("Interactive leaflet ready.", 100);
+  return pages;
 }
 
 export async function downloadWholesaleCatalogue(

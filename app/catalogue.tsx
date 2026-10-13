@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { buildWholesaleCataloguePdf, downloadWholesaleCatalogue } from "./catalogue-pdf";
+import { buildWholesaleLeafletPages, downloadWholesaleCatalogue } from "./catalogue-pdf";
 
 type CatalogueProduct = {
   id: number;
@@ -181,7 +181,10 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   const [pdfStatus, setPdfStatus] = useState("");
   const [pdfProgress, setPdfProgress] = useState(0);
   const [leafletOpen, setLeafletOpen] = useState(false);
-  const [leafletUrl, setLeafletUrl] = useState("");
+  const [leafletPages, setLeafletPages] = useState<string[]>([]);
+  const [leafletPage, setLeafletPage] = useState(0);
+  const leafletUrlsRef = useRef<string[]>([]);
+  const leafletViewerRef = useRef<HTMLElement | null>(null);
   const requestId = useRef(0);
   const pageSize = 12;
 
@@ -231,8 +234,27 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   }, [query]);
 
   useEffect(() => () => {
-    if (leafletUrl) URL.revokeObjectURL(leafletUrl);
-  }, [leafletUrl]);
+    leafletUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    leafletUrlsRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    if (!leafletOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeWholesaleLeaflet();
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        moveLeaflet(1);
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        moveLeaflet(-1);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [leafletOpen, leafletPage, leafletPages.length]);
 
   const openAdd = () => {
     if (!canManage) return;
@@ -338,6 +360,32 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     }
   };
 
+  const isLeafletMobile = () =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
+
+  const normaliseLeafletPage = (target: number) => {
+    const max = Math.max(0, leafletPages.length - 1);
+    const bounded = Math.max(0, Math.min(target, max));
+    if (isLeafletMobile() || bounded === 0) return bounded;
+    return bounded % 2 === 1 ? bounded : Math.max(1, bounded - 1);
+  };
+
+  const moveLeaflet = (direction: -1 | 1) => {
+    if (!leafletPages.length) return;
+    if (isLeafletMobile()) {
+      setLeafletPage((current) => Math.max(0, Math.min(current + direction, leafletPages.length - 1)));
+      return;
+    }
+    setLeafletPage((current) => {
+      if (direction > 0) {
+        if (current === 0) return Math.min(1, leafletPages.length - 1);
+        return Math.min(current + 2, leafletPages.length - 1);
+      }
+      if (current <= 1) return 0;
+      return Math.max(1, current - 2);
+    });
+  };
+
   const viewWholesaleLeaflet = async () => {
     if (pdfBusy) return;
     setPdfBusy(true);
@@ -347,13 +395,15 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     try {
       const allProducts = await loadAllCatalogueProducts();
       if (!allProducts.length) throw new Error("There are no catalogue products to include in the wholesale leaflet.");
-      const blob = await buildWholesaleCataloguePdf(allProducts, (message, percent) => {
+      const pageBlobs = await buildWholesaleLeafletPages(allProducts, (message, percent) => {
         setPdfStatus(message);
         setPdfProgress(percent);
       });
-      if (leafletUrl) URL.revokeObjectURL(leafletUrl);
-      const nextUrl = URL.createObjectURL(blob);
-      setLeafletUrl(nextUrl);
+      leafletUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      const nextUrls = pageBlobs.map((blob) => URL.createObjectURL(blob));
+      leafletUrlsRef.current = nextUrls;
+      setLeafletPages(nextUrls);
+      setLeafletPage(0);
       setLeafletOpen(true);
       setPdfStatus("");
       setPdfProgress(0);
@@ -368,6 +418,23 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
 
   const closeWholesaleLeaflet = () => {
     setLeafletOpen(false);
+    setLeafletPage(0);
+    window.setTimeout(() => {
+      leafletUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      leafletUrlsRef.current = [];
+      setLeafletPages([]);
+    }, 120);
+  };
+
+  const toggleLeafletFullscreen = async () => {
+    const viewer = leafletViewerRef.current;
+    if (!viewer) return;
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await viewer.requestFullscreen();
+    } catch {
+      // Full screen is optional; the in-Hub viewer still remains usable.
+    }
   };
 
   const remove = async () => {
@@ -542,10 +609,11 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
         </>
       )}
 
-      {leafletOpen && leafletUrl && (
+      {leafletOpen && leafletPages.length > 0 && (
         <div className="catalogueLeafletOverlay" role="presentation" onMouseDown={closeWholesaleLeaflet}>
           <section
-            className="catalogueLeafletViewer"
+            ref={leafletViewerRef}
+            className="catalogueLeafletViewer catalogueLeafletFlipbook"
             role="dialog"
             aria-modal="true"
             aria-label="PowerBuild Wholesale Division leaflet"
@@ -557,11 +625,68 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                 <h3>View Leaflet</h3>
               </div>
               <div className="catalogueLeafletViewerActions">
-                <a href={leafletUrl} target="_blank" rel="noreferrer">Open full screen</a>
-                <button type="button" onClick={closeWholesaleLeaflet} aria-label="Close leaflet">×</button>
+                <button type="button" className="catalogueLeafletFullscreen" onClick={() => void toggleLeafletFullscreen()}>
+                  Full screen
+                </button>
+                <button type="button" className="catalogueLeafletClose" onClick={closeWholesaleLeaflet} aria-label="Close leaflet">×</button>
               </div>
             </header>
-            <iframe src={`${leafletUrl}#toolbar=1&navpanes=0&view=FitH`} title="PowerBuild Wholesale Division leaflet" />
+
+            <div className="catalogueLeafletStage">
+              <button
+                type="button"
+                className="catalogueLeafletNav catalogueLeafletPrev"
+                aria-label="Previous leaflet page"
+                disabled={leafletPage <= 0}
+                onClick={() => moveLeaflet(-1)}
+              >
+                ‹
+              </button>
+
+              <div className={`catalogueLeafletSpread${leafletPage === 0 ? " catalogueLeafletSpread--cover" : ""}`}>
+                <figure className="catalogueLeafletPage">
+                  <img src={leafletPages[leafletPage]} alt={`Leaflet page ${leafletPage + 1}`} draggable={false} />
+                </figure>
+                {leafletPage > 0 && leafletPage + 1 < leafletPages.length && (
+                  <figure className="catalogueLeafletPage catalogueLeafletPageSecondary">
+                    <img src={leafletPages[leafletPage + 1]} alt={`Leaflet page ${leafletPage + 2}`} draggable={false} />
+                  </figure>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="catalogueLeafletNav catalogueLeafletNext"
+                aria-label="Next leaflet page"
+                disabled={leafletPage >= leafletPages.length - 1}
+                onClick={() => moveLeaflet(1)}
+              >
+                ›
+              </button>
+            </div>
+
+            <footer className="catalogueLeafletFooter">
+              <div className="catalogueLeafletPageReadout">
+                Page {leafletPage + 1}{leafletPage > 0 && leafletPage + 1 < leafletPages.length && !isLeafletMobile() ? `–${leafletPage + 2}` : ""} of {leafletPages.length}
+              </div>
+              <div className="catalogueLeafletThumbnails" aria-label="Leaflet pages">
+                {leafletPages.map((pageUrl, index) => {
+                  const active = index === leafletPage || (!isLeafletMobile() && leafletPage > 0 && index === leafletPage + 1);
+                  return (
+                    <button
+                      type="button"
+                      key={`${pageUrl}-${index}`}
+                      className={active ? "active" : ""}
+                      onClick={() => setLeafletPage(normaliseLeafletPage(index))}
+                      aria-label={`Go to leaflet page ${index + 1}`}
+                    >
+                      <img src={pageUrl} alt="" draggable={false} />
+                      <span>{index + 1}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </footer>
           </section>
         </div>
       )}

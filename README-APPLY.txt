@@ -1,6 +1,4 @@
-Replace these files in the existing latest maliksgroupza project:
-- app/catalogue.tsx
-- app/catalogue-pdf.ts
-- app/globals.css
+Apply these files over the matching files in the current maliksgroupza project.
 
-This adds View Leaflet next to Download Wholesale Division PDF.
+This patch replaces the blocked PDF iframe with a native flipbook-style leaflet viewer.
+No database migration is required for this viewer fix.
