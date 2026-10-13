@@ -368,137 +368,42 @@ const drawFooter = (
 };
 
 const drawCoverPage = async (productCount: number, cover: LoadedImage | null) => {
-  const { canvas, ctx } = createPageCanvas();
+  const canvas = document.createElement("canvas");
+  canvas.width = CANVAS_W;
+  canvas.height = CANVAS_H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not create PDF page.");
 
   ctx.fillStyle = WHITE;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Clean premium background with light blueprint feel
-  ctx.fillStyle = "#f8fbff";
-  ctx.fillRect(0, 0, CANVAS_W, 420);
-  ctx.fillStyle = BLUE;
-  ctx.fillRect(0, 0, CANVAS_W, 84);
-  ctx.fillStyle = YELLOW;
-  ctx.beginPath();
-  ctx.moveTo(CANVAS_W - 350, 0);
-  ctx.lineTo(CANVAS_W, 0);
-  ctx.lineTo(CANVAS_W, 110);
-  ctx.lineTo(CANVAS_W - 420, 110);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.strokeStyle = "rgba(11, 79, 148, 0.10)";
-  ctx.lineWidth = 3;
-  for (const [x, y, w, h] of [
-    [120, 150, 240, 170],
-    [290, 120, 320, 220],
-    [1730, 135, 420, 240],
-    [1880, 170, 240, 160],
-  ] as const) {
-    ctx.strokeRect(x, y, w, h);
+  if (cover) {
+    const margin = 24;
+    drawImageContain(ctx, cover, margin, margin, CANVAS_W - margin * 2, CANVAS_H - margin * 2);
+    return canvasToJpeg(canvas, 0.985);
   }
-  ctx.beginPath();
-  ctx.moveTo(120, 330); ctx.lineTo(650, 330);
-  ctx.moveTo(1730, 360); ctx.lineTo(2260, 360);
-  ctx.moveTo(460, 120); ctx.lineTo(460, 340);
-  ctx.moveTo(1960, 135); ctx.lineTo(1960, 375);
-  ctx.stroke();
 
+  // Fallback cover if the artwork is unavailable
+  const bg = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+  bg.addColorStop(0, "#f8fbff");
+  bg.addColorStop(1, "#eef4fb");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.fillStyle = BLUE;
+  ctx.fillRect(0, 0, CANVAS_W, 100);
+  ctx.fillStyle = YELLOW;
+  ctx.fillRect(0, 100, CANVAS_W, 18);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  drawRoundedRect(ctx, CANVAS_W / 2 - 165, 130, 330, 64, 24, BLUE);
-  ctx.fillStyle = WHITE;
-  ctx.font = `900 34px ${FONT_BOLD}`;
-  ctx.fillText("POWERBUILD", CANVAS_W / 2, 162);
-
   ctx.fillStyle = NAVY;
-  ctx.font = `900 90px ${FONT_BOLD}`;
-  ctx.fillText("WHOLESALE", CANVAS_W / 2, 290);
-  ctx.fillText("DIVISION", CANVAS_W / 2, 390);
+  ctx.font = `900 96px ${FONT_BOLD}`;
+  ctx.fillText("WHOLESALE DIVISION", CANVAS_W / 2, 560);
   ctx.fillStyle = BLUE;
-  ctx.font = `900 40px ${FONT_BOLD}`;
-  ctx.fillText("PRODUCT CATALOGUE", CANVAS_W / 2, 485);
-  drawRoundedRect(ctx, CANVAS_W / 2 - 160, 535, 320, 12, 6, YELLOW);
-
-  const heroX = 140;
-  const heroY = 640;
-  const heroW = CANVAS_W - 280;
-  const heroH = 1760;
-  drawShadow(ctx, 28, "rgba(15, 23, 42, 0.12)", 10);
-  drawRoundedRect(ctx, heroX, heroY, heroW, heroH, 28, WHITE, MID, 2);
-  clearShadow(ctx);
-
-  ctx.save();
-  ctx.beginPath();
-  const r = 26;
-  ctx.moveTo(heroX + r, heroY);
-  ctx.arcTo(heroX + heroW, heroY, heroX + heroW, heroY + heroH, r);
-  ctx.arcTo(heroX + heroW, heroY + heroH, heroX, heroY + heroH, r);
-  ctx.arcTo(heroX, heroY + heroH, heroX, heroY, r);
-  ctx.arcTo(heroX, heroY, heroX + heroW, heroY, r);
-  ctx.closePath();
-  ctx.clip();
-  if (cover) {
-    drawImageCover(ctx, cover, heroX, heroY, heroW, heroH);
-    ctx.fillStyle = "rgba(255,255,255,0.16)";
-    ctx.fillRect(heroX, heroY, heroW, heroH);
-
-    const posterW = Math.min(heroW - 260, 1280);
-    const posterH = heroH - 170;
-    const posterX = heroX + (heroW - posterW) / 2;
-    const posterY = heroY + 84;
-
-    drawRoundedRect(ctx, posterX, posterY, posterW, posterH, 26, "rgba(255,255,255,0.92)", "rgba(255,255,255,0.55)", 2);
-    ctx.save();
-    ctx.beginPath();
-    const pr = 24;
-    ctx.moveTo(posterX + pr, posterY);
-    ctx.arcTo(posterX + posterW, posterY, posterX + posterW, posterY + posterH, pr);
-    ctx.arcTo(posterX + posterW, posterY + posterH, posterX, posterY + posterH, pr);
-    ctx.arcTo(posterX, posterY + posterH, posterX, posterY, pr);
-    ctx.arcTo(posterX, posterY, posterX + posterW, posterY, pr);
-    ctx.closePath();
-    ctx.clip();
-    drawImageContain(ctx, cover, posterX + 18, posterY + 18, posterW - 36, posterH - 36);
-    ctx.restore();
-  } else {
-    const heroBg = ctx.createLinearGradient(heroX, heroY, heroX + heroW, heroY + heroH);
-    heroBg.addColorStop(0, "#0b4f94");
-    heroBg.addColorStop(1, "#17344f");
-    ctx.fillStyle = heroBg;
-    ctx.fillRect(heroX, heroY, heroW, heroH);
-    ctx.fillStyle = WHITE;
-    ctx.font = `900 54px ${FONT_BOLD}`;
-    ctx.fillText("POWERBUILD WHOLESALE DIVISION", CANVAS_W / 2, heroY + heroH / 2 - 30);
-    ctx.font = `600 34px ${FONT_REGULAR}`;
-    ctx.fillText("Live catalogue edition", CANVAS_W / 2, heroY + heroH / 2 + 28);
-  }
-  ctx.restore();
-
-  drawRoundedRect(ctx, 310, 2450, CANVAS_W - 620, 120, 24, WHITE, MID, 2);
-  ctx.fillStyle = BLUE;
-  ctx.font = `900 42px ${FONT_BOLD}`;
-  ctx.fillText(`${productCount} PRODUCTS`, CANVAS_W / 2, 2490);
+  ctx.font = `900 54px ${FONT_BOLD}`;
+  ctx.fillText("PRODUCT CATALOGUE", CANVAS_W / 2, 660);
   ctx.fillStyle = MUTED;
-  ctx.font = `700 22px ${FONT_REGULAR}`;
-  ctx.fillText("LIVE HUB WHOLESALE PDF", CANVAS_W / 2, 2535);
-
-  const dateText = new Date().toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" });
-  drawRoundedRect(ctx, 640, 2598, CANVAS_W - 1280, 46, 16, SOFT_BLUE, "#d8e3ef", 1.5);
-  ctx.fillStyle = DEEP_BLUE;
-  ctx.font = `700 20px ${FONT_REGULAR}`;
-  ctx.fillText(dateText, CANVAS_W / 2, 2621);
-
-  ctx.fillStyle = NAVY;
-  ctx.fillRect(0, CANVAS_H - 118, CANVAS_W, 118);
-  ctx.fillStyle = YELLOW;
-  ctx.fillRect(0, CANVAS_H - 118, CANVAS_W, 8);
-  ctx.fillStyle = WHITE;
-  ctx.font = `700 22px ${FONT_BOLD}`;
-  ctx.fillText("PAINT · PLUMBING · DOORS & WINDOWS · FASTENERS · FENCING · ROOFING & MORE", CANVAS_W / 2, CANVAS_H - 66);
-  ctx.font = `700 20px ${FONT_REGULAR}`;
-  ctx.fillText("www.powerbuild.co.za", CANVAS_W / 2, CANVAS_H - 30);
-
+  ctx.font = `700 30px ${FONT_REGULAR}`;
+  ctx.fillText(`${productCount} Products`, CANVAS_W / 2, 760);
   return canvasToJpeg(canvas, 0.985);
 };
 
@@ -913,7 +818,7 @@ export async function downloadWholesaleCatalogue(
   let cover: LoadedImage | null = null;
   let logo: LoadedImage | null = null;
   try {
-    cover = await loadImageElement("/wholesale-division-cover.jpg");
+    cover = await loadImageElement("/wholesale-division-cover-v2.png");
   } catch {
     cover = null;
   }
