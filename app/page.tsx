@@ -339,7 +339,7 @@ const BRANCH_STOCK_ROLE = "Branch Stock Orders";
 const navigationForUser = (user: CurrentHubUser) => {
   if (user.role === HUMAN_RESOURCE_ROLE) return ["Employee Records"];
   if (user.role === BUYER_ROLE) return ["Buyer Workspace", "Stock Orders", "Store Specials", "Our Catalogue"];
-  if (user.role === BRANCH_STOCK_ROLE) return ["Stock Orders", "Store Specials", "Our Catalogue"];
+  if (user.role === BRANCH_STOCK_ROLE) return ["Stock Orders"];
   let workspaceAccess: string[] = [];
   if (Array.isArray(user.workspace_access)) workspaceAccess = user.workspace_access;
   else {
@@ -360,6 +360,7 @@ const navigationForUser = (user: CurrentHubUser) => {
       /(^|\b)(hr|human resources|people)(\b|$)/i.test(user.department || "");
     if (item === "System Control Centre" || item === "Rollout & Onboarding") return accessAdmin;
     if (item === "Employee Records") return employeeRecordsAccess;
+    if (item === "Buyer Workspace") return fullCompany;
     if (fullCompany) return true;
     if (item === "Stock Orders") return ["Regional Manager", "Store Manager", "Department Manager"].includes(user.role || "");
     if (item === "Wholesale Division") return wholesale;
@@ -767,7 +768,7 @@ export default function Home() {
       : buyerOnlyAccess
         ? ["Buyer Workspace", "Stock Orders", "Store Specials", "Our Catalogue"]
         : branchStockOnlyAccess
-          ? ["Stock Orders", "Store Specials", "Our Catalogue"]
+          ? ["Stock Orders"]
         : fullCompanyNavigation
         ? nav.filter(
             (item) =>
@@ -2500,7 +2501,7 @@ export default function Home() {
                 <div className="accessEditNotice">
                   <span>
                     <b>Branch Stock Orders — branch ordering only</b><br />
-                    This user can create and track stock orders for one assigned branch and can also view Store Specials and Our Catalogue. Buyer Workspace, company dashboards, financials, SOPs, Quick Actions and Inbox are hidden.
+                    This user can only access Stock Orders for one assigned branch. Buyer Workspace, Store Specials, Our Catalogue, company dashboards, financials, SOPs, Quick Actions and Inbox are hidden. Product browsing remains available inside the Stock Order form.
                   </span>
                 </div>
               )}
