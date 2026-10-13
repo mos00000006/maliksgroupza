@@ -2739,12 +2739,3 @@ button:disabled { cursor: default; }
   background: #f6f9fd;
   color: #2c405c;
 }
-
-.workspaceGrid button span .workspaceManagerLabel {
-  display: block;
-  margin-top: 3px;
-  color: #60758f;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1.25;
-}
