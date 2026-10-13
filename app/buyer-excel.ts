@@ -43,6 +43,7 @@ export type BuyerExcelSupplier = {
   supplier_type: string;
   contact_person: string;
   phone: string;
+  whatsapp_number: string;
   email: string;
   payment_terms: string;
   lead_time_days: number;
@@ -64,6 +65,17 @@ export type BuyerExcelQuote = {
   lead_time_days: number;
   payment_terms: string;
   selected: number;
+  notes: string;
+};
+
+export type BuyerExcelSendHistory = {
+  po_number: string;
+  supplier_name: string;
+  channel: string;
+  recipient: string;
+  sent_by_name: string;
+  sent_by_email: string;
+  sent_at: string;
   notes: string;
 };
 
@@ -298,11 +310,13 @@ export function downloadBuyerWorkbook({
   orders,
   suppliers,
   quotes,
+  sendHistory = [],
   fileName = "PowerBuild_Buyer_Workspace.xlsx",
 }: {
   orders: BuyerExcelOrder[];
   suppliers: BuyerExcelSupplier[];
   quotes: BuyerExcelQuote[];
+  sendHistory?: BuyerExcelSendHistory[];
   fileName?: string;
 }) {
   const orderRows: WorkbookSheet["rows"] = [[
@@ -327,11 +341,11 @@ export function downloadBuyerWorkbook({
   ])));
 
   const supplierRows: WorkbookSheet["rows"] = [[
-    "Supplier Code", "Supplier", "Type", "Contact", "Phone", "Email", "Payment Terms", "Lead Time Days",
+    "Supplier Code", "Supplier", "Type", "Contact", "Phone", "WhatsApp", "Email", "Payment Terms", "Lead Time Days",
     "Minimum Order", "Categories", "Notes",
   ]];
   suppliers.forEach((supplier) => supplierRows.push([
-    supplier.supplier_code, supplier.name, supplier.supplier_type, supplier.contact_person, supplier.phone, supplier.email,
+    supplier.supplier_code, supplier.name, supplier.supplier_type, supplier.contact_person, supplier.phone, supplier.whatsapp_number, supplier.email,
     supplier.payment_terms, supplier.lead_time_days, supplier.minimum_order, supplier.categories.join(", "), supplier.notes,
   ]));
 
@@ -345,12 +359,88 @@ export function downloadBuyerWorkbook({
     quote.selected ? "YES" : "NO", quote.notes,
   ]));
 
+  const sendRows: WorkbookSheet["rows"] = [[
+    "PO Number", "Supplier", "Channel", "Recipient", "Sent By", "Sent By Email", "Sent At", "Notes",
+  ]];
+  sendHistory.forEach((item) => sendRows.push([
+    item.po_number, item.supplier_name, item.channel, item.recipient, item.sent_by_name, item.sent_by_email, item.sent_at, item.notes,
+  ]));
+
   const sheets: WorkbookSheet[] = [
     { name: "Purchase Orders", rows: orderRows, currencyColumns: [16, 18, 19], percentColumns: [17] },
     { name: "Order Lines", rows: lineRows, currencyColumns: [7, 8, 10], percentColumns: [9] },
-    { name: "Suppliers", rows: supplierRows, currencyColumns: [8], numericColumns: [7] },
+    { name: "Suppliers", rows: supplierRows, currencyColumns: [9], numericColumns: [8] },
     { name: "Quote Comparison", rows: quoteRows, currencyColumns: [7], numericColumns: [3, 9] },
+    { name: "Sent Order History", rows: sendRows },
   ];
 
+  downloadBlob(zipStore(workbookFiles(sheets)), fileName);
+}
+
+
+export type StockExcelOrderLine = {
+  product_code: string;
+  description: string;
+  category: string;
+  quantity_requested: number;
+  quantity_confirmed: number;
+  quantity_dispatched: number;
+  unit: string;
+  branch_notes: string;
+  warehouse_notes: string;
+};
+
+export type StockExcelOrder = {
+  stock_order_number: string;
+  branch_workspace: string;
+  requested_by_name: string;
+  requested_by_email: string;
+  order_date: string;
+  required_date: string;
+  priority: string;
+  status: string;
+  buyer_name: string;
+  buyer_email: string;
+  sent_at: string;
+  confirmed_at: string;
+  expected_delivery_date: string;
+  dispatch_reference: string;
+  branch_notes: string;
+  warehouse_notes: string;
+  completed_at: string;
+  lines: StockExcelOrderLine[];
+};
+
+export function downloadStockOrdersWorkbook({
+  orders,
+  fileName = "PowerBuild_Stock_Orders.xlsx",
+}: {
+  orders: StockExcelOrder[];
+  fileName?: string;
+}) {
+  const orderRows: WorkbookSheet["rows"] = [[
+    "Stock Order", "Branch", "Requested By", "Requested Email", "Order Date", "Required Date", "Priority", "Status",
+    "Buyer", "Buyer Email", "Sent To Warehouse", "Confirmed", "Expected Delivery", "Dispatch Reference", "Branch Notes",
+    "Warehouse Notes", "Completed",
+  ]];
+  orders.forEach((order) => orderRows.push([
+    order.stock_order_number, order.branch_workspace, order.requested_by_name, order.requested_by_email, order.order_date,
+    order.required_date, order.priority, order.status, order.buyer_name, order.buyer_email, order.sent_at, order.confirmed_at,
+    order.expected_delivery_date, order.dispatch_reference, order.branch_notes, order.warehouse_notes, order.completed_at,
+  ]));
+
+  const lineRows: WorkbookSheet["rows"] = [[
+    "Stock Order", "Branch", "Product Code", "Description", "Category", "Qty Requested", "Qty Confirmed", "Qty Dispatched",
+    "Unit", "Branch Notes", "Warehouse Notes",
+  ]];
+  orders.forEach((order) => order.lines.forEach((line) => lineRows.push([
+    order.stock_order_number, order.branch_workspace, line.product_code, line.description, line.category, line.quantity_requested,
+    line.quantity_confirmed, line.quantity_dispatched, line.unit, line.branch_notes, line.warehouse_notes,
+  ])));
+
+  const sheets: WorkbookSheet[] = [
+    { name: "Stock Orders", rows: orderRows },
+    { name: "Stock Order Lines", rows: lineRows, numericColumns: [5, 6, 7] },
+  ];
   downloadBlob(zipStore(workbookFiles(sheets)), fileName);
 }

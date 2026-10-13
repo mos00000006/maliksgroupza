@@ -322,6 +322,7 @@ export const buyerSuppliers = sqliteTable("buyer_suppliers", {
   supplierType: text("supplier_type").notNull().default("Preferred"),
   contactPerson: text("contact_person").notNull().default(""),
   phone: text("phone").notNull().default(""),
+  whatsappNumber: text("whatsapp_number").notNull().default(""),
   email: text("email").notNull().default(""),
   paymentTerms: text("payment_terms").notNull().default(""),
   leadTimeDays: integer("lead_time_days").notNull().default(0),
@@ -363,6 +364,9 @@ export const buyerOrders = sqliteTable("buyer_orders", {
   vatAmount: real("vat_amount").notNull().default(0),
   total: real("total").notNull().default(0),
   notes: text("notes").notNull().default(""),
+  lastSentAt: text("last_sent_at").notNull().default(""),
+  lastSentChannel: text("last_sent_channel").notNull().default(""),
+  lastSentTo: text("last_sent_to").notNull().default(""),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -403,4 +407,58 @@ export const buyerQuoteEntries = sqliteTable("buyer_quote_entries", {
   notes: text("notes").notNull().default(""),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+});
+
+
+export const buyerOrderSendLog = sqliteTable("buyer_order_send_log", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  orderId: integer("order_id").notNull(),
+  poNumber: text("po_number").notNull(),
+  supplierId: integer("supplier_id").notNull().default(0),
+  supplierName: text("supplier_name").notNull().default(""),
+  channel: text("channel").notNull(),
+  recipient: text("recipient").notNull(),
+  sentByEmail: text("sent_by_email").notNull(),
+  sentByName: text("sent_by_name").notNull().default(""),
+  sentAt: text("sent_at").notNull(),
+  notes: text("notes").notNull().default(""),
+});
+
+export const branchStockOrders = sqliteTable("branch_stock_orders", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  stockOrderNumber: text("stock_order_number").notNull().unique(),
+  branchWorkspace: text("branch_workspace").notNull(),
+  requestedByEmail: text("requested_by_email").notNull(),
+  requestedByName: text("requested_by_name").notNull().default(""),
+  orderDate: text("order_date").notNull().default(""),
+  requiredDate: text("required_date").notNull().default(""),
+  priority: text("priority").notNull().default("Normal"),
+  status: text("status").notNull().default("Draft"),
+  branchNotes: text("branch_notes").notNull().default(""),
+  warehouseNotes: text("warehouse_notes").notNull().default(""),
+  buyerEmail: text("buyer_email").notNull().default(""),
+  buyerName: text("buyer_name").notNull().default(""),
+  sentAt: text("sent_at").notNull().default(""),
+  confirmedAt: text("confirmed_at").notNull().default(""),
+  expectedDeliveryDate: text("expected_delivery_date").notNull().default(""),
+  dispatchReference: text("dispatch_reference").notNull().default(""),
+  completedAt: text("completed_at").notNull().default(""),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const branchStockOrderLines = sqliteTable("branch_stock_order_lines", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  orderId: integer("order_id").notNull(),
+  lineNo: integer("line_no").notNull().default(1),
+  catalogueProductId: integer("catalogue_product_id").notNull().default(0),
+  productCode: text("product_code").notNull().default(""),
+  description: text("description").notNull(),
+  category: text("category").notNull().default(""),
+  quantityRequested: real("quantity_requested").notNull().default(0),
+  quantityConfirmed: real("quantity_confirmed").notNull().default(0),
+  quantityDispatched: real("quantity_dispatched").notNull().default(0),
+  unit: text("unit").notNull().default("EA"),
+  branchNotes: text("branch_notes").notNull().default(""),
+  warehouseNotes: text("warehouse_notes").notNull().default(""),
 });

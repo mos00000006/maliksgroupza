@@ -13,6 +13,7 @@ export type HubMember = {
 
 export const HUMAN_RESOURCE_ROLE = "Human Resource (HR)";
 export const BUYER_ROLE = "Buyer";
+export const BRANCH_STOCK_ROLE = "Branch Stock Orders";
 
 export function isHumanResourceRole(member: HubMember | null | undefined) {
   return Boolean(member && member.role === HUMAN_RESOURCE_ROLE);
@@ -23,7 +24,34 @@ export function isBuyerRole(member: HubMember | null | undefined) {
   return Boolean(member && member.role === BUYER_ROLE);
 }
 
+export function isBranchStockRole(member: HubMember | null | undefined) {
+  return Boolean(member && member.role === BRANCH_STOCK_ROLE);
+}
+
 export function canAccessBuyerWorkspace(member: HubMember | null | undefined) {
+  return Boolean(
+    member &&
+      (member.role === BUYER_ROLE ||
+        member.role === "Owner / Admin" ||
+        member.role === "Developer / Technical Admin" ||
+        (member.role === "Executive / EXCO" && member.access_scope === "Full company")),
+  );
+}
+
+
+export function canAccessStockOrders(member: HubMember | null | undefined) {
+  return Boolean(
+    member &&
+      (member.role === BRANCH_STOCK_ROLE ||
+        member.role === BUYER_ROLE ||
+        member.role === "Owner / Admin" ||
+        member.role === "Developer / Technical Admin" ||
+        (member.role === "Executive / EXCO" && member.access_scope === "Full company") ||
+        ["Regional Manager", "Store Manager", "Department Manager"].includes(member.role)),
+  );
+}
+
+export function canReviewStockOrders(member: HubMember | null | undefined) {
   return Boolean(
     member &&
       (member.role === BUYER_ROLE ||
@@ -42,7 +70,7 @@ export function canApproveBuyerOrders(member: HubMember | null | undefined) {
   );
 }
 
-export async function getHubMember(options: { allowEmployeeRecordsOnly?: boolean; allowBuyerAccess?: boolean } = {}) {
+export async function getHubMember(options: { allowEmployeeRecordsOnly?: boolean; allowBuyerAccess?: boolean; allowStockOrdersAccess?: boolean } = {}) {
   await initTeamTables();
   const user = await getAuthenticatedUser();
   if (!user?.email) return null;
@@ -57,6 +85,7 @@ export async function getHubMember(options: { allowEmployeeRecordsOnly?: boolean
   // may opt in to this role by passing allowEmployeeRecordsOnly=true.
   if (isHumanResourceRole(member) && !options.allowEmployeeRecordsOnly) return null;
   if (isBuyerRole(member) && !options.allowBuyerAccess) return null;
+  if (isBranchStockRole(member) && !options.allowStockOrdersAccess) return null;
   return member;
 }
 

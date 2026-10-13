@@ -154,6 +154,7 @@ export async function POST(req: Request) {
       "Store Manager",
       "Department Manager",
       "Buyer",
+      "Branch Stock Orders",
       "Human Resource (HR)",
       "Member / Contributor",
       "Read only",
@@ -166,7 +167,7 @@ export async function POST(req: Request) {
     requestedScope = ["Full company", "Selected workspaces", "Assigned workspace", "Read only"].includes(String(p.access_scope))
       ? String(p.access_scope)
       : "Assigned workspace",
-    accessScope = role === "Human Resource (HR)" || role === "Buyer"
+    accessScope = role === "Human Resource (HR)" || role === "Buyer" || role === "Branch Stock Orders"
       ? "Assigned workspace"
       : requestedScope === "Full company" && !["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO"].includes(role)
         ? "Assigned workspace"
@@ -182,6 +183,8 @@ export async function POST(req: Request) {
     workspaceAccess = JSON.stringify(
       role === "Buyer"
         ? ["Buyer Workspace"]
+        : role === "Branch Stock Orders"
+          ? validWorkspaces.slice(0, 1)
         : accessScope === "Full company"
           ? []
           : accessScope === "Assigned workspace"
@@ -192,6 +195,8 @@ export async function POST(req: Request) {
       ? "Human Resources"
       : role === "Buyer"
         ? "Buying"
+        : role === "Branch Stock Orders"
+          ? validWorkspaces[0] || "Store Operations"
         : accessScope === "Assigned workspace" && validWorkspaces[0]
           ? validWorkspaces[0]
           : String(p.department || "Operations"),
@@ -306,6 +311,7 @@ export async function PATCH(req: Request) {
       "Store Manager",
       "Department Manager",
       "Buyer",
+      "Branch Stock Orders",
       "Human Resource (HR)",
       "Member / Contributor",
       "Read only",
@@ -315,7 +321,7 @@ export async function PATCH(req: Request) {
     requestedScope = ["Full company", "Selected workspaces", "Assigned workspace", "Read only"].includes(String(p.access_scope))
       ? String(p.access_scope)
       : "Assigned workspace",
-    accessScope = role === "Human Resource (HR)" || role === "Buyer"
+    accessScope = role === "Human Resource (HR)" || role === "Buyer" || role === "Branch Stock Orders"
       ? "Assigned workspace"
       : requestedScope === "Full company" && !["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO"].includes(role)
         ? "Assigned workspace"
@@ -330,6 +336,8 @@ export async function PATCH(req: Request) {
     validWorkspaces = requestedWorkspaces.filter((workspace) => validNames.has(workspace)),
     assigned = role === "Buyer"
       ? ["Buyer Workspace"]
+      : role === "Branch Stock Orders"
+        ? validWorkspaces.slice(0, 1)
       : accessScope === "Full company"
         ? []
         : accessScope === "Assigned workspace" || role === "Human Resource (HR)"
@@ -357,6 +365,8 @@ export async function PATCH(req: Request) {
     ? "Human Resources"
     : role === "Buyer"
       ? "Buying"
+      : role === "Branch Stock Orders"
+        ? assigned[0] || "Store Operations"
       : accessScope === "Assigned workspace"
         ? assigned[0]
         : String(p.department || "Operations");

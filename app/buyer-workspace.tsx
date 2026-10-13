@@ -47,6 +47,9 @@ type BuyerOrder = {
   vat_amount: number;
   total: number;
   notes: string;
+  last_sent_at: string;
+  last_sent_channel: string;
+  last_sent_to: string;
   updated_at: string;
   lines: BuyerLine[];
 };
@@ -57,6 +60,7 @@ type Supplier = {
   supplier_type: string;
   contact_person: string;
   phone: string;
+  whatsapp_number: string;
   email: string;
   payment_terms: string;
   lead_time_days: number;
@@ -82,16 +86,30 @@ type Quote = {
   selected: number;
   notes: string;
 };
+type SendHistory = {
+  id: number;
+  order_id: number;
+  po_number: string;
+  supplier_id: number;
+  supplier_name: string;
+  channel: string;
+  recipient: string;
+  sent_by_email: string;
+  sent_by_name: string;
+  sent_at: string;
+  notes: string;
+};
 type Workspace = { id: number; name: string; type: string; region: string; manager: string };
 type CatalogueResult = { id: number; code: string; name: string; category: string; description: string };
 type BuyerData = {
   orders: BuyerOrder[];
   suppliers: Supplier[];
   quotes: Quote[];
+  sendHistory: SendHistory[];
   workspaces: Workspace[];
   permissions: { canApprove: boolean; canManage: boolean; buyerOnly: boolean };
 };
-type Tab = "dashboard" | "orders" | "suppliers" | "quotes" | "receiving";
+type Tab = "dashboard" | "orders" | "suppliers" | "quotes" | "receiving" | "history";
 
 type OrderDraft = {
   id: number;
@@ -166,6 +184,7 @@ const blankSupplier = (): SupplierDraft => ({
   supplier_type: "Preferred",
   contact_person: "",
   phone: "",
+  whatsapp_number: "",
   email: "",
   payment_terms: "",
   lead_time_days: 0,
@@ -191,9 +210,19 @@ const blankQuote = (): QuoteDraft => ({
   notes: "",
 });
 
+const normaliseWhatsAppNumber = (value: string) => {
+  let digits = value.replace(/\D/g, "");
+  if (digits.startsWith("0") && digits.length === 10) digits = `27${digits.slice(1)}`;
+  return digits;
+};
+const supplierOrderMessage = (order: BuyerOrder) => {
+  const lines = order.lines.map((line) => `• ${line.product_code ? `${line.product_code} - ` : ""}${line.description} | Qty ${line.quantity} ${line.unit || "EA"}`).join("\n");
+  return `Good day ${order.supplier_name},\n\nPlease find PowerBuild purchase order ${order.po_number}.\nRequired date: ${order.required_date || "As agreed"}\nDelivery: ${order.delivery_method}${order.delivery_address ? ` - ${order.delivery_address}` : ""}\nTotal incl VAT: ${money.format(Number(order.total || 0))}\n\n${lines}\n\nThe Excel purchase order has been downloaded from our Hub for attachment.\nRegards,\nPowerBuild Buying`;
+};
+
 export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUser }) {
   const [data, setData] = useState<BuyerData>({
-    orders: [], suppliers: [], quotes: [], workspaces: [], permissions: { canApprove: false, canManage: true, buyerOnly: true },
+    orders: [], suppliers: [], quotes: [], sendHistory: [], workspaces: [], permissions: { canApprove: false, canManage: true, buyerOnly: true },
   });
   const [tab, setTab] = useState<Tab>("dashboard");
   const [loading, setLoading] = useState(true);
@@ -374,7 +403,38 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
   };
 
   const exportWorkbook = (orders = data.orders, name = "PowerBuild_Buyer_Workspace.xlsx") => {
-    downloadBuyerWorkbook({ orders, suppliers: data.suppliers, quotes: data.quotes, fileName: name });
+    const poNumbers = new Set(orders.map((order) => order.po_number));
+    downloadBuyerWorkbook({ orders, suppliers: data.suppliers, quotes: data.quotes, sendHistory: data.sendHistory.filter((item) => poNumbers.has(item.po_number)), fileName: name });
+  };
+
+  const sendSupplierOrder = async (order: BuyerOrder, channel: "WhatsApp" | "Email") => {
+    const supplier = data.suppliers.find((item) => item.id === Number(order.supplier_id));
+    if (!supplier) return setMessage("Supplier details are missing for this purchase order.");
+    const recipient = channel === "WhatsApp" ? (supplier.whatsapp_number || supplier.phone) : supplier.email;
+    if (!recipient.trim()) return setMessage(`Add the supplier ${channel === "WhatsApp" ? "WhatsApp number" : "email address"} before sending.`);
+    const messageText = supplierOrderMessage(order);
+    const whatsappNumber = channel === "WhatsApp" ? normaliseWhatsAppNumber(recipient) : "";
+    if (channel === "WhatsApp" && whatsappNumber.length < 8) return setMessage("Enter a valid supplier WhatsApp number first.");
+    const popup = channel === "WhatsApp" ? window.open("about:blank", "_blank") : null;
+    exportWorkbook([order], `${order.po_number}.xlsx`);
+    setBusy(true);
+    try {
+      await post({ action: "recordOrderSend", id: order.id, channel, recipient, notes: "Excel purchase order downloaded for attachment." });
+      if (channel === "WhatsApp") {
+        const url = `https://wa.me/${encodeURIComponent(whatsappNumber)}?text=${encodeURIComponent(messageText)}`;
+        if (popup) popup.location.href = url;
+        else window.location.href = url;
+      } else {
+        const subject = `PowerBuild Purchase Order ${order.po_number}`;
+        window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(messageText)}`;
+      }
+      await load();
+      setTab("history");
+      setMessage(`${order.po_number} recorded as sent by ${channel}. The Excel order sheet was downloaded for attachment.`);
+    } catch (error) {
+      popup?.close();
+      setMessage(error instanceof Error ? error.message : "Supplier order could not be sent.");
+    } finally { setBusy(false); }
   };
 
   const supplierName = (id: number) => data.suppliers.find((supplier) => supplier.id === id)?.name || "";
@@ -408,7 +468,7 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
 
       <nav className="buyerTabs" aria-label="Buyer Workspace sections">
         {([
-          ["dashboard", "Overview"], ["orders", "Purchase Orders"], ["suppliers", "Suppliers"], ["quotes", "Quote Comparison"], ["receiving", "Receiving / Follow-up"],
+          ["dashboard", "Overview"], ["orders", "Purchase Orders"], ["suppliers", "Suppliers"], ["quotes", "Quote Comparison"], ["receiving", "Receiving / Follow-up"], ["history", "Sent History"],
         ] as Array<[Tab, string]>).map(([value, label]) => (
           <button key={value} className={tab === value ? "active" : ""} onClick={() => setTab(value)}>{label}</button>
         ))}
@@ -441,7 +501,7 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
           </section>
           <section className="buyerPanel buyerPanelWide">
             <header><div><small>RECENT BUYING</small><h3>Latest purchase orders</h3></div><button onClick={() => setTab("orders")}>Purchase orders</button></header>
-            <OrderTable orders={data.orders.slice(0, 8)} onEdit={openEditOrder} onExport={(order) => exportWorkbook([order], `${order.po_number}.xlsx`)} canApprove={data.permissions.canApprove} onAction={updateOrderAction} busy={busy} compact />
+            <OrderTable orders={data.orders.slice(0, 8)} onEdit={openEditOrder} onExport={(order) => exportWorkbook([order], `${order.po_number}.xlsx`)} canApprove={data.permissions.canApprove} onAction={updateOrderAction} busy={busy} suppliers={data.suppliers} onSend={sendSupplierOrder} compact />
           </section>
         </div>
       )}
@@ -452,7 +512,7 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
             <div><small>PURCHASE ORDER REGISTER</small><h3>Purchase Orders</h3></div>
             <div><label className="buyerSearch">⌕ <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search PO, supplier, store…" /></label><button className="buyerPrimaryBtn" onClick={openNewOrder}>＋ New PO</button></div>
           </header>
-          <OrderTable orders={filteredOrders} onEdit={openEditOrder} onExport={(order) => exportWorkbook([order], `${order.po_number}.xlsx`)} canApprove={data.permissions.canApprove} onAction={updateOrderAction} busy={busy} />
+          <OrderTable orders={filteredOrders} onEdit={openEditOrder} onExport={(order) => exportWorkbook([order], `${order.po_number}.xlsx`)} canApprove={data.permissions.canApprove} onAction={updateOrderAction} busy={busy} suppliers={data.suppliers} onSend={sendSupplierOrder} />
         </section>
       )}
 
@@ -460,7 +520,7 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
         <section className="buyerPanel buyerPanelFull">
           <header><div><small>SUPPLIER MASTER</small><h3>Preferred & Secondary Suppliers</h3></div><button className="buyerPrimaryBtn" onClick={() => { setSupplierDraft(blankSupplier()); setSupplierOpen(true); }}>＋ Add supplier</button></header>
           <div className="buyerTableWrap"><table className="buyerTable"><thead><tr><th>Code</th><th>Supplier</th><th>Type</th><th>Contact</th><th>Payment terms</th><th>Lead time</th><th>Min order</th><th></th></tr></thead><tbody>
-            {data.suppliers.map((supplier) => <tr key={supplier.id}><td>{supplier.supplier_code || "—"}</td><td><b>{supplier.name}</b><small>{supplier.categories.join(", ") || "All categories"}</small></td><td><span className={`buyerPill ${supplier.supplier_type === "Preferred" ? "good" : ""}`}>{supplier.supplier_type}</span></td><td>{supplier.contact_person || "—"}<small>{supplier.phone || supplier.email}</small></td><td>{supplier.payment_terms || "—"}</td><td>{supplier.lead_time_days ? `${supplier.lead_time_days} days` : "—"}</td><td>{supplier.minimum_order ? money.format(supplier.minimum_order) : "—"}</td><td><button className="buyerTextBtn" onClick={() => editSupplier(supplier)}>Edit</button></td></tr>)}
+            {data.suppliers.map((supplier) => <tr key={supplier.id}><td>{supplier.supplier_code || "—"}</td><td><b>{supplier.name}</b><small>{supplier.categories.join(", ") || "All categories"}</small></td><td><span className={`buyerPill ${supplier.supplier_type === "Preferred" ? "good" : ""}`}>{supplier.supplier_type}</span></td><td>{supplier.contact_person || "—"}<small>{supplier.whatsapp_number ? `WhatsApp ${supplier.whatsapp_number}` : supplier.phone || supplier.email}</small></td><td>{supplier.payment_terms || "—"}</td><td>{supplier.lead_time_days ? `${supplier.lead_time_days} days` : "—"}</td><td>{supplier.minimum_order ? money.format(supplier.minimum_order) : "—"}</td><td><button className="buyerTextBtn" onClick={() => editSupplier(supplier)}>Edit</button></td></tr>)}
             {!data.suppliers.length && <tr><td colSpan={8}>No suppliers added yet.</td></tr>}
           </tbody></table></div>
         </section>
@@ -489,6 +549,16 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
             ))}
             {!data.orders.some((order) => ["Approved", "Ordered", "Part Received", "Received"].includes(order.status)) && <div className="buyerEmpty">Approved and ordered POs will appear here.</div>}
           </div>
+        </section>
+      )}
+
+      {!loading && tab === "history" && (
+        <section className="buyerPanel buyerPanelFull">
+          <header className="buyerListHeader"><div><small>SUPPLIER ORDER FILE</small><h3>Sent Order History</h3><p>Every WhatsApp or email hand-off is recorded against the purchase order.</p></div><button className="buyerSecondaryBtn" onClick={() => exportWorkbook()}>⇩ Full buying file</button></header>
+          <div className="buyerTableWrap"><table className="buyerTable"><thead><tr><th>PO Number</th><th>Supplier</th><th>Channel</th><th>Recipient</th><th>Sent by</th><th>Date / Time</th><th>Order</th></tr></thead><tbody>
+            {data.sendHistory.map((item) => { const order = data.orders.find((entry) => entry.id === Number(item.order_id)); return <tr key={item.id}><td><b>{item.po_number}</b></td><td>{item.supplier_name}</td><td><span className="buyerPill good">{item.channel}</span></td><td>{item.recipient}</td><td>{item.sent_by_name || item.sent_by_email}</td><td>{item.sent_at ? new Date(item.sent_at).toLocaleString("en-ZA") : "—"}</td><td>{order ? <div className="buyerRowActions"><button onClick={() => openEditOrder(order)}>Open</button><button onClick={() => exportWorkbook([order], `${order.po_number}.xlsx`)}>Excel</button></div> : "—"}</td></tr>; })}
+            {!data.sendHistory.length && <tr><td colSpan={7}>No supplier orders have been sent from the Hub yet.</td></tr>}
+          </tbody></table></div>
         </section>
       )}
 
@@ -554,6 +624,7 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
               <label>Supplier type<select value={supplierDraft.supplier_type} onChange={(event) => setSupplierDraft({ ...supplierDraft, supplier_type: event.target.value })}><option>Preferred</option><option>Secondary</option><option>Approved</option><option>Trial</option></select></label>
               <label>Contact person<input value={supplierDraft.contact_person} onChange={(event) => setSupplierDraft({ ...supplierDraft, contact_person: event.target.value })} /></label>
               <label>Phone<input value={supplierDraft.phone} onChange={(event) => setSupplierDraft({ ...supplierDraft, phone: event.target.value })} /></label>
+              <label>WhatsApp number<input value={supplierDraft.whatsapp_number} onChange={(event) => setSupplierDraft({ ...supplierDraft, whatsapp_number: event.target.value })} placeholder="e.g. 0821234567 or +27…" /></label>
               <label>Email<input type="email" value={supplierDraft.email} onChange={(event) => setSupplierDraft({ ...supplierDraft, email: event.target.value })} /></label>
               <label>Payment terms<input value={supplierDraft.payment_terms} onChange={(event) => setSupplierDraft({ ...supplierDraft, payment_terms: event.target.value })} placeholder="30 days / COD / EFT" /></label>
               <label>Lead time (days)<input type="number" min="0" value={supplierDraft.lead_time_days} onChange={(event) => setSupplierDraft({ ...supplierDraft, lead_time_days: Number(event.target.value) })} /></label>
@@ -597,17 +668,19 @@ export default function BuyerWorkspace({ currentUser }: { currentUser: CurrentUs
   );
 }
 
-function OrderTable({ orders, onEdit, onExport, canApprove, onAction, busy, compact = false }: {
+function OrderTable({ orders, onEdit, onExport, canApprove, onAction, busy, suppliers, onSend, compact = false }: {
   orders: BuyerOrder[];
   onEdit: (order: BuyerOrder) => void;
   onExport: (order: BuyerOrder) => void;
   canApprove: boolean;
   onAction: (action: string, id: number, extra?: Record<string, unknown>) => Promise<void>;
   busy: boolean;
+  suppliers: Supplier[];
+  onSend: (order: BuyerOrder, channel: "WhatsApp" | "Email") => Promise<void>;
   compact?: boolean;
 }) {
   return <div className="buyerTableWrap"><table className="buyerTable"><thead><tr><th>PO Number</th><th>Supplier / Store</th><th>Dates</th><th>Status</th><th>Approval</th><th>Total</th>{!compact && <th>Delivery</th>}<th>Actions</th></tr></thead><tbody>
-    {orders.map((order) => <tr key={order.id}>
+    {orders.map((order) => { const supplier = suppliers.find((item) => item.id === Number(order.supplier_id)); const sendable = order.approval_status === "Approved" || ["Ordered", "Part Received", "Received"].includes(order.status); return <tr key={order.id}>
       <td><b>{order.po_number}</b><small>{order.order_type}</small></td>
       <td><b>{order.supplier_name}</b><small>{order.store_workspace}</small></td>
       <td>{order.order_date || "—"}<small>Req: {order.required_date || "—"}</small></td>
@@ -615,8 +688,8 @@ function OrderTable({ orders, onEdit, onExport, canApprove, onAction, busy, comp
       <td><span className={`buyerPill ${order.approval_status === "Approved" ? "good" : order.approval_status === "Pending approval" ? "warn" : ""}`}>{order.approval_status}</span></td>
       <td><b>{money.format(Number(order.total || 0))}</b><small>{order.lines.length} line{order.lines.length === 1 ? "" : "s"}</small></td>
       {!compact && <td>{order.delivery_status}<small>{order.expected_delivery_date || "No ETA"}</small></td>}
-      <td><div className="buyerRowActions"><button onClick={() => onEdit(order)}>Open</button><button onClick={() => onExport(order)}>Excel</button>{canApprove && order.approval_status === "Pending approval" && <><button className="approve" disabled={busy} onClick={() => void onAction("approveOrder", order.id)}>Approve</button><button className="return" disabled={busy} onClick={() => void onAction("returnOrder", order.id)}>Return</button></>}{order.approval_status === "Approved" && order.status === "Approved" && <button className="approve" disabled={busy} onClick={() => void onAction("setOrderStatus", order.id, { status: "Ordered" })}>Mark ordered</button>}</div></td>
-    </tr>)}
+      <td><div className="buyerRowActions"><button onClick={() => onEdit(order)}>Open</button><button onClick={() => onExport(order)}>Excel</button>{canApprove && order.approval_status === "Pending approval" && <><button className="approve" disabled={busy} onClick={() => void onAction("approveOrder", order.id)}>Approve</button><button className="return" disabled={busy} onClick={() => void onAction("returnOrder", order.id)}>Return</button></>}{order.approval_status === "Approved" && order.status === "Approved" && <button className="approve" disabled={busy} onClick={() => void onAction("setOrderStatus", order.id, { status: "Ordered" })}>Mark ordered</button>}{sendable && (supplier?.whatsapp_number || supplier?.phone) && <button className="approve" disabled={busy} onClick={() => void onSend(order, "WhatsApp")}>WhatsApp</button>}{sendable && supplier?.email && <button className="approve" disabled={busy} onClick={() => void onSend(order, "Email")}>Email</button>}{order.last_sent_at && <small>Sent {order.last_sent_channel}</small>}</div></td>
+    </tr>; })}
     {!orders.length && <tr><td colSpan={8}>No purchase orders found.</td></tr>}
   </tbody></table></div>;
 }

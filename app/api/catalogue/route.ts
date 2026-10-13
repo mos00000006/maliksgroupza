@@ -4,7 +4,7 @@ import { canManageCatalogue, initCatalogueTable, productResponse } from "./share
 
 export async function GET(req: Request) {
   await initCatalogueTable();
-  const member = await getHubMember({ allowBuyerAccess: true });
+  const member = await getHubMember({ allowBuyerAccess: true, allowStockOrdersAccess: true });
   if (!member)
     return Response.json({ error: "Hub access required." }, { status: 403 });
 

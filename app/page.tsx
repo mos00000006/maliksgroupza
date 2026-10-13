@@ -7,6 +7,7 @@ import SopLibrary from "./sop-library";
 import PwaInstallButton from "./pwa-install-button";
 import Catalogue from "./catalogue";
 import BuyerWorkspace from "./buyer-workspace";
+import StockOrdersWorkspace from "./stock-orders-workspace";
 import StoreControls from "./store-controls";
 import EmployeeRecords from "./employee-records";
 import StoreSpecials from "./store-specials";
@@ -102,6 +103,7 @@ const nav = [
   "Store Ranking",
   "Employee Records",
   "Buyer Workspace",
+  "Stock Orders",
   "Wholesale Division",
   "Developments",
   "Financials & P&L",
@@ -220,6 +222,15 @@ function SidebarIcon({ name }: { name: string }) {
           <path d="m15.5 14.5 1.4 1.4 2.8-3" />
         </svg>
       );
+    case "Stock Orders":
+      return (
+        <svg {...common}>
+          <path d="M4 5h16v14H4z" />
+          <path d="M4 9h16M8 5v4M16 5v4" />
+          <path d="M7 13h4M7 16h7" />
+          <path d="m16 13 1.5 1.5L20 12" />
+        </svg>
+      );
     case "Wholesale Division":
       return (
         <svg {...common}>
@@ -324,9 +335,11 @@ function SidebarIcon({ name }: { name: string }) {
 }
 const HUMAN_RESOURCE_ROLE = "Human Resource (HR)";
 const BUYER_ROLE = "Buyer";
+const BRANCH_STOCK_ROLE = "Branch Stock Orders";
 const navigationForUser = (user: CurrentHubUser) => {
   if (user.role === HUMAN_RESOURCE_ROLE) return ["Employee Records"];
-  if (user.role === BUYER_ROLE) return ["Buyer Workspace", "Store Specials", "Our Catalogue"];
+  if (user.role === BUYER_ROLE) return ["Buyer Workspace", "Stock Orders", "Store Specials", "Our Catalogue"];
+  if (user.role === BRANCH_STOCK_ROLE) return ["Stock Orders", "Store Specials", "Our Catalogue"];
   let workspaceAccess: string[] = [];
   if (Array.isArray(user.workspace_access)) workspaceAccess = user.workspace_access;
   else {
@@ -350,6 +363,7 @@ const navigationForUser = (user: CurrentHubUser) => {
     if (item === "System Control Centre" || item === "Rollout & Onboarding") return accessAdmin;
     if (item === "Employee Records") return employeeRecordsAccess;
     if (fullCompany) return true;
+    if (item === "Stock Orders") return ["Regional Manager", "Store Manager", "Department Manager"].includes(user.role || "");
     if (item === "Wholesale Division") return wholesale;
     return !["Executive Overview", "Developments", "Approvals", "Reports"].includes(item);
   });
@@ -526,7 +540,8 @@ export default function Home() {
     if (j.current_user) {
       const hrOnly = j.current_user.role === HUMAN_RESOURCE_ROLE;
       const buyerOnly = j.current_user.role === BUYER_ROLE;
-      const restrictedOnly = hrOnly || buyerOnly;
+      const branchStockOnly = j.current_user.role === BRANCH_STOCK_ROLE;
+      const restrictedOnly = hrOnly || buyerOnly || branchStockOnly;
       taskAlertsAllowed.current = !restrictedOnly;
       setCurrentUser(j.current_user);
       if (restrictedOnly) {
@@ -739,6 +754,8 @@ export default function Home() {
   }, [notifications]);
   const hrOnlyAccess = currentUser.role === HUMAN_RESOURCE_ROLE,
     buyerOnlyAccess = currentUser.role === BUYER_ROLE,
+    branchStockOnlyAccess = currentUser.role === BRANCH_STOCK_ROLE,
+    restrictedOperationsAccess = buyerOnlyAccess || branchStockOnlyAccess,
     canManageTeam = ["Owner / Admin", "Developer / Technical Admin"].includes(
       currentUser.role || "",
     ),
@@ -752,7 +769,9 @@ export default function Home() {
     sidebarNavigation = hrOnlyAccess
       ? ["Employee Records"]
       : buyerOnlyAccess
-        ? ["Buyer Workspace", "Store Specials", "Our Catalogue"]
+        ? ["Buyer Workspace", "Stock Orders", "Store Specials", "Our Catalogue"]
+        : branchStockOnlyAccess
+          ? ["Stock Orders", "Store Specials", "Our Catalogue"]
         : fullCompanyNavigation
         ? nav.filter(
             (item) =>
@@ -858,7 +877,8 @@ export default function Home() {
     "Daily Checklists": "Daily manager opening-to-closing compliance and exception control.",
     "Store Ranking": "Executive operational ranking across the store network.",
     "Employee Records": "Store employee files, daily attendance, lateness and disciplinary warning history.",
-    "Buyer Workspace": "Purchase orders, suppliers, quote comparison, delivery follow-through and Excel buying packs.",
+    "Buyer Workspace": "Purchase orders, suppliers, quote comparison, supplier sending, delivery follow-through and Excel buying packs.",
+    "Stock Orders": "Branch replenishment orders sent to the Head Office warehouse buyer for confirmation, picking and dispatch.",
     "Wholesale Division": "Wholesale projects, targets and assigned actions.",
     Developments: "New-store, relocation and expansion budgets, costs and opening readiness.",
     "Financials & P&L":
@@ -1537,6 +1557,7 @@ export default function Home() {
   const isStoreControlView = ["Store Audits", "Daily Checklists", "Store Ranking"].includes(active);
   const isEmployeeRecordsView = active === "Employee Records";
   const isBuyerWorkspaceView = active === "Buyer Workspace";
+  const isStockOrdersView = active === "Stock Orders";
   const isStoreSpecialsView = active === "Store Specials";
   const isSystemControlView = active === "System Control Centre";
   const isRolloutOnboardingView = active === "Rollout & Onboarding";
@@ -1589,10 +1610,21 @@ export default function Home() {
               <i>BY</i>
               <span>
                 <b>Buying / Procurement</b>
-                <small>Buyer Workspace access</small>
+                <small>Buyer & Stock Orders access</small>
               </span>
             </div>
             <p>BUYER ACCESS</p>
+          </>
+        ) : branchStockOnlyAccess ? (
+          <>
+            <div className="company">
+              <i>SO</i>
+              <span>
+                <b>{currentUser.department || "Branch Stock Orders"}</b>
+                <small>Branch ordering access</small>
+              </span>
+            </div>
+            <p>STOCK ORDER ACCESS</p>
           </>
         ) : (
           <>
@@ -1613,7 +1645,7 @@ export default function Home() {
           </>
         )}
         <nav>
-          {!hrOnlyAccess && !buyerOnlyAccess && (
+          {!hrOnlyAccess && !restrictedOperationsAccess && (
             <button
               onClick={() => {
                 setWorkspaceOpen(true);
@@ -1653,7 +1685,7 @@ export default function Home() {
             );
           })}
         </nav>
-        {!hrOnlyAccess && !buyerOnlyAccess && (
+        {!hrOnlyAccess && !restrictedOperationsAccess && (
           <button
             className="aiSide"
             onClick={() => {
@@ -1708,7 +1740,7 @@ export default function Home() {
             </p>
           </div>
           <div className="actions">
-            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStoreSpecialsView && !isSystemControlView && !isRolloutOnboardingView && (
+            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStockOrdersView && !isStoreSpecialsView && !isSystemControlView && !isRolloutOnboardingView && (
               <label>
                 ⌕
                 <input
@@ -1718,7 +1750,7 @@ export default function Home() {
                 />
               </label>
             )}
-            {!hrOnlyAccess && !buyerOnlyAccess && (
+            {!hrOnlyAccess && !restrictedOperationsAccess && (
               <>
                 <button
                   className="quickActionsHeaderBtn"
@@ -1740,7 +1772,7 @@ export default function Home() {
               </button>
             )}
             <PwaInstallButton />
-            {!readOnlyAccess && !buyerOnlyAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStoreSpecialsView && !isSystemControlView && !isRolloutOnboardingView && (
+            {!readOnlyAccess && !restrictedOperationsAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStockOrdersView && !isStoreSpecialsView && !isSystemControlView && !isRolloutOnboardingView && (
               <button className="primary" onClick={openComposer}>
                 ＋ Add task
               </button>
@@ -1760,6 +1792,8 @@ export default function Home() {
           <EmployeeRecords currentUser={currentUser} />
         ) : isBuyerWorkspaceView ? (
           <BuyerWorkspace currentUser={currentUser} />
+        ) : isStockOrdersView ? (
+          <StockOrdersWorkspace currentUser={currentUser} />
         ) : isStoreSpecialsView ? (
           <StoreSpecials currentUser={currentUser} />
         ) : isSystemControlView ? (
@@ -1809,7 +1843,7 @@ export default function Home() {
           />
         )}
       </section>
-      {!hrOnlyAccess && !buyerOnlyAccess && !open && !quickActionsOpen && !quickWorkflow && !photoTaskPickerOpen && (
+      {!hrOnlyAccess && !restrictedOperationsAccess && !open && !quickActionsOpen && !quickWorkflow && !photoTaskPickerOpen && (
         <button
           className="mobileQuickActionsFab"
           onClick={() => setQuickActionsOpen(true)}
@@ -1826,7 +1860,7 @@ export default function Home() {
         accept="image/*"
         onChange={uploadQuickPhoto}
       />
-      {quickActionsOpen && !hrOnlyAccess && !buyerOnlyAccess && (
+      {quickActionsOpen && !hrOnlyAccess && !restrictedOperationsAccess && (
         <div className="overlay quickActionsOverlay" onMouseDown={() => setQuickActionsOpen(false)}>
           <section className="quickActionsSheet" onMouseDown={(event) => event.stopPropagation()}>
             <header>
@@ -2372,19 +2406,20 @@ export default function Home() {
                         ].includes(role);
                       const isHr = role === HUMAN_RESOURCE_ROLE;
                       const isBuyer = role === BUYER_ROLE;
+                      const isBranchStock = role === BRANCH_STOCK_ROLE;
                       setMemberDraft({
                         ...memberDraft,
                         role,
-                        department: isHr ? "Human Resources" : isBuyer ? "Buying" : memberDraft.department,
+                        department: isHr ? "Human Resources" : isBuyer ? "Buying" : isBranchStock ? (memberDraft.workspace_access[0] || memberDraft.department) : memberDraft.department,
                         access_scope:
-                          isHr || isBuyer
+                          isHr || isBuyer || isBranchStock
                             ? "Assigned workspace"
                             : !elevated && memberDraft.access_scope === "Full company"
                               ? "Assigned workspace"
                               : memberDraft.access_scope,
                         workspace_access: isBuyer
                           ? ["Buyer Workspace"]
-                          : isHr
+                          : isHr || isBranchStock
                             ? memberDraft.workspace_access.slice(0, 1)
                             : memberDraft.workspace_access,
                       });
@@ -2400,6 +2435,7 @@ export default function Home() {
                     <option>Store Manager</option>
                     <option>Department Manager</option>
                     <option>{BUYER_ROLE}</option>
+                    <option>{BRANCH_STOCK_ROLE}</option>
                     <option>{HUMAN_RESOURCE_ROLE}</option>
                     <option>Member / Contributor</option>
                     <option>Read only</option>
@@ -2408,8 +2444,8 @@ export default function Home() {
                 <label>
                   Department / Store
                   <input
-                    value={memberDraft.role === HUMAN_RESOURCE_ROLE ? "Human Resources" : memberDraft.role === BUYER_ROLE ? "Buying" : memberDraft.department}
-                    readOnly={memberDraft.role === HUMAN_RESOURCE_ROLE || memberDraft.role === BUYER_ROLE}
+                    value={memberDraft.role === HUMAN_RESOURCE_ROLE ? "Human Resources" : memberDraft.role === BUYER_ROLE ? "Buying" : memberDraft.role === BRANCH_STOCK_ROLE ? (memberDraft.workspace_access[0] || memberDraft.department) : memberDraft.department}
+                    readOnly={memberDraft.role === HUMAN_RESOURCE_ROLE || memberDraft.role === BUYER_ROLE || memberDraft.role === BRANCH_STOCK_ROLE}
                     onChange={(e) =>
                       setMemberDraft({
                         ...memberDraft,
@@ -2423,7 +2459,7 @@ export default function Home() {
                   Access level
                   <select
                     value={memberDraft.access_scope}
-                    disabled={memberDraft.role === HUMAN_RESOURCE_ROLE || memberDraft.role === BUYER_ROLE}
+                    disabled={memberDraft.role === HUMAN_RESOURCE_ROLE || memberDraft.role === BUYER_ROLE || memberDraft.role === BRANCH_STOCK_ROLE}
                     onChange={(e) =>
                       setMemberDraft({
                         ...memberDraft,
@@ -2459,8 +2495,16 @@ export default function Home() {
                 <div className="accessEditNotice">
                   <span>
                     <b>Buyer — restricted procurement access</b><br />
-                    This user can only access Buyer Workspace, Store Specials and Our Catalogue. Company workspaces,
+                    This user can only access Buyer Workspace, Stock Orders, Store Specials and Our Catalogue. Company workspaces,
                     dashboards, financials, employee records, wholesale CRM, SOPs, AI Sidekick, Quick Actions and Inbox are hidden.
+                  </span>
+                </div>
+              )}
+              {memberDraft.role === BRANCH_STOCK_ROLE && (
+                <div className="accessEditNotice">
+                  <span>
+                    <b>Branch Stock Orders — branch ordering only</b><br />
+                    This user can create and track stock orders for one assigned branch and can also view Store Specials and Our Catalogue. Buyer Workspace, company dashboards, financials, SOPs, Quick Actions and Inbox are hidden.
                   </span>
                 </div>
               )}
@@ -2469,7 +2513,9 @@ export default function Home() {
                   <b>
                     {memberDraft.role === HUMAN_RESOURCE_ROLE
                       ? "Store assigned to this HR user (Employee Records only)"
-                      : "Store or division assigned to this person"}
+                      : memberDraft.role === BRANCH_STOCK_ROLE
+                        ? "Branch assigned to this Stock Orders user"
+                        : "Store or division assigned to this person"}
                   </b>
                   <select
                     value={memberDraft.workspace_access[0] || ""}
@@ -2490,7 +2536,7 @@ export default function Home() {
                   </select>
                 </div>
               )}
-              {memberDraft.role !== BUYER_ROLE && ["Selected workspaces", "Read only"].includes(memberDraft.access_scope) && (
+              {memberDraft.role !== BUYER_ROLE && memberDraft.role !== BRANCH_STOCK_ROLE && ["Selected workspaces", "Read only"].includes(memberDraft.access_scope) && (
                 <div className="workspaceAccessPicker">
                   <b>
                     {memberDraft.access_scope === "Read only"
@@ -2662,7 +2708,7 @@ export default function Home() {
           </div>
         </div>
       )}
-      {notificationsOpen && !hrOnlyAccess && !buyerOnlyAccess && (
+      {notificationsOpen && !hrOnlyAccess && !restrictedOperationsAccess && (
         <div
           className="overlay"
           onMouseDown={() => setNotificationsOpen(false)}
@@ -2778,7 +2824,7 @@ export default function Home() {
             ✦ <span>AI</span>
           </button>
         )}
-      {sidekickOpen && !hrOnlyAccess && !buyerOnlyAccess && (
+      {sidekickOpen && !hrOnlyAccess && !restrictedOperationsAccess && (
         <SidekickModal
           close={() => setSidekickOpen(false)}
           openSops={() => {
@@ -2787,7 +2833,7 @@ export default function Home() {
           }}
         />
       )}
-      {popupNotification && !hrOnlyAccess && !buyerOnlyAccess && (
+      {popupNotification && !hrOnlyAccess && !restrictedOperationsAccess && (
         <button
           className="taskNotificationPopup"
           onClick={() => {

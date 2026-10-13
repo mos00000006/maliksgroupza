@@ -142,11 +142,14 @@ export async function GET() {
     ? env.DB.prepare("SELECT * FROM buyer_quote_entries WHERE lower(buyer_email)=? ORDER BY updated_at DESC,id DESC").bind(member.email.toLowerCase())
     : env.DB.prepare("SELECT * FROM buyer_quote_entries ORDER BY updated_at DESC,id DESC");
 
-  const [orderRows, supplierRows, quoteRows, workspaceRows] = await Promise.all([
+  const [orderRows, supplierRows, quoteRows, workspaceRows, sendRows] = await Promise.all([
     orderQuery.all<Row>(),
     env.DB.prepare("SELECT * FROM buyer_suppliers WHERE active=1 ORDER BY CASE supplier_type WHEN 'Preferred' THEN 0 ELSE 1 END,name").all<Row>(),
     quoteQuery.all<Row>(),
     env.DB.prepare("SELECT id,name,type,region,manager FROM workspaces WHERE active=1 AND lower(name)<>'buyer workspace' ORDER BY name").all<Row>(),
+    buyerOnly
+      ? env.DB.prepare(`SELECT l.* FROM buyer_order_send_log l JOIN buyer_orders o ON o.id=l.order_id WHERE lower(o.buyer_email)=? ORDER BY l.sent_at DESC,l.id DESC LIMIT 500`).bind(member.email.toLowerCase()).all<Row>()
+      : env.DB.prepare("SELECT * FROM buyer_order_send_log ORDER BY sent_at DESC,id DESC LIMIT 500").all<Row>(),
   ]);
 
   const orders = await Promise.all(orderRows.results.map((row: Row) => orderResponse(row)));
@@ -154,6 +157,7 @@ export async function GET() {
     orders,
     suppliers: supplierRows.results.map((row) => ({ ...row, categories: parseCategories(row.categories_json) })),
     quotes: quoteRows.results,
+    sendHistory: sendRows.results,
     workspaces: workspaceRows.results,
     permissions: {
       canApprove: canApproveBuyerOrders(member),
@@ -185,7 +189,7 @@ export async function POST(req: Request) {
         : [];
       if (id > 0) {
         await env.DB.prepare(
-          `UPDATE buyer_suppliers SET supplier_code=?,name=?,supplier_type=?,contact_person=?,phone=?,email=?,payment_terms=?,lead_time_days=?,minimum_order=?,categories_json=?,notes=?,updated_at=? WHERE id=?`,
+          `UPDATE buyer_suppliers SET supplier_code=?,name=?,supplier_type=?,contact_person=?,phone=?,whatsapp_number=?,email=?,payment_terms=?,lead_time_days=?,minimum_order=?,categories_json=?,notes=?,updated_at=? WHERE id=?`,
         )
           .bind(
             code,
@@ -193,6 +197,7 @@ export async function POST(req: Request) {
             clean(supplier.supplier_type) || "Preferred",
             clean(supplier.contact_person),
             clean(supplier.phone),
+            clean(supplier.whatsapp_number),
             clean(supplier.email),
             clean(supplier.payment_terms),
             Math.max(0, Math.round(numberValue(supplier.lead_time_days))),
@@ -206,8 +211,8 @@ export async function POST(req: Request) {
       } else {
         await env.DB.prepare(
           `INSERT INTO buyer_suppliers
-           (supplier_code,name,supplier_type,contact_person,phone,email,payment_terms,lead_time_days,minimum_order,categories_json,notes,active,created_by,created_at,updated_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,1,?,?,?)`,
+           (supplier_code,name,supplier_type,contact_person,phone,whatsapp_number,email,payment_terms,lead_time_days,minimum_order,categories_json,notes,active,created_by,created_at,updated_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?)`,
         )
           .bind(
             code,
@@ -215,6 +220,7 @@ export async function POST(req: Request) {
             clean(supplier.supplier_type) || "Preferred",
             clean(supplier.contact_person),
             clean(supplier.phone),
+            clean(supplier.whatsapp_number),
             clean(supplier.email),
             clean(supplier.payment_terms),
             Math.max(0, Math.round(numberValue(supplier.lead_time_days))),
@@ -325,6 +331,25 @@ export async function POST(req: Request) {
         .run();
       const row = await orderById(orderId);
       return Response.json({ order: row ? await orderResponse(row) : null }, { status: 201 });
+    }
+
+    if (action === "recordOrderSend") {
+      const id = numberValue(payload.id);
+      const order = await orderById(id);
+      if (!order || !orderOwnerAllowed(member, order))
+        return Response.json({ error: "Purchase order not found or access denied." }, { status: 404 });
+      const supplier = await env.DB.prepare("SELECT * FROM buyer_suppliers WHERE id=?").bind(numberValue(order.supplier_id)).first<Row>();
+      const channel = clean(payload.channel);
+      const recipient = clean(payload.recipient);
+      if (!["WhatsApp", "Email"].includes(channel) || !recipient)
+        return Response.json({ error: "A valid supplier contact is required before sending." }, { status: 400 });
+      await env.DB.batch([
+        env.DB.prepare(`INSERT INTO buyer_order_send_log (order_id,po_number,supplier_id,supplier_name,channel,recipient,sent_by_email,sent_by_name,sent_at,notes) VALUES (?,?,?,?,?,?,?,?,?,?)`).bind(
+          id, clean(order.po_number), numberValue(order.supplier_id), clean(supplier?.name || order.supplier_name), channel, recipient, member.email, member.name, now, clean(payload.notes),
+        ),
+        env.DB.prepare("UPDATE buyer_orders SET last_sent_at=?,last_sent_channel=?,last_sent_to=?,status=CASE WHEN status='Approved' THEN 'Ordered' ELSE status END,delivery_status=CASE WHEN status='Approved' THEN 'Awaiting delivery' ELSE delivery_status END,updated_at=? WHERE id=?").bind(now, channel, recipient, now, id),
+      ]);
+      return Response.json({ ok: true });
     }
 
     if (["submitOrder", "approveOrder", "returnOrder", "setOrderStatus", "receivingUpdate", "deleteOrder"].includes(action)) {

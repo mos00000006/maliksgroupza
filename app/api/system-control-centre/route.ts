@@ -63,6 +63,7 @@ const NAV_MODULES = [
   "Store Ranking",
   "Employee Records",
   "Buyer Workspace",
+  "Stock Orders",
   "Wholesale Division",
   "Developments",
   "Financials & P&L",
@@ -312,7 +313,8 @@ function parseWorkspaceAccess(value: string) {
 
 function modulesForMember(member: TeamRow) {
   if (member.role === "Human Resource (HR)") return ["Employee Records"];
-  if (member.role === "Buyer") return ["Buyer Workspace", "Store Specials", "Our Catalogue"];
+  if (member.role === "Buyer") return ["Buyer Workspace", "Stock Orders", "Store Specials", "Our Catalogue"];
+  if (member.role === "Branch Stock Orders") return ["Stock Orders", "Store Specials", "Our Catalogue"];
 
   const fullCompany =
     member.role === "Owner / Admin" ||
@@ -339,6 +341,7 @@ function modulesForMember(member: TeamRow) {
   return NAV_MODULES.filter((module) => {
     if (module === "System Control Centre") return false;
     if (module === "Employee Records") return employeeRecordsAccess;
+    if (module === "Stock Orders") return ["Regional Manager", "Store Manager", "Department Manager"].includes(member.role);
     if (module === "Wholesale Division")
       return workspaceAccess.includes("Wholesale Division");
 

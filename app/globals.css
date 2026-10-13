@@ -2650,3 +2650,39 @@ button:disabled { cursor: default; }
   .buyerModal > footer button { flex:1 1 130px; }
 }
 .buyerUserTag { display:inline-flex; margin-top:10px; padding:5px 8px; border:1px solid rgba(255,255,255,.16); border-radius:999px; background:rgba(255,255,255,.08); color:#f2f7fd; font-size:8.5px; font-weight:850; }
+
+/* Procurement V2 — supplier sending + branch stock orders */
+.buyerPill.bad { background:#fff0f0; color:#b73333; }
+.buyerRowActions small { align-self:center; color:#7e8ca0; font-size:7.5px; font-weight:800; }
+.stockOrdersHero { background:linear-gradient(135deg,#122b49 0%,#1c426d 66%,#1d537a 100%); }
+.stockFlowSteps { display:grid; gap:10px; padding:14px 16px 18px; }
+.stockFlowSteps span { display:grid; grid-template-columns:32px 1fr; column-gap:10px; align-items:center; padding:11px 12px; border:1px solid #e0e8f1; border-radius:12px; background:#fbfdff; }
+.stockFlowSteps span > b { grid-row:1 / span 2; display:grid; width:28px; height:28px; place-items:center; border-radius:9px; background:#172c48; color:#ffd91a; font-size:10px; }
+.stockFlowSteps strong { color:#213852; font-size:10px; }
+.stockFlowSteps small { color:#8090a5; font-size:8.5px; }
+.stockLinesTable { min-width:900px; }
+.stockLinesTable td:first-child { min-width:240px; }
+.stockLinesTable td:nth-child(2) { min-width:140px; }
+.stockLinesTable td:nth-child(3) { width:110px; }
+.stockLinesTable td:nth-child(4) { width:85px; }
+.stockLinesTable td:nth-child(5) { min-width:220px; }
+.stockOrderSummary { align-self:stretch; padding:15px 17px; border:1px solid #d9e3ee; border-radius:12px; background:#f8fbff; }
+.stockOrderSummary small { display:block; color:#7b8ba0; font-size:8px; font-weight:950; letter-spacing:.7px; }
+.stockOrderSummary b { display:block; margin:8px 0; color:#172c48; font-size:25px; }
+.stockOrderSummary span { color:#7d8ca0; font-size:9px; line-height:1.45; }
+.stockOrderMeta { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; margin-bottom:14px; }
+.stockOrderMeta span { padding:11px 12px; border:1px solid #dce5ef; border-radius:11px; background:#f8fbff; }
+.stockOrderMeta small { display:block; color:#7b8ba0; font-size:7.5px; font-weight:950; letter-spacing:.55px; }
+.stockOrderMeta b { display:block; margin-top:5px; color:#203852; font-size:10px; }
+.stockReviewTable { min-width:950px; }
+.stockReviewTable td:first-child { min-width:260px; }
+.stockReviewTable td:first-child b,.stockReviewTable td:first-child small { display:block; }
+.stockReviewTable td:first-child small { margin-top:3px; color:#7d8ba0; font-size:8.5px; }
+.stockReviewTable input,.stockReviewTable textarea { width:100%; box-sizing:border-box; min-height:34px; padding:7px 8px; border:1px solid #dbe4ee; border-radius:8px; font-size:9px; }
+.stockReviewTable textarea { min-height:48px; resize:vertical; }
+.stockReviewFields { margin-top:14px; }
+.stockOrdersTable .buyerPill { max-width:none; }
+@media (max-width:760px) {
+  .stockOrderMeta { grid-template-columns:1fr 1fr; }
+  .stockFlowSteps span { grid-template-columns:32px 1fr; }
+}
