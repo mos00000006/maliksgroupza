@@ -294,17 +294,6 @@ const drawCenteredLines = (
   lines.forEach((line, index) => ctx.fillText(line, centreX, startY + index * lineHeight));
 };
 
-const drawImageCover = (ctx: CanvasRenderingContext2D, image: LoadedImage, x: number, y: number, width: number, height: number) => {
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-  const scale = Math.max(width / image.width, height / image.height);
-  const drawW = image.width * scale;
-  const drawH = image.height * scale;
-  const drawX = x + (width - drawW) / 2;
-  const drawY = y + (height - drawH) / 2;
-  ctx.drawImage(image.element, drawX, drawY, drawW, drawH);
-};
-
 const drawImageContain = (
   ctx: CanvasRenderingContext2D,
   image: LoadedImage,

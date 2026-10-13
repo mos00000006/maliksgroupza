@@ -163,6 +163,8 @@ const getTommyFixVariant = (product: CatalogueProduct) => {
 const isLeafletMobileViewport = () =>
   typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
 
+const CATALOGUE_PAGE_SIZE = 12;
+
 export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?: string }) {
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
   const [page, setPage] = useState(1);
@@ -187,7 +189,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   const [leafletPages, setLeafletPages] = useState<string[]>([]);
   const [leafletPage, setLeafletPage] = useState(0);
   const requestId = useRef(0);
-  const pageSize = 12;
 
   const expectedManager = useMemo(
     () => ["moyanamoses006@icloud.com", "moyanamoses006@icloud", "msallikutti@gmail.com"].includes(currentUserEmail.toLowerCase()),
@@ -203,14 +204,14 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     return [1, "left-gap", page - 1, page, page + 1, "right-gap", pages];
   }, [page, pages]);
 
-  const load = async (targetPage = page, search = query, quiet = false) => {
+  const load = useCallback(async (targetPage: number, search: string, quiet = false) => {
     const id = ++requestId.current;
     if (!quiet) setLoading(true);
     setError("");
     try {
       const params = new URLSearchParams({
         page: String(targetPage),
-        pageSize: String(pageSize),
+        pageSize: String(CATALOGUE_PAGE_SIZE),
       });
       if (search.trim()) params.set("q", search.trim());
       const response = await fetch(`/api/catalogue?${params.toString()}`);
@@ -227,7 +228,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  };
+  }, []);
 
   const moveLeaflet = useCallback((direction: -1 | 1) => {
     if (!leafletPages.length) return;
@@ -254,7 +255,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   useEffect(() => {
     const timer = window.setTimeout(() => void load(1, query), 220);
     return () => window.clearTimeout(timer);
-  }, [query]);
+  }, [query, load]);
 
   useEffect(() => () => {
     leafletPages.forEach((url) => URL.revokeObjectURL(url));
@@ -524,6 +525,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
               <article className={`catalogueCard${assorted ? " catalogueCard--assorted" : ""}${tommyFixVariant ? " catalogueCard--tommy" : ""}`} key={product.id}>
                 <div className="catalogueImage">
                   {product.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={product.image_url} alt={product.name} loading="lazy" />
                   ) : (
                     <div><i>▧</i><small>Product image</small></div>
