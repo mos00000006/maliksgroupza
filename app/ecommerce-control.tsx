@@ -118,7 +118,7 @@ export default function EcommerceControl() {
     </div>}
 
     {tab === "Products" && <div className={styles.content}>
-      <div className={styles.panelHead}><div><small>CHANNEL MERCHANDISING</small><h3>Online product pricing & visibility</h3></div><form onSubmit={(e) => { e.preventDefault(); void loadProducts(1, q); }}><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search code, product or category"/><button>Search</button></form></div>
+      <div className={styles.panelHead}><div><small>CHANNEL MERCHANDISING</small><h3>Online product pricing & visibility</h3><p className={styles.priceHint}>Enter B2C retail incl. VAT and/or B2B wholesale ex. VAT, then click Save on that product row.</p></div><form onSubmit={(e) => { e.preventDefault(); void loadProducts(1, q); }}><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search code, product or category"/><button>Search</button></form></div>
       {loading ? <p className={styles.loading}>Loading products…</p> : <div className={styles.productList}>{products.map((product) => <ProductEditor key={product.id} product={product} save={saveProduct} />)}</div>}
       <div className={styles.pager}><button disabled={productPage <= 1} onClick={() => void loadProducts(productPage - 1, q)}>← Previous</button><span>Page {productPage} of {productPages}</span><button disabled={productPage >= productPages} onClick={() => void loadProducts(productPage + 1, q)}>Next →</button></div>
     </div>}
