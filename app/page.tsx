@@ -11,6 +11,7 @@ import StockOrdersWorkspace from "./stock-orders-workspace";
 import StoreControls from "./store-controls";
 import EmployeeRecords from "./employee-records";
 import StoreSpecials from "./store-specials";
+import EcommerceControl from "./ecommerce-control";
 import SystemControlCentre from "./system-control-centre";
 import SystemClientMonitor from "./system-client-monitor";
 import RolloutOnboardingCentre from "./rollout-onboarding-centre";
@@ -98,6 +99,7 @@ const nav = [
   "My Work",
   "Store Operations",
   "Store Specials",
+  "E-Commerce Control",
   "Store Audits",
   "Daily Checklists",
   "Store Ranking",
@@ -173,6 +175,16 @@ function SidebarIcon({ name }: { name: string }) {
           <path d="M14 8.2c2.8.7 4.4 2.2 5 4.3-1.5 2.1-3.2 3.3-5 3.7" />
           <path d="M6.5 15.2 8 20h3l-1.8-5.8" />
           <path d="M18.5 6.5 20 5M19.5 9h2M18.5 11.5l1.5 1.5" />
+        </svg>
+      );
+    case "E-Commerce Control":
+      return (
+        <svg {...common}>
+          <path d="M4 7h16l-1 12H5L4 7Z" />
+          <path d="M8 7a4 4 0 0 1 8 0" />
+          <path d="M8 12h8M8 15h5" />
+          <circle cx="18" cy="17" r="2.5" />
+          <path d="m19.8 18.8 1.7 1.7" />
         </svg>
       );
     case "Store Audits":
@@ -361,6 +373,7 @@ const navigationForUser = (user: CurrentHubUser) => {
     if (item === "System Control Centre" || item === "Rollout & Onboarding") return accessAdmin;
     if (item === "Employee Records") return employeeRecordsAccess;
     if (item === "Buyer Workspace") return fullCompany;
+    if (item === "E-Commerce Control") return fullCompany;
     if (fullCompany) return true;
     if (item === "Stock Orders") return ["Regional Manager", "Store Manager", "Department Manager"].includes(user.role || "");
     if (item === "Wholesale Division") return wholesale;
@@ -873,6 +886,7 @@ export default function Home() {
     "Store Audits": "Digital branch audits with scoring, evidence and corrective-action tracking.",
     "Daily Checklists": "Daily manager opening-to-closing compliance and exception control.",
     "Store Ranking": "Executive operational ranking across the store network.",
+    "E-Commerce Control": "Manage B2C retail and B2B wholesale online products, pricing, trade accounts and incoming orders.",
     "Employee Records": "Store employee files, daily attendance, lateness and disciplinary warning history.",
     "Buyer Workspace": "Purchase orders, suppliers, quote comparison, supplier sending, delivery follow-through and Excel buying packs.",
     "Stock Orders": "Branch replenishment orders sent to the Head Office warehouse buyer for confirmation, picking and dispatch.",
@@ -1556,6 +1570,7 @@ export default function Home() {
   const isBuyerWorkspaceView = active === "Buyer Workspace";
   const isStockOrdersView = active === "Stock Orders";
   const isStoreSpecialsView = active === "Store Specials";
+  const isEcommerceControlView = active === "E-Commerce Control";
   const isSystemControlView = active === "System Control Centre";
   const isRolloutOnboardingView = active === "Rollout & Onboarding";
   if (accessDenied)
@@ -1737,7 +1752,7 @@ export default function Home() {
             </p>
           </div>
           <div className="actions">
-            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStockOrdersView && !isStoreSpecialsView && !isSystemControlView && !isRolloutOnboardingView && (
+            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStockOrdersView && !isStoreSpecialsView && !isEcommerceControlView && !isSystemControlView && !isRolloutOnboardingView && (
               <label>
                 ⌕
                 <input
@@ -1769,7 +1784,7 @@ export default function Home() {
               </button>
             )}
             <PwaInstallButton />
-            {!readOnlyAccess && !restrictedOperationsAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStockOrdersView && !isStoreSpecialsView && !isSystemControlView && !isRolloutOnboardingView && (
+            {!readOnlyAccess && !restrictedOperationsAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStockOrdersView && !isStoreSpecialsView && !isEcommerceControlView && !isSystemControlView && !isRolloutOnboardingView && (
               <button className="primary" onClick={openComposer}>
                 ＋ Add task
               </button>
@@ -1793,6 +1808,8 @@ export default function Home() {
           <StockOrdersWorkspace currentUser={currentUser} />
         ) : isStoreSpecialsView ? (
           <StoreSpecials currentUser={currentUser} />
+        ) : isEcommerceControlView ? (
+          <EcommerceControl />
         ) : isSystemControlView ? (
           <SystemControlCentre currentUser={currentUser} />
         ) : isRolloutOnboardingView ? (

@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 export default function LaunchSplash() {
+  const pathname = usePathname();
+  const publicStorefront = pathname === "/shop" || pathname === "/wholesale-shop";
   const [visible, setVisible] = useState(true);
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
+    if (publicStorefront) {
+      document.documentElement.classList.remove("powerbuild-splash-active");
+      return;
+    }
     document.documentElement.classList.add("powerbuild-splash-active");
 
     const leaveTimer = window.setTimeout(() => setLeaving(true), 1850);
@@ -20,9 +27,9 @@ export default function LaunchSplash() {
       window.clearTimeout(hideTimer);
       document.documentElement.classList.remove("powerbuild-splash-active");
     };
-  }, []);
+  }, [publicStorefront]);
 
-  if (!visible) return null;
+  if (publicStorefront || !visible) return null;
 
   return (
     <div
