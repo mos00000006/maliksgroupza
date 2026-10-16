@@ -34,20 +34,29 @@ export type EmployeeWarningPdfPayload = {
 };
 
 type PdfImage = { bytes: Uint8Array; width: number; height: number };
+type LoadedImage = HTMLImageElement | null;
 
 const encoder = new TextEncoder();
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
 const CANVAS_W = 2480;
 const CANVAS_H = 3508;
-const MARGIN = 150;
-const NAVY = "#16375b";
-const YELLOW = "#f6ca2f";
-const TEXT = "#19324a";
-const MUTED = "#687a8d";
-const LINE = "#d5deea";
+const PAGE_X = 132;
+const PAGE_W_PX = CANVAS_W - PAGE_X * 2;
+
+const NAVY = "#122d49";
+const DEEP_NAVY = "#0b1f35";
+const POWER_BLUE = "#07549a";
+const YELLOW = "#ffd21f";
+const GOLD = "#e7b700";
+const TEXT = "#1c3147";
+const MUTED = "#708296";
+const LINE = "#d9e2ec";
 const SOFT = "#f4f7fb";
+const SOFT_BLUE = "#eef5fb";
 const WHITE = "#ffffff";
+const RED = "#b93646";
+const GREEN = "#28785b";
 
 const bytes = (value: string) => encoder.encode(value);
 
@@ -159,7 +168,7 @@ const loadImage = (url: string) =>
     image.src = url;
   });
 
-const canvasToJpeg = (canvas: HTMLCanvasElement, quality = 0.96): PdfImage => {
+const canvasToJpeg = (canvas: HTMLCanvasElement, quality = 0.97): PdfImage => {
   const dataUrl = canvas.toDataURL("image/jpeg", quality);
   const binary = atob(dataUrl.split(",")[1] || "");
   const output = new Uint8Array(binary.length);
@@ -177,12 +186,53 @@ const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
     const candidate = `${current} ${word}`.trim();
     if (ctx.measureText(candidate).width <= maxWidth) current = candidate;
     else {
-      lines.push(current);
+      if (current) lines.push(current);
       current = word;
     }
   }
   if (current) lines.push(current);
   return lines;
+};
+
+const fitTextLines = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+  startSize: number,
+  minSize: number,
+  weight = 500,
+) => {
+  for (let size = startSize; size >= minSize; size -= 2) {
+    ctx.font = `${weight} ${size}px Arial, sans-serif`;
+    const lines = wrapText(ctx, text, maxWidth);
+    if (lines.length <= maxLines) return { lines, size };
+  }
+  ctx.font = `${weight} ${minSize}px Arial, sans-serif`;
+  const lines = wrapText(ctx, text, maxWidth);
+  const clipped = lines.slice(0, maxLines);
+  if (lines.length > maxLines && clipped.length) {
+    clipped[clipped.length - 1] = `${clipped[clipped.length - 1].replace(/[. ]+$/g, "")}...`;
+  }
+  return { lines: clipped, size: minSize };
+};
+
+const roundedPath = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) => {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + safeRadius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, safeRadius);
+  ctx.arcTo(x + width, y + height, x, y + height, safeRadius);
+  ctx.arcTo(x, y + height, x, y, safeRadius);
+  ctx.arcTo(x, y, x + width, y, safeRadius);
+  ctx.closePath();
 };
 
 const drawRoundedRect = (
@@ -196,13 +246,7 @@ const drawRoundedRect = (
   stroke?: string,
   lineWidth = 1,
 ) => {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.arcTo(x + width, y, x + width, y + height, radius);
-  ctx.arcTo(x + width, y + height, x, y + height, radius);
-  ctx.arcTo(x, y + height, x, y, radius);
-  ctx.arcTo(x, y, x + width, y, radius);
-  ctx.closePath();
+  roundedPath(ctx, x, y, width, height, radius);
   ctx.fillStyle = fill;
   ctx.fill();
   if (stroke) {
@@ -212,76 +256,146 @@ const drawRoundedRect = (
   }
 };
 
-const drawField = (
+const drawShadowCard = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius = 24,
+  fill = WHITE,
+) => {
+  ctx.save();
+  ctx.shadowColor = "rgba(15,35,55,.10)";
+  ctx.shadowBlur = 22;
+  ctx.shadowOffsetY = 9;
+  drawRoundedRect(ctx, x, y, width, height, radius, fill);
+  ctx.restore();
+  drawRoundedRect(ctx, x, y, width, height, radius, fill, LINE, 2);
+};
+
+const drawSmallCaps = (ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color = MUTED) => {
+  ctx.fillStyle = color;
+  ctx.font = "800 25px Arial, sans-serif";
+  ctx.fillText(cleanText(text).toUpperCase(), x, y);
+};
+
+const drawValue = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  maxLines = 2,
+  startSize = 36,
+) => {
+  const fitted = fitTextLines(ctx, text || "—", width, maxLines, startSize, 26, 700);
+  ctx.fillStyle = TEXT;
+  ctx.font = `700 ${fitted.size}px Arial, sans-serif`;
+  fitted.lines.forEach((line, index) => ctx.fillText(line, x, y + index * (fitted.size + 9)));
+};
+
+const drawInfoCell = (
   ctx: CanvasRenderingContext2D,
   options: { x: number; y: number; width: number; height: number; label: string; value: string },
 ) => {
   const { x, y, width, height, label, value } = options;
-  drawRoundedRect(ctx, x, y, width, height, 22, WHITE, LINE, 2);
-  ctx.fillStyle = MUTED;
-  ctx.font = "600 28px Arial, sans-serif";
-  ctx.fillText(label.toUpperCase(), x + 28, y + 46);
-  ctx.fillStyle = TEXT;
-  ctx.font = "700 40px Arial, sans-serif";
-  const lines = wrapText(ctx, value || "—", width - 56);
-  const capped = lines.slice(0, 2);
-  capped.forEach((line, index) => ctx.fillText(line, x + 28, y + 94 + index * 42));
+  drawRoundedRect(ctx, x, y, width, height, 20, SOFT, "#e2e9f1", 2);
+  drawSmallCaps(ctx, label, x + 26, y + 43);
+  drawValue(ctx, value, x + 26, y + 93, width - 52, 2, 34);
 };
 
-const drawSection = (
+const drawSectionCard = (
   ctx: CanvasRenderingContext2D,
-  options: { x: number; y: number; width: number; title: string; body: string; minHeight?: number },
+  options: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    label: string;
+    body: string;
+    accent?: string;
+    maxLines?: number;
+    bodySize?: number;
+    labelNote?: string;
+  },
 ) => {
-  const { x, y, width, title, body, minHeight = 220 } = options;
-  const textWidth = width - 56;
-  ctx.font = "500 34px Arial, sans-serif";
-  const lines = wrapText(ctx, body || "—", textWidth);
-  const lineHeight = 42;
-  const contentHeight = Math.max(minHeight, 92 + lines.length * lineHeight + 28);
-  drawRoundedRect(ctx, x, y, width, contentHeight, 22, WHITE, LINE, 2);
-  ctx.fillStyle = NAVY;
-  ctx.font = "800 32px Arial, sans-serif";
-  ctx.fillText(title.toUpperCase(), x + 28, y + 48);
-  ctx.strokeStyle = YELLOW;
-  ctx.lineWidth = 5;
+  const { x, y, width, height, label, body, accent = YELLOW, maxLines = 7, bodySize = 34, labelNote } = options;
+  drawShadowCard(ctx, x, y, width, height, 24, WHITE);
+  ctx.fillStyle = accent;
+  ctx.fillRect(x, y, 12, height);
+  drawSmallCaps(ctx, label, x + 34, y + 44, NAVY);
+  if (labelNote) {
+    ctx.fillStyle = MUTED;
+    ctx.font = "600 23px Arial, sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(labelNote, x + width - 30, y + 43);
+    ctx.textAlign = "left";
+  }
+  ctx.strokeStyle = "#e6ecf2";
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(x + 28, y + 68);
-  ctx.lineTo(x + 210, y + 68);
+  ctx.moveTo(x + 34, y + 65);
+  ctx.lineTo(x + width - 30, y + 65);
   ctx.stroke();
+
+  const fitted = fitTextLines(ctx, body || "—", width - 70, maxLines, bodySize, 25, 500);
   ctx.fillStyle = TEXT;
-  ctx.font = "500 34px Arial, sans-serif";
-  lines.forEach((line, index) => ctx.fillText(line, x + 28, y + 118 + index * lineHeight));
-  return contentHeight;
+  ctx.font = `500 ${fitted.size}px Arial, sans-serif`;
+  const lineHeight = fitted.size + 12;
+  fitted.lines.forEach((line, index) => ctx.fillText(line, x + 34, y + 118 + index * lineHeight));
 };
 
-const drawSignatureBlock = (
+const drawSignature = (
   ctx: CanvasRenderingContext2D,
-  options: { x: number; y: number; width: number; label: string; sublabel?: string },
+  options: { x: number; y: number; width: number; title: string; printedName?: string },
 ) => {
-  const { x, y, width, label, sublabel } = options;
+  const { x, y, width, title, printedName } = options;
   ctx.strokeStyle = NAVY;
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.lineTo(x + width, y);
   ctx.stroke();
 
   ctx.fillStyle = NAVY;
-  ctx.font = "800 28px Arial, sans-serif";
-  ctx.fillText(label, x, y + 36);
+  ctx.font = "800 27px Arial, sans-serif";
+  ctx.fillText(title, x, y + 38);
   ctx.fillStyle = MUTED;
-  ctx.font = "500 24px Arial, sans-serif";
-  ctx.fillText(sublabel || "Signature", x, y + 68);
+  ctx.font = "500 22px Arial, sans-serif";
+  if (printedName) ctx.fillText(printedName, x, y + 72);
 
-  const dateX = x + width - 180;
-  ctx.strokeStyle = LINE;
+  const dateY = y + 118;
+  ctx.strokeStyle = "#bfcbd7";
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(dateX, y + 90);
-  ctx.lineTo(x + width, y + 90);
+  ctx.moveTo(x, dateY);
+  ctx.lineTo(x + width * 0.58, dateY);
+  ctx.moveTo(x + width * 0.68, dateY);
+  ctx.lineTo(x + width, dateY);
   ctx.stroke();
   ctx.fillStyle = MUTED;
-  ctx.font = "600 22px Arial, sans-serif";
-  ctx.fillText("Date", dateX, y + 120);
+  ctx.font = "600 19px Arial, sans-serif";
+  ctx.fillText("Signature", x, dateY + 29);
+  ctx.fillText("Date", x + width * 0.68, dateY + 29);
+};
+
+const warningStyle = (warning: EmployeeWarningPdfWarning) => {
+  const level = cleanText(warning.warning_level).toLowerCase();
+  if (level.includes("final")) return { accent: RED, label: "FINAL WRITTEN WARNING", soft: "#fff0f2" };
+  if (level.includes("written")) return { accent: GOLD, label: "WRITTEN WARNING", soft: "#fff8dd" };
+  return { accent: POWER_BLUE, label: "VERBAL WARNING RECORD", soft: SOFT_BLUE };
+};
+
+const drawWatermark = (ctx: CanvasRenderingContext2D, logo: LoadedImage) => {
+  if (!logo) return;
+  const size = 1180;
+  ctx.save();
+  ctx.globalAlpha = 0.028;
+  ctx.translate(CANVAS_W / 2, CANVAS_H / 2 + 180);
+  ctx.rotate(-0.12);
+  ctx.drawImage(logo, -size / 2, -size / 2, size, size);
+  ctx.restore();
 };
 
 async function renderWarningCanvas(payload: EmployeeWarningPdfPayload) {
@@ -292,148 +406,197 @@ async function renderWarningCanvas(payload: EmployeeWarningPdfPayload) {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not create warning document canvas.");
 
-  ctx.fillStyle = "#eef3f9";
+  const logo = await loadImage("/powerbuild-warning-logo.png")
+    .catch(() => loadImage("/powerbuild-logo-transparent.png"))
+    .catch(() => null);
+  const levelStyle = warningStyle(warning);
+  const documentNumber = `PB-WARN-${warning.id || "NEW"}`;
+  const generatedDate = formatDate(new Date().toISOString().slice(0, 10));
+  const issuer = warning.issued_by || generatedBy || "Authorised manager";
+  const status = cleanText(warning.status || "Active");
+
+  ctx.fillStyle = "#edf2f7";
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-  drawRoundedRect(ctx, 70, 70, CANVAS_W - 140, CANVAS_H - 140, 38, WHITE, "#dbe4ee", 3);
 
-  const logo = await loadImage("/powerbuild-warning-logo.png").catch(() => loadImage("/powerbuild-logo-transparent.png")).catch(() => null);
+  ctx.save();
+  ctx.shadowColor = "rgba(15,35,55,.16)";
+  ctx.shadowBlur = 34;
+  ctx.shadowOffsetY = 12;
+  drawRoundedRect(ctx, 54, 46, CANVAS_W - 108, CANVAS_H - 92, 36, WHITE);
+  ctx.restore();
+  drawRoundedRect(ctx, 54, 46, CANVAS_W - 108, CANVAS_H - 92, 36, WHITE, "#dce5ee", 2);
 
-  drawRoundedRect(ctx, MARGIN, MARGIN, CANVAS_W - MARGIN * 2, 310, 30, NAVY);
+  drawWatermark(ctx, logo);
+
+  // Premium header
+  drawRoundedRect(ctx, PAGE_X, 120, PAGE_W_PX, 430, 30, DEEP_NAVY);
+  ctx.fillStyle = POWER_BLUE;
+  ctx.fillRect(PAGE_X, 120, 20, 430);
   ctx.fillStyle = YELLOW;
-  ctx.fillRect(MARGIN, MARGIN + 300, CANVAS_W - MARGIN * 2, 10);
+  ctx.fillRect(PAGE_X, 532, PAGE_W_PX, 18);
 
   if (logo) {
-    const logoHeight = 210;
-    const ratio = (logo.naturalWidth || logo.width || 1) / (logo.naturalHeight || logo.height || 1);
-    const logoWidth = Math.round(logoHeight * ratio);
-    ctx.drawImage(logo, MARGIN + 34, MARGIN + 40, logoWidth, logoHeight);
+    drawRoundedRect(ctx, PAGE_X + 40, 158, 264, 264, 24, WHITE);
+    const logoSize = 220;
+    ctx.drawImage(logo, PAGE_X + 62, 180, logoSize, logoSize);
   }
 
+  const headerTextX = PAGE_X + 350;
   ctx.fillStyle = YELLOW;
-  ctx.font = "900 30px Arial, sans-serif";
-  ctx.fillText("POWERBUILD EMPLOYEE RECORDS", MARGIN + 320, MARGIN + 72);
+  ctx.font = "900 28px Arial, sans-serif";
+  ctx.fillText("POWERBUILD GROUP  /  PEOPLE & CULTURE", headerTextX, 196);
   ctx.fillStyle = WHITE;
-  ctx.font = "900 72px Arial, sans-serif";
-  ctx.fillText("DISCIPLINARY WARNING", MARGIN + 320, MARGIN + 154);
-  ctx.font = "500 32px Arial, sans-serif";
-  ctx.fillStyle = "#d9e6f5";
-  ctx.fillText("Official employee warning document generated by the PowerBuild Hub.", MARGIN + 320, MARGIN + 208);
+  ctx.font = "900 70px Arial, sans-serif";
+  ctx.fillText("DISCIPLINARY WARNING", headerTextX, 284);
+  ctx.fillStyle = "#cbd9e7";
+  ctx.font = "500 29px Arial, sans-serif";
+  ctx.fillText("Confidential employee record  |  Print, discuss, sign and file", headerTextX, 336);
 
-  drawRoundedRect(ctx, CANVAS_W - MARGIN - 470, MARGIN + 36, 430, 160, 24, "rgba(255,255,255,.08)", "rgba(255,255,255,.18)", 2);
-  ctx.fillStyle = WHITE;
-  ctx.font = "700 28px Arial, sans-serif";
-  ctx.fillText("Document no.", CANVAS_W - MARGIN - 430, MARGIN + 88);
-  ctx.font = "900 34px Arial, sans-serif";
-  ctx.fillText(`PB-WARN-${warning.id || "NEW"}`, CANVAS_W - MARGIN - 430, MARGIN + 134);
-  ctx.font = "600 24px Arial, sans-serif";
-  ctx.fillStyle = "#d9e6f5";
-  ctx.fillText(`Generated ${formatDate(new Date().toISOString().slice(0, 10))}`, CANVAS_W - MARGIN - 430, MARGIN + 172);
+  const badgeW = 490;
+  drawRoundedRect(ctx, CANVAS_W - PAGE_X - badgeW - 38, 378, badgeW, 112, 20, levelStyle.soft, levelStyle.accent, 3);
+  ctx.fillStyle = levelStyle.accent;
+  ctx.font = "900 29px Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(levelStyle.label, CANVAS_W - PAGE_X - badgeW / 2 - 38, 447);
+  ctx.textAlign = "left";
 
-  ctx.fillStyle = NAVY;
-  ctx.font = "900 28px Arial, sans-serif";
-  ctx.fillText("EMPLOYEE DETAILS", MARGIN, 560);
-  ctx.fillStyle = MUTED;
-  ctx.font = "500 24px Arial, sans-serif";
-  ctx.fillText("Verify the identity and employment details before the warning is issued and signed.", MARGIN, 598);
-
-  const gap = 24;
-  const contentWidth = CANVAS_W - MARGIN * 2;
-  const col3 = Math.floor((contentWidth - gap * 2) / 3);
-  const col2 = Math.floor((contentWidth - gap) / 2);
-  const topY = 630;
-  const fieldH = 138;
-  drawField(ctx, { x: MARGIN, y: topY, width: col3, height: fieldH, label: "Employee name", value: employeeName(employee) || "—" });
-  drawField(ctx, { x: MARGIN + col3 + gap, y: topY, width: col3, height: fieldH, label: "Employee no.", value: employee.employee_number || "—" });
-  drawField(ctx, { x: MARGIN + (col3 + gap) * 2, y: topY, width: col3, height: fieldH, label: "Workspace", value: employee.workspace || warning.workspace || "—" });
-  drawField(ctx, { x: MARGIN, y: topY + fieldH + gap, width: col2, height: fieldH, label: "Job title / department", value: [employee.job_title, employee.department].filter(Boolean).join(" · ") || "—" });
-  drawField(ctx, { x: MARGIN + col2 + gap, y: topY + fieldH + gap, width: col2, height: fieldH, label: "Supervisor / status", value: [employee.supervisor, employee.employment_status].filter(Boolean).join(" · ") || "—" });
-
-  const detailsY = topY + fieldH * 2 + gap * 2 + 38;
-  ctx.fillStyle = NAVY;
-  ctx.font = "900 28px Arial, sans-serif";
-  ctx.fillText("WARNING DETAILS", MARGIN, detailsY);
-
-  const warningBoxY = detailsY + 28;
-  drawField(ctx, { x: MARGIN, y: warningBoxY, width: col3, height: fieldH, label: "Warning date", value: formatDate(warning.warning_date) });
-  drawField(ctx, { x: MARGIN + col3 + gap, y: warningBoxY, width: col3, height: fieldH, label: "Warning level", value: warning.warning_level || "—" });
-  drawField(ctx, { x: MARGIN + (col3 + gap) * 2, y: warningBoxY, width: col3, height: fieldH, label: "Valid until", value: formatDate(warning.valid_until) });
-  drawField(ctx, { x: MARGIN, y: warningBoxY + fieldH + gap, width: col2, height: fieldH, label: "Issued by", value: warning.issued_by || generatedBy || "—" });
-  drawField(ctx, { x: MARGIN + col2 + gap, y: warningBoxY + fieldH + gap, width: col2, height: fieldH, label: "Status", value: warning.status || "Active" });
-
-  const sectionsStartY = warningBoxY + fieldH * 2 + gap * 2 + 40;
-  const leftWidth = Math.floor((contentWidth - gap) * 0.56);
-  const rightWidth = contentWidth - gap - leftWidth;
-
-  const reasonHeight = drawSection(ctx, {
-    x: MARGIN,
-    y: sectionsStartY,
-    width: leftWidth,
-    title: "Reason for warning",
-    body: warning.reason || "—",
-    minHeight: 210,
+  // Metadata line
+  const metaY = 590;
+  drawRoundedRect(ctx, PAGE_X, metaY, PAGE_W_PX, 104, 18, SOFT_BLUE, "#d6e3ef", 2);
+  const metaCols = [
+    ["DOCUMENT NO.", documentNumber],
+    ["WARNING DATE", formatDate(warning.warning_date)],
+    ["STATUS", status],
+    ["GENERATED", generatedDate],
+  ];
+  const metaWidth = PAGE_W_PX / metaCols.length;
+  metaCols.forEach(([label, value], index) => {
+    const x = PAGE_X + index * metaWidth;
+    if (index > 0) {
+      ctx.strokeStyle = "#ccd9e5";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, metaY + 20);
+      ctx.lineTo(x, metaY + 84);
+      ctx.stroke();
+    }
+    drawSmallCaps(ctx, label, x + 25, metaY + 36, MUTED);
+    ctx.fillStyle = label === "STATUS" ? (status.toLowerCase() === "withdrawn" ? RED : GREEN) : NAVY;
+    ctx.font = "800 29px Arial, sans-serif";
+    ctx.fillText(value || "—", x + 25, metaY + 76);
   });
 
-  const summaryHeight = drawSection(ctx, {
-    x: MARGIN + leftWidth + gap,
-    y: sectionsStartY,
-    width: rightWidth,
-    title: "Acknowledgement",
-    body: warning.acknowledgement || "Employee acknowledgement to be captured at signing.",
-    minHeight: 210,
-  });
-
-  const detailsHeight = drawSection(ctx, {
-    x: MARGIN,
-    y: sectionsStartY + Math.max(reasonHeight, summaryHeight) + gap,
-    width: contentWidth,
-    title: "Full incident / corrective details",
-    body:
-      warning.details ||
-      "No additional details were entered when this warning was recorded. Use the printed form to note the incident details, prior discussion and required corrective action.",
-    minHeight: 360,
-  });
-
-  const noteY = sectionsStartY + Math.max(reasonHeight, summaryHeight) + gap + detailsHeight + 34;
-  drawRoundedRect(ctx, MARGIN, noteY, contentWidth, 164, 22, SOFT, LINE, 2);
-  ctx.fillStyle = NAVY;
-  ctx.font = "900 28px Arial, sans-serif";
-  ctx.fillText("IMPORTANT", MARGIN + 28, noteY + 46);
+  // Employee identity card
+  const identityY = 734;
+  drawShadowCard(ctx, PAGE_X, identityY, PAGE_W_PX, 420, 26, WHITE);
+  drawSmallCaps(ctx, "Employee identity", PAGE_X + 34, identityY + 48, POWER_BLUE);
   ctx.fillStyle = TEXT;
-  ctx.font = "500 28px Arial, sans-serif";
-  const noticeLines = wrapText(
-    ctx,
-    "This warning must be discussed with the employee. After printing, obtain all required signatures and file the completed document in the employee's disciplinary record.",
-    contentWidth - 56,
+  ctx.font = "900 49px Arial, sans-serif";
+  ctx.fillText(employeeName(employee) || "Employee", PAGE_X + 34, identityY + 112);
+  ctx.fillStyle = MUTED;
+  ctx.font = "600 26px Arial, sans-serif";
+  ctx.fillText(
+    [employee.job_title, employee.department, employee.workspace || warning.workspace].filter(Boolean).join("  •  ") || "Employment details not captured",
+    PAGE_X + 34,
+    identityY + 155,
   );
-  noticeLines.slice(0, 3).forEach((line, index) => ctx.fillText(line, MARGIN + 28, noteY + 92 + index * 34));
 
-  const signTitleY = noteY + 220;
-  ctx.fillStyle = NAVY;
-  ctx.font = "900 28px Arial, sans-serif";
-  ctx.fillText("SIGNATURES", MARGIN, signTitleY);
+  const infoTop = identityY + 202;
+  const gap = 18;
+  const infoW = Math.floor((PAGE_W_PX - 68 - gap * 2) / 3);
+  const infoH = 160;
+  const infoX = PAGE_X + 34;
+  drawInfoCell(ctx, { x: infoX, y: infoTop, width: infoW, height: infoH, label: "Employee number", value: employee.employee_number || "—" });
+  drawInfoCell(ctx, { x: infoX + infoW + gap, y: infoTop, width: infoW, height: infoH, label: "Supervisor", value: employee.supervisor || "—" });
+  drawInfoCell(ctx, { x: infoX + (infoW + gap) * 2, y: infoTop, width: infoW, height: infoH, label: "Issued by", value: issuer });
+
+  // Warning summary
+  const summaryY = identityY + 460;
+  const summaryGap = 24;
+  const leftW = Math.floor((PAGE_W_PX - summaryGap) * 0.58);
+  const rightW = PAGE_W_PX - summaryGap - leftW;
+  drawSectionCard(ctx, {
+    x: PAGE_X,
+    y: summaryY,
+    width: leftW,
+    height: 340,
+    label: "Reason for warning",
+    body: warning.reason || "—",
+    accent: levelStyle.accent,
+    maxLines: 6,
+    bodySize: 38,
+  });
+  drawSectionCard(ctx, {
+    x: PAGE_X + leftW + summaryGap,
+    y: summaryY,
+    width: rightW,
+    height: 340,
+    label: "Validity & classification",
+    body: `Level: ${warning.warning_level || "—"}. Valid until: ${formatDate(warning.valid_until)}. Current status: ${status}.`,
+    accent: POWER_BLUE,
+    maxLines: 7,
+    bodySize: 34,
+  });
+
+  const detailsY = summaryY + 372;
+  drawSectionCard(ctx, {
+    x: PAGE_X,
+    y: detailsY,
+    width: PAGE_W_PX,
+    height: 520,
+    label: "Incident / corrective details",
+    body: warning.details || "No additional incident or corrective details were entered when the warning was recorded.",
+    accent: YELLOW,
+    maxLines: 10,
+    bodySize: 36,
+    labelNote: "Management record",
+  });
+
+  const acknowledgementY = detailsY + 552;
+  drawSectionCard(ctx, {
+    x: PAGE_X,
+    y: acknowledgementY,
+    width: PAGE_W_PX,
+    height: 340,
+    label: "Employee acknowledgement / response",
+    body: warning.acknowledgement || "No acknowledgement text was captured electronically. Complete this section during the discussion if required.",
+    accent: POWER_BLUE,
+    maxLines: 6,
+    bodySize: 34,
+    labelNote: "To be discussed with employee",
+  });
+
+  // Signature section
+  const signatureY = acknowledgementY + 390;
+  drawSmallCaps(ctx, "Signatures", PAGE_X, signatureY, NAVY);
   ctx.fillStyle = MUTED;
   ctx.font = "500 24px Arial, sans-serif";
-  ctx.fillText("Print and sign below once the warning has been discussed with the employee.", MARGIN, signTitleY + 34);
+  ctx.fillText("Signatures confirm that the warning document was presented and discussed.", PAGE_X, signatureY + 37);
 
-  const signY = signTitleY + 128;
-  const signGap = 50;
-  const signWidth = Math.floor((contentWidth - signGap * 2) / 3);
-  drawSignatureBlock(ctx, { x: MARGIN, y: signY, width: signWidth, label: "Employee", sublabel: employeeName(employee) || "Employee signature" });
-  drawSignatureBlock(ctx, { x: MARGIN + signWidth + signGap, y: signY, width: signWidth, label: "Manager / Issuer", sublabel: warning.issued_by || generatedBy || "Manager signature" });
-  drawSignatureBlock(ctx, { x: MARGIN + (signWidth + signGap) * 2, y: signY, width: signWidth, label: "Witness / HR", sublabel: "Witness or HR representative" });
+  const signTop = signatureY + 145;
+  const signGap = 52;
+  const signW = Math.floor((PAGE_W_PX - signGap * 2) / 3);
+  drawSignature(ctx, { x: PAGE_X, y: signTop, width: signW, title: "Employee", printedName: employeeName(employee) || undefined });
+  drawSignature(ctx, { x: PAGE_X + signW + signGap, y: signTop, width: signW, title: "Manager / Issuer", printedName: issuer });
+  drawSignature(ctx, { x: PAGE_X + (signW + signGap) * 2, y: signTop, width: signW, title: "Witness / HR", printedName: "Witness name" });
 
-  const footerY = CANVAS_H - 212;
+  // Footer
+  const footerY = CANVAS_H - 160;
   ctx.strokeStyle = YELLOW;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 5;
   ctx.beginPath();
-  ctx.moveTo(MARGIN, footerY - 30);
-  ctx.lineTo(CANVAS_W - MARGIN, footerY - 30);
+  ctx.moveTo(PAGE_X, footerY - 50);
+  ctx.lineTo(PAGE_X + PAGE_W_PX, footerY - 50);
   ctx.stroke();
+  ctx.fillStyle = NAVY;
+  ctx.font = "800 23px Arial, sans-serif";
+  ctx.fillText("POWERBUILD GROUP  •  CONFIDENTIAL EMPLOYEE RECORD", PAGE_X, footerY - 5);
   ctx.fillStyle = MUTED;
-  ctx.font = "500 24px Arial, sans-serif";
-  ctx.fillText(`Employee file reference: ${employee.employee_number || "—"} · Workspace: ${employee.workspace || warning.workspace || "—"}`, MARGIN, footerY + 12);
-  ctx.fillText(`Prepared in PowerBuild Hub by ${generatedBy || warning.issued_by || "Authorised user"}.`, MARGIN, footerY + 48);
-  ctx.fillText("This document is generated for internal disciplinary administration and must be stored securely.", MARGIN, footerY + 84);
+  ctx.font = "500 21px Arial, sans-serif";
+  ctx.fillText(`Employee file: ${employee.employee_number || "—"}  |  Workspace: ${employee.workspace || warning.workspace || "—"}`, PAGE_X, footerY + 34);
+  ctx.textAlign = "right";
+  ctx.fillText(`${documentNumber}  •  Page 1 of 1`, PAGE_X + PAGE_W_PX, footerY + 34);
+  ctx.textAlign = "left";
 
   return canvas;
 }
@@ -443,7 +606,7 @@ export async function buildEmployeeWarningPdfBlob(payload: EmployeeWarningPdfPay
   const pdf = new PdfWriter();
   const catalogRef = pdf.reserve();
   const pagesRef = pdf.reserve();
-  const image = canvasToJpeg(canvas, 0.96);
+  const image = canvasToJpeg(canvas, 0.97);
   const imageRef = pdf.jpeg(image);
   const content = bytes(`q\n${PAGE_W.toFixed(2)} 0 0 ${PAGE_H.toFixed(2)} 0 0 cm\n/Im1 Do\nQ`);
   const contentRef = pdf.stream(content);
