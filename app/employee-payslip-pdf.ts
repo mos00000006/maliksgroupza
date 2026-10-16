@@ -7,6 +7,8 @@ export type PayslipPdfEmployee = {
   job_title?: string;
   department?: string;
   employment_type?: string;
+  employment_status?: string;
+  supervisor?: string;
   start_date?: string;
   email?: string;
   phone?: string;
@@ -118,6 +120,32 @@ const formatDate = (value?: string) => {
   if (!text) return "-";
   const date = new Date(`${text}T12:00:00`);
   return Number.isNaN(date.getTime()) ? text : date.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
+};
+
+const payCycleLabel = (startValue?: string, endValue?: string) => {
+  const start = new Date(`${String(startValue || "")}T12:00:00`);
+  const end = new Date(`${String(endValue || "")}T12:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "Payroll period";
+  const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+  if (days <= 8) return "Weekly";
+  if (days <= 16) return "Fortnightly";
+  if (days <= 24) return "Three-weekly";
+  return "Monthly";
+};
+
+const serviceLength = (startValue?: string, endValue?: string) => {
+  const start = new Date(`${String(startValue || "")}T12:00:00`);
+  const end = new Date(`${String(endValue || "")}T12:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return "-";
+  let years = end.getFullYear() - start.getFullYear();
+  let months = end.getMonth() - start.getMonth();
+  if (end.getDate() < start.getDate()) months -= 1;
+  if (months < 0) { years -= 1; months += 12; }
+  if (years <= 0 && months <= 0) return "Less than 1 month";
+  const parts: string[] = [];
+  if (years > 0) parts.push(`${years} yr${years === 1 ? "" : "s"}`);
+  if (months > 0) parts.push(`${months} mo${months === 1 ? "" : "s"}`);
+  return parts.join(" ");
 };
 const safeFilePart = (value: string) => cleanText(value).replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "payslip";
 
@@ -347,31 +375,42 @@ async function renderPayslipCanvas(payload: PayslipPdfPayload) {
   const contentW = CANVAS_W - MARGIN * 2;
   const topMetaY = 278;
   roundRect(ctx, MARGIN, topMetaY, contentW, 126, 10, "#f4f6f8", LINE, 2);
-  const metaW = contentW / 3;
+  const metaW = contentW / 4;
   drawInfoCell(ctx, MARGIN, topMetaY + 7, metaW, "Pay period", `${formatDate(payslip.pay_period_start)} - ${formatDate(payslip.pay_period_end)}`);
-  drawInfoCell(ctx, MARGIN + metaW, topMetaY + 7, metaW, "Payment date", formatDate(payslip.payment_date));
-  drawInfoCell(ctx, MARGIN + metaW * 2, topMetaY + 7, metaW, "Payment method", payslip.payment_method || "-", { rightBorder: false });
+  drawInfoCell(ctx, MARGIN + metaW, topMetaY + 7, metaW, "Pay cycle", payCycleLabel(payslip.pay_period_start, payslip.pay_period_end));
+  drawInfoCell(ctx, MARGIN + metaW * 2, topMetaY + 7, metaW, "Payment date", formatDate(payslip.payment_date));
+  drawInfoCell(ctx, MARGIN + metaW * 3, topMetaY + 7, metaW, "Payment method", payslip.payment_method || "-", { rightBorder: false });
 
   let y = 455;
   sectionTitle(ctx, "Employee information", MARGIN, y, contentW);
   y += 78;
   ctx.strokeStyle = LINE;
   ctx.lineWidth = 2;
-  ctx.strokeRect(MARGIN, y, contentW, 238);
+  ctx.strokeRect(MARGIN, y, contentW, 472);
   const colW = contentW / 3;
   drawInfoCell(ctx, MARGIN, y + 3, colW, "Employee", employeeName(employee));
   drawInfoCell(ctx, MARGIN + colW, y + 3, colW, "Employee number", employee.employee_number || "-");
   drawInfoCell(ctx, MARGIN + colW * 2, y + 3, colW, "Branch / Workspace", employee.workspace || payslip.workspace || "-", { rightBorder: false });
   ctx.strokeStyle = LINE;
   ctx.beginPath();
-  ctx.moveTo(MARGIN, y + 119);
-  ctx.lineTo(MARGIN + contentW, y + 119);
+  ctx.moveTo(MARGIN, y + 118);
+  ctx.lineTo(MARGIN + contentW, y + 118);
+  ctx.moveTo(MARGIN, y + 236);
+  ctx.lineTo(MARGIN + contentW, y + 236);
+  ctx.moveTo(MARGIN, y + 354);
+  ctx.lineTo(MARGIN + contentW, y + 354);
   ctx.stroke();
   drawInfoCell(ctx, MARGIN, y + 121, colW, "Job title", employee.job_title || "-");
   drawInfoCell(ctx, MARGIN + colW, y + 121, colW, "Department", employee.department || "-");
   drawInfoCell(ctx, MARGIN + colW * 2, y + 121, colW, "Employment type", employee.employment_type || "-", { rightBorder: false });
+  drawInfoCell(ctx, MARGIN, y + 239, colW, "Employment start date", formatDate(employee.start_date));
+  drawInfoCell(ctx, MARGIN + colW, y + 239, colW, "Length of service", serviceLength(employee.start_date, payslip.pay_period_end));
+  drawInfoCell(ctx, MARGIN + colW * 2, y + 239, colW, "Employment status", employee.employment_status || "Active", { rightBorder: false });
+  drawInfoCell(ctx, MARGIN, y + 357, colW, "Supervisor / manager", employee.supervisor || "-");
+  drawInfoCell(ctx, MARGIN + colW, y + 357, colW, "Mobile / WhatsApp", employee.phone || payslip.employee_whatsapp || "-");
+  drawInfoCell(ctx, MARGIN + colW * 2, y + 357, colW, "Employee email", employee.email || payslip.employee_email || "-", { rightBorder: false });
 
-  y += 286;
+  y += 520;
   sectionTitle(ctx, "Payroll breakdown", MARGIN, y, contentW);
   y += 78;
 
@@ -437,14 +476,14 @@ async function renderPayslipCanvas(payload: PayslipPdfPayload) {
     ctx.fillText(line, notesX + 24, y + 82 + i * 34);
   });
 
-  const confirmationY = y + 340;
+  const confirmationY = y + 332;
   roundRect(ctx, MARGIN, confirmationY, contentW, 116, 8, "#f7f8fa", LINE, 2);
   ctx.fillStyle = NAVY_2;
   ctx.font = "800 23px Arial, sans-serif";
   ctx.fillText("PAYROLL RECORD", MARGIN + 24, confirmationY + 38);
   ctx.fillStyle = MUTED;
   ctx.font = "500 23px Arial, sans-serif";
-  const statement = "This payslip reflects the payroll values captured by the authorised HR/payroll user in PowerBuild Hub. Queries should be directed to the relevant payroll or HR representative.";
+  const statement = `This payslip reflects the payroll values captured by the authorised HR/payroll user in PowerBuild Hub for ${employeeName(employee) || "the employee"}. Employment start date: ${formatDate(employee.start_date)}. Queries should be directed to the relevant payroll or HR representative.`;
   wrap(ctx, statement, contentW - 48).slice(0, 3).forEach((line, i) => ctx.fillText(line, MARGIN + 24, confirmationY + 76 + i * 29));
 
   const footerY = CANVAS_H - 190;
