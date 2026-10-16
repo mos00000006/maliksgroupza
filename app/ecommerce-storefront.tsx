@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import styles from "./ecommerce-storefront.module.css";
 
@@ -227,14 +228,14 @@ export default function EcommerceStorefront({ channel }: Props) {
   return (
     <main className={styles.store}>
       <header className={styles.header}>
-        <a className={styles.brand} href={channel === "B2C" ? "/shop" : "/wholesale-shop"}>
+        <Link className={styles.brand} href={channel === "B2C" ? "/shop" : "/wholesale-shop"}>
           <img src="/powerbuild-logo-transparent.png" alt="PowerBuild" />
           <span><strong>{data?.settings.store_name || (channel === "B2C" ? "PowerBuild Online" : "PowerBuild Wholesale Online")}</strong><small>{channel === "B2C" ? "Retail eCommerce" : "B2B Trade eCommerce"}</small></span>
-        </a>
+        </Link>
         <nav>
-          <a className={styles.backHub} href="/" aria-label="Back to Company Hub">← Back to Company Hub</a>
-          <a className={channel === "B2C" ? styles.activeChannel : ""} href="/shop">Retail Shop</a>
-          <a className={channel === "B2B" ? styles.activeChannel : ""} href="/wholesale-shop">Wholesale B2B</a>
+          <Link className={styles.backHub} href="/" aria-label="Back to Company Hub">← Back to Company Hub</Link>
+          <Link className={channel === "B2C" ? styles.activeChannel : ""} href="/shop">Retail Shop</Link>
+          <Link className={channel === "B2B" ? styles.activeChannel : ""} href="/wholesale-shop">Wholesale B2B</Link>
           <button type="button" onClick={() => setTrackOpen(true)}>Track order</button>
           <button type="button" onClick={() => setCartOpen(true)}>Cart <b>{cartCount}</b></button>
         </nav>
@@ -366,7 +367,7 @@ export default function EcommerceStorefront({ channel }: Props) {
         </div>
       )}
 
-      <footer className={styles.footer}><span>PowerBuild Group online ordering</span><div><a href="/">← Company Hub</a>{data?.settings.support_whatsapp && <a href={`https://wa.me/${data.settings.support_whatsapp.replace(/\D/g, "")}`}>WhatsApp support</a>}{data?.settings.support_email && <a href={`mailto:${data.settings.support_email}`}>Email support</a>}</div></footer>
+      <footer className={styles.footer}><span>PowerBuild Group online ordering</span><div><Link href="/">← Company Hub</Link>{data?.settings.support_whatsapp && <a href={`https://wa.me/${data.settings.support_whatsapp.replace(/\D/g, "")}`}>WhatsApp support</a>}{data?.settings.support_email && <a href={`mailto:${data.settings.support_email}`}>Email support</a>}</div></footer>
     </main>
   );
 }
