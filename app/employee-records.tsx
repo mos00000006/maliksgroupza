@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { downloadEmployeeWarningPdf } from "./employee-warning-pdf";
+import { buildEmployeePayslipPdfBlob, payslipPdfFileName } from "./employee-payslip-pdf";
 
 type CurrentHubUser = { name: string; email: string; role?: string; department?: string };
 type Store = { id: number; name: string; type: string; region: string; manager: string };
@@ -29,6 +30,44 @@ type Warning = {
   acknowledgement: string;
   status: "Active" | "Withdrawn";
 };
+type Payslip = {
+  id: number;
+  employee_id: number;
+  workspace: string;
+  pay_period_start: string;
+  pay_period_end: string;
+  payment_date: string;
+  payment_method: string;
+  payment_reference: string;
+  basic_salary: number;
+  overtime_hours: number;
+  overtime_rate: number;
+  overtime_amount: number;
+  allowance_amount: number;
+  commission_amount: number;
+  bonus_amount: number;
+  other_earnings: number;
+  gross_pay: number;
+  paye: number;
+  uif: number;
+  pension: number;
+  medical_aid: number;
+  loan_deduction: number;
+  other_deductions: number;
+  total_deductions: number;
+  net_pay: number;
+  notes: string;
+  employee_email: string;
+  employee_whatsapp: string;
+  generated_by: string;
+  pdf_object_key: string;
+  pdf_file_name: string;
+  share_token: string;
+  share_expires_at: string;
+  status: string;
+  created_at: string;
+};
+
 type HrRecord = {
   id: number;
   employee_id: number;
@@ -76,6 +115,7 @@ type ApiData = {
   attendance: Attendance[];
   warnings: Warning[];
   hrRecords: HrRecord[];
+  payslips: Payslip[];
   summary: {
     total: number;
     atWork: number;
@@ -92,12 +132,13 @@ type ApiData = {
     canRecordAttendance: boolean;
     canIssueWarnings: boolean;
     canManageHrRecords: boolean;
+    canManagePayslips: boolean;
     canSeeFullId?: boolean;
   };
   today: string;
 };
 
-type Tab = "Employees" | "Attendance History" | "Leave Requests" | "Company Property" | "Warnings" | "HR Records";
+type Tab = "Employees" | "Attendance History" | "Leave Requests" | "Company Property" | "Warnings" | "Payslips" | "HR Records";
 
 const blankEmployee = (workspace = "") => ({
   employeeNumber: "",
@@ -131,6 +172,14 @@ const formatDate = (value: string) => {
 const employeeName = (employee: Employee) => `${employee.first_name} ${employee.last_name}`.trim();
 const initials = (employee: Employee) => `${employee.first_name?.[0] || ""}${employee.last_name?.[0] || ""}`.toUpperCase() || "ST";
 const warningIsActive = (warning: Warning, today: string) => warning.status === "Active" && (!warning.valid_until || warning.valid_until >= today);
+const rand = (value: unknown) => Number(value || 0).toLocaleString("en-ZA", { style: "currency", currency: "ZAR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const payNumber = (value: unknown) => Math.max(0, Number(value) || 0);
+const normaliseWhatsapp = (value: string) => {
+  const digits = String(value || "").replace(/[^0-9+]/g, "").replace(/^\+/, "");
+  if (!digits) return "";
+  if (digits.startsWith("0")) return `27${digits.slice(1)}`;
+  return digits;
+};
 
 const isAttendedStatus = (status: Attendance["status"]) => status === "At work" || status === "Late";
 const isoDate = (date: Date) => date.toISOString().slice(0, 10);
@@ -431,6 +480,10 @@ button.historyItem:hover{background:#f6f9fc}
 .panelHeaderActions{display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap}.panelHeaderActions button,.panelAddBtn{min-height:34px;border:1px solid #d2dce6;border-radius:8px;background:#fff;padding:0 10px;color:#35516d;font:inherit;font-size:7px;font-weight:900;cursor:pointer;white-space:nowrap}.panelHeaderActions button:hover,.panelAddBtn:hover{background:#f1f6fb;border-color:#bccbd9}.panelAddBtn{border-color:#d8af1b;background:#f6ca2f;color:#172438}.panelAddBtn:hover{background:#f2c21b;border-color:#c99f0c}.recordPickerOverlay{z-index:64}.recordPickerModal{width:min(720px,calc(100vw - 24px));max-height:min(720px,calc(100dvh - 24px))}.recordPickerBody{min-height:0;overflow-y:auto;padding:14px}.recordPickerSearch{height:42px;border:1px solid #d6e0e9;border-radius:10px;background:#f8fafc;display:flex;align-items:center;padding:0 11px;color:#7b8998}.recordPickerSearch input{flex:1;min-width:0;border:0;outline:0;background:transparent;padding:0 8px;color:#263e56;font:inherit;font-size:9px}.recordPickerList{display:grid;gap:7px;margin-top:10px}.recordPickerList>button{width:100%;display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid #dfe6ed;border-radius:11px;background:#fff;padding:9px 10px;text-align:left;cursor:pointer}.recordPickerList>button:hover{background:#f7fafc;border-color:#c9d5e0}.recordPickerList>button span{min-width:0}.recordPickerList>button b,.recordPickerList>button small{display:block}.recordPickerList>button b{color:#243c55;font-size:9px}.recordPickerList>button small{margin-top:3px;overflow:hidden;color:#8996a5;font-size:7px;text-overflow:ellipsis;white-space:nowrap}.recordPickerList>button em{color:#315a7e;font-size:7px;font-style:normal;font-weight:900;white-space:nowrap}@media(max-width:760px){.panelHeader{align-items:flex-start;flex-direction:column}.panelHeaderActions{width:100%;display:grid;grid-template-columns:1fr 1fr}.panelHeaderActions button,.panelAddBtn{width:100%;min-height:40px}.recordPickerModal{width:calc(100vw - 10px);max-height:calc(100dvh - 10px)}.recordPickerList>button{grid-template-columns:36px minmax(0,1fr);min-height:62px}.recordPickerList>button em{grid-column:2;margin-top:-5px}.recordPickerSearch{height:46px}}
 
 
+.payslipRegister .registerHead,.payslipRegister .registerRow{grid-template-columns:1.15fr 1fr .85fr .85fr .8fr 1.45fr;min-width:980px}.payslipActions{display:flex;gap:6px;flex-wrap:wrap}.payslipActions button{min-height:30px;border:1px solid #d6e0e9;border-radius:8px;background:#fff;padding:0 9px;color:#35516d;font:inherit;font-size:6.5px;font-weight:900;cursor:pointer}.payslipActions .download{border-color:#d0a500;background:#f6ca2f;color:#172438}.payslipActions .whatsapp{border-color:#b9e2d1;color:#1a7655}.payslipActions .email{border-color:#bfd4ec;color:#245d9c}.payslipAmount{font-weight:900;color:#173b60}.payslipForm{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.payslipForm label{display:grid;gap:5px;color:#3d5268;font-size:7px;font-weight:850}.payslipForm input,.payslipForm select,.payslipForm textarea{width:100%;border:1px solid #d7e0e8;border-radius:8px;background:#fff;color:#21364e;padding:9px 10px;font:inherit;font-size:8px}.payslipForm textarea{min-height:78px;resize:vertical}.payslipForm .wide2{grid-column:span 2}.payslipForm .wide4{grid-column:1/-1}.payslipSectionTitle{grid-column:1/-1;margin:3px 0 -1px;padding-top:6px;border-top:1px solid #e8edf2;color:#1d4d78;font-size:7px;font-weight:950;letter-spacing:.12em;text-transform:uppercase}.payslipTotals{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.payslipTotals article{border:1px solid #dbe4ed;border-radius:11px;background:#f8fafc;padding:11px 12px}.payslipTotals span,.payslipTotals b{display:block}.payslipTotals span{color:#7a8999;font-size:6px;font-weight:900;text-transform:uppercase}.payslipTotals b{margin-top:5px;color:#183b5d;font-size:18px}.payslipTotals article.net{border-color:#e4bd21;background:#173a5e}.payslipTotals article.net span{color:#f5cd2c}.payslipTotals article.net b{color:#fff}.payslipGenerated{width:min(650px,calc(100vw - 26px))}.payslipGeneratedSummary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}.payslipGeneratedSummary article{border:1px solid #dce4ec;border-radius:10px;background:#f8fafc;padding:11px}.payslipGeneratedSummary span,.payslipGeneratedSummary b{display:block}.payslipGeneratedSummary span{font-size:6px;color:#7f8d9c;font-weight:900;text-transform:uppercase}.payslipGeneratedSummary b{margin-top:5px;font-size:13px;color:#203b56}.payslipShareNotice{border:1px solid #d9e3ec;border-radius:10px;background:#f7fafc;padding:10px;color:#61758a;font-size:7px;line-height:1.55}.payslipHistoryItem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}.payslipHistoryItem .payslipActions{justify-content:flex-end}.payslipPrimaryBtn{border:1px solid #d2a500!important;background:#f6ca2f!important;color:#172438!important}.payslipPickerBadge{display:inline-block;border-radius:999px;background:#e9f1fa;color:#285c89;padding:5px 8px;font-size:6px;font-weight:900}
+@media(max-width:900px){.payslipForm{grid-template-columns:1fr 1fr}.payslipForm .wide4{grid-column:1/-1}.payslipGeneratedSummary{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.payslipForm{grid-template-columns:1fr}.payslipForm .wide2,.payslipForm .wide4{grid-column:1}.payslipTotals{grid-template-columns:1fr}.payslipGeneratedSummary{grid-template-columns:1fr}.payslipHistoryItem{grid-template-columns:1fr}.payslipActions{width:100%}.payslipActions button{flex:1;min-height:36px}}
+
 `;
 
 export default function EmployeeRecords({ currentUser }: { currentUser: CurrentHubUser }) {
@@ -460,6 +513,14 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
   const [propertyChoice, setPropertyChoice] = useState("");
   const [recordPicker, setRecordPicker] = useState<{ recordType: HrRecord["record_type"]; heading: string } | null>(null);
   const [recordPickerSearch, setRecordPickerSearch] = useState("");
+  const [payslipPicker, setPayslipPicker] = useState(false);
+  const [payslipModal, setPayslipModal] = useState<Employee | null>(null);
+  const [generatedPayslip, setGeneratedPayslip] = useState<Payslip | null>(null);
+  const [payslipForm, setPayslipForm] = useState({
+    payPeriodStart: "", payPeriodEnd: "", paymentDate: new Date().toISOString().slice(0, 10), paymentMethod: "EFT", paymentReference: "",
+    basicSalary: "", overtimeHours: "", overtimeRate: "", allowanceAmount: "", commissionAmount: "", bonusAmount: "", otherEarnings: "",
+    paye: "", uif: "", pension: "", medicalAid: "", loanDeduction: "", otherDeductions: "", notes: "", employeeEmail: "", employeeWhatsapp: "",
+  });
 
   const flash = (text: string) => {
     setMessage(text);
@@ -509,6 +570,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
   const attendanceFor = (id: number) => (data?.attendance || []).filter((row) => Number(row.employee_id) === id);
   const warningsFor = (id: number) => (data?.warnings || []).filter((row) => Number(row.employee_id) === id);
   const hrFor = (id: number) => (data?.hrRecords || []).filter((row) => Number(row.employee_id) === id);
+  const payslipsFor = (id: number) => (data?.payslips || []).filter((row) => Number(row.employee_id) === id);
 
   const filteredEmployees = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -594,6 +656,22 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
     });
   }, [data, search, recordFilter]);
 
+  const filteredPayslips = useMemo(() => {
+    if (!data?.permissions.canManagePayslips) return [];
+    const needle = search.trim().toLowerCase();
+    return (data.payslips || []).filter((payslip) => {
+      const employee = data.employees.find((item) => item.id === Number(payslip.employee_id));
+      return !needle || [employee ? employeeName(employee) : "", employee?.employee_number || "", payslip.pay_period_start, payslip.pay_period_end, payslip.payment_reference, payslip.generated_by].join(" ").toLowerCase().includes(needle);
+    });
+  }, [data, search]);
+
+  const payslipTotals = useMemo(() => {
+    const overtime = payNumber(payslipForm.overtimeHours) * payNumber(payslipForm.overtimeRate);
+    const gross = payNumber(payslipForm.basicSalary) + overtime + payNumber(payslipForm.allowanceAmount) + payNumber(payslipForm.commissionAmount) + payNumber(payslipForm.bonusAmount) + payNumber(payslipForm.otherEarnings);
+    const deductions = payNumber(payslipForm.paye) + payNumber(payslipForm.uif) + payNumber(payslipForm.pension) + payNumber(payslipForm.medicalAid) + payNumber(payslipForm.loanDeduction) + payNumber(payslipForm.otherDeductions);
+    return { overtime, gross, deductions, net: gross - deductions };
+  }, [payslipForm]);
+
   const post = async (payload: Record<string, unknown>) => {
     const response = await fetch("/api/employees", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
     const result = await response.json().catch(() => ({}));
@@ -664,6 +742,136 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
       setEmployeeModal(null);
       await load(employeeForm.workspace || workspace);
     } catch (error) { flash(error instanceof Error ? error.message : "Employee file could not be saved."); }
+    finally { setSaving(false); }
+  };
+
+  const openPayslip = (employee: Employee) => {
+    const base = new Date(`${data?.today || new Date().toISOString().slice(0, 10)}T12:00:00`);
+    const start = new Date(base.getFullYear(), base.getMonth(), 1);
+    const end = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+    setPayslipForm({
+      payPeriodStart: start.toISOString().slice(0, 10),
+      payPeriodEnd: end.toISOString().slice(0, 10),
+      paymentDate: data?.today || new Date().toISOString().slice(0, 10),
+      paymentMethod: "EFT", paymentReference: "",
+      basicSalary: "", overtimeHours: "", overtimeRate: "", allowanceAmount: "", commissionAmount: "", bonusAmount: "", otherEarnings: "",
+      paye: "", uif: "", pension: "", medicalAid: "", loanDeduction: "", otherDeductions: "", notes: "",
+      employeeEmail: employee.email || "", employeeWhatsapp: employee.phone || "",
+    });
+    setPayslipModal(employee);
+  };
+
+  const ensurePayslipPdf = async (payslip: Payslip, employee?: Employee | null) => {
+    const person = employee || employeeById(Number(payslip.employee_id));
+    if (!person) throw new Error("Employee file could not be found for this payslip.");
+    if (payslip.pdf_object_key) return payslip;
+    const blob = await buildEmployeePayslipPdfBlob({ employee: person, payslip });
+    const form = new FormData();
+    form.append("file", new File([blob], payslipPdfFileName(person, payslip), { type: "application/pdf" }));
+    const response = await fetch(`/api/employees/payslips/${payslip.id}/pdf`, { method: "POST", body: form });
+    const result = await response.json().catch(() => ({})) as { payslip?: Payslip; error?: string };
+    if (!response.ok || !result.payslip) throw new Error(result.error || "Payslip PDF could not be stored.");
+    return result.payslip;
+  };
+
+  const savePayslip = async () => {
+    if (!payslipModal || saving) return;
+    if (!payslipForm.payPeriodStart || !payslipForm.payPeriodEnd) return flash("Choose the payslip period start and end dates.");
+    setSaving(true);
+    try {
+      const result = await post({ action: "payslip", employeeId: payslipModal.id, ...payslipForm }) as { payslip?: Payslip };
+      if (!result.payslip) throw new Error("Payslip record was not returned.");
+      const completed = await ensurePayslipPdf(result.payslip, payslipModal);
+      setGeneratedPayslip(completed);
+      setPayslipModal(null);
+      flash(`Payslip generated for ${employeeName(payslipModal)}.`);
+      await load(workspace);
+    } catch (error) { flash(error instanceof Error ? error.message : "Payslip could not be generated."); }
+    finally { setSaving(false); }
+  };
+
+  const downloadPayslip = async (payslip: Payslip, employee?: Employee | null) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const completed = await ensurePayslipPdf(payslip, employee);
+      const anchor = document.createElement("a");
+      anchor.href = `/api/employees/payslips/${completed.id}/pdf`;
+      anchor.download = completed.pdf_file_name || "PowerBuild_Payslip.pdf";
+      document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      setGeneratedPayslip(completed);
+      flash("Payslip PDF downloaded.");
+    } catch (error) { flash(error instanceof Error ? error.message : "Payslip could not be downloaded."); }
+    finally { setSaving(false); }
+  };
+
+  const payslipShareLink = async (payslip: Payslip, employee?: Employee | null) => {
+    const completed = await ensurePayslipPdf(payslip, employee);
+    const response = await fetch(`/api/employees/payslips/${completed.id}/share`, { method: "POST" });
+    const result = await response.json().catch(() => ({})) as { shareUrl?: string; error?: string };
+    if (!response.ok || !result.shareUrl) throw new Error(result.error || "Payslip share link could not be created.");
+    return { completed, shareUrl: result.shareUrl };
+  };
+
+  const sharePayslipFile = async (payslip: Payslip, employee?: Employee | null) => {
+    if (saving) return;
+    const person = employee || employeeById(Number(payslip.employee_id));
+    if (!person) return flash("Employee file could not be found for this payslip.");
+    setSaving(true);
+    try {
+      const completed = await ensurePayslipPdf(payslip, person);
+      const response = await fetch(`/api/employees/payslips/${completed.id}/pdf`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Payslip PDF could not be loaded for sharing.");
+      const blob = await response.blob();
+      const file = new File([blob], completed.pdf_file_name || payslipPdfFileName(person, completed), { type: "application/pdf" });
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({ files: [file], title: `PowerBuild Payslip - ${employeeName(person)}`, text: `Payslip for ${formatDate(completed.pay_period_start)} to ${formatDate(completed.pay_period_end)}` });
+        flash("Payslip PDF shared.");
+      } else {
+        const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = file.name; document.body.appendChild(anchor); anchor.click(); anchor.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+        flash("This device cannot attach the PDF directly. The payslip was downloaded so you can attach it manually.");
+      }
+    } catch (error) { if (error instanceof DOMException && error.name === "AbortError") return; flash(error instanceof Error ? error.message : "Payslip PDF could not be shared."); }
+    finally { setSaving(false); }
+  };
+
+  const sendPayslipWhatsapp = async (payslip: Payslip, employee?: Employee | null) => {
+    if (saving) return;
+    const person = employee || employeeById(Number(payslip.employee_id));
+    const number = normaliseWhatsapp(payslip.employee_whatsapp || person?.phone || "");
+    if (!number) return flash("Add the employee WhatsApp/mobile number before sending the payslip.");
+    setSaving(true);
+    try {
+      const { shareUrl } = await payslipShareLink(payslip, person);
+      const message = `Hi ${person ? employeeName(person) : ""}, your PowerBuild payslip for ${formatDate(payslip.pay_period_start)} to ${formatDate(payslip.pay_period_end)} is ready. Download the PDF here: ${shareUrl}`;
+      window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+      flash("WhatsApp opened with the secure payslip PDF link. The link expires in 7 days.");
+    } catch (error) { flash(error instanceof Error ? error.message : "Payslip could not be shared on WhatsApp."); }
+    finally { setSaving(false); }
+  };
+
+  const sendPayslipEmail = async (payslip: Payslip, employee?: Employee | null) => {
+    if (saving) return;
+    const person = employee || employeeById(Number(payslip.employee_id));
+    const email = (payslip.employee_email || person?.email || "").trim();
+    if (!email) return flash("Add the employee email address before sending the payslip.");
+    setSaving(true);
+    try {
+      const { shareUrl } = await payslipShareLink(payslip, person);
+      const subject = `PowerBuild Payslip - ${formatDate(payslip.pay_period_end)}`;
+      const body = `Hi ${person ? employeeName(person) : ""},
+
+Your PowerBuild payslip for ${formatDate(payslip.pay_period_start)} to ${formatDate(payslip.pay_period_end)} is ready.
+
+Download the PDF: ${shareUrl}
+
+This secure link expires in 7 days.
+
+Regards,
+PowerBuild HR`;
+      window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      flash("Email opened with the secure payslip PDF link. The link expires in 7 days.");
+    } catch (error) { flash(error instanceof Error ? error.message : "Payslip could not be shared by email."); }
     finally { setSaving(false); }
   };
 
@@ -794,7 +1002,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
         <div>
           <small>POWERBUILD PEOPLE CONTROL</small>
           <h2>Employee Records, Attendance & HR History</h2>
-          <p>Maintain employee files, weekly/monthly attendance history, leave requests, warnings, uniforms/PPE, company vehicles, phones/SIMs, training and employment records.</p>
+          <p>Maintain employee files, attendance, leave, warnings, payroll payslips, uniforms/PPE, company assets, training and employment records.</p>
         </div>
         <div className="employeeHeroActions">
           <label>Location<select value={workspace} onChange={(e) => { setSearch(""); setSelected(null); void load(e.target.value); }}>{data.stores.map((store) => <option key={store.id} value={store.name}>{store.name}</option>)}</select></label>
@@ -813,7 +1021,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
       </div>
 
       <div className="employeeTabs">
-        {(["Employees", "Attendance History", "Leave Requests", "Company Property", "Warnings", "HR Records"] as Tab[]).map((tab) => <button key={tab} className={activeTab === tab ? "active" : ""} onClick={() => { setActiveTab(tab); setSearch(""); }}>{tab}</button>)}
+        {(["Employees", "Attendance History", "Leave Requests", "Company Property", "Warnings", ...(data.permissions.canManagePayslips ? ["Payslips"] : []), "HR Records"] as Tab[]).map((tab) => <button key={tab} className={activeTab === tab ? "active" : ""} onClick={() => { setActiveTab(tab); setSearch(""); }}>{tab}</button>)}
       </div>
 
       <div className="employeeToolbar">
@@ -865,6 +1073,27 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
               </div>;
             })}
             {!filteredWarnings.length && <div className="employeeEmpty">No warnings match this view.</div>}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "Payslips" && data.permissions.canManagePayslips && (
+        <div className="panel payslipRegister">
+          <div className="panelHeader"><div><small className="sectionEyebrow">CONFIDENTIAL PAYROLL</small><h3>Payslips</h3><p>Generate premium PowerBuild payslips, keep a payroll history and share each PDF securely by WhatsApp or email.</p></div><button className="panelAddBtn" onClick={() => setPayslipPicker(true)}>＋ Generate payslip</button></div>
+          <div className="tableWrap">
+            <div className="registerHead"><span>Employee</span><span>Pay period</span><span>Gross pay</span><span>Deductions</span><span>Net pay</span><span>PDF / Send</span></div>
+            {filteredPayslips.map((payslip) => {
+              const employee = employeeById(Number(payslip.employee_id));
+              return <div className="registerRow" key={payslip.id}>
+                <button className="rowButton" onClick={() => employee && setSelected(employee)}>{employee ? employeeName(employee) : `Employee #${payslip.employee_id}`}<small>{employee?.employee_number || payslip.workspace}</small></button>
+                <span className="stack"><b>{formatDate(payslip.pay_period_start)} → {formatDate(payslip.pay_period_end)}</b><small>Paid {formatDate(payslip.payment_date)} · {payslip.payment_method}</small></span>
+                <span>{rand(payslip.gross_pay)}</span>
+                <span>{rand(payslip.total_deductions)}</span>
+                <span className="payslipAmount">{rand(payslip.net_pay)}</span>
+                <div className="payslipActions"><button className="download" disabled={saving} onClick={() => void downloadPayslip(payslip, employee)}>↓ PDF</button><button className="whatsapp" disabled={saving} onClick={() => void sendPayslipWhatsapp(payslip, employee)}>WhatsApp</button><button className="email" disabled={saving} onClick={() => void sendPayslipEmail(payslip, employee)}>Email</button></div>
+              </div>;
+            })}
+            {!filteredPayslips.length && <div className="employeeEmpty">No payslips have been generated for this location yet.</div>}
           </div>
         </div>
       )}
@@ -978,10 +1207,69 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
         </div>
       )}
 
+      {payslipPicker && data.permissions.canManagePayslips && (
+        <div className="overlay employeeOverlay recordPickerOverlay" onMouseDown={() => setPayslipPicker(false)}>
+          <section className="employeeModal recordPickerModal" onMouseDown={(e) => e.stopPropagation()}>
+            <header><div><small className="sectionEyebrow">PAYROLL · SELECT EMPLOYEE</small><h2>Generate payslip</h2><p>Choose an employee to open the payroll capture form.</p></div><button className="closeBtn" onClick={() => setPayslipPicker(false)}>×</button></header>
+            <div className="recordPickerBody"><div className="recordPickerList">{data.employees.map((employee) => <button key={employee.id} onClick={() => { setPayslipPicker(false); openPayslip(employee); }}><i className="avatar">{initials(employee)}</i><span><b>{employeeName(employee)}</b><small>{employee.employee_number || "No employee no."} · {employee.job_title || "No job title"} · {employee.department || "No department"}</small></span><em>Generate →</em></button>)}{!data.employees.length && <div className="employeeEmpty">No employees are available in this workspace.</div>}</div></div>
+          </section>
+        </div>
+      )}
+
+      {payslipModal && data.permissions.canManagePayslips && (
+        <div className="overlay employeeOverlay" onMouseDown={() => !saving && setPayslipModal(null)}>
+          <section className="employeeModal" onMouseDown={(e) => e.stopPropagation()}>
+            <header><div><small className="sectionEyebrow">CONFIDENTIAL PAYROLL</small><h2>Generate payslip</h2><p>{employeeName(payslipModal)} · {payslipModal.employee_number} · {payslipModal.workspace}</p></div><button className="closeBtn" disabled={saving} onClick={() => setPayslipModal(null)}>×</button></header>
+            <div className="modalBody payslipForm">
+              <div className="payslipSectionTitle">Pay period & payment</div>
+              <label>Pay period start<input type="date" value={payslipForm.payPeriodStart} onChange={(e)=>setPayslipForm({...payslipForm,payPeriodStart:e.target.value})}/></label>
+              <label>Pay period end<input type="date" value={payslipForm.payPeriodEnd} onChange={(e)=>setPayslipForm({...payslipForm,payPeriodEnd:e.target.value})}/></label>
+              <label>Payment date<input type="date" value={payslipForm.paymentDate} onChange={(e)=>setPayslipForm({...payslipForm,paymentDate:e.target.value})}/></label>
+              <label>Payment method<select value={payslipForm.paymentMethod} onChange={(e)=>setPayslipForm({...payslipForm,paymentMethod:e.target.value})}><option>EFT</option><option>Cash</option><option>Cheque</option><option>Other</option></select></label>
+              <label className="wide2">Payment / bank reference<input value={payslipForm.paymentReference} onChange={(e)=>setPayslipForm({...payslipForm,paymentReference:e.target.value})} placeholder="Optional payroll reference"/></label>
+              <label>Employee email<input type="email" value={payslipForm.employeeEmail} onChange={(e)=>setPayslipForm({...payslipForm,employeeEmail:e.target.value})}/></label>
+              <label>Employee WhatsApp<input value={payslipForm.employeeWhatsapp} onChange={(e)=>setPayslipForm({...payslipForm,employeeWhatsapp:e.target.value})} placeholder="e.g. 071 234 5678"/></label>
+
+              <div className="payslipSectionTitle">Earnings</div>
+              <label>Basic salary (R)<input type="number" min="0" step="0.01" value={payslipForm.basicSalary} onChange={(e)=>setPayslipForm({...payslipForm,basicSalary:e.target.value})}/></label>
+              <label>Overtime hours<input type="number" min="0" step="0.01" value={payslipForm.overtimeHours} onChange={(e)=>setPayslipForm({...payslipForm,overtimeHours:e.target.value})}/></label>
+              <label>Overtime rate / hour (R)<input type="number" min="0" step="0.01" value={payslipForm.overtimeRate} onChange={(e)=>setPayslipForm({...payslipForm,overtimeRate:e.target.value})}/></label>
+              <label>Overtime amount<input disabled value={rand(payslipTotals.overtime)}/></label>
+              <label>Allowances (R)<input type="number" min="0" step="0.01" value={payslipForm.allowanceAmount} onChange={(e)=>setPayslipForm({...payslipForm,allowanceAmount:e.target.value})}/></label>
+              <label>Commission (R)<input type="number" min="0" step="0.01" value={payslipForm.commissionAmount} onChange={(e)=>setPayslipForm({...payslipForm,commissionAmount:e.target.value})}/></label>
+              <label>Bonus (R)<input type="number" min="0" step="0.01" value={payslipForm.bonusAmount} onChange={(e)=>setPayslipForm({...payslipForm,bonusAmount:e.target.value})}/></label>
+              <label>Other earnings (R)<input type="number" min="0" step="0.01" value={payslipForm.otherEarnings} onChange={(e)=>setPayslipForm({...payslipForm,otherEarnings:e.target.value})}/></label>
+
+              <div className="payslipSectionTitle">Deductions</div>
+              <label>PAYE (R)<input type="number" min="0" step="0.01" value={payslipForm.paye} onChange={(e)=>setPayslipForm({...payslipForm,paye:e.target.value})}/></label>
+              <label>UIF (R)<input type="number" min="0" step="0.01" value={payslipForm.uif} onChange={(e)=>setPayslipForm({...payslipForm,uif:e.target.value})}/></label>
+              <label>Pension / Provident (R)<input type="number" min="0" step="0.01" value={payslipForm.pension} onChange={(e)=>setPayslipForm({...payslipForm,pension:e.target.value})}/></label>
+              <label>Medical aid (R)<input type="number" min="0" step="0.01" value={payslipForm.medicalAid} onChange={(e)=>setPayslipForm({...payslipForm,medicalAid:e.target.value})}/></label>
+              <label>Loan / Advance (R)<input type="number" min="0" step="0.01" value={payslipForm.loanDeduction} onChange={(e)=>setPayslipForm({...payslipForm,loanDeduction:e.target.value})}/></label>
+              <label>Other deductions (R)<input type="number" min="0" step="0.01" value={payslipForm.otherDeductions} onChange={(e)=>setPayslipForm({...payslipForm,otherDeductions:e.target.value})}/></label>
+              <label className="wide4">Payroll notes<textarea value={payslipForm.notes} onChange={(e)=>setPayslipForm({...payslipForm,notes:e.target.value})} placeholder="Optional payroll note, allowance description or deduction explanation"/></label>
+              <div className="payslipTotals"><article><span>Gross pay</span><b>{rand(payslipTotals.gross)}</b></article><article><span>Total deductions</span><b>{rand(payslipTotals.deductions)}</b></article><article className="net"><span>Net pay</span><b>{rand(payslipTotals.net)}</b></article></div>
+              <p className="privacyNote wide4">PAYE, UIF and other statutory/payroll deductions are captured values. The Hub totals them but does not calculate tax liability or replace your payroll/tax system.</p>
+            </div>
+            <footer className="modalFooter"><button className="secondaryBtn" disabled={saving} onClick={() => setPayslipModal(null)}>Cancel</button><button className="primaryBtn payslipPrimaryBtn" disabled={saving} onClick={() => void savePayslip()}>{saving ? "Generating PDF…" : "Generate & save payslip"}</button></footer>
+          </section>
+        </div>
+      )}
+
+      {generatedPayslip && (
+        <div className="overlay employeeOverlay" onMouseDown={() => !saving && setGeneratedPayslip(null)}>
+          <section className="employeeModal payslipGenerated" onMouseDown={(e) => e.stopPropagation()}>
+            <header><div><small className="sectionEyebrow">PAYSLIP READY</small><h2>{employeeById(Number(generatedPayslip.employee_id)) ? employeeName(employeeById(Number(generatedPayslip.employee_id)) as Employee) : "Employee payslip"}</h2><p>{formatDate(generatedPayslip.pay_period_start)} → {formatDate(generatedPayslip.pay_period_end)}</p></div><button className="closeBtn" onClick={() => setGeneratedPayslip(null)}>×</button></header>
+            <div className="modalBody"><div className="payslipGeneratedSummary"><article><span>Gross pay</span><b>{rand(generatedPayslip.gross_pay)}</b></article><article><span>Deductions</span><b>{rand(generatedPayslip.total_deductions)}</b></article><article><span>Net pay</span><b>{rand(generatedPayslip.net_pay)}</b></article></div><p className="payslipShareNotice">The PDF is stored in the employee payroll history. WhatsApp and Email create a secure 7-day PDF download link for the employee. On devices that support native file sharing, you can also download the PDF and share the actual file.</p></div>
+            <footer className="modalFooter payslipActions"><button className="download" disabled={saving} onClick={() => void downloadPayslip(generatedPayslip)}>↓ Download PDF</button><button className="download" disabled={saving} onClick={() => void sharePayslipFile(generatedPayslip)}>Share PDF file</button><button className="whatsapp" disabled={saving} onClick={() => void sendPayslipWhatsapp(generatedPayslip)}>Send WhatsApp</button><button className="email" disabled={saving} onClick={() => void sendPayslipEmail(generatedPayslip)}>Send Email</button><button className="secondaryBtn" onClick={() => setGeneratedPayslip(null)}>Close</button></footer>
+          </section>
+        </div>
+      )}
+
       {selected && (
         <div className="overlay employeeOverlay" onMouseDown={() => setSelected(null)}>
           <section className="profileModal" onMouseDown={(e) => e.stopPropagation()}>
-            <header><div className="profileHeader"><i className="avatar">{initials(selected)}</i><div><small className="sectionEyebrow">EMPLOYEE FILE · {selected.employee_number}</small><h2>{employeeName(selected)}</h2><p>{selected.job_title || "Job title not set"} · {selected.workspace}</p></div></div><div className="miniActions">{data.permissions.canManageEmployees && <button className="secondaryBtn" onClick={() => openEditEmployee(selected)}>Edit file</button>}{data.permissions.canManageHrRecords && <button className="secondaryBtn" onClick={() => openHrRecord(selected,"Leave Request")}>Leave request</button>}{data.permissions.canIssueWarnings && <button className="secondaryBtn" onClick={() => openWarning(selected)}>Issue warning</button>}<button className="closeBtn" onClick={() => setSelected(null)}>×</button></div></header>
+            <header><div className="profileHeader"><i className="avatar">{initials(selected)}</i><div><small className="sectionEyebrow">EMPLOYEE FILE · {selected.employee_number}</small><h2>{employeeName(selected)}</h2><p>{selected.job_title || "Job title not set"} · {selected.workspace}</p></div></div><div className="miniActions">{data.permissions.canManageEmployees && <button className="secondaryBtn" onClick={() => openEditEmployee(selected)}>Edit file</button>}{data.permissions.canManageHrRecords && <button className="secondaryBtn" onClick={() => openHrRecord(selected,"Leave Request")}>Leave request</button>}{data.permissions.canIssueWarnings && <button className="secondaryBtn" onClick={() => openWarning(selected)}>Issue warning</button>}{data.permissions.canManagePayslips && <button className="secondaryBtn payslipPrimaryBtn" onClick={() => openPayslip(selected)}>Generate payslip</button>}<button className="closeBtn" onClick={() => setSelected(null)}>×</button></div></header>
             <div className="profileBody">
               {(() => { const insight = attendanceInsights(selected.id); return <div className="profileStats"><article><span>Attended this week</span><b>{insight.week.attended}</b><small>{insight.week.late} late</small></article><article><span>Attended this month</span><b>{insight.month.attended}</b><small>{insight.month.late} late · {insight.month.lateMinutes} min</small></article><article><span>Absent this month</span><b>{insight.month.absent}</b><small>Not-at-work records</small></article><article><span>Warnings</span><b>{selected.warning_count}</b><small>{selected.active_warning_count} active</small></article><article><span>Year attendance</span><b>{insight.year.attended}</b><small>{insight.year.late} late · {insight.year.absent} absent</small></article></div>; })()}
               <div className="profileGrid">
@@ -992,6 +1280,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
               <section className="historySection"><header><div><small className="sectionEyebrow">LEAVE REQUEST HISTORY</small><h3>Leave Requests</h3></div>{data.permissions.canManageHrRecords && <button className="secondaryBtn" onClick={() => openHrRecord(selected,"Leave Request")}>＋ New leave request</button>}</header><div className="historyList">{hrFor(selected.id).filter((record) => leaveRecordTypes.includes(record.record_type)).map((record) => <div className="historyItem profileAssetItem" key={record.id}><div><b>{record.title || "Leave"} · {record.status || "Requested"}</b><small>{formatDate(record.record_date)}{record.end_date ? ` → ${formatDate(record.end_date)}` : ""}{record.details ? ` · ${record.details}` : ""}</small></div><div className="statusActions">{data.permissions.canManageHrRecords && !/approved|declined|cancelled/i.test(record.status || "") && <><button className="approve" onClick={() => void updateHrStatus(record,"Approved")}>Approve</button><button className="decline" onClick={() => void updateHrStatus(record,"Declined")}>Decline</button></>}</div></div>)}{!hrFor(selected.id).some((record) => leaveRecordTypes.includes(record.record_type)) && <div className="employeeEmpty">No leave requests recorded.</div>}</div></section>
               <section className="historySection"><header><div><small className="sectionEyebrow">COMPANY PROPERTY</small><h3>Uniforms, Vehicles, Phones & Other Assets</h3></div>{data.permissions.canManageHrRecords && <div className="quickRecordActions"><button onClick={() => openHrRecord(selected,"Uniform / PPE")}>＋ Uniform / PPE</button><button onClick={() => openHrRecord(selected,"Company Vehicle")}>＋ Vehicle</button><button onClick={() => openHrRecord(selected,"Company Phone / SIM")}>＋ Phone / SIM</button></div>}</header><div className="historyList">{hrFor(selected.id).filter((record) => propertyRecordTypes.includes(record.record_type)).map((record) => <div className="historyItem profileAssetItem" key={record.id}><div><b>{record.record_type} · {record.title}</b><small>{formatDate(record.record_date)} · {record.status || "No status"}{record.reference ? ` · ${record.reference}` : ""}{record.details ? ` · ${record.details}` : ""}</small></div><div className="statusActions">{data.permissions.canManageHrRecords && /issued|allocated/i.test(record.status || "") && <button className="approve" onClick={() => void updateHrStatus(record,"Returned")}>Mark returned</button>}</div></div>)}{!hrFor(selected.id).some((record) => propertyRecordTypes.includes(record.record_type)) && <div className="employeeEmpty">No company property issued.</div>}</div></section>
               <section className="historySection"><header><div><small className="sectionEyebrow">DISCIPLINARY HISTORY</small><h3>Warnings ({selected.warning_count})</h3></div>{data.permissions.canIssueWarnings && <button className="secondaryBtn" onClick={() => openWarning(selected)}>＋ Issue warning</button>}</header><div className="historyList">{warningsFor(selected.id).map((warning) => <div key={warning.id} className="historyItem warningHistoryItem"><button className="rowButton warningHistoryOpen" onClick={() => setSelectedWarning(warning)}><b>{warning.warning_level} · {warning.reason}</b><small>{formatDate(warning.warning_date)} · {warningIsActive(warning, data.today) ? "Active" : warning.status === "Withdrawn" ? "Withdrawn" : "Expired"} · Issued by {warning.issued_by}</small></button><button className="warningPdfBtn" disabled={saving} onClick={() => void handleWarningPdfDownload(warning, selected)}>Download PDF</button></div>)}{!warningsFor(selected.id).length && <div className="employeeEmpty">No warnings recorded.</div>}</div></section>
+              {data.permissions.canManagePayslips && <section className="historySection"><header><div><small className="sectionEyebrow">CONFIDENTIAL PAYROLL</small><h3>Payslip History ({payslipsFor(selected.id).length})</h3></div><button className="secondaryBtn payslipPrimaryBtn" onClick={() => openPayslip(selected)}>＋ Generate payslip</button></header><div className="historyList">{payslipsFor(selected.id).map((payslip) => <div className="historyItem payslipHistoryItem" key={payslip.id}><div><b>{formatDate(payslip.pay_period_start)} → {formatDate(payslip.pay_period_end)} · Net {rand(payslip.net_pay)}</b><small>Gross {rand(payslip.gross_pay)} · Deductions {rand(payslip.total_deductions)} · Paid {formatDate(payslip.payment_date)} · {payslip.generated_by}</small></div><div className="payslipActions"><button className="download" disabled={saving} onClick={() => void downloadPayslip(payslip, selected)}>↓ PDF</button><button className="whatsapp" disabled={saving} onClick={() => void sendPayslipWhatsapp(payslip, selected)}>WhatsApp</button><button className="email" disabled={saving} onClick={() => void sendPayslipEmail(payslip, selected)}>Email</button></div></div>)}{!payslipsFor(selected.id).length && <div className="employeeEmpty">No payslips generated for this employee yet.</div>}</div></section>}
               <section className="historySection"><header><div><small className="sectionEyebrow">DAILY ATTENDANCE LOG</small><h3>Recent Daily Records</h3></div></header><div className="historyList">{attendanceFor(selected.id).slice(0,60).map((record) => <div className="historyItem" key={record.id}><b>{formatDate(record.attendance_date)} · {record.status}{record.status === "Late" ? ` (${record.minutes_late} min)` : ""}</b><small>{record.absence_type || record.reason || record.recorded_by || "No additional detail"}</small></div>)}{!attendanceFor(selected.id).length && <div className="employeeEmpty">No attendance history yet.</div>}</div></section>
               <section className="historySection"><header><div><small className="sectionEyebrow">OTHER HR FILE HISTORY</small><h3>Training, Employment Changes & HR Notes</h3></div>{data.permissions.canManageHrRecords && <button className="secondaryBtn" onClick={() => openHrRecord(selected,"HR Note")}>＋ Add HR record</button>}</header><div className="historyList">{hrFor(selected.id).filter((record) => !leaveRecordTypes.includes(record.record_type) && !propertyRecordTypes.includes(record.record_type)).map((record) => <div className="historyItem" key={record.id}><b>{record.record_type} · {record.title}</b><small>{formatDate(record.record_date)}{record.end_date ? ` → ${formatDate(record.end_date)}` : ""} · {record.status || "No status"}{record.reference ? ` · ${record.reference}` : ""}</small>{record.details && <small>{record.details}</small>}</div>)}{!hrFor(selected.id).some((record) => !leaveRecordTypes.includes(record.record_type) && !propertyRecordTypes.includes(record.record_type)) && <div className="employeeEmpty">No additional HR history records yet.</div>}</div></section>
               {selected.notes && <section className="profileCard"><small className="sectionEyebrow">EMPLOYEE FILE NOTES</small><p style={{fontSize:"8px",color:"#52667a",lineHeight:1.5,whiteSpace:"pre-wrap"}}>{selected.notes}</p></section>}

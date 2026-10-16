@@ -134,6 +134,17 @@ export function canManageEmployeeHrRecords(member: HubMember | null | undefined)
   return canManageEmployeeFiles(member);
 }
 
+export function canManageEmployeePayslips(member: HubMember | null | undefined) {
+  if (!member || !canWrite(member)) return false;
+  const role = member.role || "";
+  const department = member.department || "";
+  return (
+    ["Owner / Admin", "Developer / Technical Admin", "Human Resource (HR)"].includes(role) ||
+    (role === "Executive / EXCO" && member.access_scope === "Full company") ||
+    /(^|\b)(hr|human resources|payroll)(\b|$)/i.test(department)
+  );
+}
+
 export async function accessibleEmployeeWorkspaces(member: HubMember) {
   const { results } = await env.DB.prepare(
     `SELECT id,name,type,region,manager

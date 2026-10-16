@@ -7,6 +7,7 @@ import {
   canIssueEmployeeWarnings,
   canManageEmployeeFiles,
   canManageEmployeeHrRecords,
+  canManageEmployeePayslips,
   canRecordEmployeeAttendance,
   hasEmployeeRecordsAccess,
   initEmployeeTables,
@@ -17,6 +18,7 @@ type DbRow = Record<string, string | number | null>;
 const today = () => new Date().toISOString().slice(0, 10);
 const clean = (value: unknown) => String(value ?? "").trim();
 const int = (value: unknown) => Math.max(0, Math.round(Number(value) || 0));
+const money = (value: unknown) => Math.round(Math.max(0, Number(value) || 0) * 100) / 100;
 
 const attendanceStatuses = ["At work", "Not at work", "Late"];
 const warningLevels = ["Verbal", "Written", "Final written"];
@@ -48,6 +50,7 @@ export async function GET(req: Request) {
     canRecordAttendance: canRecordEmployeeAttendance(member),
     canIssueWarnings: canIssueEmployeeWarnings(member),
     canManageHrRecords: canManageEmployeeHrRecords(member),
+    canManagePayslips: canManageEmployeePayslips(member),
     canSeeFullId: canManageEmployeeFiles(member),
   };
 
@@ -59,6 +62,7 @@ export async function GET(req: Request) {
       attendance: [],
       warnings: [],
       hrRecords: [],
+      payslips: [],
       summary: { total: 0, atWork: 0, notAtWork: 0, late: 0, unmarked: 0, activeWarnings: 0, currentLeave: 0, issuedAssets: 0, expiringTraining: 0 },
       permissions,
       today: today(),
@@ -94,6 +98,16 @@ export async function GET(req: Request) {
        ORDER BY record_date DESC,id DESC`,
     ).bind(workspace).all<DbRow>(),
   ]);
+
+  let payslips: DbRow[] = [];
+  if (permissions.canManagePayslips) {
+    const payslipQuery = await env.DB.prepare(
+      `SELECT * FROM employee_payslips
+       WHERE workspace=?
+       ORDER BY pay_period_end DESC,id DESC`,
+    ).bind(workspace).all<DbRow>();
+    payslips = payslipQuery.results;
+  }
 
   const date = today();
   const canSeeFullId = permissions.canSeeFullId;
@@ -181,6 +195,7 @@ export async function GET(req: Request) {
     attendance: attendanceQuery.results,
     warnings: warningQuery.results,
     hrRecords: hrRecordQuery.results,
+    payslips,
     summary: {
       total: employees.length,
       atWork: statusCounts.atWork,
@@ -372,6 +387,87 @@ export async function POST(req: Request) {
       )
       .first<DbRow>();
     return Response.json({ warning }, { status: 201 });
+  }
+
+  if (action === "payslip") {
+    if (!canManageEmployeePayslips(member))
+      return Response.json({ error: "You are not authorised to generate payslips." }, { status: 403 });
+
+    const employeeId = Number(payload.employeeId || 0);
+    const payPeriodStart = clean(payload.payPeriodStart);
+    const payPeriodEnd = clean(payload.payPeriodEnd);
+    const paymentDate = clean(payload.paymentDate) || today();
+    if (!employeeId || !payPeriodStart || !payPeriodEnd)
+      return Response.json({ error: "Employee and pay period are required." }, { status: 400 });
+    if (payPeriodEnd < payPeriodStart)
+      return Response.json({ error: "Pay period end date cannot be before the start date." }, { status: 400 });
+
+    const employee = await env.DB.prepare(
+      "SELECT id,workspace,email,phone FROM employee_records WHERE id=? AND active=1",
+    ).bind(employeeId).first<{ id: number; workspace: string; email: string; phone: string }>();
+    if (!employee || !canAccessWorkspace(member, employee.workspace))
+      return Response.json({ error: "Employee not found or access denied." }, { status: 404 });
+
+    const basicSalary = money(payload.basicSalary);
+    const overtimeHours = money(payload.overtimeHours);
+    const overtimeRate = money(payload.overtimeRate);
+    const overtimeAmount = Math.round(overtimeHours * overtimeRate * 100) / 100;
+    const allowanceAmount = money(payload.allowanceAmount);
+    const commissionAmount = money(payload.commissionAmount);
+    const bonusAmount = money(payload.bonusAmount);
+    const otherEarnings = money(payload.otherEarnings);
+    const grossPay = Math.round((basicSalary + overtimeAmount + allowanceAmount + commissionAmount + bonusAmount + otherEarnings) * 100) / 100;
+
+    const paye = money(payload.paye);
+    const uif = money(payload.uif);
+    const pension = money(payload.pension);
+    const medicalAid = money(payload.medicalAid);
+    const loanDeduction = money(payload.loanDeduction);
+    const otherDeductions = money(payload.otherDeductions);
+    const totalDeductions = Math.round((paye + uif + pension + medicalAid + loanDeduction + otherDeductions) * 100) / 100;
+    const netPay = Math.round((grossPay - totalDeductions) * 100) / 100;
+
+    const payslip = await env.DB.prepare(`INSERT INTO employee_payslips (
+      employee_id,workspace,pay_period_start,pay_period_end,payment_date,payment_method,payment_reference,
+      basic_salary,overtime_hours,overtime_rate,overtime_amount,allowance_amount,commission_amount,bonus_amount,other_earnings,gross_pay,
+      paye,uif,pension,medical_aid,loan_deduction,other_deductions,total_deductions,net_pay,notes,employee_email,employee_whatsapp,
+      generated_by,status,created_at,updated_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'Issued',?,?) RETURNING *`)
+      .bind(
+        employeeId,
+        employee.workspace,
+        payPeriodStart,
+        payPeriodEnd,
+        paymentDate,
+        clean(payload.paymentMethod) || "EFT",
+        clean(payload.paymentReference),
+        basicSalary,
+        overtimeHours,
+        overtimeRate,
+        overtimeAmount,
+        allowanceAmount,
+        commissionAmount,
+        bonusAmount,
+        otherEarnings,
+        grossPay,
+        paye,
+        uif,
+        pension,
+        medicalAid,
+        loanDeduction,
+        otherDeductions,
+        totalDeductions,
+        netPay,
+        clean(payload.notes),
+        clean(payload.employeeEmail) || clean(employee.email),
+        clean(payload.employeeWhatsapp) || clean(employee.phone),
+        actor,
+        now,
+        now,
+      )
+      .first<DbRow>();
+
+    return Response.json({ payslip }, { status: 201 });
   }
 
   if (action === "hrRecord") {

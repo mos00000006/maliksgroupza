@@ -42,6 +42,7 @@ const CRITICAL_TABLES = [
   "employee_attendance",
   "employee_warnings",
   "employee_hr_records",
+  "employee_payslips",
   "store_specials",
   "promotion_plans",
   "promotion_suggestions",
