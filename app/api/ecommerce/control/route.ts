@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { getHubMember } from "../../access";
 import {
   canAccessEcommerceControl,
+  canManageEcommercePricing,
   makePortalCode,
   money,
   publicProductImage,
@@ -54,6 +55,7 @@ export async function GET(req: Request) {
       page,
       pages: Math.max(1, Math.ceil(total / pageSize)),
       total,
+      permissions: { can_manage_pricing: canManageEcommercePricing(member) },
     });
   }
 
@@ -126,6 +128,9 @@ export async function POST(req: Request) {
   const now = new Date().toISOString();
 
   if (action === "save_product") {
+    if (!canManageEcommercePricing(member)) {
+      return Response.json({ error: "Only users assigned Full company access can change e-commerce pricing and product settings." }, { status: 403 });
+    }
     const productId = Number(payload.product_id || 0);
     if (!productId) return Response.json({ error: "Product is required." }, { status: 400 });
     await env.DB.prepare(

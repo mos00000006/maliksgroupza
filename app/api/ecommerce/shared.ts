@@ -11,6 +11,11 @@ export function canAccessEcommerceControl(member: HubMember | null | undefined) 
   );
 }
 
+
+export function canManageEcommercePricing(member: HubMember | null | undefined) {
+  return Boolean(member && member.access_scope === "Full company");
+}
+
 export function publicProductImage(row: Record<string, unknown>) {
   const imageKey = String(row.image_key || "");
   return imageKey.startsWith("static:")

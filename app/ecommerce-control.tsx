@@ -25,7 +25,7 @@ type Customer = {
 type Dashboard = { b2c_products: number; b2b_products: number; pending_customers: number; new_orders: number; recent_orders: Array<Record<string, unknown>> };
 const money = (value: number) => new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" }).format(Number(value || 0));
 
-function ProductEditor({ product, save }: { product: Product; save: (payload: Record<string, unknown>) => Promise<boolean> }) {
+function ProductEditor({ product, save, canManagePricing }: { product: Product; save: (payload: Record<string, unknown>) => Promise<boolean>; canManagePricing: boolean }) {
   const [draft, setDraft] = useState({
     b2c_enabled: Boolean(product.b2c_enabled), b2b_enabled: Boolean(product.b2b_enabled),
     retail_price_inc_vat: Number(product.retail_price_inc_vat || 0), wholesale_price_ex_vat: Number(product.wholesale_price_ex_vat || 0),
@@ -39,15 +39,15 @@ function ProductEditor({ product, save }: { product: Product; save: (payload: Re
       <div className={styles.thumb}>{product.image_url ? <img src={product.image_url} alt="" /> : <span>▧</span>}</div>
       <div><b>{product.name}</b><small>{product.code} · {product.category}</small></div>
     </div>
-    <label className={styles.switchLabel}><input type="checkbox" checked={draft.b2c_enabled} onChange={(e) => setDraft({ ...draft, b2c_enabled: e.target.checked })} /><span>B2C</span></label>
-    <label className={styles.switchLabel}><input type="checkbox" checked={draft.b2b_enabled} onChange={(e) => setDraft({ ...draft, b2b_enabled: e.target.checked })} /><span>B2B</span></label>
-    <label>Retail incl VAT<input type="number" step="0.01" value={draft.retail_price_inc_vat} onChange={(e) => setDraft({ ...draft, retail_price_inc_vat: Number(e.target.value) })} /></label>
-    <label>Wholesale ex VAT<input type="number" step="0.01" value={draft.wholesale_price_ex_vat} onChange={(e) => setDraft({ ...draft, wholesale_price_ex_vat: Number(e.target.value) })} /></label>
-    <label>B2B MOQ<input type="number" min="1" step="1" value={draft.b2b_min_qty} onChange={(e) => setDraft({ ...draft, b2b_min_qty: Number(e.target.value) })} /></label>
-    <label>Unit<input value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} /></label>
-    <label>Stock<select value={draft.stock_status} onChange={(e) => setDraft({ ...draft, stock_status: e.target.value })}><option>Available</option><option>Low stock</option><option>Order on request</option><option>Unavailable</option></select></label>
-    <label className={styles.switchLabel}><input type="checkbox" checked={draft.featured} onChange={(e) => setDraft({ ...draft, featured: e.target.checked })} /><span>Featured</span></label>
-    <button disabled={busy} onClick={() => void submit()}>{busy ? "Saving…" : "Save"}</button>
+    <label className={styles.switchLabel}><input type="checkbox" disabled={!canManagePricing} checked={draft.b2c_enabled} onChange={(e) => setDraft({ ...draft, b2c_enabled: e.target.checked })} /><span>B2C</span></label>
+    <label className={styles.switchLabel}><input type="checkbox" disabled={!canManagePricing} checked={draft.b2b_enabled} onChange={(e) => setDraft({ ...draft, b2b_enabled: e.target.checked })} /><span>B2B</span></label>
+    <label>Retail incl VAT<input type="number" disabled={!canManagePricing} step="0.01" value={draft.retail_price_inc_vat} onChange={(e) => setDraft({ ...draft, retail_price_inc_vat: Number(e.target.value) })} /></label>
+    <label>Wholesale ex VAT<input type="number" disabled={!canManagePricing} step="0.01" value={draft.wholesale_price_ex_vat} onChange={(e) => setDraft({ ...draft, wholesale_price_ex_vat: Number(e.target.value) })} /></label>
+    <label>B2B MOQ<input type="number" disabled={!canManagePricing} min="1" step="1" value={draft.b2b_min_qty} onChange={(e) => setDraft({ ...draft, b2b_min_qty: Number(e.target.value) })} /></label>
+    <label>Unit<input disabled={!canManagePricing} value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} /></label>
+    <label>Stock<select disabled={!canManagePricing} value={draft.stock_status} onChange={(e) => setDraft({ ...draft, stock_status: e.target.value })}><option>Available</option><option>Low stock</option><option>Order on request</option><option>Unavailable</option></select></label>
+    <label className={styles.switchLabel}><input type="checkbox" disabled={!canManagePricing} checked={draft.featured} onChange={(e) => setDraft({ ...draft, featured: e.target.checked })} /><span>Featured</span></label>
+    <button disabled={busy || !canManagePricing} onClick={() => void submit()}>{busy ? "Saving…" : canManagePricing ? "Save" : "Full company only"}</button>
   </article>;
 }
 
@@ -63,6 +63,7 @@ export default function EcommerceControl() {
   const [productPage, setProductPage] = useState(1);
   const [productPages, setProductPages] = useState(1);
   const [toast, setToast] = useState("");
+  const [canManagePricing, setCanManagePricing] = useState(false);
 
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(""), 2200); };
   const get = useCallback(async (view: string, extra = "") => {
@@ -81,7 +82,7 @@ export default function EcommerceControl() {
   };
 
   const loadDashboard = useCallback(async () => { const json = await get("dashboard"); if (json) { setDashboard(json.dashboard); setSettings(json.settings || {}); } }, [get]);
-  const loadProducts = useCallback(async (page = productPage, search = q) => { const json = await get("products", `&page=${page}&q=${encodeURIComponent(search)}`); if (json) { setProducts(json.products || []); setProductPage(json.page || 1); setProductPages(json.pages || 1); } }, [get, productPage, q]);
+  const loadProducts = useCallback(async (page = productPage, search = q) => { const json = await get("products", `&page=${page}&q=${encodeURIComponent(search)}`); if (json) { setProducts(json.products || []); setProductPage(json.page || 1); setProductPages(json.pages || 1); setCanManagePricing(Boolean(json.permissions?.can_manage_pricing)); } }, [get, productPage, q]);
   const loadOrders = useCallback(async () => { const json = await get("orders"); if (json) setOrders(json.orders || []); }, [get]);
   const loadCustomers = useCallback(async () => { const json = await get("customers"); if (json) setCustomers(json.customers || []); }, [get]);
   const loadSettings = useCallback(async () => { const json = await get("settings"); if (json) setSettings(json.settings || {}); }, [get]);
@@ -118,8 +119,8 @@ export default function EcommerceControl() {
     </div>}
 
     {tab === "Products" && <div className={styles.content}>
-      <div className={styles.panelHead}><div><small>CHANNEL MERCHANDISING</small><h3>Online product pricing & visibility</h3><p className={styles.priceHint}>Enter B2C retail incl. VAT and/or B2B wholesale ex. VAT, then click Save on that product row.</p></div><form onSubmit={(e) => { e.preventDefault(); void loadProducts(1, q); }}><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search code, product or category"/><button>Search</button></form></div>
-      {loading ? <p className={styles.loading}>Loading products…</p> : <div className={styles.productList}>{products.map((product) => <ProductEditor key={product.id} product={product} save={saveProduct} />)}</div>}
+      <div className={styles.panelHead}><div><small>CHANNEL MERCHANDISING</small><h3>Online product pricing & visibility</h3><p className={styles.priceHint}>{canManagePricing ? "Enter B2C retail incl. VAT and/or B2B wholesale ex. VAT, then click Save on that product row." : "View only: e-commerce pricing can only be changed by users assigned Full company access."}</p></div><form onSubmit={(e) => { e.preventDefault(); void loadProducts(1, q); }}><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search code, product or category"/><button>Search</button></form></div>
+      {loading ? <p className={styles.loading}>Loading products…</p> : <div className={styles.productList}>{products.map((product) => <ProductEditor key={product.id} product={product} save={saveProduct} canManagePricing={canManagePricing} />)}</div>}
       <div className={styles.pager}><button disabled={productPage <= 1} onClick={() => void loadProducts(productPage - 1, q)}>← Previous</button><span>Page {productPage} of {productPages}</span><button disabled={productPage >= productPages} onClick={() => void loadProducts(productPage + 1, q)}>Next →</button></div>
     </div>}
 
