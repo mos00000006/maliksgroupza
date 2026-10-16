@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { downloadEmployeeWarningPdf } from "./employee-warning-pdf";
 
 type CurrentHubUser = { name: string; email: string; role?: string; department?: string };
 type Store = { id: number; name: string; type: string; region: string; manager: string };
@@ -668,12 +669,51 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
     setWarningForm({ warningDate: data?.today || new Date().toISOString().slice(0, 10), warningLevel: "Written", reason: "", details: "", issuedBy: currentUser.name || "", validUntil: "", acknowledgement: "" });
     setWarningModal(employee);
   };
+
+  const downloadWarningPdf = async (warning: Warning, employee?: Employee | null) => {
+    const person = employee || employeeById(Number(warning.employee_id));
+    if (!person) throw new Error("Employee file could not be found for this warning.");
+    await downloadEmployeeWarningPdf({ employee: person, warning, generatedBy: currentUser.name || warning.issued_by || "" });
+  };
+
+  const handleWarningPdfDownload = async (warning: Warning, employee?: Employee | null) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await downloadWarningPdf(warning, employee);
+      const person = employee || employeeById(Number(warning.employee_id));
+      flash(`Warning PDF downloaded${person ? ` for ${employeeName(person)}.` : "."}`);
+    } catch (error) {
+      flash(error instanceof Error ? error.message : "Warning PDF could not be downloaded.");
+    } finally {
+      setSaving(false);
+    }
+  };
   const saveWarning = async () => {
     if (!warningModal || saving) return;
     setSaving(true);
     try {
-      await post({ action: "warning", employeeId: warningModal.id, ...warningForm });
-      flash(`Warning recorded for ${employeeName(warningModal)}.`);
+      const result = await post({ action: "warning", employeeId: warningModal.id, ...warningForm }) as { warning?: Warning };
+      const savedWarning = result.warning || {
+        id: Date.now(),
+        employee_id: warningModal.id,
+        workspace: warningModal.workspace,
+        warning_date: warningForm.warningDate,
+        warning_level: warningForm.warningLevel as Warning["warning_level"],
+        reason: warningForm.reason,
+        details: warningForm.details,
+        issued_by: warningForm.issuedBy,
+        valid_until: warningForm.validUntil,
+        acknowledgement: warningForm.acknowledgement,
+        status: "Active" as Warning["status"],
+      };
+      let pdfError = "";
+      try {
+        await downloadWarningPdf(savedWarning, warningModal);
+      } catch (error) {
+        pdfError = error instanceof Error ? error.message : "The warning PDF could not be generated.";
+      }
+      flash(pdfError ? `Warning recorded for ${employeeName(warningModal)}. ${pdfError}` : `Warning recorded for ${employeeName(warningModal)} and PDF downloaded.`);
       setWarningModal(null);
       await load(workspace);
     } catch (error) { flash(error instanceof Error ? error.message : "Warning could not be saved."); }
@@ -959,7 +999,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
       )}
 
       {selectedWarning && (
-        <div className="overlay employeeOverlay" onMouseDown={() => setSelectedWarning(null)}><section className="employeeModal smallModal" onMouseDown={(e) => e.stopPropagation()}><header><div><small className="sectionEyebrow">WARNING RECORD</small><h2>{selectedWarning.warning_level}</h2><p>{employeeById(Number(selectedWarning.employee_id)) ? employeeName(employeeById(Number(selectedWarning.employee_id)) as Employee) : `Employee #${selectedWarning.employee_id}`}</p></div><button className="closeBtn" onClick={() => setSelectedWarning(null)}>×</button></header><div className="modalBody"><div className="warningDetailGrid"><div><span>Date</span><b>{formatDate(selectedWarning.warning_date)}</b></div><div><span>Status</span><b>{warningIsActive(selectedWarning,data.today) ? "Active" : selectedWarning.status === "Withdrawn" ? "Withdrawn" : "Expired"}</b></div><div><span>Reason</span><b>{selectedWarning.reason}</b></div><div><span>Issued by</span><b>{selectedWarning.issued_by || "—"}</b></div><div><span>Valid until</span><b>{formatDate(selectedWarning.valid_until)}</b></div><div><span>Acknowledgement</span><b>{selectedWarning.acknowledgement || "—"}</b></div></div><div className="warningDetailText">{selectedWarning.details || "No additional warning details were recorded."}</div><p className="privacyNote">This is a factual HR record. The Hub does not make disciplinary or termination decisions.</p></div><footer className="modalFooter">{warningIsActive(selectedWarning,data.today) && data.permissions.canIssueWarnings && <button className="secondaryBtn" onClick={() => void withdrawWarning(selectedWarning)}>Withdraw warning</button>}<button className="primaryBtn" onClick={() => setSelectedWarning(null)}>Close</button></footer></section></div>
+        <div className="overlay employeeOverlay" onMouseDown={() => setSelectedWarning(null)}><section className="employeeModal smallModal" onMouseDown={(e) => e.stopPropagation()}><header><div><small className="sectionEyebrow">WARNING RECORD</small><h2>{selectedWarning.warning_level}</h2><p>{employeeById(Number(selectedWarning.employee_id)) ? employeeName(employeeById(Number(selectedWarning.employee_id)) as Employee) : `Employee #${selectedWarning.employee_id}`}</p></div><button className="closeBtn" onClick={() => setSelectedWarning(null)}>×</button></header><div className="modalBody"><div className="warningDetailGrid"><div><span>Date</span><b>{formatDate(selectedWarning.warning_date)}</b></div><div><span>Status</span><b>{warningIsActive(selectedWarning,data.today) ? "Active" : selectedWarning.status === "Withdrawn" ? "Withdrawn" : "Expired"}</b></div><div><span>Reason</span><b>{selectedWarning.reason}</b></div><div><span>Issued by</span><b>{selectedWarning.issued_by || "—"}</b></div><div><span>Valid until</span><b>{formatDate(selectedWarning.valid_until)}</b></div><div><span>Acknowledgement</span><b>{selectedWarning.acknowledgement || "—"}</b></div></div><div className="warningDetailText">{selectedWarning.details || "No additional warning details were recorded."}</div><p className="privacyNote">This is a factual HR record. The Hub does not make disciplinary or termination decisions.</p></div><footer className="modalFooter"><button className="secondaryBtn" onClick={() => void handleWarningPdfDownload(selectedWarning)}>{saving ? "Please wait…" : "Download PDF"}</button>{warningIsActive(selectedWarning,data.today) && data.permissions.canIssueWarnings && <button className="secondaryBtn" onClick={() => void withdrawWarning(selectedWarning)}>Withdraw warning</button>}<button className="primaryBtn" onClick={() => setSelectedWarning(null)}>Close</button></footer></section></div>
       )}
 
       {attendanceModal && (
@@ -967,7 +1007,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
       )}
 
       {warningModal && (
-        <div className="overlay employeeOverlay" onMouseDown={() => setWarningModal(null)}><section className="employeeModal" onMouseDown={(e) => e.stopPropagation()}><header><div><small className="sectionEyebrow">DISCIPLINARY RECORD</small><h2>Issue warning</h2><p>{employeeName(warningModal)} · {warningModal.employee_number}</p></div><button className="closeBtn" onClick={() => setWarningModal(null)}>×</button></header><div className="modalBody recordForm"><label>Warning date<input type="date" value={warningForm.warningDate} onChange={(e)=>setWarningForm({...warningForm,warningDate:e.target.value})}/></label><label>Warning level<select value={warningForm.warningLevel} onChange={(e)=>setWarningForm({...warningForm,warningLevel:e.target.value})}><option>Verbal</option><option>Written</option><option>Final written</option></select></label><label>Valid until<input type="date" value={warningForm.validUntil} onChange={(e)=>setWarningForm({...warningForm,validUntil:e.target.value})}/></label><label className="span2">Reason *<input value={warningForm.reason} onChange={(e)=>setWarningForm({...warningForm,reason:e.target.value})} placeholder="e.g. Repeated lateness"/></label><label>Issued by<input value={warningForm.issuedBy} onChange={(e)=>setWarningForm({...warningForm,issuedBy:e.target.value})}/></label><label className="span3">Full details<textarea value={warningForm.details} onChange={(e)=>setWarningForm({...warningForm,details:e.target.value})}/></label><label className="span3">Employee acknowledgement<textarea value={warningForm.acknowledgement} onChange={(e)=>setWarningForm({...warningForm,acknowledgement:e.target.value})}/></label></div><footer className="modalFooter"><button className="secondaryBtn" onClick={()=>setWarningModal(null)}>Cancel</button><button className="primaryBtn" disabled={saving} onClick={()=>void saveWarning()}>{saving?"Saving…":"Record warning"}</button></footer></section></div>
+        <div className="overlay employeeOverlay" onMouseDown={() => setWarningModal(null)}><section className="employeeModal" onMouseDown={(e) => e.stopPropagation()}><header><div><small className="sectionEyebrow">DISCIPLINARY RECORD</small><h2>Issue warning</h2><p>{employeeName(warningModal)} · {warningModal.employee_number}</p></div><button className="closeBtn" onClick={() => setWarningModal(null)}>×</button></header><div className="modalBody recordForm"><label>Warning date<input type="date" value={warningForm.warningDate} onChange={(e)=>setWarningForm({...warningForm,warningDate:e.target.value})}/></label><label>Warning level<select value={warningForm.warningLevel} onChange={(e)=>setWarningForm({...warningForm,warningLevel:e.target.value})}><option>Verbal</option><option>Written</option><option>Final written</option></select></label><label>Valid until<input type="date" value={warningForm.validUntil} onChange={(e)=>setWarningForm({...warningForm,validUntil:e.target.value})}/></label><label className="span2">Reason *<input value={warningForm.reason} onChange={(e)=>setWarningForm({...warningForm,reason:e.target.value})} placeholder="e.g. Repeated lateness"/></label><label>Issued by<input value={warningForm.issuedBy} onChange={(e)=>setWarningForm({...warningForm,issuedBy:e.target.value})}/></label><label className="span3">Full details<textarea value={warningForm.details} onChange={(e)=>setWarningForm({...warningForm,details:e.target.value})}/></label><label className="span3">Employee acknowledgement<textarea value={warningForm.acknowledgement} onChange={(e)=>setWarningForm({...warningForm,acknowledgement:e.target.value})}/></label><p className="privacyNote span3">When the warning is saved, PowerBuild Hub will automatically generate a printable PDF warning letter with signature lines for download.</p></div><footer className="modalFooter"><button className="secondaryBtn" onClick={()=>setWarningModal(null)}>Cancel</button><button className="primaryBtn" disabled={saving} onClick={()=>void saveWarning()}>{saving?"Saving…":"Record warning & download PDF"}</button></footer></section></div>
       )}
 
       {hrModal && (
