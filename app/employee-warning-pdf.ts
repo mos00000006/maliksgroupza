@@ -44,19 +44,35 @@ const CANVAS_H = 3508;
 const PAGE_X = 132;
 const PAGE_W_PX = CANVAS_W - PAGE_X * 2;
 
-const NAVY = "#122d49";
-const DEEP_NAVY = "#0b1f35";
-const POWER_BLUE = "#07549a";
-const YELLOW = "#ffd21f";
-const GOLD = "#e7b700";
-const TEXT = "#1c3147";
-const MUTED = "#708296";
-const LINE = "#d9e2ec";
-const SOFT = "#f4f7fb";
-const SOFT_BLUE = "#eef5fb";
+let NAVY = "#122d49";
+let DEEP_NAVY = "#0b1f35";
+let POWER_BLUE = "#07549a";
+let YELLOW = "#ffd21f";
+let GOLD = "#e7b700";
+let TEXT = "#1c3147";
+let MUTED = "#708296";
+let LINE = "#d9e2ec";
+let SOFT = "#f4f7fb";
+let SOFT_BLUE = "#eef5fb";
 const WHITE = "#ffffff";
-const RED = "#b93646";
-const GREEN = "#28785b";
+let RED = "#b93646";
+let GREEN = "#28785b";
+
+const isBusterBuildWorkspace = (value?: string) => /buster\s*build/i.test(String(value || ""));
+const applyWarningTheme = (busterBuild: boolean) => {
+  NAVY = busterBuild ? "#111111" : "#122d49";
+  DEEP_NAVY = busterBuild ? "#0b0b0b" : "#0b1f35";
+  POWER_BLUE = busterBuild ? "#d71920" : "#07549a";
+  YELLOW = busterBuild ? "#f4c400" : "#ffd21f";
+  GOLD = busterBuild ? "#e1ad00" : "#e7b700";
+  TEXT = busterBuild ? "#1b1b1b" : "#1c3147";
+  MUTED = busterBuild ? "#6a6a6a" : "#708296";
+  LINE = busterBuild ? "#dedede" : "#d9e2ec";
+  SOFT = busterBuild ? "#f7f7f7" : "#f4f7fb";
+  SOFT_BLUE = busterBuild ? "#fff4f4" : "#eef5fb";
+  RED = busterBuild ? "#d71920" : "#b93646";
+  GREEN = busterBuild ? "#28785b" : "#28785b";
+};
 
 const bytes = (value: string) => encoder.encode(value);
 
@@ -400,17 +416,23 @@ const drawWatermark = (ctx: CanvasRenderingContext2D, logo: LoadedImage) => {
 
 async function renderWarningCanvas(payload: EmployeeWarningPdfPayload) {
   const { employee, warning, generatedBy } = payload;
+  const busterBuild = isBusterBuildWorkspace(employee.workspace || warning.workspace);
+  applyWarningTheme(busterBuild);
+  const brandName = busterBuild ? "BUSTER BUILD" : "POWERBUILD GROUP";
+  const documentPrefix = busterBuild ? "BB-WARN" : "PB-WARN";
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not create warning document canvas.");
 
-  const logo = await loadImage("/powerbuild-warning-logo.png")
-    .catch(() => loadImage("/powerbuild-logo-transparent.png"))
-    .catch(() => null);
+  const logo = busterBuild
+    ? await loadImage("/buster-build-hr-logo.png").catch(() => null)
+    : await loadImage("/powerbuild-warning-logo.png")
+        .catch(() => loadImage("/powerbuild-logo-transparent.png"))
+        .catch(() => null);
   const levelStyle = warningStyle(warning);
-  const documentNumber = `PB-WARN-${warning.id || "NEW"}`;
+  const documentNumber = `${documentPrefix}-${warning.id || "NEW"}`;
   const generatedDate = formatDate(new Date().toISOString().slice(0, 10));
   const issuer = warning.issued_by || generatedBy || "Authorised manager";
   const status = cleanText(warning.status || "Active");
@@ -444,7 +466,7 @@ async function renderWarningCanvas(payload: EmployeeWarningPdfPayload) {
   const headerTextX = PAGE_X + 350;
   ctx.fillStyle = YELLOW;
   ctx.font = "900 28px Arial, sans-serif";
-  ctx.fillText("POWERBUILD GROUP  /  PEOPLE & CULTURE", headerTextX, 196);
+  ctx.fillText(`${brandName}  /  PEOPLE & CULTURE`, headerTextX, 196);
   ctx.fillStyle = WHITE;
   ctx.font = "900 70px Arial, sans-serif";
   ctx.fillText("DISCIPLINARY WARNING", headerTextX, 284);
@@ -590,7 +612,7 @@ async function renderWarningCanvas(payload: EmployeeWarningPdfPayload) {
   ctx.stroke();
   ctx.fillStyle = NAVY;
   ctx.font = "800 23px Arial, sans-serif";
-  ctx.fillText("POWERBUILD GROUP  •  CONFIDENTIAL EMPLOYEE RECORD", PAGE_X, footerY - 5);
+  ctx.fillText(`${brandName}  •  CONFIDENTIAL EMPLOYEE RECORD`, PAGE_X, footerY - 5);
   ctx.fillStyle = MUTED;
   ctx.font = "500 21px Arial, sans-serif";
   ctx.fillText(`Employee file: ${employee.employee_number || "—"}  |  Workspace: ${employee.workspace || warning.workspace || "—"}`, PAGE_X, footerY + 34);
@@ -625,7 +647,7 @@ export async function downloadEmployeeWarningPdf(payload: EmployeeWarningPdfPayl
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   const fileName = [
-    "PowerBuild_Warning",
+    isBusterBuildWorkspace(payload.employee.workspace || payload.warning.workspace) ? "BusterBuild_Warning" : "PowerBuild_Warning",
     safeFilePart(employeeName(payload.employee) || payload.employee.employee_number || `employee-${payload.employee.id}`),
     safeFilePart(payload.warning.warning_level || "warning"),
     safeFilePart(payload.warning.warning_date || new Date().toISOString().slice(0, 10)),
