@@ -232,6 +232,7 @@ export default function EcommerceStorefront({ channel }: Props) {
           <span><strong>{data?.settings.store_name || (channel === "B2C" ? "PowerBuild Online" : "PowerBuild Wholesale Online")}</strong><small>{channel === "B2C" ? "Retail eCommerce" : "B2B Trade eCommerce"}</small></span>
         </a>
         <nav>
+          <a className={styles.backHub} href="/" aria-label="Back to Company Hub">← Back to Company Hub</a>
           <a className={channel === "B2C" ? styles.activeChannel : ""} href="/shop">Retail Shop</a>
           <a className={channel === "B2B" ? styles.activeChannel : ""} href="/wholesale-shop">Wholesale B2B</a>
           <button type="button" onClick={() => setTrackOpen(true)}>Track order</button>
@@ -365,7 +366,7 @@ export default function EcommerceStorefront({ channel }: Props) {
         </div>
       )}
 
-      <footer className={styles.footer}><span>PowerBuild Group online ordering</span><div>{data?.settings.support_whatsapp && <a href={`https://wa.me/${data.settings.support_whatsapp.replace(/\D/g, "")}`}>WhatsApp support</a>}{data?.settings.support_email && <a href={`mailto:${data.settings.support_email}`}>Email support</a>}</div></footer>
+      <footer className={styles.footer}><span>PowerBuild Group online ordering</span><div><a href="/">← Company Hub</a>{data?.settings.support_whatsapp && <a href={`https://wa.me/${data.settings.support_whatsapp.replace(/\D/g, "")}`}>WhatsApp support</a>}{data?.settings.support_email && <a href={`mailto:${data.settings.support_email}`}>Email support</a>}</div></footer>
     </main>
   );
 }
