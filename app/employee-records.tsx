@@ -48,10 +48,7 @@ type Payslip = {
   bonus_amount: number;
   other_earnings: number;
   gross_pay: number;
-  paye: number;
   uif: number;
-  pension: number;
-  medical_aid: number;
   loan_deduction: number;
   other_deductions: number;
   total_deductions: number;
@@ -519,7 +516,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
   const [payslipForm, setPayslipForm] = useState({
     payPeriodStart: "", payPeriodEnd: "", paymentDate: new Date().toISOString().slice(0, 10), paymentMethod: "EFT", paymentReference: "",
     basicSalary: "", overtimeHours: "", overtimeRate: "", allowanceAmount: "", commissionAmount: "", bonusAmount: "", otherEarnings: "",
-    paye: "", uif: "", pension: "", medicalAid: "", loanDeduction: "", otherDeductions: "", notes: "", employeeEmail: "", employeeWhatsapp: "",
+    uif: "", loanDeduction: "", otherDeductions: "", notes: "", employeeEmail: "", employeeWhatsapp: "",
   });
 
   const flash = (text: string) => {
@@ -668,7 +665,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
   const payslipTotals = useMemo(() => {
     const overtime = payNumber(payslipForm.overtimeHours) * payNumber(payslipForm.overtimeRate);
     const gross = payNumber(payslipForm.basicSalary) + overtime + payNumber(payslipForm.allowanceAmount) + payNumber(payslipForm.commissionAmount) + payNumber(payslipForm.bonusAmount) + payNumber(payslipForm.otherEarnings);
-    const deductions = payNumber(payslipForm.paye) + payNumber(payslipForm.uif) + payNumber(payslipForm.pension) + payNumber(payslipForm.medicalAid) + payNumber(payslipForm.loanDeduction) + payNumber(payslipForm.otherDeductions);
+    const deductions = payNumber(payslipForm.uif) + payNumber(payslipForm.loanDeduction) + payNumber(payslipForm.otherDeductions);
     return { overtime, gross, deductions, net: gross - deductions };
   }, [payslipForm]);
 
@@ -755,7 +752,7 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
       paymentDate: data?.today || new Date().toISOString().slice(0, 10),
       paymentMethod: "EFT", paymentReference: "",
       basicSalary: "", overtimeHours: "", overtimeRate: "", allowanceAmount: "", commissionAmount: "", bonusAmount: "", otherEarnings: "",
-      paye: "", uif: "", pension: "", medicalAid: "", loanDeduction: "", otherDeductions: "", notes: "",
+      uif: "", loanDeduction: "", otherDeductions: "", notes: "",
       employeeEmail: employee.email || "", employeeWhatsapp: employee.phone || "",
     });
     setPayslipModal(employee);
@@ -1241,15 +1238,12 @@ PowerBuild HR`;
               <label>Other earnings (R)<input type="number" min="0" step="0.01" value={payslipForm.otherEarnings} onChange={(e)=>setPayslipForm({...payslipForm,otherEarnings:e.target.value})}/></label>
 
               <div className="payslipSectionTitle">Deductions</div>
-              <label>PAYE (R)<input type="number" min="0" step="0.01" value={payslipForm.paye} onChange={(e)=>setPayslipForm({...payslipForm,paye:e.target.value})}/></label>
               <label>UIF (R)<input type="number" min="0" step="0.01" value={payslipForm.uif} onChange={(e)=>setPayslipForm({...payslipForm,uif:e.target.value})}/></label>
-              <label>Pension / Provident (R)<input type="number" min="0" step="0.01" value={payslipForm.pension} onChange={(e)=>setPayslipForm({...payslipForm,pension:e.target.value})}/></label>
-              <label>Medical aid (R)<input type="number" min="0" step="0.01" value={payslipForm.medicalAid} onChange={(e)=>setPayslipForm({...payslipForm,medicalAid:e.target.value})}/></label>
               <label>Loan / Advance (R)<input type="number" min="0" step="0.01" value={payslipForm.loanDeduction} onChange={(e)=>setPayslipForm({...payslipForm,loanDeduction:e.target.value})}/></label>
               <label>Other deductions (R)<input type="number" min="0" step="0.01" value={payslipForm.otherDeductions} onChange={(e)=>setPayslipForm({...payslipForm,otherDeductions:e.target.value})}/></label>
               <label className="wide4">Payroll notes<textarea value={payslipForm.notes} onChange={(e)=>setPayslipForm({...payslipForm,notes:e.target.value})} placeholder="Optional payroll note, allowance description or deduction explanation"/></label>
               <div className="payslipTotals"><article><span>Gross pay</span><b>{rand(payslipTotals.gross)}</b></article><article><span>Total deductions</span><b>{rand(payslipTotals.deductions)}</b></article><article className="net"><span>Net pay</span><b>{rand(payslipTotals.net)}</b></article></div>
-              <p className="privacyNote wide4">PAYE, UIF and other statutory/payroll deductions are captured values. The Hub totals them but does not calculate tax liability or replace your payroll/tax system.</p>
+              <p className="privacyNote wide4">The Hub totals only the deductions captured here: UIF, loan/advance and other deductions. Payroll values remain subject to your company payroll controls.</p>
             </div>
             <footer className="modalFooter"><button className="secondaryBtn" disabled={saving} onClick={() => setPayslipModal(null)}>Cancel</button><button className="primaryBtn payslipPrimaryBtn" disabled={saving} onClick={() => void savePayslip()}>{saving ? "Generating PDF…" : "Generate & save payslip"}</button></footer>
           </section>

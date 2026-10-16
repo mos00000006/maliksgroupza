@@ -418,21 +418,18 @@ export async function POST(req: Request) {
     const otherEarnings = money(payload.otherEarnings);
     const grossPay = Math.round((basicSalary + overtimeAmount + allowanceAmount + commissionAmount + bonusAmount + otherEarnings) * 100) / 100;
 
-    const paye = money(payload.paye);
     const uif = money(payload.uif);
-    const pension = money(payload.pension);
-    const medicalAid = money(payload.medicalAid);
     const loanDeduction = money(payload.loanDeduction);
     const otherDeductions = money(payload.otherDeductions);
-    const totalDeductions = Math.round((paye + uif + pension + medicalAid + loanDeduction + otherDeductions) * 100) / 100;
+    const totalDeductions = Math.round((uif + loanDeduction + otherDeductions) * 100) / 100;
     const netPay = Math.round((grossPay - totalDeductions) * 100) / 100;
 
     const payslip = await env.DB.prepare(`INSERT INTO employee_payslips (
       employee_id,workspace,pay_period_start,pay_period_end,payment_date,payment_method,payment_reference,
       basic_salary,overtime_hours,overtime_rate,overtime_amount,allowance_amount,commission_amount,bonus_amount,other_earnings,gross_pay,
-      paye,uif,pension,medical_aid,loan_deduction,other_deductions,total_deductions,net_pay,notes,employee_email,employee_whatsapp,
+      uif,loan_deduction,other_deductions,total_deductions,net_pay,notes,employee_email,employee_whatsapp,
       generated_by,status,created_at,updated_at
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'Issued',?,?) RETURNING *`)
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'Issued',?,?) RETURNING *`)
       .bind(
         employeeId,
         employee.workspace,
@@ -450,10 +447,7 @@ export async function POST(req: Request) {
         bonusAmount,
         otherEarnings,
         grossPay,
-        paye,
         uif,
-        pension,
-        medicalAid,
         loanDeduction,
         otherDeductions,
         totalDeductions,

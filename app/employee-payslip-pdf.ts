@@ -30,10 +30,7 @@ export type PayslipPdfRecord = {
   bonus_amount: number;
   other_earnings: number;
   gross_pay: number;
-  paye: number;
   uif: number;
-  pension: number;
-  medical_aid: number;
   loan_deduction: number;
   other_deductions: number;
   total_deductions: number;
@@ -385,10 +382,7 @@ async function renderPayslipCanvas(payload: PayslipPdfPayload) {
     { description: "Commission", earnings: Number(payslip.commission_amount || 0) },
     { description: "Bonus", earnings: Number(payslip.bonus_amount || 0) },
     { description: "Other earnings", earnings: Number(payslip.other_earnings || 0) },
-    { description: "PAYE", deductions: Number(payslip.paye || 0) },
     { description: "UIF", deductions: Number(payslip.uif || 0) },
-    { description: "Pension / Provident", deductions: Number(payslip.pension || 0) },
-    { description: "Medical aid", deductions: Number(payslip.medical_aid || 0) },
     { description: "Loan / Advance", deductions: Number(payslip.loan_deduction || 0) },
     { description: "Other deductions", deductions: Number(payslip.other_deductions || 0) },
   ];
