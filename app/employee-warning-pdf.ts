@@ -414,11 +414,233 @@ const drawWatermark = (ctx: CanvasRenderingContext2D, logo: LoadedImage) => {
   ctx.restore();
 };
 
+
+const BUSTER_DISCIPLINARY_NOTICE =
+  "Should you commit another breach of a similar nature within the next 6 months, the Company shall have no option but to invoke the next step of the Disciplinary Procedure as outlined in the Disciplinary Code and Procedure. Should you consider lodging an appeal against this warning, you should do so within 3 working days from the date of this warning, which will then be submitted to the appealing authority for a final decision in such regard.";
+
+const drawBusterSignatureBlock = (
+  ctx: CanvasRenderingContext2D,
+  options: { x: number; y: number; width: number; title: string; printedName?: string },
+) => {
+  const { x, y, width, title, printedName } = options;
+  drawShadowCard(ctx, x, y, width, 230, 22, WHITE);
+  ctx.fillStyle = "#111111";
+  ctx.font = "900 25px Arial, sans-serif";
+  ctx.fillText(title.toUpperCase(), x + 28, y + 44);
+
+  const lineY = y + 104;
+  ctx.strokeStyle = "#8f969d";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + 28, lineY);
+  ctx.lineTo(x + width - 28, lineY);
+  ctx.stroke();
+  ctx.fillStyle = MUTED;
+  ctx.font = "600 19px Arial, sans-serif";
+  ctx.fillText("Signature", x + 28, lineY + 27);
+
+  ctx.strokeStyle = "#c4cbd1";
+  ctx.beginPath();
+  ctx.moveTo(x + 28, y + 174);
+  ctx.lineTo(x + width * 0.64, y + 174);
+  ctx.moveTo(x + width * 0.70, y + 174);
+  ctx.lineTo(x + width - 28, y + 174);
+  ctx.stroke();
+  ctx.fillStyle = TEXT;
+  ctx.font = "700 21px Arial, sans-serif";
+  ctx.fillText(printedName || "", x + 28, y + 166);
+  ctx.fillStyle = MUTED;
+  ctx.font = "600 18px Arial, sans-serif";
+  ctx.fillText("Name in print", x + 28, y + 203);
+  ctx.fillText("Date", x + width * 0.70, y + 203);
+};
+
+async function renderBusterBuildWarningCanvas(payload: EmployeeWarningPdfPayload) {
+  const { employee, warning, generatedBy } = payload;
+  applyWarningTheme(true);
+  const canvas = document.createElement("canvas");
+  canvas.width = CANVAS_W;
+  canvas.height = CANVAS_H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not create warning document canvas.");
+
+  const logo = await loadImage("/buster-build-hr-logo.png").catch(() => null);
+  const levelStyle = warningStyle(warning);
+  const documentNumber = `BB-WARN-${warning.id || "NEW"}`;
+  const issuer = warning.issued_by || generatedBy || "Authorised manager";
+
+  ctx.fillStyle = "#f0f0f0";
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.15)";
+  ctx.shadowBlur = 34;
+  ctx.shadowOffsetY = 12;
+  drawRoundedRect(ctx, 54, 46, CANVAS_W - 108, CANVAS_H - 92, 36, WHITE);
+  ctx.restore();
+  drawRoundedRect(ctx, 54, 46, CANVAS_W - 108, CANVAS_H - 92, 36, WHITE, "#dedede", 2);
+  drawWatermark(ctx, logo);
+
+  // Buster Build header - same premium Hub language, Buster colours.
+  drawRoundedRect(ctx, PAGE_X, 112, PAGE_W_PX, 388, 28, "#111111");
+  ctx.fillStyle = "#d71920";
+  ctx.fillRect(PAGE_X, 112, 18, 388);
+  ctx.fillStyle = "#f4c400";
+  ctx.fillRect(PAGE_X, 482, PAGE_W_PX, 18);
+  if (logo) {
+    drawRoundedRect(ctx, PAGE_X + 40, 148, 258, 258, 22, WHITE);
+    ctx.drawImage(logo, PAGE_X + 61, 169, 216, 216);
+  }
+  const headerX = PAGE_X + 345;
+  ctx.fillStyle = "#f4c400";
+  ctx.font = "900 27px Arial, sans-serif";
+  ctx.fillText("BUSTER BUILD  /  HUMAN RESOURCES", headerX, 184);
+  ctx.fillStyle = WHITE;
+  ctx.font = "900 68px Arial, sans-serif";
+  ctx.fillText("EMPLOYEE WARNING", headerX, 270);
+  ctx.fillStyle = "#d0d0d0";
+  ctx.font = "500 28px Arial, sans-serif";
+  ctx.fillText("Confidential disciplinary record", headerX, 320);
+  drawRoundedRect(ctx, CANVAS_W - PAGE_X - 535, 354, 495, 98, 18, levelStyle.soft, levelStyle.accent, 3);
+  ctx.fillStyle = levelStyle.accent;
+  ctx.font = "900 28px Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(levelStyle.label, CANVAS_W - PAGE_X - 287, 415);
+  ctx.textAlign = "left";
+
+  // Exact core employee/warning details requested.
+  const detailsY = 555;
+  drawSmallCaps(ctx, "Warning details", PAGE_X, detailsY, "#111111");
+  const gap = 20;
+  const colW = Math.floor((PAGE_W_PX - gap) / 2);
+  const cellH = 154;
+  const rowGap = 18;
+  const rows = [
+    ["Employee full name & surname", employeeName(employee) || "—", "Employee number", employee.employee_number || "—"],
+    ["Job title", employee.job_title || "—", "Department", employee.department || "—"],
+    ["Date issued", formatDate(warning.warning_date), "Expiry date", formatDate(warning.valid_until)],
+  ];
+  rows.forEach((row, index) => {
+    const y = detailsY + 40 + index * (cellH + rowGap);
+    drawInfoCell(ctx, { x: PAGE_X, y, width: colW, height: cellH, label: row[0], value: row[1] });
+    drawInfoCell(ctx, { x: PAGE_X + colW + gap, y, width: colW, height: cellH, label: row[2], value: row[3] });
+  });
+
+  const natureY = detailsY + 40 + rows.length * (cellH + rowGap) + 10;
+  drawSectionCard(ctx, {
+    x: PAGE_X,
+    y: natureY,
+    width: PAGE_W_PX,
+    height: 240,
+    label: "Nature of offence",
+    body: warning.reason || "—",
+    accent: "#d71920",
+    maxLines: 4,
+    bodySize: 36,
+  });
+
+  const descriptionY = natureY + 268;
+  drawSectionCard(ctx, {
+    x: PAGE_X,
+    y: descriptionY,
+    width: PAGE_W_PX,
+    height: 330,
+    label: "Short description",
+    body: warning.details || "—",
+    accent: "#f4c400",
+    maxLines: 6,
+    bodySize: 34,
+  });
+
+  const noticeY = descriptionY + 358;
+  drawSectionCard(ctx, {
+    x: PAGE_X,
+    y: noticeY,
+    width: PAGE_W_PX,
+    height: 390,
+    label: "Disciplinary procedure & appeal notice",
+    body: BUSTER_DISCIPLINARY_NOTICE,
+    accent: "#111111",
+    maxLines: 9,
+    bodySize: 31,
+    labelNote: "Applies to all warning levels",
+  });
+
+  const managerY = noticeY + 418;
+  drawBusterSignatureBlock(ctx, {
+    x: PAGE_X,
+    y: managerY,
+    width: PAGE_W_PX,
+    title: "Manager signature",
+    printedName: issuer,
+  });
+
+  const commentsY = managerY + 258;
+  drawShadowCard(ctx, PAGE_X, commentsY, PAGE_W_PX, 310, 22, WHITE);
+  ctx.fillStyle = "#d71920";
+  ctx.fillRect(PAGE_X, commentsY, 11, 310);
+  drawSmallCaps(ctx, "Employee statement / comments / remarks", PAGE_X + 32, commentsY + 44, "#111111");
+  const comments = cleanText(warning.acknowledgement || "");
+  if (comments) {
+    const fitted = fitTextLines(ctx, comments, PAGE_W_PX - 72, 5, 31, 24, 500);
+    ctx.fillStyle = TEXT;
+    ctx.font = `500 ${fitted.size}px Arial, sans-serif`;
+    fitted.lines.forEach((line, index) => ctx.fillText(line, PAGE_X + 32, commentsY + 102 + index * (fitted.size + 12)));
+  } else {
+    ctx.strokeStyle = "#d0d0d0";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i += 1) {
+      const y = commentsY + 112 + i * 48;
+      ctx.beginPath();
+      ctx.moveTo(PAGE_X + 34, y);
+      ctx.lineTo(PAGE_X + PAGE_W_PX - 34, y);
+      ctx.stroke();
+    }
+  }
+
+  const signatureY = commentsY + 340;
+  const signGap = 22;
+  const signW = Math.floor((PAGE_W_PX - signGap) / 2);
+  drawBusterSignatureBlock(ctx, {
+    x: PAGE_X,
+    y: signatureY,
+    width: signW,
+    title: "Employee signature",
+    printedName: employeeName(employee) || undefined,
+  });
+  drawBusterSignatureBlock(ctx, {
+    x: PAGE_X + signW + signGap,
+    y: signatureY,
+    width: signW,
+    title: "Witness signature",
+    printedName: "",
+  });
+
+  const footerY = CANVAS_H - 132;
+  ctx.strokeStyle = "#f4c400";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(PAGE_X, footerY - 42);
+  ctx.lineTo(PAGE_X + PAGE_W_PX, footerY - 42);
+  ctx.stroke();
+  ctx.fillStyle = "#111111";
+  ctx.font = "800 22px Arial, sans-serif";
+  ctx.fillText("BUSTER BUILD  •  CONFIDENTIAL HR RECORD", PAGE_X, footerY);
+  ctx.fillStyle = MUTED;
+  ctx.font = "500 20px Arial, sans-serif";
+  ctx.fillText(`Employee file: ${employee.employee_number || "—"}`, PAGE_X, footerY + 34);
+  ctx.textAlign = "right";
+  ctx.fillText(`${documentNumber}  •  Page 1 of 1`, PAGE_X + PAGE_W_PX, footerY + 34);
+  ctx.textAlign = "left";
+
+  return canvas;
+}
+
 async function renderWarningCanvas(payload: EmployeeWarningPdfPayload) {
   const { employee, warning, generatedBy } = payload;
   const busterBuild = isBusterBuildWorkspace(employee.workspace || warning.workspace);
   applyWarningTheme(busterBuild);
-  const brandName = busterBuild ? "BUSTER BUILD" : "POWERBUILD GROUP";
+  if (busterBuild) return renderBusterBuildWarningCanvas(payload);
+  const brandName = "POWERBUILD GROUP";
   const documentPrefix = busterBuild ? "BB-WARN" : "PB-WARN";
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W;

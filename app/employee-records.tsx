@@ -166,6 +166,13 @@ const formatDate = (value: string) => {
     ? value
     : parsed.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
 };
+const isBusterBuildWorkspace = (value?: string) => /buster\s*build/i.test(String(value || ""));
+const addSixMonthsIso = (value: string) => {
+  const parsed = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return "";
+  parsed.setMonth(parsed.getMonth() + 6);
+  return parsed.toISOString().slice(0, 10);
+};
 const employeeName = (employee: Employee) => `${employee.first_name} ${employee.last_name}`.trim();
 const initials = (employee: Employee) => `${employee.first_name?.[0] || ""}${employee.last_name?.[0] || ""}`.toUpperCase() || "ST";
 const warningIsActive = (warning: Warning, today: string) => warning.status === "Active" && (!warning.valid_until || warning.valid_until >= today);
@@ -873,7 +880,16 @@ PowerBuild HR`;
   };
 
   const openWarning = (employee: Employee) => {
-    setWarningForm({ warningDate: data?.today || new Date().toISOString().slice(0, 10), warningLevel: "Written", reason: "", details: "", issuedBy: currentUser.name || "", validUntil: "", acknowledgement: "" });
+    const warningDate = data?.today || new Date().toISOString().slice(0, 10);
+    setWarningForm({
+      warningDate,
+      warningLevel: "Written",
+      reason: "",
+      details: "",
+      issuedBy: currentUser.name || "",
+      validUntil: isBusterBuildWorkspace(employee.workspace) ? addSixMonthsIso(warningDate) : "",
+      acknowledgement: "",
+    });
     setWarningModal(employee);
   };
 
@@ -989,6 +1005,8 @@ PowerBuild HR`;
 
   if (loading && !data) return <div className="employeeEmpty">Loading employee records…</div>;
   if (!data) return <div className="employeeEmpty">Employee records are unavailable.</div>;
+
+  const warningModalIsBusterBuild = Boolean(warningModal && isBusterBuildWorkspace(warningModal.workspace));
 
   return (
     <section className="employeeRecords">
@@ -1292,7 +1310,64 @@ PowerBuild HR`;
       )}
 
       {warningModal && (
-        <div className="overlay employeeOverlay" onMouseDown={() => setWarningModal(null)}><section className="employeeModal" onMouseDown={(e) => e.stopPropagation()}><header><div><small className="sectionEyebrow">DISCIPLINARY RECORD</small><h2>Issue warning</h2><p>{employeeName(warningModal)} · {warningModal.employee_number}</p></div><button className="closeBtn" onClick={() => setWarningModal(null)}>×</button></header><div className="modalBody recordForm"><label>Warning date<input type="date" value={warningForm.warningDate} onChange={(e)=>setWarningForm({...warningForm,warningDate:e.target.value})}/></label><label>Warning level<select value={warningForm.warningLevel} onChange={(e)=>setWarningForm({...warningForm,warningLevel:e.target.value})}><option>Verbal</option><option>Written</option><option>Final written</option></select></label><label>Valid until<input type="date" value={warningForm.validUntil} onChange={(e)=>setWarningForm({...warningForm,validUntil:e.target.value})}/></label><label className="span2">Reason *<input value={warningForm.reason} onChange={(e)=>setWarningForm({...warningForm,reason:e.target.value})} placeholder="e.g. Repeated lateness"/></label><label>Issued by<input value={warningForm.issuedBy} onChange={(e)=>setWarningForm({...warningForm,issuedBy:e.target.value})}/></label><label className="span3">Full details<textarea value={warningForm.details} onChange={(e)=>setWarningForm({...warningForm,details:e.target.value})}/></label><label className="span3">Employee acknowledgement<textarea value={warningForm.acknowledgement} onChange={(e)=>setWarningForm({...warningForm,acknowledgement:e.target.value})}/></label><p className="privacyNote span3">When the warning is saved, PowerBuild Hub will automatically generate a printable PDF warning letter with signature lines for download.</p></div><footer className="modalFooter"><button className="secondaryBtn" onClick={()=>setWarningModal(null)}>Cancel</button><button className="primaryBtn" disabled={saving} onClick={()=>void saveWarning()}>{saving?"Saving…":"Record warning & download PDF"}</button></footer></section></div>
+        <div className="overlay employeeOverlay" onMouseDown={() => setWarningModal(null)}>
+          <section className="employeeModal" onMouseDown={(e) => e.stopPropagation()}>
+            <header>
+              <div>
+                <small className="sectionEyebrow">DISCIPLINARY RECORD</small>
+                <h2>Issue warning</h2>
+                <p>{employeeName(warningModal)} · {warningModal.employee_number}</p>
+              </div>
+              <button className="closeBtn" onClick={() => setWarningModal(null)}>×</button>
+            </header>
+            <div className="modalBody recordForm">
+              <label>Date issued
+                <input
+                  type="date"
+                  value={warningForm.warningDate}
+                  onChange={(e) => {
+                    const warningDate = e.target.value;
+                    setWarningForm({
+                      ...warningForm,
+                      warningDate,
+                      validUntil: warningModalIsBusterBuild ? addSixMonthsIso(warningDate) : warningForm.validUntil,
+                    });
+                  }}
+                />
+              </label>
+              <label>Warning level
+                <select value={warningForm.warningLevel} onChange={(e)=>setWarningForm({...warningForm,warningLevel:e.target.value})}>
+                  <option>Verbal</option><option>Written</option><option>Final written</option>
+                </select>
+              </label>
+              <label>{warningModalIsBusterBuild ? "Expiry date" : "Valid until"}
+                <input type="date" value={warningForm.validUntil} onChange={(e)=>setWarningForm({...warningForm,validUntil:e.target.value})}/>
+              </label>
+              <label className="span2">{warningModalIsBusterBuild ? "Nature of offence *" : "Reason *"}
+                <input
+                  value={warningForm.reason}
+                  onChange={(e)=>setWarningForm({...warningForm,reason:e.target.value})}
+                  placeholder={warningModalIsBusterBuild ? "e.g. Repeated lateness / misconduct / poor performance" : "e.g. Repeated lateness"}
+                />
+              </label>
+              <label>Manager / issued by
+                <input value={warningForm.issuedBy} onChange={(e)=>setWarningForm({...warningForm,issuedBy:e.target.value})}/>
+              </label>
+              <label className="span3">{warningModalIsBusterBuild ? "Short description" : "Full details"}
+                <textarea value={warningForm.details} onChange={(e)=>setWarningForm({...warningForm,details:e.target.value})}/>
+              </label>
+              <label className="span3">{warningModalIsBusterBuild ? "Employee statement / comments / remarks (optional)" : "Employee acknowledgement"}
+                <textarea value={warningForm.acknowledgement} onChange={(e)=>setWarningForm({...warningForm,acknowledgement:e.target.value})}/>
+              </label>
+              {warningModalIsBusterBuild ? (
+                <p className="privacyNote span3">Buster Build warning PDFs include the employee’s full name and surname, employee number, job title, department, date issued, six-month expiry date, nature of offence, short description, the standard disciplinary procedure and appeal notice, plus signature sections for Manager, Employee and Witness.</p>
+              ) : (
+                <p className="privacyNote span3">When the warning is saved, PowerBuild Hub will automatically generate a printable PDF warning letter with signature lines for download.</p>
+              )}
+            </div>
+            <footer className="modalFooter"><button className="secondaryBtn" onClick={()=>setWarningModal(null)}>Cancel</button><button className="primaryBtn" disabled={saving} onClick={()=>void saveWarning()}>{saving?"Saving…":"Record warning & download PDF"}</button></footer>
+          </section>
+        </div>
       )}
 
       {hrModal && (
