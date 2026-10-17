@@ -372,18 +372,38 @@ async function renderPayslipCanvas(payload: PayslipPdfPayload) {
         .catch(() => loadImage("/powerbuild-logo-transparent.png"))
         .catch(() => null);
   if (logo) {
-    const h = 150;
     const ratio = (logo.naturalWidth || logo.width || 1) / (logo.naturalHeight || logo.height || 1);
-    ctx.drawImage(logo, MARGIN, 92, h * ratio, h);
+    if (busterBuild) {
+      // The Buster Build logo already contains the full brand name. Keep it in a
+      // dedicated left-hand area and do not place duplicate text over the artwork.
+      const maxLogoW = 380;
+      const maxLogoH = 150;
+      let drawW = maxLogoW;
+      let drawH = drawW / ratio;
+      if (drawH > maxLogoH) {
+        drawH = maxLogoH;
+        drawW = drawH * ratio;
+      }
+      ctx.drawImage(logo, MARGIN, 68, drawW, drawH);
+    } else {
+      const h = 150;
+      ctx.drawImage(logo, MARGIN, 92, h * ratio, h);
+    }
   }
 
-  ctx.fillStyle = NAVY_2;
-  ctx.font = "900 38px Arial, sans-serif";
-  ctx.fillText(brandName, MARGIN + 205, 126);
-  ctx.fillStyle = MUTED;
-  ctx.font = "600 23px Arial, sans-serif";
-  ctx.fillText("EMPLOYEE PAYROLL", MARGIN + 205, 164);
-  ctx.fillText("Confidential remuneration statement", MARGIN + 205, 199);
+  if (busterBuild) {
+    ctx.fillStyle = MUTED;
+    ctx.font = "600 20px Arial, sans-serif";
+    ctx.fillText("EMPLOYEE PAYROLL  ·  CONFIDENTIAL REMUNERATION STATEMENT", MARGIN, 250);
+  } else {
+    ctx.fillStyle = NAVY_2;
+    ctx.font = "900 38px Arial, sans-serif";
+    ctx.fillText(brandName, MARGIN + 205, 126);
+    ctx.fillStyle = MUTED;
+    ctx.font = "600 23px Arial, sans-serif";
+    ctx.fillText("EMPLOYEE PAYROLL", MARGIN + 205, 164);
+    ctx.fillText("Confidential remuneration statement", MARGIN + 205, 199);
+  }
 
   ctx.textAlign = "right";
   ctx.fillStyle = NAVY_2;
