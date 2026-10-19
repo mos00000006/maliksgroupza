@@ -185,6 +185,84 @@ const leafletTurnTransform = (direction: -1 | 1, progress: number, cover: boolea
 
 const CATALOGUE_PAGE_SIZE = 12;
 
+const BATHROOM_CATEGORIES = [
+  {
+    title: "Basins",
+    category: "Bathroom · Basins",
+    search: "basin",
+    description: "Basins, pedestals, cabinets and basin fittings.",
+    items: ["Basin & Pedestals", "Counter Top Basins", "Basin & Cabinets", "Wall Hung Basins", "Freestanding Basins", "Basin Taps", "Basin Fittings"],
+  },
+  {
+    title: "Toilets",
+    category: "Bathroom · Toilets",
+    search: "toilet",
+    description: "Complete toilets, cisterns, flush systems and accessories.",
+    items: ["Close Couple Toilets", "Wall Hung Toilets", "Concealed Cisterns", "Flush Plates", "Toilet Fittings", "Toilet Accessories", "Urinals"],
+  },
+  {
+    title: "Showers",
+    category: "Bathroom · Showers",
+    search: "shower",
+    description: "Shower enclosures, rails, heads, channels and outlets.",
+    items: ["Shower Cubicles", "Shower Screens", "Shower Panels", "Shower Rails", "Shower Heads & Arms", "Shower Channels & Traps", "Shower Taps & Outlets"],
+  },
+  {
+    title: "Taps",
+    category: "Bathroom · Taps",
+    search: "tap",
+    description: "Basin, bath, shower and freestanding tapware.",
+    items: ["Basin Taps", "Bath Taps", "Shower Taps", "Freestanding Bath Taps", "Bathroom Spouts"],
+  },
+  {
+    title: "Baths",
+    category: "Bathroom · Baths",
+    search: "bath",
+    description: "Freestanding and built-in baths with screens and fittings.",
+    items: ["Freestanding Baths", "Built In Baths", "Spa Baths", "Bath Taps", "Bath Accessories", "Bath Screens"],
+  },
+  {
+    title: "Bathroom Furniture",
+    category: "Bathroom · Furniture",
+    search: "mirror",
+    description: "Mirrors, cabinets and practical bathroom accessories.",
+    items: ["Mirror Cabinets", "Feature Mirrors", "LED Mirrors", "Bathroom Accessories"],
+  },
+  {
+    title: "Bathroom Tiles",
+    category: "Bathroom · Tiles",
+    search: "bathroom tile",
+    description: "Wall, floor and mosaic options for complete bathroom projects.",
+    items: ["Bathroom Wall Tiles", "Bathroom Floor Tiles", "Bathroom Mosaics"],
+  },
+] as const;
+
+const CATALOGUE_CATEGORY_OPTIONS = [
+  "Plumbing",
+  ...BATHROOM_CATEGORIES.map((item) => item.category),
+  "Electrical & Lighting",
+  "Paints & Allied",
+  "Waterproofing",
+  "Roofing & Gutters",
+  "Timber",
+  "Boards & Ceilings",
+  "Insulation",
+  "Bricks & Blocks",
+  "Steel & Metal",
+  "Doors & Frames",
+  "Windows",
+  "Fencing",
+  "Locksets",
+  "Fasteners",
+  "Ironmongery",
+  "Tools",
+  "Garden",
+  "Homeware",
+  "General Hardware",
+  "Adhesives & Chemicals",
+  "General",
+];
+
 export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?: string }) {
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
   const [page, setPage] = useState(1);
@@ -255,6 +333,12 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       if (id === requestId.current) setLoading(false);
     }
   }, []);
+
+  const browseBathroom = (search: string) => {
+    setQuery(search);
+    void load(1, search);
+    window.setTimeout(() => document.getElementById("catalogue-products")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  };
 
   const getLeafletTurn = useCallback((direction: -1 | 1): LeafletTurnState | null => {
     if (!leafletPages.length) return null;
@@ -673,6 +757,33 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
         {expectedManager && canManage && <em>Catalogue administrator</em>}
       </div>
 
+      <section className="catalogueBathroomDepartment" aria-label="Bathroom and sanware catalogue">
+        <header>
+          <div>
+            <small>BATHROOM & SANWARE</small>
+            <h3>Shop the bathroom range</h3>
+            <p>Browse the catalogue by bathroom department, then refine by product type.</p>
+          </div>
+          <button type="button" onClick={() => browseBathroom("Bathroom")}>View all bathroom products →</button>
+        </header>
+        <div className="catalogueBathroomGrid">
+          {BATHROOM_CATEGORIES.map((group, index) => (
+            <article className="catalogueBathroomCard" key={group.title}>
+              <button className="catalogueBathroomMain" type="button" onClick={() => browseBathroom(group.search)}>
+                <i aria-hidden="true">{String(index + 1).padStart(2, "0")}</i>
+                <span><b>{group.title}</b><small>{group.description}</small></span>
+                <em>→</em>
+              </button>
+              <div className="catalogueBathroomLinks">
+                {group.items.map((item) => (
+                  <button type="button" key={item} onClick={() => browseBathroom(item.replace(/&/g, " ").replace(/s$/i, ""))}>{item}</button>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
       {success && <div className="catalogueSuccess">✓ {success}</div>}
       {pdfStatus && (
         <div className="cataloguePdfProgress" aria-live="polite">
@@ -683,6 +794,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       )}
       {error && !editorOpen && <div className="catalogueError">{error}</div>}
 
+      <div id="catalogue-products" className="catalogueProductsAnchor" />
       {loading ? (
         <div className="catalogueLoading">Loading catalogue products…</div>
       ) : products.length === 0 ? (
@@ -939,8 +1051,12 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                 <input
                   value={draft.category}
                   onChange={(event) => setDraft({ ...draft, category: event.target.value })}
-                  placeholder="e.g. Plumbing"
+                  placeholder="e.g. Bathroom · Showers"
+                  list="catalogue-category-options"
                 />
+                <datalist id="catalogue-category-options">
+                  {CATALOGUE_CATEGORY_OPTIONS.map((category) => <option key={category} value={category} />)}
+                </datalist>
               </label>
               <label>
                 Product picture
