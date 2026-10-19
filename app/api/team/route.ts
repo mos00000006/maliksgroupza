@@ -203,7 +203,7 @@ export async function POST(req: Request) {
     inviteToken = crypto.randomUUID().replaceAll("-", ""),
     inviteUrl = new URL(
       `/?invite=${encodeURIComponent(inviteToken)}&install=1`,
-      req.url,
+      "https://maliks-group-hub.moyanamoses006.workers.dev/",
     ).toString(),
     createdAt = new Date().toISOString();
   if (role === "Owner / Admin" && email !== fallbackOwner.email)

@@ -166,13 +166,6 @@ const formatDate = (value: string) => {
     ? value
     : parsed.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
 };
-const isBusterBuildWorkspace = (value?: string) => /buster\s*build/i.test(String(value || ""));
-const addSixMonthsIso = (value: string) => {
-  const parsed = new Date(`${value}T12:00:00`);
-  if (Number.isNaN(parsed.getTime())) return "";
-  parsed.setMonth(parsed.getMonth() + 6);
-  return parsed.toISOString().slice(0, 10);
-};
 const employeeName = (employee: Employee) => `${employee.first_name} ${employee.last_name}`.trim();
 const initials = (employee: Employee) => `${employee.first_name?.[0] || ""}${employee.last_name?.[0] || ""}`.toUpperCase() || "ST";
 const warningIsActive = (warning: Warning, today: string) => warning.status === "Active" && (!warning.valid_until || warning.valid_until >= today);
@@ -809,30 +802,38 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
     finally { setSaving(false); }
   };
 
-  const payslipShareLink = async (payslip: Payslip, employee?: Employee | null) => {
-    const completed = await ensurePayslipPdf(payslip, employee);
-    const response = await fetch(`/api/employees/payslips/${completed.id}/share`, { method: "POST" });
-    const result = await response.json().catch(() => ({})) as { shareUrl?: string; error?: string };
-    if (!response.ok || !result.shareUrl) throw new Error(result.error || "Payslip share link could not be created.");
-    return { completed, shareUrl: result.shareUrl };
+  const getPayslipShareFile = async (payslip: Payslip, employee?: Employee | null) => {
+    const person = employee || employeeById(Number(payslip.employee_id));
+    if (!person) throw new Error("Employee file could not be found for this payslip.");
+    const completed = await ensurePayslipPdf(payslip, person);
+    const response = await fetch(`/api/employees/payslips/${completed.id}/pdf`, { cache: "no-store" });
+    if (!response.ok) throw new Error("Payslip PDF could not be loaded for sharing.");
+    const blob = await response.blob();
+    const file = new File([blob], completed.pdf_file_name || payslipPdfFileName(person, completed), { type: "application/pdf" });
+    return { person, completed, blob, file };
+  };
+
+  const downloadBlobFile = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1200);
   };
 
   const sharePayslipFile = async (payslip: Payslip, employee?: Employee | null) => {
     if (saving) return;
-    const person = employee || employeeById(Number(payslip.employee_id));
-    if (!person) return flash("Employee file could not be found for this payslip.");
     setSaving(true);
     try {
-      const completed = await ensurePayslipPdf(payslip, person);
-      const response = await fetch(`/api/employees/payslips/${completed.id}/pdf`, { cache: "no-store" });
-      if (!response.ok) throw new Error("Payslip PDF could not be loaded for sharing.");
-      const blob = await response.blob();
-      const file = new File([blob], completed.pdf_file_name || payslipPdfFileName(person, completed), { type: "application/pdf" });
+      const { person, completed, blob, file } = await getPayslipShareFile(payslip, employee);
       if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
         await navigator.share({ files: [file], title: `PowerBuild Payslip - ${employeeName(person)}`, text: `Payslip for ${formatDate(completed.pay_period_start)} to ${formatDate(completed.pay_period_end)}` });
         flash("Payslip PDF shared.");
       } else {
-        const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = file.name; document.body.appendChild(anchor); anchor.click(); anchor.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+        downloadBlobFile(blob, file.name);
         flash("This device cannot attach the PDF directly. The payslip was downloaded so you can attach it manually.");
       }
     } catch (error) { if (error instanceof DOMException && error.name === "AbortError") return; flash(error instanceof Error ? error.message : "Payslip PDF could not be shared."); }
@@ -846,12 +847,22 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
     if (!number) return flash("Add the employee WhatsApp/mobile number before sending the payslip.");
     setSaving(true);
     try {
-      const { shareUrl } = await payslipShareLink(payslip, person);
-      const message = `Hi ${person ? employeeName(person) : ""}, your PowerBuild payslip for ${formatDate(payslip.pay_period_start)} to ${formatDate(payslip.pay_period_end)} is ready. Download the PDF here: ${shareUrl}`;
-      window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
-      flash("WhatsApp opened with the secure payslip PDF link. The link expires in 7 days.");
-    } catch (error) { flash(error instanceof Error ? error.message : "Payslip could not be shared on WhatsApp."); }
-    finally { setSaving(false); }
+      const { person: sharePerson, completed, blob, file } = await getPayslipShareFile(payslip, person);
+      const message = `Hi ${employeeName(sharePerson)}, your PowerBuild payslip for ${formatDate(completed.pay_period_start)} to ${formatDate(completed.pay_period_end)} is attached.`;
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({ files: [file], title: `PowerBuild Payslip - ${employeeName(sharePerson)}`, text: message });
+        flash("Choose WhatsApp from the share sheet to send the actual PDF file.");
+      } else {
+        downloadBlobFile(blob, file.name);
+        window.open(`https://wa.me/${number}?text=${encodeURIComponent(`${message}
+
+The PDF has been downloaded on this device. Please attach the downloaded payslip to this WhatsApp message.`)}`, "_blank", "noopener,noreferrer");
+        flash("Payslip PDF downloaded and WhatsApp opened. Attach the downloaded PDF to the message.");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      flash(error instanceof Error ? error.message : "Payslip could not be shared on WhatsApp.");
+    } finally { setSaving(false); }
   };
 
   const sendPayslipEmail = async (payslip: Payslip, employee?: Employee | null) => {
@@ -861,35 +872,33 @@ export default function EmployeeRecords({ currentUser }: { currentUser: CurrentH
     if (!email) return flash("Add the employee email address before sending the payslip.");
     setSaving(true);
     try {
-      const { shareUrl } = await payslipShareLink(payslip, person);
-      const subject = `PowerBuild Payslip - ${formatDate(payslip.pay_period_end)}`;
-      const body = `Hi ${person ? employeeName(person) : ""},
+      const { person: sharePerson, completed, blob, file } = await getPayslipShareFile(payslip, person);
+      const subject = `PowerBuild Payslip - ${formatDate(completed.pay_period_end)}`;
+      const body = `Hi ${employeeName(sharePerson)},
 
-Your PowerBuild payslip for ${formatDate(payslip.pay_period_start)} to ${formatDate(payslip.pay_period_end)} is ready.
-
-Download the PDF: ${shareUrl}
-
-This secure link expires in 7 days.
+Please find your PowerBuild payslip for ${formatDate(completed.pay_period_start)} to ${formatDate(completed.pay_period_end)} attached.
 
 Regards,
 PowerBuild HR`;
-      window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      flash("Email opened with the secure payslip PDF link. The link expires in 7 days.");
-    } catch (error) { flash(error instanceof Error ? error.message : "Payslip could not be shared by email."); }
-    finally { setSaving(false); }
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({ files: [file], title: subject, text: body });
+        flash("Choose your email app from the share sheet to send the actual PDF file.");
+      } else {
+        downloadBlobFile(blob, file.name);
+        const fallbackBody = `${body}
+
+The PDF has been downloaded on this device. Please attach the downloaded payslip before sending this email.`;
+        window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fallbackBody)}`;
+        flash("Payslip PDF downloaded and email opened. Attach the downloaded PDF before sending.");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      flash(error instanceof Error ? error.message : "Payslip could not be shared by email.");
+    } finally { setSaving(false); }
   };
 
   const openWarning = (employee: Employee) => {
-    const warningDate = data?.today || new Date().toISOString().slice(0, 10);
-    setWarningForm({
-      warningDate,
-      warningLevel: "Written",
-      reason: "",
-      details: "",
-      issuedBy: currentUser.name || "",
-      validUntil: isBusterBuildWorkspace(employee.workspace) ? addSixMonthsIso(warningDate) : "",
-      acknowledgement: "",
-    });
+    setWarningForm({ warningDate: data?.today || new Date().toISOString().slice(0, 10), warningLevel: "Written", reason: "", details: "", issuedBy: currentUser.name || "", validUntil: "", acknowledgement: "" });
     setWarningModal(employee);
   };
 
@@ -1006,8 +1015,6 @@ PowerBuild HR`;
   if (loading && !data) return <div className="employeeEmpty">Loading employee records…</div>;
   if (!data) return <div className="employeeEmpty">Employee records are unavailable.</div>;
 
-  const warningModalIsBusterBuild = Boolean(warningModal && isBusterBuildWorkspace(warningModal.workspace));
-
   return (
     <section className="employeeRecords">
       <style>{CSS}</style>
@@ -1094,7 +1101,7 @@ PowerBuild HR`;
 
       {activeTab === "Payslips" && data.permissions.canManagePayslips && (
         <div className="panel payslipRegister">
-          <div className="panelHeader"><div><small className="sectionEyebrow">CONFIDENTIAL PAYROLL</small><h3>Payslips</h3><p>Generate premium PowerBuild payslips, keep a payroll history and share each PDF securely by WhatsApp or email.</p></div><button className="panelAddBtn" onClick={() => setPayslipPicker(true)}>＋ Generate payslip</button></div>
+          <div className="panelHeader"><div><small className="sectionEyebrow">CONFIDENTIAL PAYROLL</small><h3>Payslips</h3><p>Generate professional PowerBuild payslips, keep a payroll history and share the actual PDF by WhatsApp or email without adding the Hub web address.</p></div><button className="panelAddBtn" onClick={() => setPayslipPicker(true)}>＋ Generate payslip</button></div>
           <div className="tableWrap">
             <div className="registerHead"><span>Employee</span><span>Pay period</span><span>Gross pay</span><span>Deductions</span><span>Net pay</span><span>PDF / Send</span></div>
             {filteredPayslips.map((payslip) => {
@@ -1272,7 +1279,7 @@ PowerBuild HR`;
         <div className="overlay employeeOverlay" onMouseDown={() => !saving && setGeneratedPayslip(null)}>
           <section className="employeeModal payslipGenerated" onMouseDown={(e) => e.stopPropagation()}>
             <header><div><small className="sectionEyebrow">PAYSLIP READY</small><h2>{employeeById(Number(generatedPayslip.employee_id)) ? employeeName(employeeById(Number(generatedPayslip.employee_id)) as Employee) : "Employee payslip"}</h2><p>{formatDate(generatedPayslip.pay_period_start)} → {formatDate(generatedPayslip.pay_period_end)}</p></div><button className="closeBtn" onClick={() => setGeneratedPayslip(null)}>×</button></header>
-            <div className="modalBody"><div className="payslipGeneratedSummary"><article><span>Gross pay</span><b>{rand(generatedPayslip.gross_pay)}</b></article><article><span>Deductions</span><b>{rand(generatedPayslip.total_deductions)}</b></article><article><span>Net pay</span><b>{rand(generatedPayslip.net_pay)}</b></article></div><p className="payslipShareNotice">The PDF is stored in the employee payroll history. WhatsApp and Email create a secure 7-day PDF download link for the employee. On devices that support native file sharing, you can also download the PDF and share the actual file.</p></div>
+            <div className="modalBody"><div className="payslipGeneratedSummary"><article><span>Gross pay</span><b>{rand(generatedPayslip.gross_pay)}</b></article><article><span>Deductions</span><b>{rand(generatedPayslip.total_deductions)}</b></article><article><span>Net pay</span><b>{rand(generatedPayslip.net_pay)}</b></article></div><p className="payslipShareNotice">The PDF is stored in the employee payroll history. PowerBuild does not insert the Hub web address into payslip messages. On supported phones/tablets the actual PDF can be shared directly; on devices that cannot attach files automatically, the PDF is downloaded first so you can attach it manually.</p></div>
             <footer className="modalFooter payslipActions"><button className="download" disabled={saving} onClick={() => void downloadPayslip(generatedPayslip)}>↓ Download PDF</button><button className="download" disabled={saving} onClick={() => void sharePayslipFile(generatedPayslip)}>Share PDF file</button><button className="whatsapp" disabled={saving} onClick={() => void sendPayslipWhatsapp(generatedPayslip)}>Send WhatsApp</button><button className="email" disabled={saving} onClick={() => void sendPayslipEmail(generatedPayslip)}>Send Email</button><button className="secondaryBtn" onClick={() => setGeneratedPayslip(null)}>Close</button></footer>
           </section>
         </div>
@@ -1310,64 +1317,7 @@ PowerBuild HR`;
       )}
 
       {warningModal && (
-        <div className="overlay employeeOverlay" onMouseDown={() => setWarningModal(null)}>
-          <section className="employeeModal" onMouseDown={(e) => e.stopPropagation()}>
-            <header>
-              <div>
-                <small className="sectionEyebrow">DISCIPLINARY RECORD</small>
-                <h2>Issue warning</h2>
-                <p>{employeeName(warningModal)} · {warningModal.employee_number}</p>
-              </div>
-              <button className="closeBtn" onClick={() => setWarningModal(null)}>×</button>
-            </header>
-            <div className="modalBody recordForm">
-              <label>Date issued
-                <input
-                  type="date"
-                  value={warningForm.warningDate}
-                  onChange={(e) => {
-                    const warningDate = e.target.value;
-                    setWarningForm({
-                      ...warningForm,
-                      warningDate,
-                      validUntil: warningModalIsBusterBuild ? addSixMonthsIso(warningDate) : warningForm.validUntil,
-                    });
-                  }}
-                />
-              </label>
-              <label>Warning level
-                <select value={warningForm.warningLevel} onChange={(e)=>setWarningForm({...warningForm,warningLevel:e.target.value})}>
-                  <option>Verbal</option><option>Written</option><option>Final written</option>
-                </select>
-              </label>
-              <label>{warningModalIsBusterBuild ? "Expiry date" : "Valid until"}
-                <input type="date" value={warningForm.validUntil} onChange={(e)=>setWarningForm({...warningForm,validUntil:e.target.value})}/>
-              </label>
-              <label className="span2">{warningModalIsBusterBuild ? "Nature of offence *" : "Reason *"}
-                <input
-                  value={warningForm.reason}
-                  onChange={(e)=>setWarningForm({...warningForm,reason:e.target.value})}
-                  placeholder={warningModalIsBusterBuild ? "e.g. Repeated lateness / misconduct / poor performance" : "e.g. Repeated lateness"}
-                />
-              </label>
-              <label>Manager / issued by
-                <input value={warningForm.issuedBy} onChange={(e)=>setWarningForm({...warningForm,issuedBy:e.target.value})}/>
-              </label>
-              <label className="span3">{warningModalIsBusterBuild ? "Short description" : "Full details"}
-                <textarea value={warningForm.details} onChange={(e)=>setWarningForm({...warningForm,details:e.target.value})}/>
-              </label>
-              <label className="span3">{warningModalIsBusterBuild ? "Employee statement / comments / remarks (optional)" : "Employee acknowledgement"}
-                <textarea value={warningForm.acknowledgement} onChange={(e)=>setWarningForm({...warningForm,acknowledgement:e.target.value})}/>
-              </label>
-              {warningModalIsBusterBuild ? (
-                <p className="privacyNote span3">Buster Build warning PDFs include the employee’s full name and surname, employee number, job title, department, date issued, six-month expiry date, nature of offence, short description, the standard disciplinary procedure and appeal notice, plus signature sections for Manager, Employee and Witness.</p>
-              ) : (
-                <p className="privacyNote span3">When the warning is saved, PowerBuild Hub will automatically generate a printable PDF warning letter with signature lines for download.</p>
-              )}
-            </div>
-            <footer className="modalFooter"><button className="secondaryBtn" onClick={()=>setWarningModal(null)}>Cancel</button><button className="primaryBtn" disabled={saving} onClick={()=>void saveWarning()}>{saving?"Saving…":"Record warning & download PDF"}</button></footer>
-          </section>
-        </div>
+        <div className="overlay employeeOverlay" onMouseDown={() => setWarningModal(null)}><section className="employeeModal" onMouseDown={(e) => e.stopPropagation()}><header><div><small className="sectionEyebrow">DISCIPLINARY RECORD</small><h2>Issue warning</h2><p>{employeeName(warningModal)} · {warningModal.employee_number}</p></div><button className="closeBtn" onClick={() => setWarningModal(null)}>×</button></header><div className="modalBody recordForm"><label>Warning date<input type="date" value={warningForm.warningDate} onChange={(e)=>setWarningForm({...warningForm,warningDate:e.target.value})}/></label><label>Warning level<select value={warningForm.warningLevel} onChange={(e)=>setWarningForm({...warningForm,warningLevel:e.target.value})}><option>Verbal</option><option>Written</option><option>Final written</option></select></label><label>Valid until<input type="date" value={warningForm.validUntil} onChange={(e)=>setWarningForm({...warningForm,validUntil:e.target.value})}/></label><label className="span2">Reason *<input value={warningForm.reason} onChange={(e)=>setWarningForm({...warningForm,reason:e.target.value})} placeholder="e.g. Repeated lateness"/></label><label>Issued by<input value={warningForm.issuedBy} onChange={(e)=>setWarningForm({...warningForm,issuedBy:e.target.value})}/></label><label className="span3">Full details<textarea value={warningForm.details} onChange={(e)=>setWarningForm({...warningForm,details:e.target.value})}/></label><label className="span3">Employee acknowledgement<textarea value={warningForm.acknowledgement} onChange={(e)=>setWarningForm({...warningForm,acknowledgement:e.target.value})}/></label><p className="privacyNote span3">When the warning is saved, PowerBuild Hub will automatically generate a printable PDF warning letter with signature lines for download.</p></div><footer className="modalFooter"><button className="secondaryBtn" onClick={()=>setWarningModal(null)}>Cancel</button><button className="primaryBtn" disabled={saving} onClick={()=>void saveWarning()}>{saving?"Saving…":"Record warning & download PDF"}</button></footer></section></div>
       )}
 
       {hrModal && (

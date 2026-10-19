@@ -459,7 +459,6 @@ export default function Home() {
   const notificationIds = useRef<Set<number>>(new Set());
   const notificationSyncReady = useRef(false);
   const pushReady = useRef(false);
-  const notificationPromptStarted = useRef(false);
   const taskAlertsAllowed = useRef(true);
   const popupTimer = useRef<number | null>(null);
   const lastPopup = useRef<{ key: string; at: number }>({ key: "", at: 0 });
@@ -712,45 +711,16 @@ export default function Home() {
         .catch(() => setLoading(false));
     }, 0);
 
-    // iPhone/iPad and desktop browsers only allow the system permission prompt
-    // from a real user gesture. The first normal tap/click/key press in the Hub
-    // is used automatically, so users do not need to find a separate setup button.
-    const requestAlertsOnFirstInteraction = () => {
-      if (!taskAlertsAllowed.current) return;
-      if (notificationPromptStarted.current) return;
-      if (!("Notification" in window) || Notification.permission !== "default") return;
-      if (window.sessionStorage.getItem("maliks-task-alert-permission-attempted") === "1") return;
-
-      const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
-      const standalone =
-        window.matchMedia("(display-mode: standalone)").matches ||
-        navigatorWithStandalone.standalone === true;
-      const isiOS =
-        /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-      // Web Push on iOS is exposed to Home Screen web apps, not an ordinary Safari tab.
-      if (isiOS && !standalone) return;
-
-      notificationPromptStarted.current = true;
-      window.sessionStorage.setItem("maliks-task-alert-permission-attempted", "1");
-      void enableTaskAlerts(true);
-      window.removeEventListener("pointerdown", requestAlertsOnFirstInteraction);
-      window.removeEventListener("touchend", requestAlertsOnFirstInteraction);
-      window.removeEventListener("keydown", requestAlertsOnFirstInteraction);
-    };
-    window.addEventListener("pointerdown", requestAlertsOnFirstInteraction, { passive: true });
-    window.addEventListener("touchend", requestAlertsOnFirstInteraction, { passive: true });
-    window.addEventListener("keydown", requestAlertsOnFirstInteraction);
+    // Do not automatically trigger the browser/system notification permission prompt.
+    // The Hub only asks for notification permission after the user explicitly chooses
+    // to enable alerts from the app. This avoids showing the technical web origin
+    // unexpectedly during normal Hub use.
 
     const timer = window.setInterval(() => { if (taskAlertsAllowed.current) void loadNotifications(); }, 10000);
     return () => {
       window.clearTimeout(starter);
       window.clearInterval(timer);
       if (popupTimer.current) window.clearTimeout(popupTimer.current);
-      window.removeEventListener("pointerdown", requestAlertsOnFirstInteraction);
-      window.removeEventListener("touchend", requestAlertsOnFirstInteraction);
-      window.removeEventListener("keydown", requestAlertsOnFirstInteraction);
       navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
     };
   }, []);
