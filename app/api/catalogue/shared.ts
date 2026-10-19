@@ -24,8 +24,10 @@ export const productResponse = (row: Record<string, unknown>) => {
     ...row,
     image_url: imageKey.startsWith("static:")
       ? imageKey.slice("static:".length)
-      : imageKey
-        ? `/api/catalogue/${row.id}/image?v=${encodeURIComponent(String(row.updated_at || ""))}`
-        : "",
+      : imageKey.startsWith("external:")
+        ? `/api/catalogue/${row.id}/external-image?v=${encodeURIComponent(String(row.updated_at || ""))}`
+        : imageKey
+          ? `/api/catalogue/${row.id}/image?v=${encodeURIComponent(String(row.updated_at || ""))}`
+          : "",
   };
 };
