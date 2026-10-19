@@ -22,14 +22,6 @@ type CatalogueDraft = {
   category: string;
 };
 
-type PulseSyncCategory = {
-  key: string;
-  label: string;
-  category: string;
-  pages: number;
-  available: boolean;
-};
-
 type LeafletTurnState = {
   direction: -1 | 1;
   target: number;
@@ -213,9 +205,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfStatus, setPdfStatus] = useState("");
   const [pdfProgress, setPdfProgress] = useState(0);
-  const [pulseSyncBusy, setPulseSyncBusy] = useState(false);
-  const [pulseSyncStatus, setPulseSyncStatus] = useState("");
-  const [pulseSyncProgress, setPulseSyncProgress] = useState(0);
   const [leafletOpen, setLeafletOpen] = useState(false);
   const [leafletPages, setLeafletPages] = useState<string[]>([]);
   const [leafletPage, setLeafletPage] = useState(0);
@@ -637,64 +626,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     }
   };
 
-  const syncPulseTiles = async () => {
-    if (!canManage || pulseSyncBusy) return;
-    setPulseSyncBusy(true);
-    setPulseSyncStatus("Checking the Pulse Tiles ranges…");
-    setPulseSyncProgress(1);
-    setError("");
-    setSuccess("");
-
-    try {
-      const planResponse = await fetch("/api/catalogue/pulse-sync", { cache: "no-store" });
-      const plan = (await planResponse.json().catch(() => ({}))) as { error?: string; categories?: PulseSyncCategory[] };
-      if (!planResponse.ok) throw new Error(plan.error || "Pulse Tiles could not be checked.");
-
-      const categories = (plan.categories || []).filter((item) => item.available && item.pages > 0);
-      const totalJobs = categories.reduce((sum, item) => sum + item.pages, 0);
-      if (!totalJobs) throw new Error("No Pulse Tiles catalogue pages were available to sync.");
-
-      let completed = 0;
-      let imported = 0;
-      let updated = 0;
-      let failed = 0;
-
-      for (const category of categories) {
-        for (let sourcePage = 1; sourcePage <= category.pages; sourcePage += 1) {
-          setPulseSyncStatus(`Syncing ${category.label} · page ${sourcePage} of ${category.pages}…`);
-          const response = await fetch("/api/catalogue/pulse-sync", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ category: category.key, page: sourcePage }),
-          });
-          const result = (await response.json().catch(() => ({}))) as {
-            error?: string;
-            imported?: number;
-            updated?: number;
-            failed?: number;
-          };
-          if (!response.ok) throw new Error(result.error || `Pulse Tiles ${category.label} page ${sourcePage} could not be synced.`);
-          imported += Number(result.imported || 0);
-          updated += Number(result.updated || 0);
-          failed += Number(result.failed || 0);
-          completed += 1;
-          setPulseSyncProgress(Math.max(2, Math.round((completed / totalJobs) * 100)));
-        }
-      }
-
-      setSuccess(`Pulse Tiles sync complete: ${imported} added, ${updated} refreshed${failed ? `, ${failed} could not be read` : ""}.`);
-      setPulseSyncStatus("");
-      setPulseSyncProgress(0);
-      await load(1, query, false);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Pulse Tiles could not be synced.");
-      setPulseSyncStatus("");
-      setPulseSyncProgress(0);
-    } finally {
-      setPulseSyncBusy(false);
-    }
-  };
-
   return (
     <div className="catalogueModule">
       <section className="catalogueHero">
@@ -731,12 +662,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
             </button>
           </div>
           {canManage && (
-            <div className="catalogueManagerActions">
-              <button className="primary" onClick={openAdd}>＋ Add catalogue product</button>
-              <button className="cataloguePulseSyncButton" disabled={pulseSyncBusy} onClick={() => void syncPulseTiles()}>
-                {pulseSyncBusy ? "Syncing Pulse Tiles…" : "↻ Sync Pulse Tiles"}
-              </button>
-            </div>
+            <button className="primary" onClick={openAdd}>＋ Add catalogue product</button>
           )}
         </div>
       </section>
@@ -748,13 +674,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       </div>
 
       {success && <div className="catalogueSuccess">✓ {success}</div>}
-      {pulseSyncStatus && (
-        <div className="cataloguePulseProgress" aria-live="polite">
-          <div><b>{pulseSyncStatus}</b><span>{pulseSyncProgress}%</span></div>
-          <i><span style={{ width: `${Math.max(2, pulseSyncProgress)}%` }} /></i>
-          <small>PowerBuild is importing the live Pulse Tiles tile ranges, product codes, descriptions and source images into Our Catalogue.</small>
-        </div>
-      )}
       {pdfStatus && (
         <div className="cataloguePdfProgress" aria-live="polite">
           <div><b>{pdfStatus}</b><span>{pdfProgress}%</span></div>

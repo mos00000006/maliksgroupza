@@ -16,6 +16,24 @@ export async function GET(
     .bind(id)
     .first<{ image_key: string; image_name: string; image_type: string }>();
   if (!row?.image_key) return new Response("Not found", { status: 404 });
+
+  if (row.image_key.startsWith("external:")) {
+    const sourceUrl = row.image_key.slice("external:".length);
+    try {
+      const remote = await fetch(sourceUrl, { headers: { accept: "image/avif,image/webp,image/*,*/*;q=0.8" } });
+      if (!remote.ok || !remote.body) return new Response("Not found", { status: 404 });
+      return new Response(remote.body, {
+        headers: {
+          "content-type": remote.headers.get("content-type") || row.image_type || "image/webp",
+          "cache-control": "private, max-age=86400",
+          "content-disposition": `inline; filename="${row.image_name.replaceAll('"', "")}"`,
+        },
+      });
+    } catch {
+      return new Response("Not found", { status: 404 });
+    }
+  }
+
   const object = await env.BUCKET.get(row.image_key);
   if (!object) return new Response("Not found", { status: 404 });
   return new Response(object.body, {
