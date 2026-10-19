@@ -150,17 +150,11 @@ const safeCategory = (value: string) => cleanText(value || "General") || "Genera
 
 const CATEGORY_ORDER = [
   "Plumbing",
-  "Bathroom · Basins",
-  "Bathroom · Toilets",
-  "Bathroom · Showers",
-  "Bathroom · Taps",
-  "Bathroom · Baths",
-  "Bathroom · Furniture",
-  "Bathroom · Tiles",
   "Electrical & Lighting",
   "Paints & Allied",
   "Waterproofing",
   "Roofing & Gutters",
+  "Tiles & Flooring",
   "Timber",
   "Boards & Ceilings",
   "Insulation",
