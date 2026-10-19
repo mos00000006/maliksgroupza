@@ -22,6 +22,20 @@ type CatalogueDraft = {
   category: string;
 };
 
+type PulseImportCursor = { categoryIndex: number; page: number; offset: number };
+type PulseImportResponse = {
+  done: boolean;
+  nextCursor: PulseImportCursor | null;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  images: number;
+  progress: number;
+  status: string;
+  failures?: string[];
+  error?: string;
+};
+
 type LeafletTurnState = {
   direction: -1 | 1;
   target: number;
@@ -202,6 +216,9 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   const [success, setSuccess] = useState("");
   const [deleteProduct, setDeleteProduct] = useState<CatalogueProduct | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [pulseImporting, setPulseImporting] = useState(false);
+  const [pulseImportStatus, setPulseImportStatus] = useState("");
+  const [pulseImportProgress, setPulseImportProgress] = useState(0);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfStatus, setPdfStatus] = useState("");
   const [pdfProgress, setPdfProgress] = useState(0);
@@ -517,6 +534,62 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   };
 
 
+  const importPulseKitchens = async () => {
+    if (!canManage || pulseImporting) return;
+    setPulseImporting(true);
+    setError("");
+    setSuccess("");
+    setPulseImportProgress(1);
+    setPulseImportStatus("Connecting to Pulse Tiles Kitchens…");
+
+    let cursor: PulseImportCursor = { categoryIndex: 0, page: 1, offset: 0 };
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+    let images = 0;
+    const failures: string[] = [];
+
+    try {
+      for (let step = 0; step < 500; step += 1) {
+        const response = await fetch("/api/catalogue/import-pulse-kitchens", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ cursor }),
+        });
+        const result = (await response.json().catch(() => ({}))) as Partial<PulseImportResponse>;
+        if (!response.ok) throw new Error(result.error || `Pulse Kitchens import failed (${response.status}).`);
+
+        inserted += Number(result.inserted || 0);
+        updated += Number(result.updated || 0);
+        skipped += Number(result.skipped || 0);
+        images += Number(result.images || 0);
+        if (Array.isArray(result.failures)) failures.push(...result.failures);
+        setPulseImportProgress(Math.max(1, Math.min(100, Number(result.progress || 0))));
+        setPulseImportStatus(result.status || "Importing Pulse Kitchens products…");
+
+        if (result.done || !result.nextCursor) break;
+        cursor = result.nextCursor;
+        if (step === 499) throw new Error("The Pulse Kitchens import reached its safety limit. Run the import again to continue.");
+      }
+
+      setQuery("");
+      setSuccess(`Pulse Kitchens import complete: ${inserted} added, ${updated} refreshed, ${skipped} already in the catalogue. ${images} product images saved.${failures.length ? ` ${failures.length} items could not be read and can be retried.` : ""}`);
+      setPulseImportProgress(100);
+      setPulseImportStatus("Pulse Kitchens range added to Our Catalogue.");
+      await load(1, "", false);
+      window.setTimeout(() => {
+        setPulseImportStatus("");
+        setPulseImportProgress(0);
+      }, 5500);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The Pulse Kitchens range could not be imported.");
+      setPulseImportStatus("");
+      setPulseImportProgress(0);
+    } finally {
+      setPulseImporting(false);
+    }
+  };
+
   const loadAllCatalogueProducts = async () => {
     const collected: CatalogueProduct[] = [];
     let exportPage = 1;
@@ -672,6 +745,27 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
         <span><b>{page}</b><small>Page of {pages}</small></span>
         {expectedManager && canManage && <em>Catalogue administrator</em>}
       </div>
+
+      {canManage && (
+        <section className="pulseKitchenImportPanel">
+          <div>
+            <small>PULSE TILES · KITCHENS RANGE</small>
+            <b>Add Kitchen Products to Our Catalogue</b>
+            <p>Imports Kitchen Sinks, Sink Taps, Sink Fittings, Kitchen Tiles and Kitchen Mosaics with source SKUs and product images. Existing catalogue items are not duplicated.</p>
+          </div>
+          <button type="button" disabled={pulseImporting} onClick={() => void importPulseKitchens()}>
+            {pulseImporting ? "Importing…" : "＋ Import Pulse Kitchens"}
+          </button>
+        </section>
+      )}
+
+      {pulseImportStatus && (
+        <div className="pulseKitchenImportProgress" aria-live="polite">
+          <div><b>{pulseImportStatus}</b><span>{pulseImportProgress}%</span></div>
+          <i><span style={{ width: `${Math.max(2, pulseImportProgress)}%` }} /></i>
+          <small>Products are imported in small batches so the Cloudflare Worker remains stable.</small>
+        </div>
+      )}
 
       {success && <div className="catalogueSuccess">✓ {success}</div>}
       {pdfStatus && (
