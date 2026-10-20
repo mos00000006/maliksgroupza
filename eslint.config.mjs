@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     },
   },
   globalIgnores([
+    "app/lib/vendor/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "dist/**",

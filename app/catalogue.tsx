@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { buildWholesaleLeafletPages, downloadWholesaleCatalogue } from "./catalogue-pdf";
 
@@ -690,7 +692,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
             </button>
           </div>
           {canManage && (
-            <button className="primary" onClick={openAdd}>＋ Add catalogue product</button>
+            <><Link className="primary" href="/price-tags">Price tag generator</Link><button className="primary" onClick={openAdd}>＋ Add catalogue product</button></>
           )}
         </div>
       </section>

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 export default function LaunchSplash() {
   const pathname = usePathname();
-  const publicStorefront = pathname === "/shop" || pathname === "/wholesale-shop";
+  const publicStorefront = pathname === "/shop" || pathname === "/wholesale-shop" || pathname.startsWith("/p/") || pathname === "/price-tags";
   const [visible, setVisible] = useState(true);
   const [leaving, setLeaving] = useState(false);
 

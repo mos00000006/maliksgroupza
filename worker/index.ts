@@ -1,3 +1,4 @@
+import { isPublicPriceTagRequest } from "../app/lib/price-tags";
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
@@ -169,7 +170,7 @@ const worker = {
       }, allowedWidths));
     }
 
-    if (!isPublicAsset(url.pathname)) {
+    if (!isPublicAsset(url.pathname) && !isPublicPriceTagRequest(url.pathname, request.method)) {
       let identity: AccessIdentity | null = null;
       try {
         identity = await getAccessIdentity(request, env, ctx);
