@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import ProductPicture from "../../price-tags/product-picture";
 import { measureTiles, type PriceTag } from "../../lib/price-tags";
 import styles from "./product-scan.module.css";
 const money = (cents: number) => new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" }).format(cents / 100);
@@ -7,7 +8,7 @@ const decimal = (value: number) => value.toLocaleString("en-ZA", { maximumFracti
 export default function ProductScanPage({ token }: { token: string }) {
   const [product, setProduct] = useState<PriceTag | null>(null); const [status, setStatus] = useState("Loading product…");
   const [rooms, setRooms] = useState([{ id: 1, length: "", width: "" }]); const [waste, setWaste] = useState("10");
-  const [mode, setMode] = useState<"rooms" | "area">("rooms"); const [area, setArea] = useState(""); const [imageFailed, setImageFailed] = useState(false);
+  const [mode, setMode] = useState<"rooms" | "area">("rooms"); const [area, setArea] = useState("");
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -22,11 +23,11 @@ export default function ProductScanPage({ token }: { token: string }) {
   }, [token]);
   const result = product?.is_tile ? measureTiles(mode === "area" ? [{ length: Number(area), width: 1 }] : rooms.map(r => ({ length: Number(r.length), width: Number(r.width) })), Number(waste), product.coverage_per_box, product.price_cents, product.unit) : null;
   return <main className={styles.page}>
-    <header className={styles.header}><img src="/powerbuild-logo-transparent.png" alt="PowerBuild" /><span>BUILD WITH CONFIDENCE</span></header>
+    <header className={styles.header}><img src="/powerbuild-logo-transparent.png" alt="PowerBuild" /></header>
     <div className={styles.wrap}>{!product ? <section className={styles.unavailable}><h1>{status || "Product unavailable."}</h1><p>Ask a PowerBuild team member for help.</p><button onClick={() => window.location.reload()}>Refresh</button></section> : <>
       {status && <p role="status" className={styles.connection}>{status}</p>}
       <section className={styles.product}>
-        <div className={styles.photo}>{!imageFailed ? <img src={product.image_url} alt={product.name} onError={() => setImageFailed(true)} /> : <span>Product picture unavailable</span>}</div>
+        <div className={styles.photo}><ProductPicture src={product.image_url} alt={product.name} removeBackground={!product.is_tile} /></div>
         <div className={styles.productInfo}><div className={styles.code}>PRODUCT CODE · {product.code}</div><h1>{product.name}</h1><div className={styles.price}>{money(product.price_cents)}<span>{product.unit === "M2" ? "per m²" : product.unit === "BOX" ? "per box" : "each"}</span></div><p className={styles.vat}>Price includes VAT</p>
           {product.is_tile && <div className={styles.packs}><span><b>{product.coverage_per_box} m²</b>per box</span>{product.pieces_per_box > 0 && <span><b>{product.pieces_per_box} {Number(product.pieces_per_box) === 1 ? "tile" : "tiles"}</b>per box</span>}{product.tile_width_mm > 0 && product.tile_length_mm > 0 && <span><b>{product.tile_width_mm} × {product.tile_length_mm}</b>mm per tile</span>}</div>}
           <p className={styles.note}>While stocks last. Confirm availability with our team.</p></div>

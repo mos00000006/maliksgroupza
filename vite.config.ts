@@ -34,6 +34,7 @@ const independentCloudflareConfig = {
       bucket_name: "maliks-group-hub-files",
     },
   ],
+  assets: { binding: "ASSETS" },
   triggers: {
     crons: ["0 * * * *"],
   },

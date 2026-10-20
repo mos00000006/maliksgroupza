@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const product = await env.DB.prepare("SELECT * FROM catalogue_products WHERE upper(trim(code))=upper(?) AND active=1 LIMIT 1").bind(code).first<Record<string, unknown>>();
   if (!product) return Response.json({ error: "No active catalogue product matches that code." }, { status: 404 });
   const tag = await env.DB.prepare("SELECT * FROM powerbuild_price_tags WHERE product_id=?").bind(product.id).first<Record<string, unknown>>();
-  return Response.json({ product: productResponse(product), tag, defaults: tileDefaults({ name: String(product.name), category: String(product.category), description: String(product.description) }) }, { headers: { "cache-control": "no-store" } });
+  return Response.json({ product: { ...productResponse(product), image_url: (product.image_key || tag?.picture_key) ? `/api/price-tags/image?product_id=${product.id}&v=${encodeURIComponent(String(tag?.updated_at || product.updated_at))}` : "" }, tag, defaults: tileDefaults({ name: String(product.name), category: String(product.category), description: String(product.description) }) }, { headers: { "cache-control": "no-store" } });
 }
 export async function POST(req: Request) {
   const member = await getHubMember();

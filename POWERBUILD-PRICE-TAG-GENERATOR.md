@@ -1,4 +1,16 @@
-# PowerBuild price tag generator
+# PowerBuild price tag generator — picture and public QR update
+
+## What this update fixes
+
+- Centers the PowerBuild logo on the customer page, removes its white CSS box and removes “Build with confidence”. The existing logo artwork already has transparency.
+- Adds the missing `ASSETS` binding to the production build configuration. This fixes serving locally bundled/static catalogue pictures through the public QR image endpoint.
+- Follows a limited number of supplier image redirects, validating the approved HTTPS host at every hop. Supported pictures are returned without requiring a customer Hub account.
+- Fixes stale failed-image state so a newly supplied picture can appear after the tag is updated.
+- Automatically prepares product PNGs from plain-white backgrounds. Removal is restricted to near-white pixels connected to the outside, leaving enclosed white details intact. Pale products are protected and tile surfaces are kept intact.
+- Adds **Keep original picture** and **Use your own transparent PNG** controls to the generator. Use a prepared PNG for scene backgrounds, delicate white products or unavailable original pictures. This is conservative white-background removal, not AI segmentation of every possible scene.
+- Saves generated/uploaded PNG pictures to the Hub's existing R2 storage when you generate/save a tag. This picture override is used by both the printed price tag and the customer QR page; the original catalogue image is retained.
+
+**Apply the database migration before deploying the updated code.** This package includes migrations 0033 and 0034; Wrangler skips migrations already applied. Migration 0034 adds the optional tag picture reference.
 
 ## Install this patch
 
@@ -19,9 +31,10 @@ The new migration is `drizzle/0033_powerbuild_price_tags.sql`. It adds a tag tab
 2. Enter an existing catalogue product code and choose **Find product**. The name and picture come from the catalogue.
 3. Enter the selling price **including VAT**. Standard products use **each**.
 4. For a tile product, enable Smart Measure if it was not automatically selected. Confirm **m² per box** from the actual carton and choose **per m²** or **per box** pricing. Tile count and dimensions are optional. Recognised pack details are filled automatically, but missing box coverage must be supplied once. Coverage is never guessed from the picture.
-5. Confirm the **Customer website address** is the public HTTPS address of this deployment. A localhost address only works for local testing.
-6. Select **Generate price tag**. It saves the tag price, publishes the QR product page and adds the tag to the print sheet.
-7. Add more product codes to build a print sheet. Choose **Print / Save as PDF**.
+5. Check the product-only picture preview. If necessary, keep the original or upload a transparent PNG. Plain white backgrounds are handled automatically; complex scene backgrounds need a prepared cutout.
+6. Confirm the **Customer website address** is the public HTTPS address of this deployment. A localhost address only works for local testing.
+7. Select **Generate price tag**. It saves the tag price, publishes the QR product page and adds the tag to the print sheet.
+8. Add more product codes to build a print sheet. Choose **Print / Save as PDF**.
 
 ### Printing
 
@@ -56,7 +69,7 @@ Tag prices are separate from E-Commerce Control; saving a shelf tag does not cha
 
 The generator and management API require an authorised catalogue manager, the owner/technical admin, or a non-viewer Full company member. Catalogue managers see the button in Our Catalogue. Other authorised pricing managers can use `/price-tags` directly.
 
-The Worker allows anonymous GET/HEAD requests only for valid public QR tokens, their image endpoints, and the required brand artwork. All management endpoints retain company authentication. Public image requests check that the tag is published and the product active, and do not expose the complete catalogue.
+The Worker allows anonymous GET/HEAD requests only for valid public QR tokens, their image endpoints, and the required brand artwork. All management endpoints retain company authentication. The asset binding is now explicitly included in the Vite/Cloudflare deployment configuration. Public image requests check that the tag is published and the product active, and do not expose the complete catalogue.
 
 **If Cloudflare Access protects the entire hostname before requests reach the Worker**, add narrowly scoped public/bypass applications or rules for these customer paths and required static assets:
 
@@ -78,5 +91,8 @@ After deployment, test a QR link in a signed-out/private browser on a phone. Clo
 - Tile tests covered multiple rooms, wastage, per-box/per-m² pricing, full-box rounding and invalid measurements.
 - Browser checks verified product lookup/save/preview with representative API fixtures, QR decoding, mobile layout without horizontal overflow, and a 4 × 3 m tile estimate: 10% wastage, 2.16 m²/box, 7 boxes, 15.12 m² supplied and R5,896.65 at R389.99/m².
 - The browser print output was inspected as a PDF on A4. The QR was independently decoded from the generated image.
+- This update passed `npm run check` with all 11 tests. Additional tests covered preserved white interiors, the pale-product safeguard, and authorised PNG uploads.
+- The emitted production Wrangler configuration was checked for `assets.binding = ASSETS`.
+- Browser checks confirmed the centered, transparent-background logo and removal of the slogan. A real locally seeded catalogue product was opened through the actual public data and image routes, both returning 200 without a Hub sign-in step; the real product picture was rendered successfully. This was a local deployment check, not a change to your hosted Cloudflare Access account.
 
 The feature is packaged for your existing project; it has not been deployed to the live site.

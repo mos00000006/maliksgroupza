@@ -10,5 +10,5 @@ export function publicTag(row: Record<string, unknown>) {
     price_cents: Number(row.price_cents), unit: row.unit, is_tile: Boolean(row.is_tile),
     coverage_per_box: Number(row.coverage_per_box), pieces_per_box: Number(row.pieces_per_box),
     tile_width_mm: Number(row.tile_width_mm), tile_length_mm: Number(row.tile_length_mm),
-    updated_at: row.updated_at, image_url: `/api/public-price-tags/${row.token}/image` };
+    updated_at: row.updated_at, image_url: `/api/public-price-tags/${row.token}/image?v=${encodeURIComponent(String(row.updated_at || ""))}` };
 }

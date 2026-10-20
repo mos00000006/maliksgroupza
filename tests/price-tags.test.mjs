@@ -44,6 +44,7 @@ test("price-tag APIs enforce permissions, stable QR tokens, public whitelisting 
  const db=new DatabaseSync(":memory:");
  db.exec(readFileSync(new URL("../drizzle/0012_catalogue_prepared_stock.sql",import.meta.url),"utf8").split("--> statement-breakpoint")[0]);
  db.exec(readFileSync(new URL("../drizzle/0033_powerbuild_price_tags.sql",import.meta.url),"utf8"));
+ db.exec(readFileSync(new URL("../drizzle/0034_price_tag_product_pictures.sql",import.meta.url),"utf8"));
  db.prepare("INSERT INTO catalogue_products (code,name,description,category,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run("TEST1","Test Tile","PRIVATE DESCRIPTION","Tiles","owner","today","today");
  globalThis.__priceTagEnv={DB:{prepare(sql){let args=[];return {bind(...values){args=values;return this;},async first(){return db.prepare(sql).get(...args)||null;},async run(){db.prepare(sql).run(...args);return {success:true};}};}}};
  globalThis.__priceTagMember=null;
@@ -70,4 +71,22 @@ test("public product images require a published active tag and reject unsafe ima
  row={image_key:'static:/catalogue/../../private.png',image_type:'image/png'};assert.equal((await image.GET(request,params)).status,404);
  row={image_key:'static:/catalogue/conan-usa/test.webp',image_type:'image/webp'};assert.equal((await image.GET(request,params)).status,200);assert.equal(assetCalls,1);
  delete globalThis.__priceTagEnv;
+});
+test("background cutout preserves enclosed white product areas and protects pale originals",async()=>{
+ const compiled=await build({entryPoints:[new URL('../app/lib/product-cutout.ts',import.meta.url).pathname],bundle:true,platform:'node',format:'esm',write:false});
+ const {removeWhiteEdge}=await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
+ const pixels=new Uint8ClampedArray(7*7*4).fill(255);
+ for(let y=1;y<=5;y++)for(let x=1;x<=5;x++)if(y===1||y===5||x===1||x===5){const i=(y*7+x)*4;pixels[i]=pixels[i+1]=pixels[i+2]=0;}
+ assert.equal(removeWhiteEdge(pixels,7,7).removed,24);assert.equal(pixels[3],0);assert.equal(pixels[(3*7+3)*4+3],255);
+ const white=new Uint8ClampedArray(7*7*4).fill(255);assert.equal(removeWhiteEdge(white,7,7).protectedWhiteProduct,true);assert.equal(white[3],255);
+});
+test("PNG picture uploads require permission and an active saved tag",async()=>{
+ let savedKey='',stored=0;globalThis.__priceTagMember=null;
+ globalThis.__priceTagEnv={DB:{prepare(sql){return {bind(...values){this.values=values;return this;},async first(){return {product_id:1};},async run(){if(sql.startsWith('UPDATE'))savedKey=this.values[0];return {success:true};}};}},BUCKET:{async put(){stored++;},async delete(){}}};
+ const picture=await route('../app/api/price-tags/picture/route.ts');
+ const request=()=>{const data=new FormData();data.set('product_id','1');data.set('picture',new File([new Uint8Array([137,80,78,71,13,10,26,10,...new Array(32).fill(0)])],'product.png',{type:'image/png'}));return new Request('https://example.com/api/price-tags/picture',{method:'POST',body:data});};
+ assert.equal((await picture.POST(request())).status,403);assert.equal(stored,0);
+ globalThis.__priceTagMember={email:'owner@example.com',role:'Owner / Admin',access_scope:'Full company'};
+ assert.equal((await picture.POST(request())).status,200);assert.equal(stored,1);assert.match(savedKey,/^price-tags\/1\/.+\.png$/);
+ delete globalThis.__priceTagEnv;delete globalThis.__priceTagMember;
 });
