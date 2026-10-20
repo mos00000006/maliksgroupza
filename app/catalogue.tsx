@@ -698,7 +698,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       </section>
 
       <div className="catalogueSummary">
-        <span><b>{total}</b><small>Products in catalogue</small></span>
+        <span><b>{error ? "—" : total}</b><small>{error ? "Catalogue unavailable" : "Products in catalogue"}</small></span>
         <span><b>{page}</b><small>Page of {pages}</small></span>
         {expectedManager && canManage && <em>Catalogue administrator</em>}
       </div>
@@ -741,6 +741,8 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
 
       {loading ? (
         <div className="catalogueLoading">Loading catalogue products…</div>
+      ) : error && products.length === 0 ? (
+        <div className="catalogueEmpty"><h3>Catalogue temporarily unavailable</h3><p>The products could not be loaded. Please follow the message above and try again later.</p></div>
       ) : products.length === 0 ? (
         <div className="catalogueEmpty">
           <i>▧</i>

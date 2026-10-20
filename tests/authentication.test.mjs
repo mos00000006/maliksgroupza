@@ -78,3 +78,10 @@ test("blocks write requests for a read-only member", async () => {
   );
   assert.equal(response.status, 403);
 });
+
+test("shows a friendly daily-limit page when staff login cannot read membership",async()=>{
+ const worker=await loadWorker();const env=environment();env.DB.prepare=()=>({bind(){return this;},async first(){throw new Error("D1_ERROR: Your account has exceeded D1's free tier daily row read limit.");}});
+ const response=await worker.fetch(new Request('http://localhost/'),env,context({email:'staff@example.com',name:'Staff'}));
+ assert.equal(response.status,503);assert.match(await response.text(),/Daily usage limit reached/);
+ const api=await worker.fetch(new Request('http://localhost/api/catalogue'),env,context({email:'staff@example.com',name:'Staff'}));assert.equal(api.status,503);assert.equal((await api.json()).code,'DAILY_LIMIT_REACHED');
+});

@@ -1,3 +1,4 @@
+import { isD1DailyLimit, dailyLimitResponse } from "../app/lib/daily-limit";
 import { isPublicPriceTagRequest } from "../app/lib/price-tags";
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
@@ -157,6 +158,7 @@ function secure(response: Response) {
 
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    try {
     const url = new URL(request.url);
 
     if (url.pathname === "/_vinext/image") {
@@ -245,7 +247,19 @@ const worker = {
       request = new Request(request, { headers: trustedHeaders });
     }
 
-    return secure(await handler.fetch(request, env, ctx));
+    const response=await handler.fetch(request, env, ctx);
+    if(response.status>=500){
+      // Framework routes can catch a D1 exception and return a generic 500.
+      // Confirm quota exhaustion before replacing it with a limit message.
+      if(isD1DailyLimit(await response.clone().text()))return secure(dailyLimitResponse(request));
+      try{await env.DB.prepare("SELECT 1 AS hub_availability").first();}
+      catch(error){if(isD1DailyLimit(error))return secure(dailyLimitResponse(request));}
+    }
+    return secure(response);
+    } catch(error) {
+      if(isD1DailyLimit(error))return secure(dailyLimitResponse(request));
+      throw error;
+    }
   },
 
   async scheduled(_controller: unknown, _env: Env, ctx: ExecutionContext) {
