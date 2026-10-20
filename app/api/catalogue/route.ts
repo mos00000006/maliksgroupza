@@ -13,10 +13,24 @@ export async function GET(req: Request) {
   const requestedSize = Number.parseInt(url.searchParams.get("pageSize") || "12", 10) || 12;
   const pageSize = Math.min(48, Math.max(6, requestedSize));
   const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+  const category = (url.searchParams.get("category") || "").trim();
   const offset = (page - 1) * pageSize;
   const like = `%${q}%`;
 
-  const count = q
+  const count = q && category
+    ? await env.DB.prepare(
+        `SELECT COUNT(*) AS total FROM catalogue_products
+         WHERE active=1 AND lower(category)=lower(?) AND (
+           lower(name) LIKE ? OR lower(code) LIKE ? OR lower(description) LIKE ? OR lower(category) LIKE ?
+         )`,
+      )
+        .bind(category, like, like, like, like)
+        .first<{ total: number }>()
+    : category
+      ? await env.DB.prepare(
+          "SELECT COUNT(*) AS total FROM catalogue_products WHERE active=1 AND lower(category)=lower(?)",
+        ).bind(category).first<{ total: number }>()
+      : q
     ? await env.DB.prepare(
         `SELECT COUNT(*) AS total FROM catalogue_products
          WHERE active=1 AND (
@@ -29,17 +43,29 @@ export async function GET(req: Request) {
         "SELECT COUNT(*) AS total FROM catalogue_products WHERE active=1",
       ).first<{ total: number }>();
 
-  const query = q
+  const query = q && category
     ? env.DB.prepare(
         `SELECT * FROM catalogue_products
-         WHERE active=1 AND (
+         WHERE active=1 AND lower(category)=lower(?) AND (
            lower(name) LIKE ? OR lower(code) LIKE ? OR lower(description) LIKE ? OR lower(category) LIKE ?
          )
          ORDER BY id DESC LIMIT ? OFFSET ?`,
-      ).bind(like, like, like, like, pageSize, offset)
-    : env.DB.prepare(
-        "SELECT * FROM catalogue_products WHERE active=1 ORDER BY id DESC LIMIT ? OFFSET ?",
-      ).bind(pageSize, offset);
+      ).bind(category, like, like, like, like, pageSize, offset)
+    : category
+      ? env.DB.prepare(
+          "SELECT * FROM catalogue_products WHERE active=1 AND lower(category)=lower(?) ORDER BY id DESC LIMIT ? OFFSET ?",
+        ).bind(category, pageSize, offset)
+      : q
+        ? env.DB.prepare(
+            `SELECT * FROM catalogue_products
+             WHERE active=1 AND (
+               lower(name) LIKE ? OR lower(code) LIKE ? OR lower(description) LIKE ? OR lower(category) LIKE ?
+             )
+             ORDER BY id DESC LIMIT ? OFFSET ?`,
+          ).bind(like, like, like, like, pageSize, offset)
+        : env.DB.prepare(
+            "SELECT * FROM catalogue_products WHERE active=1 ORDER BY id DESC LIMIT ? OFFSET ?",
+          ).bind(pageSize, offset);
 
   const { results } = await query.all<Record<string, unknown>>();
   const total = Number(count?.total || 0);

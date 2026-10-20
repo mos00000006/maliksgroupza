@@ -3049,67 +3049,106 @@ button:disabled { cursor: default; }
   .buyerOrderLinesHeader { align-items: flex-end; }
 }
 
-/* Pulse Tiles Kitchens catalogue importer */
-.pulseKitchenImportPanel {
-  margin: 0 0 16px;
-  padding: 16px 18px;
-  display: flex;
+/* Catalogue category navigation — Kitchens is a normal catalogue category */
+.catalogueCategoryStrip {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  border: 1px solid #d9e4ef;
-  border-left: 5px solid #f4cf24;
-  border-radius: 14px;
-  background: linear-gradient(135deg,#ffffff 0%,#f7faff 100%);
-  box-shadow: 0 7px 20px rgba(20,48,78,.06);
+  margin: 12px 0 18px;
+  padding: 10px 12px;
+  border: 1px solid #dbe5ef;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 7px 22px rgba(15, 35, 80, .045);
 }
-.pulseKitchenImportPanel > div { min-width: 0; }
-.pulseKitchenImportPanel small,
-.pulseKitchenImportPanel b,
-.pulseKitchenImportPanel p { display: block; }
-.pulseKitchenImportPanel small {
-  margin-bottom: 5px;
-  color: #1769e8;
+.catalogueCategoryStripTitle {
+  min-width: 0;
+  padding: 3px 8px;
+}
+.catalogueCategoryStripTitle small,
+.catalogueCategoryStripTitle b {
+  display: block;
+}
+.catalogueCategoryStripTitle small {
+  color: #1365d7;
   font-size: 8px;
-  font-weight: 950;
+  font-weight: 900;
   letter-spacing: .12em;
 }
-.pulseKitchenImportPanel b { color: #17344f; font-size: 15px; }
-.pulseKitchenImportPanel p {
-  max-width: 850px;
-  margin: 5px 0 0;
-  color: #718096;
-  font-size: 10px;
-  line-height: 1.45;
+.catalogueCategoryStripTitle b {
+  margin-top: 4px;
+  overflow: hidden;
+  color: #17344f;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.pulseKitchenImportPanel button {
+.catalogueCategoryScroller {
+  display: flex;
+  gap: 7px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 3px 3px 7px;
+  scrollbar-width: thin;
+}
+.catalogueCategoryScroller button {
   flex: 0 0 auto;
-  min-height: 44px;
-  padding: 0 17px;
-  border: 1px solid #e1b90e;
-  border-radius: 10px;
-  background: #f4cf24;
-  color: #172438;
+  min-height: 36px;
+  border: 1px solid #d7e2ec;
+  border-radius: 999px;
+  background: #f8fafc;
+  padding: 0 13px;
+  color: #50667d;
   font: inherit;
-  font-size: 10px;
-  font-weight: 950;
+  font-size: 8px;
+  font-weight: 850;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(219,178,31,.18);
+  white-space: nowrap;
 }
-.pulseKitchenImportPanel button:disabled { cursor: wait; opacity: .68; }
-.pulseKitchenImportProgress {
-  margin: 0 0 16px;
-  padding: 12px 14px;
-  border: 1px solid #d6e3f2;
-  border-radius: 12px;
+.catalogueCategoryScroller button:hover {
+  border-color: #b8cbe0;
+  background: #f0f5fa;
+  color: #17344f;
+}
+.catalogueCategoryScroller button.active {
+  border-color: #16375b;
+  background: #16375b;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(22,55,91,.16);
+}
+.catalogueCategoryScroller button.active::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 7px;
+  border-radius: 50%;
+  background: #f6ca2f;
+  vertical-align: 1px;
+}
+.catalogueFormGrid select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #d7e0e8;
+  border-radius: 9px;
   background: #fff;
+  color: #21364e;
+  padding: 0 10px;
+  font: inherit;
 }
-.pulseKitchenImportProgress > div { display:flex; align-items:center; justify-content:space-between; gap:12px; color:#17365e; font-size:10px; }
-.pulseKitchenImportProgress > div span { color:#866f00; font-weight:950; }
-.pulseKitchenImportProgress > i { display:block; height:7px; margin:8px 0 6px; overflow:hidden; border-radius:999px; background:#e6edf6; }
-.pulseKitchenImportProgress > i span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#1769e8,#f4cf24); transition:width .2s ease; }
-.pulseKitchenImportProgress small { color:#78889a; font-size:9px; }
-@media(max-width:760px){
-  .pulseKitchenImportPanel { align-items:stretch; flex-direction:column; padding:14px; }
-  .pulseKitchenImportPanel button { width:100%; min-height:48px; }
+@media (max-width: 760px) {
+  .catalogueCategoryStrip {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    padding: 10px;
+  }
+  .catalogueCategoryStripTitle {
+    padding: 0 3px;
+  }
+  .catalogueCategoryScroller button {
+    min-height: 40px;
+    padding: 0 14px;
+    font-size: 10px;
+  }
 }

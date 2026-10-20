@@ -22,20 +22,6 @@ type CatalogueDraft = {
   category: string;
 };
 
-type PulseImportCursor = { categoryIndex: number; page: number; offset: number };
-type PulseImportResponse = {
-  done: boolean;
-  nextCursor: PulseImportCursor | null;
-  inserted: number;
-  updated: number;
-  skipped: number;
-  images: number;
-  progress: number;
-  status: string;
-  failures?: string[];
-  error?: string;
-};
-
 type LeafletTurnState = {
   direction: -1 | 1;
   target: number;
@@ -199,12 +185,39 @@ const leafletTurnTransform = (direction: -1 | 1, progress: number, cover: boolea
 
 const CATALOGUE_PAGE_SIZE = 12;
 
+const CATALOGUE_CATEGORIES = [
+  "Plumbing",
+  "Electrical & Lighting",
+  "Paints & Allied",
+  "Waterproofing",
+  "Roofing & Gutters",
+  "Timber",
+  "Boards & Ceilings",
+  "Insulation",
+  "Bricks & Blocks",
+  "Steel & Metal",
+  "Doors & Frames",
+  "Windows",
+  "Fencing",
+  "Locksets",
+  "Fasteners",
+  "Ironmongery",
+  "Tools",
+  "Garden",
+  "Kitchens",
+  "Homeware",
+  "General Hardware",
+  "Adhesives & Chemicals",
+  "General",
+] as const;
+
 export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?: string }) {
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All Products");
   const [loading, setLoading] = useState(true);
   const [canManage, setCanManage] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -216,9 +229,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   const [success, setSuccess] = useState("");
   const [deleteProduct, setDeleteProduct] = useState<CatalogueProduct | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [pulseImporting, setPulseImporting] = useState(false);
-  const [pulseImportStatus, setPulseImportStatus] = useState("");
-  const [pulseImportProgress, setPulseImportProgress] = useState(0);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfStatus, setPdfStatus] = useState("");
   const [pdfProgress, setPdfProgress] = useState(0);
@@ -247,7 +257,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     return [1, "left-gap", page - 1, page, page + 1, "right-gap", pages];
   }, [page, pages]);
 
-  const load = useCallback(async (targetPage: number, search: string, quiet = false) => {
+  const load = useCallback(async (targetPage: number, search: string, category = categoryFilter, quiet = false) => {
     const id = ++requestId.current;
     if (!quiet) setLoading(true);
     setError("");
@@ -257,6 +267,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
         pageSize: String(CATALOGUE_PAGE_SIZE),
       });
       if (search.trim()) params.set("q", search.trim());
+      if (category && category !== "All Products") params.set("category", category);
       const response = await fetch(`/api/catalogue?${params.toString()}`);
       const result = await apiResult(response);
       if (id !== requestId.current) return;
@@ -271,7 +282,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, []);
+  }, [categoryFilter]);
 
   const getLeafletTurn = useCallback((direction: -1 | 1): LeafletTurnState | null => {
     if (!leafletPages.length) return null;
@@ -442,9 +453,9 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
   }, [clearLeafletDragTimer]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void load(1, query), 220);
+    const timer = window.setTimeout(() => void load(1, query, categoryFilter), 220);
     return () => window.clearTimeout(timer);
-  }, [query, load]);
+  }, [categoryFilter, query, load]);
 
   useEffect(() => () => {
     leafletPages.forEach((url) => URL.revokeObjectURL(url));
@@ -525,7 +536,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       setImage(null);
       setSuccess(editing ? "Catalogue product updated." : "Catalogue product added.");
       window.setTimeout(() => setSuccess(""), 2600);
-      await load(editing ? page : 1, query, false);
+      await load(editing ? page : 1, query, categoryFilter, false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The product could not be saved.");
     } finally {
@@ -533,62 +544,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     }
   };
 
-
-  const importPulseKitchens = async () => {
-    if (!canManage || pulseImporting) return;
-    setPulseImporting(true);
-    setError("");
-    setSuccess("");
-    setPulseImportProgress(1);
-    setPulseImportStatus("Connecting to Pulse Tiles Kitchens…");
-
-    let cursor: PulseImportCursor = { categoryIndex: 0, page: 1, offset: 0 };
-    let inserted = 0;
-    let updated = 0;
-    let skipped = 0;
-    let images = 0;
-    const failures: string[] = [];
-
-    try {
-      for (let step = 0; step < 500; step += 1) {
-        const response = await fetch("/api/catalogue/import-pulse-kitchens", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ cursor }),
-        });
-        const result = (await response.json().catch(() => ({}))) as Partial<PulseImportResponse>;
-        if (!response.ok) throw new Error(result.error || `Pulse Kitchens import failed (${response.status}).`);
-
-        inserted += Number(result.inserted || 0);
-        updated += Number(result.updated || 0);
-        skipped += Number(result.skipped || 0);
-        images += Number(result.images || 0);
-        if (Array.isArray(result.failures)) failures.push(...result.failures);
-        setPulseImportProgress(Math.max(1, Math.min(100, Number(result.progress || 0))));
-        setPulseImportStatus(result.status || "Importing Pulse Kitchens products…");
-
-        if (result.done || !result.nextCursor) break;
-        cursor = result.nextCursor;
-        if (step === 499) throw new Error("The Pulse Kitchens import reached its safety limit. Run the import again to continue.");
-      }
-
-      setQuery("");
-      setSuccess(`Pulse Kitchens import complete: ${inserted} added, ${updated} refreshed, ${skipped} already in the catalogue. ${images} product images saved.${failures.length ? ` ${failures.length} items could not be read and can be retried.` : ""}`);
-      setPulseImportProgress(100);
-      setPulseImportStatus("Pulse Kitchens range added to Our Catalogue.");
-      await load(1, "", false);
-      window.setTimeout(() => {
-        setPulseImportStatus("");
-        setPulseImportProgress(0);
-      }, 5500);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The Pulse Kitchens range could not be imported.");
-      setPulseImportStatus("");
-      setPulseImportProgress(0);
-    } finally {
-      setPulseImporting(false);
-    }
-  };
 
   const loadAllCatalogueProducts = async () => {
     const collected: CatalogueProduct[] = [];
@@ -691,7 +646,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       setSuccess("Catalogue product removed.");
       window.setTimeout(() => setSuccess(""), 2600);
       const nextPage = products.length === 1 && page > 1 ? page - 1 : page;
-      await load(nextPage, query, false);
+      await load(nextPage, query, categoryFilter, false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The product could not be removed.");
     } finally {
@@ -746,26 +701,31 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
         {expectedManager && canManage && <em>Catalogue administrator</em>}
       </div>
 
-      {canManage && (
-        <section className="pulseKitchenImportPanel">
-          <div>
-            <small>PULSE TILES · KITCHENS RANGE</small>
-            <b>Add Kitchen Products to Our Catalogue</b>
-            <p>Imports Kitchen Sinks, Sink Taps, Sink Fittings, Kitchen Tiles and Kitchen Mosaics with source SKUs and product images. Existing catalogue items are not duplicated.</p>
-          </div>
-          <button type="button" disabled={pulseImporting} onClick={() => void importPulseKitchens()}>
-            {pulseImporting ? "Importing…" : "＋ Import Pulse Kitchens"}
-          </button>
-        </section>
-      )}
-
-      {pulseImportStatus && (
-        <div className="pulseKitchenImportProgress" aria-live="polite">
-          <div><b>{pulseImportStatus}</b><span>{pulseImportProgress}%</span></div>
-          <i><span style={{ width: `${Math.max(2, pulseImportProgress)}%` }} /></i>
-          <small>Products are imported in small batches so the Cloudflare Worker remains stable.</small>
+      <section className="catalogueCategoryStrip" aria-label="Catalogue categories">
+        <div className="catalogueCategoryStripTitle">
+          <small>SHOP BY CATEGORY</small>
+          <b>{categoryFilter}</b>
         </div>
-      )}
+        <div className="catalogueCategoryScroller">
+          <button
+            type="button"
+            className={categoryFilter === "All Products" ? "active" : ""}
+            onClick={() => setCategoryFilter("All Products")}
+          >
+            All Products
+          </button>
+          {CATALOGUE_CATEGORIES.map((category) => (
+            <button
+              type="button"
+              key={category}
+              className={categoryFilter === category ? "active" : ""}
+              onClick={() => setCategoryFilter(category)}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {success && <div className="catalogueSuccess">✓ {success}</div>}
       {pdfStatus && (
@@ -782,8 +742,8 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       ) : products.length === 0 ? (
         <div className="catalogueEmpty">
           <i>▧</i>
-          <h3>{query ? "No products match your search" : "The catalogue is ready for products"}</h3>
-          <p>{query ? "Try another product name, code or category." : canManage ? "Add the first product, code, description and picture." : "Catalogue products will appear here once they are added."}</p>
+          <h3>{query || categoryFilter !== "All Products" ? "No products match this catalogue view" : "The catalogue is ready for products"}</h3>
+          <p>{query || categoryFilter !== "All Products" ? `Try another product name, code or category${categoryFilter !== "All Products" ? `, or add products under ${categoryFilter}.` : "."}` : canManage ? "Add the first product, code, description and picture." : "Catalogue products will appear here once they are added."}</p>
           {!query && canManage && <button className="primary" onClick={openAdd}>Add first product</button>}
         </div>
       ) : (
@@ -835,7 +795,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                 className="cataloguePagerArrow"
                 aria-label="Go to previous catalogue page"
                 disabled={loading || page <= 1}
-                onClick={() => void load(page - 1, query)}
+                onClick={() => void load(page - 1, query, categoryFilter)}
               >
                 <span aria-hidden="true">←</span>
               </button>
@@ -850,7 +810,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                       aria-current={item === page ? "page" : undefined}
                       aria-label={`Go to catalogue page ${item}`}
                       disabled={loading || item === page}
-                      onClick={() => void load(item, query)}
+                      onClick={() => void load(item, query, categoryFilter)}
                     >
                       {item}
                     </button>
@@ -865,7 +825,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
                 className="cataloguePagerArrow"
                 aria-label="Go to next catalogue page"
                 disabled={loading || page >= pages}
-                onClick={() => void load(page + 1, query)}
+                onClick={() => void load(page + 1, query, categoryFilter)}
               >
                 <span aria-hidden="true">→</span>
               </button>
@@ -1030,11 +990,16 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
               </label>
               <label>
                 Category
-                <input
+                <select
                   value={draft.category}
                   onChange={(event) => setDraft({ ...draft, category: event.target.value })}
-                  placeholder="e.g. Plumbing"
-                />
+                >
+                  {!CATALOGUE_CATEGORIES.includes(draft.category as (typeof CATALOGUE_CATEGORIES)[number]) && draft.category && (
+                    <option value={draft.category}>{draft.category}</option>
+                  )}
+                  {CATALOGUE_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+                </select>
+                <small>Kitchens is a normal catalogue category for kitchen sinks, taps, fittings, kitchen tiles and related products.</small>
               </label>
               <label>
                 Product picture
