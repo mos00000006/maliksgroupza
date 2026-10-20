@@ -1,0 +1,17 @@
+REMOVE CONAN HAND TOOLS
+
+Extract into your existing hub project folder, then run:
+
+  npm run db:migrate:production
+
+Refresh Our Catalogue. No front-end deployment is required.
+
+Removes the 94 items imported by 0029_conan_hand_tools_catalogue_import.sql
+from the active catalogue and disables their online sales channels.
+The 31 hand-tool accessories and all other products are preserved.
+Records and prices are retained in the database as inactive history.
+Expected total after all previous patches: 2,049, subject to live differences.
+
+Do not apply the proposed picture update; it was cancelled.
+This removal patch has not yet been applied to the live database.
+Verified: 94 removed, 31 accessories preserved, repeat application safe.
