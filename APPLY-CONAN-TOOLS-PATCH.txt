@@ -1,0 +1,31 @@
+MALIKS HUB - CONAN HAND TOOLS PATCH
+
+1. Extract this ZIP into your existing maliksgroupza project folder.
+   The SQL file must land in your existing drizzle folder.
+2. In the project terminal run:
+
+   npm run db:migrate:production
+
+3. Refresh Our Catalogue and select Tools, or search Conan.
+No front-end deployment is required.
+
+Adds 94 items from all 53 product pages across six Hand Tools pages.
+Sizes/models have separate records. Manufacturer codes are used for 72
+items. For 22 sizes without published manufacturer codes (bolt cutters
+and chisels), descriptive internal CONAN- codes are explicitly identified
+in their descriptions. Product pictures use the existing external-image proxy.
+Some items share a source range picture; these are not guaranteed to be
+individual variant photographs.
+
+Expected catalogue total after kitchen, decor and this patch: 2,112.
+Actual additions may differ if your live database has additional products.
+Existing items and prices are preserved. New online channels are disabled
+with zero prices until you price and enable them.
+
+Validation: executed against the supplied catalogue migrations plus both
+earlier patches in SQLite. Verified 94 additions, unique codes, safe repeat
+application, matching-name duplicate protection, manual record preservation,
+existing pricing preservation and disabled/zero-price new channel settings.
+
+This patch has not been applied to your live database.
+Source: https://conantools.net/product-category/hand-tools/
