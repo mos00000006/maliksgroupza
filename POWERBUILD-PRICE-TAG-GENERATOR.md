@@ -1,6 +1,12 @@
-# PowerBuild price tag generator — picture and public QR update
+# PowerBuild price tag generator — JPG download and picture outline fix
 
 ## What this update fixes
+
+- Removes the CSS drop shadow that outlined square product photos in grey.
+- Adds **Download latest JPG** and a **Download JPG** button for each generated tag. The complete tag exports as a 2700 × 1800 JPG with its QR code. Product cutouts remain PNG because JPG does not support transparency.
+- Warns when tile dimensions and tile count disagree with the entered box coverage; it does not change your figures.
+- Original supplier shadows and complex photo backgrounds still require a prepared transparent PNG using the upload control. This update does not claim to have converted the entire catalogue.
+
 
 - Centers the PowerBuild logo on the customer page, removes its white CSS box and removes “Build with confidence”. The existing logo artwork already has transparency.
 - Adds the missing `ASSETS` binding to the production build configuration. This fixes serving locally bundled/static catalogue pictures through the public QR image endpoint.
@@ -34,7 +40,7 @@ The new migration is `drizzle/0033_powerbuild_price_tags.sql`. It adds a tag tab
 5. Check the product-only picture preview. If necessary, keep the original or upload a transparent PNG. Plain white backgrounds are handled automatically; complex scene backgrounds need a prepared cutout.
 6. Confirm the **Customer website address** is the public HTTPS address of this deployment. A localhost address only works for local testing.
 7. Select **Generate price tag**. It saves the tag price, publishes the QR product page and adds the tag to the print sheet.
-8. Add more product codes to build a print sheet. Choose **Print / Save as PDF**.
+8. Add more product codes to build a print sheet. Choose **Print / Save as PDF**, or **Download JPG** for an individual tag.
 
 ### Printing
 
@@ -96,3 +102,5 @@ After deployment, test a QR link in a signed-out/private browser on a phone. Clo
 - Browser checks confirmed the centered, transparent-background logo and removal of the slogan. A real locally seeded catalogue product was opened through the actual public data and image routes, both returning 200 without a Hub sign-in step; the real product picture was rendered successfully. This was a local deployment check, not a change to your hosted Cloudflare Access account.
 
 The feature is packaged for your existing project; it has not been deployed to the live site.
+
+JPG validation: browser download completed at 2700 × 1800 pixels; an independent QR decoder recovered the correct product URL from the exported JPG. All 11 checks passed.

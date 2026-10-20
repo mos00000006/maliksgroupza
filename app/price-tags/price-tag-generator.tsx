@@ -1,5 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { toJpeg } from "../lib/vendor/html-to-image.mjs";
 import Link from "next/link";
 import { prepareProductPng } from "../lib/product-cutout";
 import { tileDefaults, type PriceTag, type TagUnit } from "../lib/price-tags";
@@ -9,6 +11,9 @@ type Product = { id: number; code: string; name: string; category: string; descr
 type Draft = { price: string; unit: TagUnit; is_tile: boolean; coverage_per_box: string; pieces_per_box: string; tile_width_mm: string; tile_length_mm: string; published: boolean };
 const empty: Draft = { price: "", unit: "EA", is_tile: false, coverage_per_box: "", pieces_per_box: "", tile_width_mm: "", tile_length_mm: "", published: true };
 export default function PriceTagGenerator() {
+  const exportRef=useRef<HTMLDivElement>(null);
+  const [exportItem,setExportItem]=useState<{tag:PriceTag;url:string}|null>(null);
+  const [jpgBusy,setJpgBusy]=useState(false);
   const [picture, setPicture] = useState<{blob:Blob;dataUrl:string}|null>(null);
   const [pictureMessage,setPictureMessage] = useState("");
   const [code, setCode] = useState(""); const [product, setProduct] = useState<Product | null>(null);
@@ -58,6 +63,22 @@ export default function PriceTagGenerator() {
     } catch (e) { setMessage(e instanceof Error ? e.message : "Could not save tag."); }
     finally { setBusy(false); }
   };
+  const downloadJpg=async(item:{tag:PriceTag;url:string})=>{
+    setJpgBusy(true);setMessage("Preparing high-resolution JPG…");
+    try{
+      flushSync(()=>setExportItem(item));
+      await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+      const node=exportRef.current?.firstElementChild as HTMLElement|null;
+      if(!node)throw new Error("The tag could not be prepared. Generate it again.");
+      await Promise.all(Array.from(node.querySelectorAll("img")).map(image=>image.decode()));
+      const data=await toJpeg(node,{quality:0.98,pixelRatio:3,backgroundColor:"#ffffff",width:900,height:600,skipFonts:true,cacheBust:false,style:{boxShadow:"none",margin:"0",width:"900px",height:"600px"}});
+      const link=document.createElement("a");link.download=`PowerBuild-${item.tag.code.replace(/[^a-z0-9._-]/gi,"-")}-Price-Tag.jpg`;link.href=data;document.body.appendChild(link);link.click();link.remove();
+      setMessage("JPG downloaded (2700 × 1800 pixels). Product cutouts remain transparent PNGs; the complete JPG tag has a white background.");
+    }catch{setMessage("The JPG could not download. Check that the product picture loads, then try again.");}
+    finally{setJpgBusy(false);setExportItem(null);}
+  };
+  const nominalCoverage=draft.is_tile?Number(draft.pieces_per_box)*Number(draft.tile_width_mm)*Number(draft.tile_length_mm)/1000000:0;
+  const coverageMismatch=nominalCoverage>0&&Number(draft.coverage_per_box)>0&&Math.abs(Number(draft.coverage_per_box)-nominalCoverage)/nominalCoverage>.15;
   const numberField = (label: string, key: "coverage_per_box" | "pieces_per_box" | "tile_width_mm" | "tile_length_mm", step: string) => <label>{label}<input type="number" min="0" step={step} value={draft[key]} onChange={e => change({ [key]: e.target.value })} /></label>;
   let publicUrl = ""; try { if (saved) publicUrl = `${origin()}/p/${saved.token}`; } catch { /* Validated on save. */ }
   const print = async () => {
@@ -88,7 +109,7 @@ export default function PriceTagGenerator() {
           {draft.is_tile && <fieldset><legend>Tile pack details</legend><p>Confirm the coverage printed on the box. Pack coverage is never guessed from the product photograph.</p><div className={styles.fields}>
             {numberField("m² per box (required)", "coverage_per_box", "0.0001")}{numberField("Tiles per box (optional)", "pieces_per_box", "1")}
             {numberField("Tile width in mm (optional)", "tile_width_mm", "1")}{numberField("Tile length in mm (optional)", "tile_length_mm", "1")}
-          </div></fieldset>}
+          </div>{coverageMismatch&&<p role="alert" className={styles.notice}>Check box coverage: the entered {draft.coverage_per_box} m² differs from {nominalCoverage.toFixed(3)} m² calculated from the tile dimensions and count. Confirm the figure printed on the carton before generating.</p>}</fieldset>}
           <label className={styles.check}><input type="checkbox" checked={draft.published} onChange={e => change({ published: e.target.checked })} />Make this product and tag price visible to customers who scan</label>
           <button className={styles.primary} disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : draft.published ? "Generate price tag" : "Save and hide QR page"}</button>
           <p className={styles.hint}>The QR link stays the same when you update this tag. Reprint shelf tags after a price change. Tag prices are managed separately from the online shop.</p></>}
@@ -97,13 +118,14 @@ export default function PriceTagGenerator() {
           <label>Customer website address<input type="url" value={base} onChange={e => { setBase(e.target.value); setDirty(true); setQueue([]); }} /></label><p className={styles.hint}>Use the public HTTPS address where this Hub is deployed. Verify the first tag with your phone before printing a batch.</p>
           {saved && !dirty && saved.published && publicUrl && <a className={styles.customerLink} href={publicUrl} target="_blank" rel="noreferrer">Open customer page ↗</a>}
           {dirty && saved && <p className={styles.notice}>Save your changes to update the printable tag.</p>}
-          <div className={styles.buttons}><button disabled={!queue.length || busy || (dirty && Boolean(saved))} onClick={() => void print()}>Print / Save as PDF ({queue.length})</button><button disabled={!queue.length} onClick={() => setQueue([])}>Clear print sheet</button></div>
+          <div className={styles.buttons}><button disabled={!queue.length || busy || jpgBusy || (dirty && Boolean(saved))} onClick={() => void downloadJpg(queue[queue.length-1])}>{jpgBusy?"Preparing JPG…":"Download latest JPG"}</button><button disabled={!queue.length || busy || jpgBusy || (dirty && Boolean(saved))} onClick={() => void print()}>Print / Save as PDF ({queue.length})</button><button disabled={!queue.length} onClick={() => setQueue([])}>Clear print sheet</button></div>
           <p className={styles.hint}>Add another product code to build a print sheet. The print sheet is kept for this session; saved prices and QR links stay in the Hub.</p>
           {message && <p role="status" className={styles.notice}>{message}</p>}
         </section>
       </div>
       {!queue.length && <div className={styles.empty}>Enter a code and price, then select Generate price tag to see your design.</div>}
     </section>
-    <section className={styles.printSheet} data-print-sheet aria-label="Printable price tags">{queue.map(item => <div key={item.tag.token} className={styles.printItem}><div className={styles.remove}><span>{item.tag.code}</span><button onClick={() => setQueue(prev => prev.filter(p => p.tag.token !== item.tag.token))}>Remove from print sheet</button></div><PriceTagCard tag={item.tag} url={item.url} /></div>)}</section>
+    <section className={styles.printSheet} data-print-sheet aria-label="Printable price tags">{queue.map(item => <div key={item.tag.token} className={styles.printItem}><div className={styles.remove}><span>{item.tag.code}</span><div><button disabled={jpgBusy || busy || (dirty && Boolean(saved))} onClick={()=>void downloadJpg(item)}>Download JPG</button><button onClick={() => setQueue(prev => prev.filter(p => p.tag.token !== item.tag.token))}>Remove from print sheet</button></div></div><PriceTagCard tag={item.tag} url={item.url} /></div>)}</section>
+    {exportItem&&<div ref={exportRef} className={styles.exportStage} aria-hidden="true"><PriceTagCard tag={exportItem.tag} url={exportItem.url} /></div>}
   </main>;
 }

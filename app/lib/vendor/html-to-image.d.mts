@@ -1,0 +1,1 @@
+export function toJpeg(node: HTMLElement, options?: {quality?:number;pixelRatio?:number;backgroundColor?:string;cacheBust?:boolean;skipFonts?:boolean;width?:number;height?:number;style?:Partial<CSSStyleDeclaration>}):Promise<string>;
