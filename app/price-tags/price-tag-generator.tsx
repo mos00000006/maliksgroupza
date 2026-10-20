@@ -34,10 +34,13 @@ export default function PriceTagGenerator() {
       if (!res.ok) throw new Error(json.error || "The product could not load.");
       const p = json.product as Product; const tag = json.tag; const defaults = tileDefaults(p);
       if(p.image_url){
-        try{const cutout=await prepareProductPng(p.image_url,!(tag?Boolean(tag.is_tile):defaults.is_tile));setPicture(cutout);p.image_url=cutout.dataUrl;setPictureMessage((tag?Boolean(tag.is_tile):defaults.is_tile)?"Tile surface retained intact. Upload a prepared PNG if its outer background needs removal.":cutout.protectedWhiteProduct?"Original retained to protect a pale product. You can upload a prepared transparent PNG.":cutout.hasTransparency?"Transparent PNG prepared. Check the product edges before generating.":"This picture needs a prepared PNG to remove a scene background. You can upload one below.");}
+        setMessage("Removing the product background… First use loads the background remover.");
+        setPictureMessage("Removing the product background… First use loads the background remover.");
+        try{const cutout=await prepareProductPng(p.image_url,true);setPicture(cutout);p.image_url=cutout.dataUrl;setPictureMessage("Product-only PNG prepared. Check the edges, then generate your tag. This picture is also used on the customer page.");}
         catch(e){setPictureMessage(e instanceof Error?e.message:"Upload a transparent product PNG.");}
+
       }
-      setProduct(p); setDraft({ price: tag ? (Number(tag.price_cents) / 100).toFixed(2) : "", unit: tag?.unit || defaults.unit,
+      setMessage("");setProduct(p); setDraft({ price: tag ? (Number(tag.price_cents) / 100).toFixed(2) : "", unit: tag?.unit || defaults.unit,
         is_tile: tag ? Boolean(tag.is_tile) : defaults.is_tile, published: tag ? Boolean(tag.published) : true,
         coverage_per_box: String(tag?.coverage_per_box || defaults.coverage_per_box || ""), pieces_per_box: String(tag?.pieces_per_box || defaults.pieces_per_box || ""),
         tile_width_mm: String(tag?.tile_width_mm || defaults.tile_width_mm || ""), tile_length_mm: String(tag?.tile_length_mm || defaults.tile_length_mm || "") });
@@ -48,6 +51,7 @@ export default function PriceTagGenerator() {
   const save = async () => {
     if (!product) return; setBusy(true); setMessage("");
     try {
+      if(product.image_url&&!picture)throw new Error("Prepare the product picture before generating. Retry background removal or upload a transparent PNG.");
       const customerOrigin = origin();
       const res = await fetch("/api/price-tags", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ product_id: product.id, ...draft }) }); const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Tag could not save.");
@@ -93,15 +97,15 @@ export default function PriceTagGenerator() {
         <section className={styles.panel}><h2>1. Choose a product</h2>
           <form onSubmit={e => { e.preventDefault(); void lookup(); }} className={styles.lookup}><label>Product code<input required autoFocus value={code} placeholder="e.g. A18167" onChange={e => { setCode(e.target.value); setProduct(null); setSaved(null); setPicture(null); setPictureMessage(""); }} /></label><button disabled={busy || !code.trim()}>Find product</button></form>
           {product && <div className={styles.chosen}>{product.image_url && <img src={product.image_url} alt="" />}<div><b>{product.name}</b><small>{product.code} · {product.category}</small></div></div>}
-          {product && <div className={styles.pictureTools}><p>{pictureMessage}</p><button type="button" disabled={busy} onClick={async()=>{
-            setBusy(true);try{const original=await prepareProductPng(`/api/price-tags/image?product_id=${product.id}&original=1`,false);setPicture(original);setProduct(prev=>prev?{...prev,image_url:original.dataUrl}:prev);setPictureMessage("Original picture retained. You can generate the tag without removing its background.");setDirty(true);}catch{setPictureMessage("Original picture could not load. Upload a PNG instead.");}finally{setBusy(false);}
-          }}>Keep original picture</button><label>Use your own transparent PNG<input type="file" accept="image/png" disabled={busy} onChange={async e=>{
+          {product && <div className={styles.pictureTools}><p role="status">{pictureMessage}</p><button type="button" disabled={busy} onClick={async()=>{
+            setBusy(true);setPictureMessage("Removing the product background…");try{const cutout=await prepareProductPng(`/api/price-tags/image?product_id=${product.id}&original=1`,true);setPicture(cutout);setProduct(prev=>prev?{...prev,image_url:cutout.dataUrl}:prev);setPictureMessage("Product-only PNG prepared. Check the edges before generating.");setDirty(true);}catch(e){setPicture(null);setPictureMessage(e instanceof Error?e.message:"Background removal failed. Retry or upload a transparent PNG.");}finally{setBusy(false);}
+          }}>Remove background again</button><label>Use your own transparent PNG<input type="file" accept="image/png" disabled={busy} onChange={async e=>{
             const file=e.target.files?.[0];if(!file)return;
             if(file.type!=="image/png"||file.size>6*1024*1024){setPictureMessage("Choose a PNG smaller than 6 MB.");return;}
             setBusy(true);
             try{const prepared=await prepareProductPng(file,false);setPicture(prepared);setProduct(prev=>prev?{...prev,image_url:prepared.dataUrl}:prev);setPictureMessage("Your PNG will be saved for both the printed tag and customer page.");setDirty(true);}
             catch{setPictureMessage("This PNG could not load. Choose another file.");}finally{setBusy(false);}
-          }} /></label><p className={styles.hint}>Plain white edges are removed automatically. White product interiors are kept. For scene backgrounds or delicate white products, upload a prepared cutout.</p></div>}
+          }} /></label><p className={styles.hint}>Backgrounds are removed automatically for all product categories, including tiles. Review fine edges and white products; you can replace any cutout with your own PNG.</p></div>}
           {product && <><h2>2. Set the price</h2><div className={styles.fields}>
             <label>Price including VAT (R)<input type="number" min="0.01" step="0.01" required value={draft.price} onChange={e => change({ price: e.target.value })} /></label>
             <label>Price basis<select value={draft.unit} onChange={e => change({ unit: e.target.value as TagUnit })}>{draft.is_tile ? <><option value="M2">Per m²</option><option value="BOX">Per box</option></> : <option value="EA">Each</option>}</select></label>

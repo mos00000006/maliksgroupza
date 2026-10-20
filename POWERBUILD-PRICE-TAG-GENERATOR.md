@@ -2,19 +2,16 @@
 
 ## What this update fixes
 
-- Removes the CSS drop shadow that outlined square product photos in grey.
-- Adds **Download latest JPG** and a **Download JPG** button for each generated tag. The complete tag exports as a 2700 × 1800 JPG with its QR code. Product cutouts remain PNG because JPG does not support transparency.
-- Warns when tile dimensions and tile count disagree with the entered box coverage; it does not change your figures.
-- Original supplier shadows and complex photo backgrounds still require a prepared transparent PNG using the upload control. This update does not claim to have converted the entire catalogue.
+- Automatically removes backgrounds for every product category, including tiles, during product lookup before tag generation. It uses a locally hosted U²-Net model in the staff browser instead of only removing white edges. Product pixels and artwork are retained; the model supplies a transparency mask.
+- Trims excess transparent canvas, removes outside white residue, and keeps existing prepared transparent PNGs. Review delicate edges and white products: automatic segmentation cannot guarantee perfect results for every source photo. A replacement PNG upload and **Remove background again** button remain available.
+- Saves the resulting product-only PNG for both the tag and the public customer page. Customer phones load the saved picture and never run or download the model. Catalogue originals stay unchanged.
+- If processing fails, it requests a retry or replacement PNG instead of silently generating with the original square background. Existing tags must be looked up and generated again to save their cutout.
+- Removes the grey CSS picture shadow; the customer logo remains centered with its transparent background and no slogan.
+- Adds **Download latest JPG** and **Download JPG** per tag at 2700 × 1800 pixels. Product cutouts retain PNG transparency; the complete JPG tag has a white background.
+- Warns when entered tile dimensions/count and box coverage disagree, without altering the figures.
+- Fixes static catalogue image delivery and limits supplier redirects to approved HTTPS hosts.
 
-
-- Centers the PowerBuild logo on the customer page, removes its white CSS box and removes “Build with confidence”. The existing logo artwork already has transparency.
-- Adds the missing `ASSETS` binding to the production build configuration. This fixes serving locally bundled/static catalogue pictures through the public QR image endpoint.
-- Follows a limited number of supplier image redirects, validating the approved HTTPS host at every hop. Supported pictures are returned without requiring a customer Hub account.
-- Fixes stale failed-image state so a newly supplied picture can appear after the tag is updated.
-- Automatically prepares product PNGs from plain-white backgrounds. Removal is restricted to near-white pixels connected to the outside, leaving enclosed white details intact. Pale products are protected and tile surfaces are kept intact.
-- Adds **Keep original picture** and **Use your own transparent PNG** controls to the generator. Use a prepared PNG for scene backgrounds, delicate white products or unavailable original pictures. This is conservative white-background removal, not AI segmentation of every possible scene.
-- Saves generated/uploaded PNG pictures to the Hub's existing R2 storage when you generate/save a tag. This picture override is used by both the printed price tag and the customer QR page; the original catalogue image is retained.
+The model and browser runtime are bundled: no API key, external image service or new npm dependency is needed. First use loads approximately 16 MB from this Hub; the browser can cache those assets. Processing runs in a worker to keep the interface responsive. Runtime/model license notices are included. Each file is below the Cloudflare static-asset size limit.
 
 **Apply the database migration before deploying the updated code.** This package includes migrations 0033 and 0034; Wrangler skips migrations already applied. Migration 0034 adds the optional tag picture reference.
 
@@ -29,7 +26,7 @@ npm run db:migrate:production
 npm run deploy
 ```
 
-The new migration is `drizzle/0033_powerbuild_price_tags.sql`. It adds a tag table without changing existing catalogue products or online-shop prices. No new npm dependency is required; the MIT-licensed QR encoder is bundled locally.
+The new migration is `drizzle/0033_powerbuild_price_tags.sql`. It adds a tag table without changing existing catalogue products or online-shop prices. No new npm dependency is required; the QR encoder, image exporter and background-removal runtime/model are bundled locally.
 
 ## Use it
 
@@ -37,7 +34,7 @@ The new migration is `drizzle/0033_powerbuild_price_tags.sql`. It adds a tag tab
 2. Enter an existing catalogue product code and choose **Find product**. The name and picture come from the catalogue.
 3. Enter the selling price **including VAT**. Standard products use **each**.
 4. For a tile product, enable Smart Measure if it was not automatically selected. Confirm **m² per box** from the actual carton and choose **per m²** or **per box** pricing. Tile count and dimensions are optional. Recognised pack details are filled automatically, but missing box coverage must be supplied once. Coverage is never guessed from the picture.
-5. Check the product-only picture preview. If necessary, keep the original or upload a transparent PNG. Plain white backgrounds are handled automatically; complex scene backgrounds need a prepared cutout.
+5. Wait for automatic background removal and check the product-only PNG preview. This applies to tools, tiles and all other product categories. Retry or upload a replacement PNG if a fine edge needs correction.
 6. Confirm the **Customer website address** is the public HTTPS address of this deployment. A localhost address only works for local testing.
 7. Select **Generate price tag**. It saves the tag price, publishes the QR product page and adds the tag to the print sheet.
 8. Add more product codes to build a print sheet. Choose **Print / Save as PDF**, or **Download JPG** for an individual tag.
@@ -104,3 +101,7 @@ After deployment, test a QR link in a signed-out/private browser on a phone. Clo
 The feature is packaged for your existing project; it has not been deployed to the live site.
 
 JPG validation: browser download completed at 2700 × 1800 pixels; an independent QR decoder recovered the correct product URL from the exported JPG. All 11 checks passed.
+
+## Automatic cutout validation
+
+The actual browser model was run on the supplier Foster Ash tile and a Conan cordless drill kit. Both returned cropped PNGs with transparent alpha. Browser checks exercised tile lookup, PNG upload, JPG download, QR decoding and the mobile customer page. Customer rendering uses the saved PNG and does not request model/runtime assets. Automated repository checks passed (11 tests). No live deployment was performed.

@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
   },
   globalIgnores([
     "app/lib/vendor/**",
+    "public/price-tag-assets/cutout/ort*.mjs",
     // Default ignores of eslint-config-next:
     ".next/**",
     "dist/**",
