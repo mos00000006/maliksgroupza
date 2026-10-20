@@ -1,0 +1,15 @@
+MALIKS HUB - KITCHEN CATALOGUE PATCH
+
+1. Extract this ZIP directly into your existing maliksgroupza project folder.
+   The SQL file must end up inside your existing drizzle folder.
+2. Open a terminal in that project folder and run:
+
+   npm run db:migrate:production
+
+3. Refresh Our Catalogue. New items appear under Kitchens.
+
+This adds up to 25 new kitchen products, skipping products already present
+by code or name. Existing products and selling prices are preserved.
+Expected total from 1,845: 1,870, depending on existing live duplicates.
+New e-commerce channels remain disabled until you set prices and enable them.
+No front-end deployment is required.
