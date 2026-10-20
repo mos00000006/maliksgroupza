@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
@@ -13,7 +13,15 @@ export async function GET(
   )
     .bind(id)
     .first<{ image_key: string; image_name: string; image_type: string }>();
-  if (!row?.image_key || row.image_key.startsWith("static:")) return new Response("Not found", { status: 404 });
+  if (!row?.image_key) return new Response("Not found", { status: 404 });
+
+  if (row.image_key.startsWith("static:")) {
+    const path = row.image_key.slice("static:".length);
+    if (!/^\/catalogue\/(?:conan-hand-tools|conan-usa)\/[a-f0-9]{20}\.(png|jpe?g|webp|gif)$/i.test(path)) {
+      return new Response("Not found", { status: 404 });
+    }
+    return Response.redirect(new URL(path, req.url), 302);
+  }
 
   if (row.image_key.startsWith("external:")) {
     const sourceUrl = row.image_key.slice("external:".length);

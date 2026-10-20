@@ -1,0 +1,43 @@
+MALIKS HUB - CONAN USA ENGLISH CATALOGUE WITH PICTURES
+
+1. Extract this ZIP into your existing maliksgroupza project folder, merging
+   app, public and drizzle folders.
+2. Run from the project terminal, in this order:
+
+   npm run deploy
+   npm run db:migrate:production
+
+3. Refresh Our Catalogue and select Tools, or search Conan or a product code.
+
+Deployment is required to publish the bundled pictures and image route.
+
+CONTENTS
+371 unique product codes from 378 source listings. Repeated codes are
+combined into one record, with alternative English labels in the description.
+Names and descriptions contain English source text only; Chinese descriptions
+are not imported. Source model codes are retained without invented codes.
+
+341 actual product pictures are bundled as optimized WebP assets. Two are
+manufacturer pictures matched by code from conantools.net where the USA
+source image was missing. For 30 products the USA image is missing or
+unusable; see MISSING-SOURCE-PICTURES.txt. Existing matching pictures are
+preserved for those items when available. No replacement pictures are invented.
+
+The prior removal migration 0031 is included, so old tools are removed
+before importing this new source. Only matching old manufacturer codes are
+restored. Hand-tool accessories remain; matching imported records are
+refreshed with the USA English text and pictures. Manually managed products
+with matching codes are preserved. Existing selling prices and channel
+settings are preserved; new records start disabled online with zero prices.
+
+VALIDATION
+SQL executed in SQLite against the existing catalogue plus earlier patches:
+308 new rows; 52 previously removed records restored; 11 existing active
+records refreshed; net increase of 360 active products. Expected total
+2,409 after all earlier patches and removal, subject to live differences.
+Repeated application and manual record/pricing preservation verified.
+All 341 bundled picture files validated. Updated TypeScript syntax checked.
+No full application build was run in this workspace.
+
+This patch has not been applied to your live database.
+Source: https://www.conantoolsusa.com/
