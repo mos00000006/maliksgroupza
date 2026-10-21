@@ -1,3 +1,4 @@
+import { hasDesignerSession, designerRequired } from "./designer-auth";
 import { env } from "cloudflare:workers";
 import { getHubMember } from "../access";
 import { productResponse } from "../catalogue/shared";
@@ -6,6 +7,7 @@ import { canManagePriceTags } from "./shared";
 export async function GET(req: Request) {
   const member = await getHubMember();
   if (!canManagePriceTags(member)) return Response.json({ error: "Price tag management requires an authorised catalogue or pricing manager." }, { status: 403 });
+  if (!await hasDesignerSession(member, req.headers.get("cookie"))) return designerRequired();
   const brand = new URL(req.url).searchParams.get("brand");
   if (brand && !["powerbuild","busterbuild"].includes(brand)) return Response.json({error:"Choose a brand."},{status:400});
   const table = tagTable(tagBrand(brand));
@@ -19,6 +21,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const member = await getHubMember();
   if (!canManagePriceTags(member)) return Response.json({ error: "You do not have permission to manage price tags." }, { status: 403 });
+  if (!await hasDesignerSession(member, req.headers.get("cookie"))) return designerRequired();
   let data; let brand;
   try { const body = await req.json(); brand = tagBrand(body.brand); data = parseTagInput(body); }
   catch (error) { return Response.json({ error: error instanceof Error ? error.message : "Check the tag fields." }, { status: 400 }); }

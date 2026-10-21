@@ -1,10 +1,13 @@
+import { hasDesignerSession, designerRequired } from "../designer-auth";
 import { tagBrand, tagTable } from "../../../lib/price-tags";
 import { env } from "cloudflare:workers";
 import { getHubMember } from "../../access";
 import { canManagePriceTags } from "../shared";
 import { tagImageResponse } from "../image-source";
 export async function GET(req: Request) {
-  if (!canManagePriceTags(await getHubMember())) return new Response("Forbidden",{status:403});
+  const member = await getHubMember();
+  if (!canManagePriceTags(member)) return new Response("Forbidden",{status:403});
+  if (!await hasDesignerSession(member, req.headers.get("cookie"))) return designerRequired();
   let table;try{table=tagTable(tagBrand(new URL(req.url).searchParams.get("brand")));}catch{return new Response("Invalid brand",{status:400});}
   const id=Number(new URL(req.url).searchParams.get("product_id")); if(!Number.isSafeInteger(id)||id<=0)return new Response("Not found",{status:404});
   const original=new URL(req.url).searchParams.get("original")==="1";

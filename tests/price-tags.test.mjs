@@ -46,12 +46,16 @@ test("price-tag APIs enforce permissions, stable QR tokens, public whitelisting 
  db.exec(readFileSync(new URL("../drizzle/0033_powerbuild_price_tags.sql",import.meta.url),"utf8"));
  db.exec(readFileSync(new URL("../drizzle/0034_price_tag_product_pictures.sql",import.meta.url),"utf8"));
  db.exec(readFileSync(new URL("../drizzle/0035_busterbuild_price_tags.sql",import.meta.url),"utf8"));
+ db.exec(readFileSync(new URL("../drizzle/0036_price_tag_designer_sign_in.sql",import.meta.url),"utf8"));
+ const sessionToken='c'.repeat(64);const hash=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(sessionToken))).toString('hex');
+ db.prepare('INSERT INTO price_tag_designer_sessions VALUES (?,?,?,?,?)').run(hash,'owner@example.com','moses moyana',Math.floor(Date.now()/1000)+1000,0);
+
  db.prepare("INSERT INTO catalogue_products (code,name,description,category,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run("TEST1","Test Tile","PRIVATE DESCRIPTION","Tiles","owner","today","today");
  globalThis.__priceTagEnv={DB:{prepare(sql){let args=[];return {bind(...values){args=values;return this;},async first(){return db.prepare(sql).get(...args)||null;},async run(){db.prepare(sql).run(...args);return {success:true};}};}}};
  globalThis.__priceTagMember=null;
  const admin=await route("../app/api/price-tags/route.ts"); const pub=await route("../app/api/public-price-tags/[token]/route.ts");
  const input={product_id:1,price:"123.45",unit:"M2",is_tile:true,coverage_per_box:1.44,pieces_per_box:4,published:true};
- const post=()=>admin.POST(new Request("https://example.com/api/price-tags",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(input)}));
+ const post=()=>admin.POST(new Request("https://example.com/api/price-tags",{method:"POST",headers:{"content-type":"application/json",cookie:`__Host-hub_designer=${sessionToken}`},body:JSON.stringify(input)}));
  assert.equal((await post()).status,403);
  globalThis.__priceTagMember={email:"viewer@example.com",role:"Viewer",access_scope:"Full company"}; assert.equal((await post()).status,403);
  globalThis.__priceTagMember={email:"owner@example.com",role:"Owner / Admin",access_scope:"Full company"};
@@ -61,7 +65,7 @@ test("price-tag APIs enforce permissions, stable QR tokens, public whitelisting 
  const json=await response.json();assert.equal(json.product.price_cents,23456);assert.equal(response.headers.get("cache-control"),"no-store");
  for(const privateKey of ["description","updated_by","created_by","image_key"]) assert.equal(privateKey in json.product,false);
  const busterInput={...input,brand:"busterbuild",price:"259.99"};
- const busterPost=()=>admin.POST(new Request("https://example.com/api/price-tags",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(busterInput)}));
+ const busterPost=()=>admin.POST(new Request("https://example.com/api/price-tags",{method:"POST",headers:{"content-type":"application/json",cookie:`__Host-hub_designer=${sessionToken}`},body:JSON.stringify(busterInput)}));
  const buster=(await(await busterPost()).json()).tag;
  assert.notEqual(buster.token,saved.token);assert.equal(buster.brand,"busterbuild");
  assert.equal(db.prepare("SELECT price_cents FROM powerbuild_price_tags WHERE product_id=1").get().price_cents,23456);
@@ -97,7 +101,7 @@ test("PNG picture uploads require permission and an active saved tag",async()=>{
  let savedKey='',stored=0;globalThis.__priceTagMember=null;
  globalThis.__priceTagEnv={DB:{prepare(sql){return {bind(...values){this.values=values;return this;},async first(){return {product_id:1};},async run(){if(sql.startsWith('UPDATE'))savedKey=this.values[0];return {success:true};}};}},BUCKET:{async put(){stored++;},async delete(){}}};
  const picture=await route('../app/api/price-tags/picture/route.ts');
- const request=()=>{const data=new FormData();data.set('product_id','1');data.set('picture',new File([new Uint8Array([137,80,78,71,13,10,26,10,...new Array(32).fill(0)])],'product.png',{type:'image/png'}));return new Request('https://example.com/api/price-tags/picture',{method:'POST',body:data});};
+ const request=()=>{const data=new FormData();data.set('product_id','1');data.set('picture',new File([new Uint8Array([137,80,78,71,13,10,26,10,...new Array(32).fill(0)])],'product.png',{type:'image/png'}));return new Request('https://example.com/api/price-tags/picture',{method:'POST',headers:{cookie:'__Host-hub_designer='+ 'c'.repeat(64)},body:data});};
  assert.equal((await picture.POST(request())).status,403);assert.equal(stored,0);
  globalThis.__priceTagMember={email:'owner@example.com',role:'Owner / Admin',access_scope:'Full company'};
  assert.equal((await picture.POST(request())).status,200);assert.equal(stored,1);assert.match(savedKey,/^price-tags\/1\/.+\.png$/);

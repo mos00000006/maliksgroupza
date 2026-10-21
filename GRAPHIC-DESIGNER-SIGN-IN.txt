@@ -1,0 +1,20 @@
+GRAPHIC DESIGNER SIGN-IN — COMPANY HUB ONLY
+
+Extract the ZIP and copy the app, drizzle and tests folders into the existing Company Hub repository root, replacing matching files. Commit and deploy normally. Do not upload this to the BusterBuild sales website.
+
+REQUIRED DATABASE MIGRATION
+Apply the included migration 0036_price_tag_designer_sign_in.sql before serving this new code. Your usual deployment workflow may already apply migrations. If applying manually, use the Hub command:
+
+npx wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc
+
+The account is seeded as Moses Moyana using the password supplied in the conversation. The migration contains a salted password hash, not the plaintext password. No new environment variables or external service configuration are needed. Existing price-tag migrations 0033–0035 remain required.
+
+HOW IT WORKS
+Open Price tag generator from the Hub. It now shows Graphic designer sign in with Username and Password fields. After successful sign-in, choose PowerBuild or BusterBuild and use the existing generator. Sign out of designer is available above the generator. Designer sessions expire after eight hours and are bound to the current Hub account. Existing Hub login and price manager permission checks still apply.
+
+The server also requires the designer session for product lookup, price saving, original picture access and picture uploads. The cookie is HttpOnly, Secure and SameSite=Strict; login/logout require the same Hub origin. Sign-in attempts are limited. Use the deployed HTTPS Hub for testing.
+
+Public product QR pages, Smart Measure and the BusterBuild sales price feed are unchanged and do not ask customers for the designer password. Existing prices and printed QR codes are preserved.
+
+VERIFICATION
+Production build; 13 focused tests covering credentials, user-bound sessions, expiry, logout, repeated failed attempts, direct API access protection, existing price-tag functions and public customer/feed access. Server-render check confirms the sign-in form appears before template choices and authenticated designers can see the chooser. Focused ESLint completed without errors.

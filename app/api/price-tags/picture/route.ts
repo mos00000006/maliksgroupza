@@ -1,9 +1,11 @@
+import { hasDesignerSession, designerRequired } from "../designer-auth";
 import { tagBrand, tagTable } from "../../../lib/price-tags";
 import { env } from "cloudflare:workers";
 import { getHubMember } from "../../access";
 import { canManagePriceTags } from "../shared";
 export async function POST(req:Request) {
   const member=await getHubMember(); if(!canManagePriceTags(member))return Response.json({error:"Picture editing requires a price tag manager."},{status:403});
+  if(!await hasDesignerSession(member,req.headers.get("cookie")))return designerRequired();
   let form:FormData;try{form=await req.formData();}catch{return Response.json({error:"Upload a PNG picture using the picture field."},{status:400});} let table;try{table=tagTable(tagBrand(form.get("brand")));}catch{return Response.json({error:"Choose a brand."},{status:400});}const id=Number(form.get("product_id"));const file=form.get("picture");
   if(!Number.isSafeInteger(id)||id<=0||!(file instanceof File)||file.size>6*1024*1024||file.size<20)return Response.json({error:"Choose a PNG picture smaller than 6 MB."},{status:400});
   const bytes=new Uint8Array(await file.arrayBuffer());
