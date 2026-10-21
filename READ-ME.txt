@@ -1,7 +1,9 @@
-COMPANY HUB ONLY
+COMPANY HUB PATCH ONLY
 
-Extract this patch into the existing Company Hub repository, replacing matching files, and deploy normally. No database migration or sales app update is required.
+Extract this ZIP and upload the app and public folders to the Company Hub repository root, replacing matching files. Commit and deploy normally. No sales app update or database migration is required.
 
-The customer product page now uses your supplied transparent white BusterBuild PNG, centered on the dark header, with no white background or border. The uploaded PNG bytes are preserved. Existing product prices, QR tokens and live sales price feed are retained.
+The server now loads the published product and brand before rendering the customer page. BusterBuild QR scans show the transparent BusterBuild logo and product details from the first render. PowerBuild tags keep their correct branding. If product loading is unavailable, the page shows a neutral loading view rather than the PowerBuild logo. Current QR links and printed tags continue to work; there is no need to regenerate them.
 
-Refresh the customer page after deployment.
+Includes the white transparent logo and existing live price feed route permission. Product prices and sales app synchronization logic are unchanged.
+
+Verification: production build passed; first-render regression check passed for BusterBuild, PowerBuild and an unavailable product.

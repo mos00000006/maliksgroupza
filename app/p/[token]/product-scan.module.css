@@ -8,3 +8,5 @@
 .buster .boxes,.buster .total strong,.buster .measureEmpty b,.buster .mode .active,.buster .add{color:#443414}.buster .measure header p{color:#eee5cb}.buster .photo{background:#fff}
 
 @media(max-width:700px){.buster .header img{width:200px;height:125px;background:transparent}}
+
+.neutral .header{background:#292929;border-color:#ddd}.neutral .header span{color:#fff;letter-spacing:0}.neutral{background:#f4f4f4;color:#292929}

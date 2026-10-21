@@ -5,8 +5,8 @@ import { measureTiles, type PriceTag } from "../../lib/price-tags";
 import styles from "./product-scan.module.css";
 const money = (cents: number) => new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" }).format(cents / 100);
 const decimal = (value: number) => value.toLocaleString("en-ZA", { maximumFractionDigits: 3 });
-export default function ProductScanPage({ token }: { token: string }) {
-  const [product, setProduct] = useState<PriceTag | null>(null); const [status, setStatus] = useState("Loading product…");
+export default function ProductScanPage({ token, initialProduct = null }: { token: string; initialProduct?: PriceTag | null }) {
+  const [product, setProduct] = useState<PriceTag | null>(initialProduct); const [status, setStatus] = useState(initialProduct ? "" : "Loading product…");
   const [rooms, setRooms] = useState([{ id: 1, length: "", width: "" }]); const [waste, setWaste] = useState("10");
   const [mode, setMode] = useState<"rooms" | "area">("rooms"); const [area, setArea] = useState("");
   useEffect(() => {
@@ -17,15 +17,15 @@ export default function ProductScanPage({ token }: { token: string }) {
         if (active) { if (!res.ok) { setProduct(null); setStatus(json.error || "Product unavailable."); } else { setProduct(json.product); setStatus(""); } }
       } catch { if (active) setStatus("Could not load the current price. Check your connection and refresh."); }
     };
-    void load(); const refresh = () => { if (!document.hidden) void load(); };
+    if (!initialProduct || initialProduct.token !== token) void load(); const refresh = () => { if (!document.hidden) void load(); };
     document.addEventListener("visibilitychange", refresh); const timer = window.setInterval(refresh, 60000);
     return () => { active = false; document.removeEventListener("visibilitychange", refresh); window.clearInterval(timer); };
-  }, [token]);
+  }, [token, initialProduct]);
   const buster = product?.brand === "busterbuild";
-  const brandName = buster ? "BusterBuild" : "PowerBuild";
+  const brandName = product ? (buster ? "BusterBuild" : "PowerBuild") : "Product & Price";
   const result = product?.is_tile ? measureTiles(mode === "area" ? [{ length: Number(area), width: 1 }] : rooms.map(r => ({ length: Number(r.length), width: Number(r.width) })), Number(waste), product.coverage_per_box, product.price_cents, product.unit) : null;
-  return <main className={`${styles.page} ${buster ? styles.buster : ""}`}>
-    <header className={styles.header}><img src={buster ? "/price-tag-assets/busterbuild-logo-white.png" : "/powerbuild-logo-transparent.png"} alt={brandName} /></header>
+  return <main className={`${styles.page} ${buster ? styles.buster : !product ? styles.neutral : ""}`}>
+    <header className={styles.header}>{product ? <img src={buster ? "/price-tag-assets/busterbuild-logo-white.png" : "/powerbuild-logo-transparent.png"} alt={brandName} /> : <span>Product &amp; Price</span>}</header>
     <div className={styles.wrap}>{!product ? <section className={styles.unavailable}><h1>{status || "Product unavailable."}</h1><p>Ask a store team member for help.</p><button onClick={() => window.location.reload()}>Refresh</button></section> : <>
       {status && <p role="status" className={styles.connection}>{status}</p>}
       <section className={styles.product}>
