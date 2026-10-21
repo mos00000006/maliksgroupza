@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { toJpeg } from "../lib/vendor/html-to-image.mjs";
 import Link from "next/link";
+import { priceTagResponse } from "../lib/price-tag-response";
+import { exportProductPng } from "../lib/product-png-export";
 import { prepareProductPng } from "../lib/product-cutout";
 import { tileDefaults, type PriceTag, type TagUnit } from "../lib/price-tags";
 import PriceTagCard from "./price-tag-card";
@@ -30,9 +32,8 @@ export default function PriceTagGenerator() {
   const lookup = async () => {
     setBusy(true); setMessage(""); setSaved(null); setProduct(null); setDirty(false); setPicture(null); setPictureMessage("");
     try {
-      const res = await fetch(`/api/price-tags?code=${encodeURIComponent(code.trim())}`, { cache: "no-store" }); const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "The product could not load.");
-      const p = json.product as Product; const tag = json.tag; const defaults = tileDefaults(p);
+      const res = await fetch(`/api/price-tags?code=${encodeURIComponent(code.trim())}`, { cache: "no-store" }); const json = await priceTagResponse(res,"The product could not load. Please refresh and try again.");
+      const p = json.product as Product; const tag = json.tag as PriceTag | null; const defaults = tileDefaults(p);
       if(p.image_url){
         setMessage("Removing the product background… First use loads the background remover.");
         setPictureMessage("Removing the product background… First use loads the background remover.");
@@ -53,14 +54,19 @@ export default function PriceTagGenerator() {
     try {
       if(product.image_url&&!picture)throw new Error("Prepare the product picture before generating. Retry background removal or upload a transparent PNG.");
       const customerOrigin = origin();
-      const res = await fetch("/api/price-tags", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ product_id: product.id, ...draft }) }); const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Tag could not save.");
+      const res = await fetch("/api/price-tags", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ product_id: product.id, ...draft }) }); const json = await priceTagResponse(res,"The tag could not save. Please try again.");
       if(picture){
         const upload=new FormData();upload.append("product_id",String(product.id));upload.append("picture",picture.blob,"product.png");
-        const uploaded=await fetch("/api/price-tags/picture",{method:"POST",body:upload});
-        if(!uploaded.ok){const failed=await uploaded.json();throw new Error(failed.error || "Tag saved, but its picture could not upload. Please try Generate again.");}
+        let uploaded=await fetch("/api/price-tags/picture",{method:"POST",body:upload});
+        if(uploaded.status===413){
+          // One smaller retry for deployments with stricter request-size limits.
+          const image=await createImageBitmap(picture.blob);const canvas=document.createElement("canvas");canvas.width=image.width;canvas.height=image.height;canvas.getContext("2d")!.drawImage(image,0,0);image.close();
+          const smaller=await exportProductPng(canvas,300*1024);upload.set("picture",smaller.blob,"product.png");
+          uploaded=await fetch("/api/price-tags/picture",{method:"POST",body:upload});
+        }
+        await priceTagResponse(uploaded,"The tag price was saved, but its picture could not upload. Please try Generate again.");
       }
-      const tag: PriceTag = { ...json.tag, name: product.name, code: product.code, description: product.description, image_url: product.image_url, is_tile: Boolean(json.tag.is_tile), published: Boolean(json.tag.published) };
+      const tag: PriceTag = { ...(json.tag as PriceTag), name: product.name, code: product.code, description: product.description, image_url: product.image_url, is_tile: Boolean((json.tag as PriceTag).is_tile), published: Boolean((json.tag as PriceTag).published) };
       setSaved(tag); setDirty(false);
       setQueue(prev => prev.filter(item => item.tag.token !== tag.token).concat(tag.published ? [{ tag, url: `${customerOrigin}/p/${tag.token}` }] : []));
       setMessage(tag.published ? "Tag saved and added to the print sheet. The QR page is ready." : "Tag hidden. Customers can no longer open this QR page.");
@@ -101,7 +107,7 @@ export default function PriceTagGenerator() {
             setBusy(true);setPictureMessage("Removing the product background…");try{const cutout=await prepareProductPng(`/api/price-tags/image?product_id=${product.id}&original=1`,true);setPicture(cutout);setProduct(prev=>prev?{...prev,image_url:cutout.dataUrl}:prev);setPictureMessage("Product-only PNG prepared. Check the edges before generating.");setDirty(true);}catch(e){setPicture(null);setPictureMessage(e instanceof Error?e.message:"Background removal failed. Retry or upload a transparent PNG.");}finally{setBusy(false);}
           }}>Remove background again</button><label>Use your own transparent PNG<input type="file" accept="image/png" disabled={busy} onChange={async e=>{
             const file=e.target.files?.[0];if(!file)return;
-            if(file.type!=="image/png"||file.size>6*1024*1024){setPictureMessage("Choose a PNG smaller than 6 MB.");return;}
+            if(file.type!=="image/png"||file.size>30*1024*1024){setPictureMessage("Choose a PNG smaller than 30 MB. Large PNGs are resized automatically before upload.");return;}
             setBusy(true);
             try{const prepared=await prepareProductPng(file,false);setPicture(prepared);setProduct(prev=>prev?{...prev,image_url:prepared.dataUrl}:prev);setPictureMessage("Your PNG will be saved for both the printed tag and customer page.");setDirty(true);}
             catch{setPictureMessage("This PNG could not load. Choose another file.");}finally{setBusy(false);}

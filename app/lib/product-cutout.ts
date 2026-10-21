@@ -1,3 +1,4 @@
+import {exportProductPng} from "./product-png-export";
 import {productMask} from "./product-segmentation";
 // Remove only near-white pixels connected to the outside of a product image.
 // Interior white areas remain untouched. Detailed/white products can use a supplied PNG.
@@ -47,6 +48,6 @@ if(!source.type.startsWith("image/"))throw new Error("The source did not return 
   trimmed.getContext("2d")!.drawImage(canvas,left,top,right-left+1,bottom-top+1,2,2,right-left+1,bottom-top+1);
   canvas.width=trimmed.width;canvas.height=trimmed.height;context.drawImage(trimmed,0,0);
   const hasTransparency=true;const result={removed:0,protectedWhiteProduct:false};
-  const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("PNG conversion failed.")),"image/png"));
-  return {blob,dataUrl:canvas.toDataURL("image/png"),hasTransparency,...result};
+  const encoded=await exportProductPng(canvas);
+  return {...encoded,hasTransparency,...result};
 }
