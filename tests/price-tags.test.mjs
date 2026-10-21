@@ -111,3 +111,13 @@ test("BusterBuild QR links preserve sales scanner codes and validate brand selec
  assert.equal(tagCustomerUrl("https://hub.example",{token,code:"X"}),`https://hub.example/p/${token}`);
  assert.throws(()=>tagBrand("sql-injection"));assert.equal(tagTable(tagBrand(null)),"powerbuild_price_tags");
 });
+
+test("public BusterBuild price feed exposes only active published prices and read-only CORS",async()=>{
+ let query='';globalThis.__priceTagEnv={DB:{prepare(sql){query=sql;return {async all(){return {results:[{code:'A18079',price_cents:25999,unit:'M2',is_tile:1,coverage_per_box:1.44,pieces_per_box:2,updated_at:'today'}]};}};}}};
+ const feed=await route('../app/api/public-price-tags/prices/route.ts');const response=await feed.GET();const data=await response.json();
+ assert.equal(data.brand,'busterbuild');assert.equal(data.prices[0].price_cents,25999);
+ assert.match(query,/t.published=1 AND p.active=1/);assert.equal(response.headers.get('access-control-allow-origin'),'*');assert.equal(response.headers.get('cache-control'),'no-store');assert.equal(feed.POST,undefined);
+ assert.equal(isPublicPriceTagRequest('/api/public-price-tags/prices','GET'),true);assert.equal(isPublicPriceTagRequest('/api/public-price-tags/prices','POST'),false);
+ globalThis.__priceTagEnv.DB.prepare=()=>{throw Error('database unavailable');};assert.equal((await feed.GET()).status,503);
+ delete globalThis.__priceTagEnv;
+});

@@ -23,6 +23,7 @@ export const TAG_TOKEN = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0
 export function isPublicPriceTagRequest(path: string, method: string) {
   if (!["GET", "HEAD"].includes(method)) return false;
   if (path === "/price-tag-assets/busterbuild-template.jpg" || path === "/price-tag-assets/busterbuild-logo.png" || path === "/powerbuild-logo-transparent.png" || path === "/price-tag-assets/powerbuild-rail.png") return true;
+  if (path === "/api/public-price-tags/prices") return true;
   const match = /^\/(?:p|api\/public-price-tags)\/([^/]+)(?:\/image)?\/?$/.exec(path);
   return Boolean(match && TAG_TOKEN.test(match[1]) && (!path.startsWith("/p/") || !path.includes("/image")));
 }

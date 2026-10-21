@@ -1,0 +1,10 @@
+import { env } from "cloudflare:workers";
+const headers = { "access-control-allow-origin": "*", "cache-control": "no-store", "x-content-type-options": "nosniff" };
+export async function GET() {
+  try {
+    const result = await env.DB.prepare(`SELECT p.code,t.price_cents,t.unit,t.is_tile,t.coverage_per_box,t.pieces_per_box,t.updated_at FROM busterbuild_price_tags t JOIN catalogue_products p ON p.id=t.product_id WHERE t.published=1 AND p.active=1 ORDER BY t.updated_at DESC`).all();
+    return Response.json({ brand: "busterbuild", prices: result.results, checked_at: new Date().toISOString() }, { headers });
+  } catch {
+    return Response.json({ error: "Live BusterBuild prices are temporarily unavailable." }, { status: 503, headers });
+  }
+}
