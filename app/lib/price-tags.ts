@@ -1,6 +1,20 @@
+export type TagBrand = "powerbuild" | "busterbuild";
+export function tagBrand(value: unknown): TagBrand {
+  if (value === undefined || value === null || value === "powerbuild") return "powerbuild";
+  if (value === "busterbuild") return "busterbuild";
+  throw new Error("Choose PowerBuild or BusterBuild.");
+}
+export function tagTable(brand: TagBrand) {
+  return brand === "busterbuild" ? "busterbuild_price_tags" : "powerbuild_price_tags";
+}
+export function tagCustomerUrl(origin: string, tag: { token: string; code: string; brand?: TagBrand }) {
+  const url = new URL(`/p/${tag.token}`, origin);
+  if (tag.brand === "busterbuild") url.searchParams.set("code", tag.code);
+  return url.href;
+}
 export type TagUnit = "EA" | "M2" | "BOX";
 export type PriceTag = {
-  token: string; product_id: number; code: string; name: string; description: string;
+  brand?: TagBrand; token: string; product_id: number; code: string; name: string; description: string;
   price_cents: number; unit: TagUnit; is_tile: boolean; coverage_per_box: number;
   pieces_per_box: number; tile_width_mm: number; tile_length_mm: number;
   published: boolean; image_url: string; updated_at: string;
@@ -8,7 +22,7 @@ export type PriceTag = {
 export const TAG_TOKEN = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 export function isPublicPriceTagRequest(path: string, method: string) {
   if (!["GET", "HEAD"].includes(method)) return false;
-  if (path === "/powerbuild-logo-transparent.png" || path === "/price-tag-assets/powerbuild-rail.png") return true;
+  if (path === "/price-tag-assets/busterbuild-template.jpg" || path === "/price-tag-assets/busterbuild-logo.png" || path === "/powerbuild-logo-transparent.png" || path === "/price-tag-assets/powerbuild-rail.png") return true;
   const match = /^\/(?:p|api\/public-price-tags)\/([^/]+)(?:\/image)?\/?$/.exec(path);
   return Boolean(match && TAG_TOKEN.test(match[1]) && (!path.startsWith("/p/") || !path.includes("/image")));
 }

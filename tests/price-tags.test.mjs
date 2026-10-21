@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { build } from "esbuild";
 const compiledHelpers = await build({entryPoints:[new URL("../app/lib/price-tags.ts",import.meta.url).pathname],bundle:true,platform:"node",format:"esm",write:false});
-const { measureTiles, parseTagInput, isPublicPriceTagRequest, tileDefaults } = await import(`data:text/javascript;base64,${Buffer.from(compiledHelpers.outputFiles[0].text).toString("base64")}`);
+const { measureTiles, parseTagInput, isPublicPriceTagRequest, tileDefaults, tagBrand, tagTable, tagCustomerUrl } = await import(`data:text/javascript;base64,${Buffer.from(compiledHelpers.outputFiles[0].text).toString("base64")}`);
 
 const token = "2b2b2b2b-1234-4567-8901-2b2b2b2b2b2b";
 test("tile estimates use full boxes, multiple rooms, wastage and the selected pricing basis", () => {
@@ -45,6 +45,7 @@ test("price-tag APIs enforce permissions, stable QR tokens, public whitelisting 
  db.exec(readFileSync(new URL("../drizzle/0012_catalogue_prepared_stock.sql",import.meta.url),"utf8").split("--> statement-breakpoint")[0]);
  db.exec(readFileSync(new URL("../drizzle/0033_powerbuild_price_tags.sql",import.meta.url),"utf8"));
  db.exec(readFileSync(new URL("../drizzle/0034_price_tag_product_pictures.sql",import.meta.url),"utf8"));
+ db.exec(readFileSync(new URL("../drizzle/0035_busterbuild_price_tags.sql",import.meta.url),"utf8"));
  db.prepare("INSERT INTO catalogue_products (code,name,description,category,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run("TEST1","Test Tile","PRIVATE DESCRIPTION","Tiles","owner","today","today");
  globalThis.__priceTagEnv={DB:{prepare(sql){let args=[];return {bind(...values){args=values;return this;},async first(){return db.prepare(sql).get(...args)||null;},async run(){db.prepare(sql).run(...args);return {success:true};}};}}};
  globalThis.__priceTagMember=null;
@@ -59,6 +60,18 @@ test("price-tag APIs enforce permissions, stable QR tokens, public whitelisting 
  const params={params:Promise.resolve({token:saved.token})};const response=await pub.GET(new Request("https://example.com"),params);
  const json=await response.json();assert.equal(json.product.price_cents,23456);assert.equal(response.headers.get("cache-control"),"no-store");
  for(const privateKey of ["description","updated_by","created_by","image_key"]) assert.equal(privateKey in json.product,false);
+ const busterInput={...input,brand:"busterbuild",price:"259.99"};
+ const busterPost=()=>admin.POST(new Request("https://example.com/api/price-tags",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(busterInput)}));
+ const buster=(await(await busterPost()).json()).tag;
+ assert.notEqual(buster.token,saved.token);assert.equal(buster.brand,"busterbuild");
+ assert.equal(db.prepare("SELECT price_cents FROM powerbuild_price_tags WHERE product_id=1").get().price_cents,23456);
+ const bp={params:Promise.resolve({token:buster.token})};
+ const busterPublic=await(await pub.GET(new Request("https://example.com"),bp)).json();
+ assert.equal(busterPublic.product.brand,"busterbuild");assert.equal(busterPublic.product.price_cents,25999);
+ busterInput.price="279.99";assert.equal((await(await busterPost()).json()).tag.token,buster.token);
+ busterInput.published=false;await busterPost();
+ assert.equal((await pub.GET(new Request("https://example.com"),bp)).status,404);
+ assert.equal((await pub.GET(new Request("https://example.com"),params)).status,200);
  input.published=false;await post();assert.equal((await pub.GET(new Request("https://example.com"),params)).status,404);
  db.close();delete globalThis.__priceTagEnv;delete globalThis.__priceTagMember;
 });
@@ -89,4 +102,12 @@ test("PNG picture uploads require permission and an active saved tag",async()=>{
  globalThis.__priceTagMember={email:'owner@example.com',role:'Owner / Admin',access_scope:'Full company'};
  assert.equal((await picture.POST(request())).status,200);assert.equal(stored,1);assert.match(savedKey,/^price-tags\/1\/.+\.png$/);
  delete globalThis.__priceTagEnv;delete globalThis.__priceTagMember;
+});
+
+test("BusterBuild QR links preserve sales scanner codes and validate brand selection",()=>{
+ const url=tagCustomerUrl("https://hub.example",{token,code:"A 18079/2",brand:"busterbuild"});
+ assert.equal(new URL(url).searchParams.get("code"),"A 18079/2");
+ assert.equal(new URL(url).pathname,`/p/${token}`);
+ assert.equal(tagCustomerUrl("https://hub.example",{token,code:"X"}),`https://hub.example/p/${token}`);
+ assert.throws(()=>tagBrand("sql-injection"));assert.equal(tagTable(tagBrand(null)),"powerbuild_price_tags");
 });

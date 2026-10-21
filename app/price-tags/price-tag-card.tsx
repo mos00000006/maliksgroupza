@@ -7,10 +7,10 @@ export default function PriceTagCard({ tag, url }: { tag: PriceTag; url: string 
   const qr = qrcode(0, "M"); qr.addData(url); qr.make();
   const qrImage = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(qr.createSvgTag({ cellSize: 4, margin: 16, scalable: true }))}`;
   const [whole, cents] = (tag.price_cents / 100).toFixed(2).split(".");
-  return <article className={styles.tag} aria-label={`Price tag for ${tag.name}`}>
-    <img className={styles.rail} src="/price-tag-assets/powerbuild-rail.png" alt="PowerBuild" />
+  return <article className={`${styles.tag} ${tag.brand === "busterbuild" ? styles.busterTag : ""}`} aria-label={`Price tag for ${tag.name}`}>
+    <img className={styles.rail} src={tag.brand === "busterbuild" ? "/price-tag-assets/busterbuild-template.jpg" : "/price-tag-assets/powerbuild-rail.png"} alt={tag.brand === "busterbuild" ? "BusterBuild" : "PowerBuild"} />
     <div className={styles.tagMain}>
-      <img className={styles.watermark} src="/powerbuild-logo-transparent.png" alt="" />
+      {tag.brand !== "busterbuild" && <img className={styles.watermark} src="/powerbuild-logo-transparent.png" alt="" />}
       <div className={styles.productPicture}><ProductPicture src={tag.image_url} alt={tag.name} removeBackground={!tag.is_tile} /></div>
       <h2 className={styles.tagName} style={{ fontSize: tag.name.length > 100 ? "2.1cqw" : tag.name.length > 64 ? "2.6cqw" : undefined }}>{tag.name}</h2>
       <div className={styles.qrBlock}><img src={qrImage} alt="Scan to view product, price and tile smart measure" /><b>Code: {tag.code}</b></div>

@@ -21,10 +21,12 @@ export default function ProductScanPage({ token }: { token: string }) {
     document.addEventListener("visibilitychange", refresh); const timer = window.setInterval(refresh, 60000);
     return () => { active = false; document.removeEventListener("visibilitychange", refresh); window.clearInterval(timer); };
   }, [token]);
+  const buster = product?.brand === "busterbuild";
+  const brandName = buster ? "BusterBuild" : "PowerBuild";
   const result = product?.is_tile ? measureTiles(mode === "area" ? [{ length: Number(area), width: 1 }] : rooms.map(r => ({ length: Number(r.length), width: Number(r.width) })), Number(waste), product.coverage_per_box, product.price_cents, product.unit) : null;
-  return <main className={styles.page}>
-    <header className={styles.header}><img src="/powerbuild-logo-transparent.png" alt="PowerBuild" /></header>
-    <div className={styles.wrap}>{!product ? <section className={styles.unavailable}><h1>{status || "Product unavailable."}</h1><p>Ask a PowerBuild team member for help.</p><button onClick={() => window.location.reload()}>Refresh</button></section> : <>
+  return <main className={`${styles.page} ${buster ? styles.buster : ""}`}>
+    <header className={styles.header}><img src={buster ? "/price-tag-assets/busterbuild-logo.png" : "/powerbuild-logo-transparent.png"} alt={brandName} /></header>
+    <div className={styles.wrap}>{!product ? <section className={styles.unavailable}><h1>{status || "Product unavailable."}</h1><p>Ask a store team member for help.</p><button onClick={() => window.location.reload()}>Refresh</button></section> : <>
       {status && <p role="status" className={styles.connection}>{status}</p>}
       <section className={styles.product}>
         <div className={styles.photo}><ProductPicture src={product.image_url} alt={product.name} removeBackground={!product.is_tile} /></div>
@@ -39,7 +41,7 @@ export default function ProductScanPage({ token }: { token: string }) {
         </div><div className={styles.results} aria-live="polite">{result ? <><small>YOUR PROJECT ESTIMATE</small><div className={styles.boxes}>{result.boxes}<span>full {result.boxes === 1 ? "box" : "boxes"}</span></div><dl><div><dt>Measured area</dt><dd>{decimal(result.area)} m²</dd></div><div><dt>With {waste}% allowance</dt><dd>{decimal(result.required)} m²</dd></div><div><dt>Coverage supplied</dt><dd>{decimal(result.supplied)} m²</dd></div></dl><div className={styles.total}><span>Estimated tile cost</span><strong>{money(result.totalCents)}</strong><small>Including VAT · {product.unit === "BOX" ? "charged per full box" : "price per m² × full-box coverage"}</small></div></> : <div className={styles.measureEmpty}><b>Let’s measure your space.</b><p>Enter positive dimensions or an area to calculate full boxes and tile cost.</p></div>}</div></div>
         <p className={styles.disclaimer}>Estimate only. Check your measurements, layout, cuts and box coverage with our team. Adhesive, grout and installation are extra.</p>
       </section>}
-      <footer className={styles.footer}>POWERBUILD · Images for illustration purposes. E.&amp;O.E.</footer>
+      <footer className={styles.footer}>{brandName.toUpperCase()} · Images for illustration purposes. E.&amp;O.E.</footer>
     </>}</div>
   </main>;
 }

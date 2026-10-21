@@ -6,13 +6,15 @@ import Link from "next/link";
 import { priceTagResponse } from "../lib/price-tag-response";
 import { exportProductPng } from "../lib/product-png-export";
 import { prepareProductPng } from "../lib/product-cutout";
-import { tileDefaults, type PriceTag, type TagUnit } from "../lib/price-tags";
+import { tagCustomerUrl, tileDefaults, type TagBrand, type PriceTag, type TagUnit } from "../lib/price-tags";
 import PriceTagCard from "./price-tag-card";
 import styles from "./price-tags.module.css";
 type Product = { id: number; code: string; name: string; category: string; description: string; image_url: string };
 type Draft = { price: string; unit: TagUnit; is_tile: boolean; coverage_per_box: string; pieces_per_box: string; tile_width_mm: string; tile_length_mm: string; published: boolean };
 const empty: Draft = { price: "", unit: "EA", is_tile: false, coverage_per_box: "", pieces_per_box: "", tile_width_mm: "", tile_length_mm: "", published: true };
 export default function PriceTagGenerator() {
+  const [brand,setBrand]=useState<TagBrand|null>(null);
+  const brandName=brand === "busterbuild" ? "BusterBuild" : "PowerBuild";
   const exportRef=useRef<HTMLDivElement>(null);
   const [exportItem,setExportItem]=useState<{tag:PriceTag;url:string}|null>(null);
   const [jpgBusy,setJpgBusy]=useState(false);
@@ -32,7 +34,7 @@ export default function PriceTagGenerator() {
   const lookup = async () => {
     setBusy(true); setMessage(""); setSaved(null); setProduct(null); setDirty(false); setPicture(null); setPictureMessage("");
     try {
-      const res = await fetch(`/api/price-tags?code=${encodeURIComponent(code.trim())}`, { cache: "no-store" }); const json = await priceTagResponse(res,"The product could not load. Please refresh and try again.");
+      const res = await fetch(`/api/price-tags?brand=${brand}&code=${encodeURIComponent(code.trim())}`, { cache: "no-store" }); const json = await priceTagResponse(res,"The product could not load. Please refresh and try again.");
       const p = json.product as Product; const tag = json.tag as PriceTag | null; const defaults = tileDefaults(p);
       if(p.image_url){
         setMessage("Removing the product background… First use loads the background remover.");
@@ -54,9 +56,9 @@ export default function PriceTagGenerator() {
     try {
       if(product.image_url&&!picture)throw new Error("Prepare the product picture before generating. Retry background removal or upload a transparent PNG.");
       const customerOrigin = origin();
-      const res = await fetch("/api/price-tags", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ product_id: product.id, ...draft }) }); const json = await priceTagResponse(res,"The tag could not save. Please try again.");
+      const res = await fetch("/api/price-tags", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ product_id: product.id, brand, ...draft }) }); const json = await priceTagResponse(res,"The tag could not save. Please try again.");
       if(picture){
-        const upload=new FormData();upload.append("product_id",String(product.id));upload.append("picture",picture.blob,"product.png");
+        const upload=new FormData();upload.append("brand",brand!);upload.append("product_id",String(product.id));upload.append("picture",picture.blob,"product.png");
         let uploaded=await fetch("/api/price-tags/picture",{method:"POST",body:upload});
         if(uploaded.status===413){
           // One smaller retry for deployments with stricter request-size limits.
@@ -68,7 +70,7 @@ export default function PriceTagGenerator() {
       }
       const tag: PriceTag = { ...(json.tag as PriceTag), name: product.name, code: product.code, description: product.description, image_url: product.image_url, is_tile: Boolean((json.tag as PriceTag).is_tile), published: Boolean((json.tag as PriceTag).published) };
       setSaved(tag); setDirty(false);
-      setQueue(prev => prev.filter(item => item.tag.token !== tag.token).concat(tag.published ? [{ tag, url: `${customerOrigin}/p/${tag.token}` }] : []));
+      setQueue(prev => prev.filter(item => item.tag.token !== tag.token).concat(tag.published ? [{ tag, url: tagCustomerUrl(customerOrigin, tag) }] : []));
       setMessage(tag.published ? "Tag saved and added to the print sheet. The QR page is ready." : "Tag hidden. Customers can no longer open this QR page.");
     } catch (e) { setMessage(e instanceof Error ? e.message : "Could not save tag."); }
     finally { setBusy(false); }
@@ -82,7 +84,7 @@ export default function PriceTagGenerator() {
       if(!node)throw new Error("The tag could not be prepared. Generate it again.");
       await Promise.all(Array.from(node.querySelectorAll("img")).map(image=>image.decode()));
       const data=await toJpeg(node,{quality:0.98,pixelRatio:3,backgroundColor:"#ffffff",width:900,height:600,skipFonts:true,cacheBust:false,style:{boxShadow:"none",margin:"0",width:"900px",height:"600px"}});
-      const link=document.createElement("a");link.download=`PowerBuild-${item.tag.code.replace(/[^a-z0-9._-]/gi,"-")}-Price-Tag.jpg`;link.href=data;document.body.appendChild(link);link.click();link.remove();
+      const link=document.createElement("a");link.download=`${item.tag.brand === "busterbuild" ? "BusterBuild" : "PowerBuild"}-${item.tag.code.replace(/[^a-z0-9._-]/gi,"-")}-Price-Tag.jpg`;link.href=data;document.body.appendChild(link);link.click();link.remove();
       setMessage("JPG downloaded (2700 × 1800 pixels). Product cutouts remain transparent PNGs; the complete JPG tag has a white background.");
     }catch{setMessage("The JPG could not download. Check that the product picture loads, then try again.");}
     finally{setJpgBusy(false);setExportItem(null);}
@@ -90,21 +92,26 @@ export default function PriceTagGenerator() {
   const nominalCoverage=draft.is_tile?Number(draft.pieces_per_box)*Number(draft.tile_width_mm)*Number(draft.tile_length_mm)/1000000:0;
   const coverageMismatch=nominalCoverage>0&&Number(draft.coverage_per_box)>0&&Math.abs(Number(draft.coverage_per_box)-nominalCoverage)/nominalCoverage>.15;
   const numberField = (label: string, key: "coverage_per_box" | "pieces_per_box" | "tile_width_mm" | "tile_length_mm", step: string) => <label>{label}<input type="number" min="0" step={step} value={draft[key]} onChange={e => change({ [key]: e.target.value })} /></label>;
-  let publicUrl = ""; try { if (saved) publicUrl = `${origin()}/p/${saved.token}`; } catch { /* Validated on save. */ }
+  let publicUrl = ""; try { if (saved) publicUrl = tagCustomerUrl(origin(), saved); } catch { /* Validated on save. */ }
   const print = async () => {
     setMessage("Preparing pictures for print…");
     await Promise.all(Array.from(document.querySelectorAll<HTMLImageElement>("[data-print-sheet] img")).map(async img => { try { await img.decode(); } catch { /* Broken image remains visible for review. */ } }));
     setMessage(""); window.print();
   };
+  if (!brand) return <main className={styles.generator}><section className={styles.controls}><header className={styles.header}><div><h1>Price tag generator</h1><p>Choose your store template.</p></div><Link href="/">Back to Hub</Link></header><div className={styles.brandChoices}>
+    <button onClick={()=>setBrand("powerbuild")}><img src="/powerbuild-logo-transparent.png" alt=""/><strong>PowerBuild</strong><span>Blue &amp; yellow template</span></button>
+    <button onClick={()=>setBrand("busterbuild")}><img src="/price-tag-assets/busterbuild-logo.png" alt=""/><strong>BusterBuild</strong><span>Black &amp; gold template</span></button>
+  </div></section></main>;
   return <main className={styles.generator}>
     <section className={styles.controls}>
-      <header className={styles.header}><img src="/powerbuild-logo-transparent.png" alt="PowerBuild" /><div><small>POWERBUILD RETAIL</small><h1>Price tag studio</h1><p>Your design. Your products. Ready to print.</p></div><Link href="/">Back to Hub</Link></header>
+      <header className={styles.header}><img src={brand === "busterbuild" ? "/price-tag-assets/busterbuild-logo.png" : "/powerbuild-logo-transparent.png"} alt={brandName} /><div><small>{brandName.toUpperCase()} RETAIL</small><h1>Price tag studio</h1><p>Your design. Your products. Ready to print.</p></div><Link href="/">Back to Hub</Link></header>
+      <button type="button" className={styles.switchBrand} onClick={()=>{setBrand(null);setCode("");setProduct(null);setSaved(null);setPicture(null);setQueue([]);setDraft(empty);setDirty(false);setMessage("");}}>Change brand</button>
       <div className={styles.editor}>
         <section className={styles.panel}><h2>1. Choose a product</h2>
           <form onSubmit={e => { e.preventDefault(); void lookup(); }} className={styles.lookup}><label>Product code<input required autoFocus value={code} placeholder="e.g. A18167" onChange={e => { setCode(e.target.value); setProduct(null); setSaved(null); setPicture(null); setPictureMessage(""); }} /></label><button disabled={busy || !code.trim()}>Find product</button></form>
           {product && <div className={styles.chosen}>{product.image_url && <img src={product.image_url} alt="" />}<div><b>{product.name}</b><small>{product.code} · {product.category}</small></div></div>}
           {product && <div className={styles.pictureTools}><p role="status">{pictureMessage}</p><button type="button" disabled={busy} onClick={async()=>{
-            setBusy(true);setPictureMessage("Removing the product background…");try{const cutout=await prepareProductPng(`/api/price-tags/image?product_id=${product.id}&original=1`,true);setPicture(cutout);setProduct(prev=>prev?{...prev,image_url:cutout.dataUrl}:prev);setPictureMessage("Product-only PNG prepared. Check the edges before generating.");setDirty(true);}catch(e){setPicture(null);setPictureMessage(e instanceof Error?e.message:"Background removal failed. Retry or upload a transparent PNG.");}finally{setBusy(false);}
+            setBusy(true);setPictureMessage("Removing the product background…");try{const cutout=await prepareProductPng(`/api/price-tags/image?product_id=${product.id}&brand=${brand}&original=1`,true);setPicture(cutout);setProduct(prev=>prev?{...prev,image_url:cutout.dataUrl}:prev);setPictureMessage("Product-only PNG prepared. Check the edges before generating.");setDirty(true);}catch(e){setPicture(null);setPictureMessage(e instanceof Error?e.message:"Background removal failed. Retry or upload a transparent PNG.");}finally{setBusy(false);}
           }}>Remove background again</button><label>Use your own transparent PNG<input type="file" accept="image/png" disabled={busy} onChange={async e=>{
             const file=e.target.files?.[0];if(!file)return;
             if(file.type!=="image/png"||file.size>30*1024*1024){setPictureMessage("Choose a PNG smaller than 30 MB. Large PNGs are resized automatically before upload.");return;}
