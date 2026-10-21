@@ -25,7 +25,7 @@ export default function ProductScanPage({ token }: { token: string }) {
   const brandName = buster ? "BusterBuild" : "PowerBuild";
   const result = product?.is_tile ? measureTiles(mode === "area" ? [{ length: Number(area), width: 1 }] : rooms.map(r => ({ length: Number(r.length), width: Number(r.width) })), Number(waste), product.coverage_per_box, product.price_cents, product.unit) : null;
   return <main className={`${styles.page} ${buster ? styles.buster : ""}`}>
-    <header className={styles.header}><img src={buster ? "/price-tag-assets/busterbuild-logo.png" : "/powerbuild-logo-transparent.png"} alt={brandName} /></header>
+    <header className={styles.header}><img src={buster ? "/price-tag-assets/busterbuild-logo-white.png" : "/powerbuild-logo-transparent.png"} alt={brandName} /></header>
     <div className={styles.wrap}>{!product ? <section className={styles.unavailable}><h1>{status || "Product unavailable."}</h1><p>Ask a store team member for help.</p><button onClick={() => window.location.reload()}>Refresh</button></section> : <>
       {status && <p role="status" className={styles.connection}>{status}</p>}
       <section className={styles.product}>

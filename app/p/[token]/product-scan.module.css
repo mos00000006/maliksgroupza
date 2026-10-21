@@ -4,5 +4,7 @@
 .header{justify-content:center;padding:14px 20px}.header img{width:132px;height:110px;background:transparent;border-radius:0}.photo{background:#f5f7fa}.photo>img{background:transparent}
 @media(max-width:700px){.header{justify-content:center;padding:12px 18px}.header img{width:126px;height:104px;background:transparent}}
 
-.buster{color:#252216;background:#f6f4ef}.buster .header,.buster .measure>header{background:#252216;border-color:#dfa000}.buster .price,.buster .packs b{color:#252216}.buster .measureMark,.buster .measure header span{color:#efb400}.buster .header img{background:white}.buster .results{background:#fbf6e6}
+.buster{color:#252216;background:#f6f4ef}.buster .header,.buster .measure>header{background:#252216;border-color:#dfa000}.buster .price,.buster .packs b{color:#252216}.buster .measureMark,.buster .measure header span{color:#efb400}.buster .header img{background:transparent;border:0;box-shadow:none;width:230px;height:140px;object-fit:cover}.buster .results{background:#fbf6e6}
 .buster .boxes,.buster .total strong,.buster .measureEmpty b,.buster .mode .active,.buster .add{color:#443414}.buster .measure header p{color:#eee5cb}.buster .photo{background:#fff}
+
+@media(max-width:700px){.buster .header img{width:200px;height:125px;background:transparent}}

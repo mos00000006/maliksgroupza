@@ -1,0 +1,7 @@
+COMPANY HUB ONLY
+
+Extract this patch into the existing Company Hub repository, replacing matching files, and deploy normally. No database migration or sales app update is required.
+
+The customer product page now uses your supplied transparent white BusterBuild PNG, centered on the dark header, with no white background or border. The uploaded PNG bytes are preserved. Existing product prices, QR tokens and live sales price feed are retained.
+
+Refresh the customer page after deployment.
