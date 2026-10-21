@@ -89,6 +89,11 @@ export default function PriceTagGenerator() {
     }catch{setMessage("The JPG could not download. Check that the product picture loads, then try again.");}
     finally{setJpgBusy(false);setExportItem(null);}
   };
+  const enteredCents = Math.round(Number(draft.price) * 100);
+  const boxPriceCents = draft.is_tile && Number.isSafeInteger(enteredCents) && enteredCents > 0
+    ? draft.unit === "BOX" ? enteredCents : Number(draft.coverage_per_box) > 0 ? Math.round(enteredCents * Number(draft.coverage_per_box)) : null
+    : null;
+  const money = (cents: number) => new Intl.NumberFormat("en-ZA", {style:"currency",currency:"ZAR"}).format(cents / 100);
   const nominalCoverage=draft.is_tile?Number(draft.pieces_per_box)*Number(draft.tile_width_mm)*Number(draft.tile_length_mm)/1000000:0;
   const coverageMismatch=nominalCoverage>0&&Number(draft.coverage_per_box)>0&&Math.abs(Number(draft.coverage_per_box)-nominalCoverage)/nominalCoverage>.15;
   const numberField = (label: string, key: "coverage_per_box" | "pieces_per_box" | "tile_width_mm" | "tile_length_mm", step: string) => <label>{label}<input type="number" min="0" step={step} value={draft[key]} onChange={e => change({ [key]: e.target.value })} /></label>;
@@ -120,13 +125,14 @@ export default function PriceTagGenerator() {
             catch{setPictureMessage("This PNG could not load. Choose another file.");}finally{setBusy(false);}
           }} /></label><p className={styles.hint}>Backgrounds are removed automatically for all product categories, including tiles. Review fine edges and white products; you can replace any cutout with your own PNG.</p></div>}
           {product && <><h2>2. Set the price</h2><div className={styles.fields}>
-            <label>Price including VAT (R)<input type="number" min="0.01" step="0.01" required value={draft.price} onChange={e => change({ price: e.target.value })} /></label>
-            <label>Price basis<select value={draft.unit} onChange={e => change({ unit: e.target.value as TagUnit })}>{draft.is_tile ? <><option value="M2">Per m²</option><option value="BOX">Per box</option></> : <option value="EA">Each</option>}</select></label>
-          </div><label className={styles.check}><input type="checkbox" checked={draft.is_tile} onChange={e => change({ is_tile: e.target.checked, unit: e.target.checked ? "M2" : "EA" })} />Tile product — enable Smart Measure</label>
+            <label>{draft.is_tile ? draft.unit === "BOX" ? "Price for ONE box including VAT (R)" : "Price per m² including VAT (R)" : "Price each including VAT (R)"}<input type="number" min="0.01" step="0.01" required value={draft.price} onChange={e => change({ price: e.target.value })} /></label>
+            <label>Price basis<select value={draft.unit} onChange={e => change({ unit: e.target.value as TagUnit })}>{draft.is_tile ? <><option value="BOX">Per box (standard)</option><option value="M2">Per m² (only if priced by area)</option></> : <option value="EA">Each</option>}</select></label>
+          </div><label className={styles.check}><input type="checkbox" checked={draft.is_tile} onChange={e => change({ is_tile: e.target.checked, unit: e.target.checked ? "BOX" : "EA" })} />Tile product — enable Smart Measure</label>
           {draft.is_tile && <fieldset><legend>Tile pack details</legend><p>Confirm the coverage printed on the box. Pack coverage is never guessed from the product photograph.</p><div className={styles.fields}>
             {numberField("m² per box (required)", "coverage_per_box", "0.0001")}{numberField("Tiles per box (optional)", "pieces_per_box", "1")}
             {numberField("Tile width in mm (optional)", "tile_width_mm", "1")}{numberField("Tile length in mm (optional)", "tile_length_mm", "1")}
           </div>{coverageMismatch&&<p role="alert" className={styles.notice}>Check box coverage: the entered {draft.coverage_per_box} m² differs from {nominalCoverage.toFixed(3)} m² calculated from the tile dimensions and count. Confirm the figure printed on the carton before generating.</p>}</fieldset>}
+          {draft.is_tile && <p className={styles.notice} role="status">{draft.unit === "BOX" ? <>The entered amount is the price for one full box. Smart Measure total = full boxes needed × box price.{boxPriceCents !== null && <> 1 box: <b>{money(boxPriceCents)}</b> · 2 boxes: <b>{money(boxPriceCents * 2)}</b> · 3 boxes: <b>{money(boxPriceCents * 3)}</b>.</>}</> : <>You selected a price per m². Smart Measure will multiply this price by the full-box coverage.{boxPriceCents !== null && <> Equivalent price for one box: <b>{money(boxPriceCents)}</b>.</>}</>}</p>}
           <label className={styles.check}><input type="checkbox" checked={draft.published} onChange={e => change({ published: e.target.checked })} />Make this product and tag price visible to customers who scan</label>
           <button className={styles.primary} disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : draft.published ? "Generate price tag" : "Save and hide QR page"}</button>
           <p className={styles.hint}>{brand === "busterbuild" && "Published BusterBuild prices also update the connected sales app, usually within one minute while online. "}The QR link stays the same when you update this tag. Reprint shelf tags after a price change. Tag prices are managed separately from the online shop.</p></>}

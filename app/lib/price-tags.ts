@@ -67,7 +67,7 @@ export function tileDefaults(product: { name: string; category: string; descript
   const dimensions = /(\d{2,4})\s*[x×*]\s*(\d{2,4})\s*mm/i.exec(text);
   const box = /(\d+(?:\.\d+)?)\s*(?:m²|m2|sqm)\s*(?:per\s*box|\/\s*box)/i.exec(text);
   const pcs = /(\d+)\s*(?:tiles?|pcs|pieces?)\s*(?:per\s*box|\/\s*box)/i.exec(text);
-  return { is_tile: isTile, unit: isTile ? "M2" as const : "EA" as const,
+  return { is_tile: isTile, unit: isTile ? "BOX" as const : "EA" as const,
     coverage_per_box: box ? Number(box[1]) : 0, pieces_per_box: pcs ? Number(pcs[1]) : 0,
     tile_width_mm: dimensions ? Number(dimensions[1]) : 0, tile_length_mm: dimensions ? Number(dimensions[2]) : 0 };
 }

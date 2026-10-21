@@ -1,0 +1,18 @@
+TILE BOX PRICE FIX — COMPANY HUB ONLY
+
+Upload the app, drizzle and tests folders from this patch into the Company Hub repository root, replacing matching files. Deploy with the included migration 0037_tile_tag_prices_per_box.sql. Use your normal deployment workflow, or apply migrations manually with:
+
+npx wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc
+
+WHAT CHANGES
+New tile tags default to Per box. The price input clearly says Price for ONE box including VAT. A live confirmation shows the amounts for one, two and three boxes. Smart Measure displays the applicable unit price alongside its estimate. Per m² remains an explicit option when intentionally pricing by area.
+
+The migration corrects ALL existing tile price tags marked M2, in both PowerBuild and BusterBuild, to BOX. It keeps the entered rand amount, QR token, publishing status and product details. For example, an existing 39999-cent tag becomes R399.99 per box, not R399.99 multiplied by box coverage. The original basis, amount and timestamp are retained in price_tag_box_basis_corrections for review. Catalogue source prices and saved sales quotations are untouched.
+
+Smart Measure uses box coverage and wastage to determine full boxes, then multiplies boxes by box price. At R399.99 per box: one box is R399.99, two are R799.98 and three are R1199.97. If a product was intentionally priced per m², select that explicit basis for the product and save it again.
+
+CUSTOMER AND SALES APP
+Existing QR links continue to work. Refresh the customer page after deployment. The already connected BusterBuild sales app receives the corrected BOX unit through the Hub live-price feed, normally within one minute while online. No additional sales app patch is required if the ready-to-upload price-sync patch is installed. Previously downloaded JPGs and printed labels do not change; regenerate/reprint labels that say per m² where you mean per box.
+
+VERIFICATION
+Production build and 15 focused tests passed, including exact R399.99 box totals across different box coverages, preservation of existing amounts and QR tokens, migration audit records, public customer/feed access and designer sign-in protection.

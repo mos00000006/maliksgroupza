@@ -125,3 +125,28 @@ test("public BusterBuild price feed exposes only active published prices and rea
  globalThis.__priceTagEnv.DB.prepare=()=>{throw Error('database unavailable');};assert.equal((await feed.GET()).status,503);
  delete globalThis.__priceTagEnv;
 });
+test('tile prices default to a box and R399.99 stays R399.99 for one box regardless of coverage',()=>{
+ assert.equal(tileDefaults({name:'Porcelain 600x1200mm',category:'Tiles',description:''}).unit,'BOX');
+ assert.equal(tileDefaults({name:'Hammer',category:'Tools',description:''}).unit,'EA');
+ for(const coverage of [.9,1.44,2.16]){
+  for(const boxes of [1,2,3]){
+   const estimate=measureTiles([{length:coverage*boxes,width:1}],0,coverage,39999,'BOX');
+   assert.equal(estimate.boxes,boxes);assert.equal(estimate.totalCents,39999*boxes);
+  }
+ }
+ assert.equal(measureTiles([{length:1.44,width:1}],0,1.44,39999,'M2').totalCents,57599);
+});
+test('box-basis correction preserves entered prices and QR tokens and records previous units for both brands',()=>{
+ const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE catalogue_products (id INTEGER PRIMARY KEY);INSERT INTO catalogue_products VALUES (1),(2)');
+ for(const name of ['0033_powerbuild_price_tags.sql','0034_price_tag_product_pictures.sql','0035_busterbuild_price_tags.sql'])db.exec(readFileSync(new URL('../drizzle/'+name,import.meta.url),'utf8'));
+ for(const brand of ['powerbuild','busterbuild']){
+  db.prepare(`INSERT INTO ${brand}_price_tags (product_id,token,price_cents,unit,is_tile,coverage_per_box,published,updated_by,updated_at) VALUES (1,?,39999,'M2',1,1.44,1,'owner','original'),(2,?,5000,'EA',0,0,1,'owner','original')`).run(brand+'-tile',brand+'-tool');
+ }
+ db.exec(readFileSync(new URL('../drizzle/0037_tile_tag_prices_per_box.sql',import.meta.url),'utf8'));
+ for(const brand of ['powerbuild','busterbuild']){
+  const tile=db.prepare(`SELECT * FROM ${brand}_price_tags WHERE product_id=1`).get();assert.equal(tile.unit,'BOX');assert.equal(tile.price_cents,39999);assert.equal(tile.token,brand+'-tile');assert.equal(tile.published,1);
+  const tool=db.prepare(`SELECT * FROM ${brand}_price_tags WHERE product_id=2`).get();assert.equal(tool.unit,'EA');assert.equal(tool.price_cents,5000);
+  const audit=db.prepare('SELECT * FROM price_tag_box_basis_corrections WHERE brand=?').get(brand);assert.equal(audit.original_unit,'M2');assert.equal(audit.original_price_cents,39999);assert.equal(audit.original_updated_at,'original');
+ }
+ db.close();
+});
