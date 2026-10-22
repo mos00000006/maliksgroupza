@@ -1,5 +1,4 @@
-COMPANY HUB ONLY
-
-Copy the app folder into the Company Hub repository, replacing the matching CSS file. Commit and deploy.
-
-Fixes raised combo price cents in the preview and JPG download for both brands. No database migration required.
+COMPANY HUB ONLY — deploy this first.
+Replace app/api/public-price-tags/prices/route.ts and deploy. No migration required.
+Adds published BusterBuild combo details and saved tag tokens to the existing public price feed. Staff pages remain protected.
+Then apply the companion sales app patch. Existing printed QR codes remain valid.
