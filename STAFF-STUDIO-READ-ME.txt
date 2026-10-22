@@ -1,0 +1,12 @@
+COMPANY HUB ONLY
+
+Copy the app and public folders into the Company Hub repository, replacing the matching files, then deploy. This patch extends the existing price tag generator with its combo creator and keeps the graphic designer sign-in. No migration, new package or sales app patch is required.
+
+HOW TO USE
+Open Price Tag Generator, sign in as the graphic designer, choose PowerBuild or BusterBuild, then select Salesperson name tags or Business cards.
+Name tags: 75 x 40 mm. Business cards: 90 x 50 mm.
+Enter name, job title/department and optional branch. Business cards also support phone/WhatsApp, email, website and store address. Each brand has its own layout. Details update in the live preview and stay while switching between the two staff tools; they are not saved after leaving this screen.
+Download PDF for exact finished page size and print at Actual size/100%. JPG exports are 1800 x 960 pixels for name tags and 1800 x 1000 for business cards; set their printed dimensions explicitly. Designs have no added bleed.
+
+VALIDATION
+Production build and targeted lint completed (no errors; standard img warnings). Browser checked all four designs, editable fields, switching tools, JPG/PDF downloads, long names and mobile width. Exported PDFs were parsed to verify exact page dimensions and rendered for visual inspection, including dark BusterBuild backgrounds.
