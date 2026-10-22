@@ -1,0 +1,17 @@
+COMPANY HUB ONLY
+
+Copy app/ and public/ into your Company Hub repository, replacing matching files, then deploy. No database migration, new package or BusterBuild sales app patch is required.
+
+Open Price Tag Generator, sign in with the existing graphic designer account, choose PowerBuild or BusterBuild, then choose WhatsApp adverts. Staff name tags/business cards remain available; their supporting files are included. The existing single product and combo tools are retained.
+
+FEATURES
+Separate PowerBuild blue/yellow and BusterBuild charcoal/gold designs.
+Status JPG: 1080 x 1920 pixels. Square JPG: 1080 x 1080 pixels.
+One to four products. Look up by catalogue code to load product details, picture and saved brand tag price where available. Catalogue pictures use the existing background remover; you may replace any picture with your own transparent PNG.
+Editable product names, offer prices and selling basis (each, box or m2). Each slot can be replaced or removed independently.
+Editable headline, supporting line, optional valid-until date, branch, phone/WhatsApp, address and terms.
+Live preview and high-resolution JPG download. Post the downloaded JPG from your gallery using WhatsApp. This generator does not send messages.
+Advert prices affect only the image and do not update saved Hub/sales app prices. Save price tags separately if those prices must change. Adverts are held in this screen only; download before leaving.
+
+VALIDATION
+Production build and targeted lint passed with no errors (standard img optimization warnings). Real browser checks for both brands covered code lookup, price edits, one/four-product layouts, both dimensions, picture replacement, removal, JPG downloads and mobile overflow. JPG pixel sizes verified and exported artwork inspected.

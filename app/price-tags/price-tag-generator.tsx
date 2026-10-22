@@ -7,6 +7,7 @@ import { priceTagResponse } from "../lib/price-tag-response";
 import { exportProductPng } from "../lib/product-png-export";
 import { prepareProductPng } from "../lib/product-cutout";
 import { tagCustomerUrl, tileDefaults, type TagBrand, type PriceTag, type TagUnit } from "../lib/price-tags";
+import WhatsAppAdvert from "./whatsapp-advert";
 import StaffCardStudio from "./staff-card-studio";
 import ComboCreator from "./combo-creator";
 import PriceTagCard from "./price-tag-card";
@@ -15,7 +16,7 @@ type Product = { id: number; code: string; name: string; category: string; descr
 type Draft = { price: string; unit: TagUnit; is_tile: boolean; coverage_per_box: string; pieces_per_box: string; tile_width_mm: string; tile_length_mm: string; published: boolean };
 const empty: Draft = { price: "", unit: "EA", is_tile: false, coverage_per_box: "", pieces_per_box: "", tile_width_mm: "", tile_length_mm: "", published: true };
 export default function PriceTagGenerator() {
-  const [mode,setMode]=useState<"single"|"combo"|"name-tag"|"business-card">("single");
+  const [mode,setMode]=useState<"single"|"combo"|"name-tag"|"business-card"|"whatsapp">("single");
   const [brand,setBrand]=useState<TagBrand|null>(null);
   const brandName=brand === "busterbuild" ? "BusterBuild" : "PowerBuild";
   const exportRef=useRef<HTMLDivElement>(null);
@@ -106,6 +107,7 @@ export default function PriceTagGenerator() {
     await Promise.all(Array.from(document.querySelectorAll<HTMLImageElement>("[data-print-sheet] img")).map(async img => { try { await img.decode(); } catch { /* Broken image remains visible for review. */ } }));
     setMessage(""); window.print();
   };
+  if (brand && mode === "whatsapp") return <WhatsAppAdvert brand={brand} onBack={()=>setMode("single")} />;
   if (brand && (mode === "name-tag" || mode === "business-card")) return <StaffCardStudio brand={brand} kind={mode} onKindChange={setMode} onBack={()=>setMode("single")} />;
   if (brand && mode === "combo") return <ComboCreator brand={brand} onBack={()=>setMode("single")} />;
   if (!brand) return <main className={styles.generator}><section className={styles.controls}><header className={styles.header}><div><h1>Price tag generator</h1><p>Choose your store template.</p></div><Link href="/">Back to Hub</Link></header><div className={styles.brandChoices}>
@@ -116,7 +118,7 @@ export default function PriceTagGenerator() {
     <section className={styles.controls}>
       <header className={styles.header}><img src={brand === "busterbuild" ? "/price-tag-assets/busterbuild-logo.png" : "/powerbuild-logo-transparent.png"} alt={brandName} /><div><small>{brandName.toUpperCase()} RETAIL</small><h1>Price tag studio</h1><p>Your design. Your products. Ready to print.</p></div><Link href="/">Back to Hub</Link></header>
       <button type="button" className={styles.switchBrand} onClick={()=>{setBrand(null);setCode("");setProduct(null);setSaved(null);setPicture(null);setQueue([]);setDraft(empty);setDirty(false);setMessage("");}}>Change brand</button>
-      <div className={styles.buttons} style={{marginBottom:20}}><button type="button" aria-pressed={true}>Single product tag</button><button type="button" onClick={()=>setMode("combo")}>Create a combo</button><button type="button" onClick={()=>setMode("name-tag")}>Salesperson name tags</button><button type="button" onClick={()=>setMode("business-card")}>Business cards</button></div>
+      <div className={styles.buttons} style={{marginBottom:20}}><button type="button" aria-pressed={true}>Single product tag</button><button type="button" onClick={()=>setMode("combo")}>Create a combo</button><button type="button" onClick={()=>setMode("name-tag")}>Salesperson name tags</button><button type="button" onClick={()=>setMode("business-card")}>Business cards</button><button type="button" onClick={()=>setMode("whatsapp")}>WhatsApp adverts</button></div>
       <div className={styles.editor}>
         <section className={styles.panel}><h2>1. Choose a product</h2>
           <form onSubmit={e => { e.preventDefault(); void lookup(); }} className={styles.lookup}><label>Product code<input required autoFocus value={code} placeholder="e.g. A18167" onChange={e => { setCode(e.target.value); setProduct(null); setSaved(null); setPicture(null); setPictureMessage(""); }} /></label><button disabled={busy || !code.trim()}>Find product</button></form>
