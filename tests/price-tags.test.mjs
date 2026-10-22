@@ -47,6 +47,7 @@ test("price-tag APIs enforce permissions, stable QR tokens, public whitelisting 
  db.exec(readFileSync(new URL("../drizzle/0034_price_tag_product_pictures.sql",import.meta.url),"utf8"));
  db.exec(readFileSync(new URL("../drizzle/0035_busterbuild_price_tags.sql",import.meta.url),"utf8"));
  db.exec(readFileSync(new URL("../drizzle/0036_price_tag_designer_sign_in.sql",import.meta.url),"utf8"));
+ db.exec(readFileSync(new URL("../drizzle/0038_price_tag_combos.sql",import.meta.url),"utf8"));
  const sessionToken='c'.repeat(64);const hash=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(sessionToken))).toString('hex');
  db.prepare('INSERT INTO price_tag_designer_sessions VALUES (?,?,?,?,?)').run(hash,'owner@example.com','moses moyana',Math.floor(Date.now()/1000)+1000,0);
 

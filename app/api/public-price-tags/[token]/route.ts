@@ -1,3 +1,4 @@
+import { publicCombo } from "../../price-tags/combos/shared";
 import { env } from "cloudflare:workers";
 import { TAG_TOKEN } from "../../../lib/price-tags";
 import { PUBLIC_TAG_COLUMNS, publicTag } from "../../price-tags/shared";
@@ -7,6 +8,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   let row = await env.DB.prepare(`SELECT ${PUBLIC_TAG_COLUMNS} FROM powerbuild_price_tags t JOIN catalogue_products p ON p.id=t.product_id WHERE t.token=? AND t.published=1 AND p.active=1`).bind(token).first<Record<string, unknown>>();
   const brand = row ? "powerbuild" : "busterbuild";
   if (!row) row = await env.DB.prepare(`SELECT ${PUBLIC_TAG_COLUMNS} FROM busterbuild_price_tags t JOIN catalogue_products p ON p.id=t.product_id WHERE t.token=? AND t.published=1 AND p.active=1`).bind(token).first<Record<string, unknown>>();
+  if (!row) {
+    const combo = await publicCombo(token);
+    if (combo) return Response.json({product:combo},{headers:{"cache-control":"no-store"}});
+  }
   if (!row) return Response.json({ error: "This product tag is no longer available." }, { status: 404, headers: { "cache-control": "no-store" } });
   return Response.json({ product: {...publicTag(row), brand} }, { headers: { "cache-control": "no-store" } });
 }

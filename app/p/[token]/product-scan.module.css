@@ -10,3 +10,5 @@
 @media(max-width:700px){.buster .header img{width:200px;height:125px;background:transparent}}
 
 .neutral .header{background:#292929;border-color:#ddd}.neutral .header span{color:#fff;letter-spacing:0}.neutral{background:#f4f4f4;color:#292929}
+
+.comboIncludes{margin-top:24px}.comboIncludes h2{font-size:18px;margin:0 0 12px}.comboIncludes ul{padding-left:20px;margin:0;line-height:1.7}.photo>div{width:100%;min-width:0}

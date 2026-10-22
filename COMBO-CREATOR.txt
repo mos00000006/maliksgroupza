@@ -1,0 +1,32 @@
+COMBO CREATOR — COMPANY HUB PATCH
+
+INSTALL
+Extract this ZIP and upload the app, public, drizzle and tests folders into the Company Hub repository root, replacing matching files. Commit and deploy normally. This patch is for the Company Hub, not the separate BusterBuild sales website.
+
+Apply the included 0038_price_tag_combos.sql migration before using the creator. Your existing deployment workflow may apply migrations automatically. The manual Hub command is:
+
+npx wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc
+
+This builds on the existing two-brand price tag generator, transparent images, public QR pages, designer sign-in and box-price corrections. It does not contain or replace your login credentials.
+
+USE
+1. Open Price tag generator and complete Graphic designer sign in.
+2. Choose BusterBuild or PowerBuild, then Create a combo.
+3. The starting slots match the reference: Tile, Grout, Cement / Adhesive, Bond, Cleaner, Spacers and Sponge. Choose each actual product once by its catalogue code or upload its picture. Pictures are prepared as transparent PNGs. Remove slots you do not need. A saved combo needs pictures for all remaining slots.
+4. Enter a separate combo code, combo name/tile size and the TOTAL combo price including VAT. The initial Ivory text and R1899.99 are editable examples from your supplied template.
+5. Edit the This combo includes heading and contents. Use up to 12 short lines. Changing a product picture leaves your wording intact.
+6. Each slot has rotation buttons for 90-degree turns, an angle slider, horizontal/vertical position, picture size and zoom. Rotate long 600x1200 tiles to suit the layout.
+7. Save combo & generate QR. Download JPG (2700 x 1800) or print/save PDF at 150 x 100 mm.
+8. To reuse a layout, open it from Saved combos. Replace only the tile, cement or other slot you want to change, then save. Other pictures, positions, rotation and includes wording stay in place. The QR token stays the same.
+
+PUBLISHING AND PRICES
+The customer QR opens the saved combo, its product picture arrangement, contents and total price without designer login. Hiding a combo disables its public details and pictures. The total is the entered complete-combo price, not the sum of separate product tag prices. Update the total yourself when the offer changes.
+
+BusterBuild combo prices are also included in the existing live-price feed. If the separate sales app already has a combo with the same code, the installed price-sync patch can update that product's price. New Hub-only combo records are not automatically imported into the separate sales app catalogue. Give new combos unique codes; do not reuse a standalone tile code.
+
+Your reference JPG is available under View your original combo template. It is a layout guide; the creator saves independent selected/uploaded product pictures so individual replacements are possible.
+
+VERIFYING THE PATCH
+Production build and 18 focused tests passed. The combo tests cover independent product replacement, text preservation, rotation, layout validation, designer-only editing, PNG uploads, stable QR tokens, public detail/image visibility and hiding combos. Existing price-tag, box-price and designer sign-in tests also passed. Focused lint has no errors; existing standard image optimization recommendations remain.
+
+A real browser run checked both the menu flow and all seven image slots, 90-degree rotation, edited contents, saving, replacing just one tile, stable QR links, mobile width and JPG download. The downloaded JPG was checked at 2700 x 1800 pixels. The preview used synthetic test pictures; you select your actual product pictures in the live creator. No live production deployment was performed here.

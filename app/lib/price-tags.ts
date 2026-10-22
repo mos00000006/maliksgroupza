@@ -1,3 +1,4 @@
+import type { ComboItem } from "./combo-tags";
 export type TagBrand = "powerbuild" | "busterbuild";
 export function tagBrand(value: unknown): TagBrand {
   if (value === undefined || value === null || value === "powerbuild") return "powerbuild";
@@ -14,7 +15,7 @@ export function tagCustomerUrl(origin: string, tag: { token: string; code: strin
 }
 export type TagUnit = "EA" | "M2" | "BOX";
 export type PriceTag = {
-  brand?: TagBrand; token: string; product_id: number; code: string; name: string; description: string;
+  kind?: "combo"; combo_items?: ComboItem[]; includes_title?: string; includes_text?: string; brand?: TagBrand; token: string; product_id: number; code: string; name: string; description: string;
   price_cents: number; unit: TagUnit; is_tile: boolean; coverage_per_box: number;
   pieces_per_box: number; tile_width_mm: number; tile_length_mm: number;
   published: boolean; image_url: string; updated_at: string;
