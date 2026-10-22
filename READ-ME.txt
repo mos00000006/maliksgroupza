@@ -1,4 +1,1 @@
-COMPANY HUB ONLY — deploy this first.
-Replace app/api/public-price-tags/prices/route.ts and deploy. No migration required.
-Adds published BusterBuild combo details and saved tag tokens to the existing public price feed. Staff pages remain protected.
-Then apply the companion sales app patch. Existing printed QR codes remain valid.
+COMPANY HUB ONLY. Deploy first. Replace the matching route file. No migration needed. Adds all published combo image slots and saved layout to the public BusterBuild feed. Private image storage keys are excluded.
