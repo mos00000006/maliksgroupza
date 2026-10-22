@@ -1,0 +1,15 @@
+COMPANY HUB ONLY
+
+Copy the app and public folders into your Company Hub repository, replacing matching files, then deploy. No database migration, package install or sales app patch is required.
+
+Open Price Tag Generator, sign in with the existing graphic designer account, choose PowerBuild or BusterBuild, then select Staff certificates. Supporting files for the existing staff cards and WhatsApp advert tools are included to preserve those menu options. Existing product/combo generators remain in place.
+
+FEATURES
+Separate PowerBuild blue/yellow and BusterBuild cream/charcoal/gold certificate designs.
+Presets: staff appreciation, Employee of the Month, Sales Achievement and Training Completion, plus custom awards. Choosing a preset updates only the award title and wording; staff details remain.
+Editable name, award title, wording, branch/department, award period/course, date, one or two signatory names/job titles and optional certificate reference.
+Live preview, A4 landscape PDF at exactly 297 x 210 mm, and JPG at 3508 x 2480 pixels. Print PDFs at Actual size/100%. Signature lines are provided for manual signing after printing; typed names are labels, not uploaded signatures.
+Details stay in this screen only. Download before leaving. No employee data is published or stored by this tool.
+
+VALIDATION
+Production build and targeted lint passed (no errors; standard img warnings). Browser checked both brands, all five preset choices, retained details, two signatories, long text, mobile width, back navigation and PDF/JPG downloads. PDFs were parsed to verify one A4 landscape page with the expected image dimensions, and exports were visually inspected.
