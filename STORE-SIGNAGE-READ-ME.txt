@@ -1,0 +1,24 @@
+COMPANY HUB ONLY
+
+Copy the app and public folders into the Company Hub repository, replacing matching files, then deploy. No database migration, package install or BusterBuild sales app patch is needed. Supporting files for staff cards, WhatsApp adverts and certificates are included to preserve existing menu options. Product price tags and combos remain in place.
+
+Open Price Tag Generator, sign in as the graphic designer, choose PowerBuild or BusterBuild, then select Store signage.
+
+FEATURES
+Separate PowerBuild and BusterBuild designs.
+Six templates: opening hours, departments, collection/directions, delivery information, customer notices and custom signs.
+A4 and A3, portrait and landscape, with exact-size PDFs and high-resolution JPGs.
+Editable heading, supporting line, notice text, store name, contact number, address and footer. Optional left/right/up/down arrows. Adjustable main text size and live preview.
+Opening hours: Monday-Sunday fields, optional public holidays, and a button to copy Monday hours to Tuesday-Friday. Enter real hours or Closed; hours are not assumed.
+Switching templates replaces template wording/direction but keeps store details and entered hours. Details remain in this screen only; download before leaving.
+Downloads are blocked if text does not fit: shorten wording, reduce text size or choose portrait.
+
+PRINTING
+PDF: Actual size/100%, matching selected paper size and orientation.
+A4 portrait: 210 x 297 mm; JPG 2480 x 3508 pixels.
+A4 landscape: 297 x 210 mm; JPG 3508 x 2480 pixels.
+A3 portrait: 297 x 420 mm; JPG 3508 x 4960 pixels.
+A3 landscape: 420 x 297 mm; JPG 4960 x 3508 pixels.
+
+VALIDATION
+Production build passed. Targeted lint: no errors, standard img optimization warnings only. Browser checked both brands, all templates, retained details/hours, weekday copy, every arrow, four PDF formats, JPG exports, long notice wording, mobile width and return navigation. Ten PDFs were parsed for exact dimensions and one-page output. Exported JPG dimensions were verified and artwork visually inspected.
