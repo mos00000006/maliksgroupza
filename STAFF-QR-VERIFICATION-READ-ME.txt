@@ -1,0 +1,32 @@
+COMPANY HUB ONLY — STAFF ID QR VERIFICATION
+
+INSTALL
+1. Apply this patch over the existing Staff ID Card Generator. Copy app/, drizzle/ and tests/ into the Company Hub repository, replacing matching files.
+2. Apply the included migration 0039_staff_id_verification.sql to the production D1 database before using the new feature. From the Company Hub root, the existing project command is:
+   npm run db:migrate:production
+   This prepares the Cloudflare config and runs the remote migration step. If you already use the GitHub deployment workflow migration step, ensure 0039 is included and applied there. The direct command after preparing .deploy/wrangler.jsonc is:
+   npx wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc
+3. Deploy the updated Hub. No BusterBuild sales app patch is required. No new packages or environment bindings are required: existing D1 DB and R2 BUCKET bindings are reused.
+
+USE
+Open Price Tag Generator, sign in as the graphic designer, choose the brand, then Staff ID cards. Enter staff details and photo. Optional fields include employment start date and card expiry.
+Confirm Currently employed — enable public verification, then Save staff verification & generate QR. Saving an enabled record publishes the photo and entered work details to anyone holding its unguessable QR link.
+Download a new PDF or JPG. Old printed/downloaded cards cannot gain a QR automatically; regenerate them. Earlier ID generation did not save staff records, so create those records now with the original photo/details.
+Saved staff cards can be searched and loaded later. Updates retain the same QR token. Employee numbers must be unique within a brand. Reprint when visible card details change.
+To stop confirming employment, load the saved card, untick Currently employed and choose Save & deactivate verification. This affects the existing printed QR.
+
+PUBLIC SCAN PAGE
+Active, current cards show the employee photo, work name/number, job title, department, branch and optional employment start/expiry dates, with a brand-specific Employment confirmed message.
+Deactivated, expired or not-yet-active records do NOT confirm employment and do NOT expose the employee details or photo. Expiry is inclusive through the selected date in South African time.
+The page reads current status without login, refreshes while visible and does not keep a confirmation on connection/photo failure. Public responses and photos use no-store headers; no public staff directory or search is provided. Names, photo storage keys and manager identities are not exposed for inactive records.
+Management requires both existing Hub management permission and the graphic designer session. Writes also require same-origin requests. Concurrent edits use record versions to avoid silently overwriting another manager.
+
+PUBLIC PATHS
+Page: /p/staff/<random-token>
+Status: /api/public-price-tags/staff/<random-token>
+Photo: /api/public-price-tags/staff/<random-token>/photo
+These stay under the existing customer QR Cloudflare Access bypass prefixes /p/* and /api/public-price-tags/*. Keep those existing bypass rules enabled. The Hub worker allows only exact read-only public routes; management and write routes remain protected. The patch adds this narrow allowance to the existing route helper.
+
+VALIDATION
+Production build passed. Targeted lint passed with no errors (standard img warnings). Seventeen focused tests cover staff fields/dates, South African expiry boundaries, anonymous route scope, management/session permissions, origin checks, stable QR tokens, case-insensitive employee-ID uniqueness, concurrency conflicts, revocation, expired records and private photo access, alongside existing price-tag/auth checks.
+Real browser tests for both brands exercised the real staff API against a test database: save/update/reload, unchanged QR links, portrait/landscape JPG/PDF exports, anonymous photo/confirmation pages, unsaved-change blocking, connection/photo failure, deactivation and mobile layout. All four exported card QR codes were decoded from JPGs and matched their saved verification URLs. PDF/card dimensions were verified. No live employee record or production database was modified during development.

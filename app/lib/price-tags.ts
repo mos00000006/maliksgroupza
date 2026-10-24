@@ -25,6 +25,8 @@ export function isPublicPriceTagRequest(path: string, method: string) {
   if (!["GET", "HEAD"].includes(method)) return false;
   if (path === "/price-tag-assets/busterbuild-logo-white.png" || path === "/price-tag-assets/busterbuild-template.jpg" || path === "/price-tag-assets/busterbuild-logo.png" || path === "/powerbuild-logo-transparent.png" || path === "/price-tag-assets/powerbuild-rail.png") return true;
   if (path === "/api/public-price-tags/prices") return true;
+  const staff = /^\/(?:p\/staff|api\/public-price-tags\/staff)\/([^/]+)(?:\/photo)?\/?$/.exec(path);
+  if(staff) return TAG_TOKEN.test(staff[1]) && (!path.startsWith("/p/") || !path.includes("/photo"));
   const match = /^\/(?:p|api\/public-price-tags)\/([^/]+)(?:\/image)?\/?$/.exec(path);
   return Boolean(match && TAG_TOKEN.test(match[1]) && (!path.startsWith("/p/") || !path.includes("/image")));
 }
