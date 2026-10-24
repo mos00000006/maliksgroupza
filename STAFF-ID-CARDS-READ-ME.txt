@@ -1,0 +1,17 @@
+COMPANY HUB ONLY
+
+Copy the app and public folders into the Company Hub repository, replacing matching files, then deploy. No database migration, new package or BusterBuild sales app patch is required. Supporting files for existing studio tools are included to preserve those menu options.
+
+Open Price Tag Generator, sign in as the graphic designer, choose PowerBuild or BusterBuild, then select Staff ID cards.
+
+FEATURES
+Brand-specific photo ID card designs: PowerBuild white/blue/yellow and BusterBuild white/charcoal/gold.
+Portrait 54 x 86 mm and landscape 86 x 54 mm. Switching layouts preserves entered details and the photo.
+Required staff name, employee number and photo. Optional job title, department, branch/store and expiry date.
+JPG, PNG and WebP photo uploads up to 20 MB; photos are resized locally. Adjustable zoom and vertical crop, reset crop and remove photo controls.
+Live preview, exact-size single-page PDF and high-resolution JPG. PDF/JPG contain the front face of the card.
+Portrait JPG 1080 x 1720 pixels; landscape JPG 1720 x 1080 pixels. Print PDFs at Actual size/100%. No bleed or cutting marks are added.
+Staff details/photos are held only in this screen and are not uploaded or stored by this generator. Download before leaving. Employee numbers are entered manually and are not assigned or checked for duplicates.
+
+VALIDATION
+Production build passed. Targeted lint: no errors, standard img optimization warnings only. Browser tested both brands, photo requirement/upload/crop/reset/removal, retained staff details across both layouts, four PDF and four JPG downloads, long names, mobile width and return navigation. PDFs parsed and rendered to confirm one page at exact card dimensions. JPG pixel sizes verified and exported artwork visually inspected. Test photos and browser screenshots are not included in this patch.
