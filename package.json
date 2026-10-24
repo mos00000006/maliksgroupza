@@ -18,7 +18,8 @@
     "deploy": "npm run check && npm run config:production && wrangler deploy --config dist/server/wrangler.json",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply maliks-group-hub-db --local --config infrastructure/wrangler.jsonc",
-    "db:migrate:production": "npm run config:production && wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc"
+    "db:migrate:production": "npm run config:production && wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc",
+    "prebuild": "node scripts/install-assessment-centre.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

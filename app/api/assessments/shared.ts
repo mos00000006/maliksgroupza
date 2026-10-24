@@ -1,0 +1,13 @@
+import {env} from 'cloudflare:workers';
+import {grade,type Question} from '../../lib/hardware-training';
+export const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','x-robots-tag':'noindex, nofollow, noarchive'};
+export const json=(body:unknown,status=200)=>Response.json(body,{status,headers});
+export const ID=/^[a-f0-9-]{36}$/i;
+export const secret=()=>crypto.randomUUID().replaceAll('-','')+crypto.randomUUID().replaceAll('-','');
+export async function hash(value:string|ArrayBuffer){return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',typeof value==='string'?new TextEncoder().encode(value):value))).map(b=>b.toString(16).padStart(2,'0')).join('');}
+export type Assessment={id:string;candidate_name:string;email:string;phone:string;position_applied:string;reference:string;kind:string;brand:string;topic:string;questions_json:string;token_hash:string;session_hash:string|null;status:string;consented_at:string|null;started_at:string|null;submitted_at:string|null;link_expires_at:string;retention_until:string;created_at:string;created_by:string;answers_json:string|null;correct:number|null;total:number;passed:number|null;events_json:string;mime_type:string;chunk_count:number;total_bytes:number;last_chunk_at:string|null};
+export function resultFor(row:Assessment){if(!row.answers_json)return null;const questions=JSON.parse(row.questions_json) as Question[],answers=JSON.parse(row.answers_json) as number[];const canonical=questions.map((q,i)=>answers[i]>=0?answers[i]:(q.answer+1)%q.options.length);const result=grade(questions,canonical);return{...result,review:result.review.map((q,i)=>({...q,selected:answers[i]}))};}
+export async function assessment(id:string){return env.DB.prepare('SELECT * FROM candidate_assessments WHERE id=? AND retention_until>?').bind(id,new Date().toISOString()).first<Assessment>();}
+export function safeFailure(error:unknown){console.error('Assessment request failed',error);return json({error:/no such table.*candidate_assessment/i.test(error instanceof Error?error.message:'')?'Assessment setup is incomplete. Apply migration 0041.':'The assessment service could not save or load this request. Please retry.'},503);}
+export async function limitedJson(req:Request){const text=await req.text();if(text.length>16000)throw new Error('Request too large.');const value=JSON.parse(text);if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid request.');return value as Record<string,unknown>;}
+export const sameOrigin=(req:Request)=>req.headers.get('origin')===new URL(req.url).origin;
