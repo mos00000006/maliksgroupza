@@ -1,1 +1,4 @@
-COMPANY HUB ONLY. Deploy first. Replace the matching route file. No migration needed. Adds all published combo image slots and saved layout to the public BusterBuild feed. Private image storage keys are excluded.
+COMPANY HUB ONLY
+Replace app/price-tags/staff-id-generator.tsx and deploy normally. No new database migration is required for this fix. The original staff verification migration 0039 must already be applied.
+Fix: decode the prepared JPEG directly rather than fetching a data URL blocked by the Hub security policy.
+After deploying refresh the Hub, select the staff photo again and click Save staff verification & generate QR.
