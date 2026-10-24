@@ -1,18 +1,32 @@
 import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 import {resolve} from 'node:path';
-// Surgical integration: preserve the installed Worker's existing product/staff QR bypasses.
+import ts from 'typescript';
 const root=process.cwd(),worker=resolve(root,'worker/index.ts'),hub=resolve(root,'app/page.tsx');
 let source=readFileSync(worker,'utf8');const original=source;
-if(!source.includes('assessmentPublicRequest')){
- const condition='if (!isPublicAsset(url.pathname)';if(!source.includes(condition))throw new Error('Worker public-asset guard differs. No files changed; provide the current worker/index.ts for integration.');
- source='import { assessmentPublicRequest } from "../app/lib/assessment-public";\nimport { purgeExpiredAssessments } from "../app/lib/assessment-retention";\n'+source;
- source=source.replace(condition,'if (!assessmentPublicRequest(request) && !isPublicAsset(url.pathname)');
- const signature='function secure(response: Response)';if(!source.includes(signature))throw new Error('Worker security header function differs. No files changed.');source=source.replace(signature,'function secure(response: Response, assessmentCamera = false)');
- const policy='"camera=(), microphone=(), geolocation=(self), payment=()"';if(!source.includes(policy))throw new Error('Worker camera policy differs. No files changed.');source=source.replace(policy,'assessmentCamera ? "camera=(self), microphone=(), geolocation=(self), payment=()" : "camera=(), microphone=(), geolocation=(self), payment=()"');
- if(!source.includes("connect-src 'self';"))throw new Error('Worker content policy differs. No files changed.');source=source.replace("connect-src 'self';","connect-src 'self'; media-src 'self' blob:;");
- const handler='return secure(await handler.fetch(request, env, ctx));';if(!source.includes(handler))throw new Error('Worker response handler differs. No files changed.');source=source.replace(handler,'return secure(await handler.fetch(request, env, ctx), /^\\/p\\/assessment\\/[a-f0-9]{64}\\/?$/.test(url.pathname));');
- const schedule=/async scheduled\([^)]*\)\s*\{/;if(!schedule.test(source))throw new Error('Hourly worker schedule differs. No files changed.');source=source.replace(schedule,match=>match+'\n    ctx.waitUntil(purgeExpiredAssessments(_env));');
- if(!/scheduled\([^)]*_env\s*:/.test(source))throw new Error('Scheduled environment parameter differs. No files changed.');
+const marker='__assessmentBaseWorker';
+function parse(code){const file=ts.createSourceFile(worker,code,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);if(file.parseDiagnostics.length)throw new Error('Worker syntax could not be parsed. No files changed.');return file;}
+function addImport(code,module,names){const file=parse(code);const declaration=file.statements.find(node=>ts.isImportDeclaration(node)&&node.moduleSpecifier.text===module&&node.importClause?.namedBindings&&ts.isNamedImports(node.importClause.namedBindings));if(declaration){const bindings=declaration.importClause.namedBindings;const existing=bindings.elements.map(node=>node.getText(file));for(const name of names)if(!bindings.elements.some(node=>node.name.text===name))existing.push(name);return code.slice(0,bindings.getStart(file))+'{ '+existing.join(', ')+' }'+code.slice(bindings.end);}return `import { ${names.join(', ')} } from "${module}";\n`+code;}
+if(!source.includes(marker)){
+ if(!source.includes('assessmentPublicRequest(request)')){const guard=/if\s*\(\s*!isPublicAsset\(\s*url\.pathname\s*\)/;if(!guard.test(source))throw new Error('Worker public-asset guard differs. No files changed; provide the current worker/index.ts for integration.');source=source.replace(guard,match=>match.replace(/if\s*\(\s*/,'if (!assessmentPublicRequest(request) && '));}
+ source=addImport(source,'../app/lib/assessment-public',['assessmentPublicRequest','assessmentResponse']);
+ source=addImport(source,'../app/lib/assessment-retention',['purgeExpiredAssessments']);
+ // Move an earlier version's cleanup call into the wrapper, preserving every other scheduled job.
+ source=source.replace(/^\s*ctx\.waitUntil\(purgeExpiredAssessments\([^\n]*\)\);\s*$/gm,'');
+ const file=parse(source),defaults=file.statements.filter(node=>ts.isExportAssignment(node)&&!node.isExportEquals);if(defaults.length!==1)throw new Error('Worker default export differs. No files changed.');const declaration=defaults[0],expression=declaration.expression.getText(file);
+ const wrapper=`const ${marker} = (${expression});
+export default {
+  ...${marker},
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    // Preserve the complete existing response path, including QR handling and security headers.
+    return assessmentResponse(request, await ${marker}.fetch(request, env, ctx));
+  },
+  async scheduled(controller: unknown, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(purgeExpiredAssessments(env));
+    const previousScheduled = Reflect.get(${marker}, "scheduled");
+    if (typeof previousScheduled === "function") return previousScheduled.call(${marker}, controller, env, ctx);
+  },
+};`;
+ source=source.slice(0,declaration.getStart(file))+wrapper+source.slice(declaration.end);parse(source);
 }
 let page=existsSync(hub)?readFileSync(hub,'utf8'):null;
 if(page&&!page.includes('href="/assessments"')){if(!page.includes('</aside>')||!page.includes('currentUser'))throw new Error('Hub sidebar differs. No files changed.');page=page.replace('</aside>','{(currentUser.access_scope === "Full company" || currentUser.role === "Human Resource (HR)") && <AssessmentCentreLink href="/assessments" style={{display:"block",margin:"12px 4px",padding:"12px",background:"#ffd82d",color:"#142b3d",borderRadius:6,fontSize:12,fontWeight:800,textDecoration:"none"}}>HR assessments &amp; candidate tests ↗</AssessmentCentreLink>}\n      </aside>');page=page.replaceAll('Employee Records only','Employee Records & assessments');}
@@ -22,4 +36,4 @@ if(process.argv.includes('--check')){console.log('Assessment integration checks 
 if(source!==original){if(!existsSync(worker+'.before-assessments'))writeFileSync(worker+'.before-assessments',original);writeFileSync(worker,source);}
 if(page!==null&&page!==readFileSync(hub,'utf8')){if(!existsSync(hub+'.before-assessments'))writeFileSync(hub+'.before-assessments',readFileSync(hub));writeFileSync(hub,page);}
 if(splash!==null&&splash!==readFileSync(splashPath,'utf8')){if(!existsSync(splashPath+'.before-assessments'))writeFileSync(splashPath+'.before-assessments',readFileSync(splashPath));writeFileSync(splashPath,splash);}
-console.log('Assessment integration applied. Existing public QR rules preserved. Apply migration 0041, then build and deploy.');
+console.log('Assessment integration applied. Existing response handlers, QR rules and scheduled jobs preserved.');
