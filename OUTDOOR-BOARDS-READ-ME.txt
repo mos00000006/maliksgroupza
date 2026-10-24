@@ -1,0 +1,29 @@
+COMPANY HUB ONLY
+
+Copy app/ and public/ into your Company Hub repository, replacing matching files, then deploy. No database migration, package install or BusterBuild sales app patch is needed. Existing studio tools are preserved; their supporting files are included.
+
+Open Price Tag Generator, sign in as the graphic designer, choose PowerBuild or BusterBuild, then choose Outdoor boards & billboards.
+
+DESIGNS
+New store opening: editable headline, products/supporting message and optional opening date.
+Street billboard: large headline and editable supporting message.
+Distance/direction board: large editable distance (e.g. 5 km), km/m unit, distance wording and left/right/up/down arrow.
+Every design supports branch name, address/landmark and contact number. Arrows can be added to all three designs.
+PowerBuild uses a prominent WHITE message area with a blue logo panel and yellow accents. BusterBuild uses cream, charcoal and gold.
+
+DIMENSIONS
+Editable starting formats, not universal fabrication sizes:
+Opening board: 2400 x 1200 mm.
+Roadside board: 3000 x 1500 mm.
+Billboard: 6000 x 3000 mm.
+Custom widths/heights from 200 to 12000 mm; width between 1 and 4 times height. Confirm final dimensions and bleed with your sign maker. Downloads use finished size with no added bleed.
+
+DOWNLOADS
+SVG: self-contained artwork with embedded logo PNG and scalable text/shapes. Preferred for large-format lettering; supplied logos remain raster PNGs. SVG uses Arial/sans-serif fonts.
+PDF: exact chosen physical size, containing raster artwork. Large pages use PDF 1.6 UserUnit scaling so the 6 m billboard is not truncated by normal page-coordinate limits.
+JPG: raster artwork. Long edge up to 6000 pixels, total image area around 18 megapixels maximum. This is not a 300-dpi-at-final-billboard-size raster export; use SVG when scalable lettering is needed.
+
+Changing a design updates the heading/supporting message and default arrow, while keeping branch/address/contact and entered dimensions. Details remain on this screen only. No new prices, catalogue entries or public routes are created.
+
+VALIDATION
+Production build passed. Targeted lint: no errors; only four existing img warnings in the main studio. Browser checks for both brands covered all three designs, size presets, all three download formats, arrows, distance edits, custom 4:1 dimensions, invalid-ratio rejection, mobile overflow and existing navigation. Six PDFs were parsed and rendered to verify exact 2400x1200, 3000x1500 and 6000x3000 mm page sizes. SVGs were checked for embedded logos and vector text, JPG dimensions verified, and exported artwork visually inspected.
