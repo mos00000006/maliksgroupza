@@ -37,3 +37,5 @@ if(source!==original){if(!existsSync(worker+'.before-assessments'))writeFileSync
 if(page!==null&&page!==readFileSync(hub,'utf8')){if(!existsSync(hub+'.before-assessments'))writeFileSync(hub+'.before-assessments',readFileSync(hub));writeFileSync(hub,page);}
 if(splash!==null&&splash!==readFileSync(splashPath,'utf8')){if(!existsSync(splashPath+'.before-assessments'))writeFileSync(splashPath+'.before-assessments',readFileSync(splashPath));writeFileSync(splashPath,splash);}
 console.log('Assessment integration applied. Existing response handlers, QR rules and scheduled jobs preserved.');
+
+if (existsSync(resolve(root, 'scripts/install-branch-attendance.mjs'))) await import('./install-branch-attendance.mjs');
