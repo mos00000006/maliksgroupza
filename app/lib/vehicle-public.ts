@@ -1,0 +1,1 @@
+export function vehiclePublicRequest(request:Request){const p=new URL(request.url).pathname;return (/^\/p\/vehicle\/[a-f0-9]{64}\/?$/.test(p)&&['GET','HEAD'].includes(request.method))||(/^\/api\/public-price-tags\/vehicles\/[a-f0-9]{64}\/?$/.test(p)&&['GET','POST','HEAD'].includes(request.method));}

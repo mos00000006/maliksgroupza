@@ -30,3 +30,5 @@ if(existsSync(resolve(root,employeeApi))){const api=read(employeeApi).replace('c
 
 const splashPath='app/launch-splash.tsx';if(existsSync(resolve(root,splashPath))){let splash=read(splashPath);if(!splash.includes('pathname.startsWith("/p/attendance/")')&&!splash.includes('pathname.startsWith("/p/")')){if(!splash.includes('const publicStorefront = '))throw Error('Splash layout differs. No files changed.');splash=splash.replace('const publicStorefront = ','const publicStorefront = pathname.startsWith("/p/attendance/") || ');}add(splashPath,splash);}
 if(process.argv.includes('--check')){console.log('Attendance integration checks passed.');}else{for(const [path,source] of changes){const full=resolve(root,path);if(!existsSync(full+'.before-attendance'))writeFileSync(full+'.before-attendance',readFileSync(full));writeFileSync(full,source);}console.log('Branch QR attendance integrated. Existing routes and scheduled jobs preserved.');}
+
+if (existsSync(resolve(root,'scripts/install-vehicle-logbook.mjs'))) await import('./install-vehicle-logbook.mjs');
