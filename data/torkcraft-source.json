@@ -1,0 +1,59 @@
+{
+  "source": "https://www.torkcraft.com/index.php?route=product/catalog",
+  "retrieved": "2026-10-27",
+  "total": 5817,
+  "fields": [
+    "code",
+    "name"
+  ],
+  "pages": [
+    {
+      "page": 1,
+      "first": 1,
+      "last": 1000,
+      "products": 1000,
+      "sha256": "27449a5817c6975ee83e38a921018bf470fbf2dca96243a453bc5ffc32ffa92a"
+    },
+    {
+      "page": 2,
+      "first": 1001,
+      "last": 2000,
+      "products": 1000,
+      "sha256": "2dbe2d9f8acd3f7a3a22b19909a72fc7c464289d961cf7b8a218c2a39c3621bc"
+    },
+    {
+      "page": 3,
+      "first": 2001,
+      "last": 3000,
+      "products": 1000,
+      "sha256": "ce72be1e77fe457a5392e78b4d1e8d1c8f1e2002f03ccb61cba86747cb1b13a0"
+    },
+    {
+      "page": 4,
+      "first": 3001,
+      "last": 4000,
+      "products": 1000,
+      "sha256": "1d87f7540a8a094f7e198a3933182454302895633087902e88015fbc0f16e429"
+    },
+    {
+      "page": 5,
+      "first": 4001,
+      "last": 5000,
+      "products": 1000,
+      "sha256": "aad597426f249e5aeb1b7509e9b841fc54e3dfd7b4ac6c5bc6e23969a92f726f"
+    },
+    {
+      "page": 6,
+      "first": 5001,
+      "last": 5817,
+      "products": 817,
+      "sha256": "e163cf6f7e82f2467c6bc0ae79b510dfacac813ee6333dae9874844b729700bd"
+    }
+  ],
+  "title_fallbacks": [
+    {
+      "code": "TC69003",
+      "source": "First line of official listing description; listing title was blank"
+    }
+  ]
+}
