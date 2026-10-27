@@ -31,3 +31,5 @@ let records=read('app/employee-records.tsx');if(!records.includes('<FleetEntry')
 const splashPath='app/launch-splash.tsx';if(existsSync(resolve(root,splashPath))){let s=read(splashPath);if(!s.includes('pathname.startsWith("/p/vehicle/")')&&!s.includes('pathname.startsWith("/p/")')){if(!s.includes('const publicStorefront = '))throw Error('Splash layout differs. No files changed.');s=s.replace('const publicStorefront = ','const publicStorefront = pathname.startsWith("/p/vehicle/") || ');}add(splashPath,s);}
 if(!process.argv.includes('--check'))for(const [p,s] of changes){const path=resolve(root,p);if(!existsSync(path+'.before-vehicles'))writeFileSync(path+'.before-vehicles',readFileSync(path));writeFileSync(path,s);}
 console.log(process.argv.includes('--check')?'Vehicle integration checks passed.':'Vehicle QR logbook integrated. Existing routes and scheduled jobs preserved.');
+
+if(existsSync(resolve(root,'scripts/install-paint-tag-search.mjs'))) await import('./install-paint-tag-search.mjs');
