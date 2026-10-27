@@ -35,3 +35,4 @@ add(path,s);
 const pkg=JSON.parse(read('package.json'));pkg.scripts??={};const command='node scripts/install-colour-variant-code.mjs';if(!String(pkg.scripts.prebuild||'').includes('install-colour-variant-code.mjs')){pkg.scripts.prebuild=pkg.scripts.prebuild?pkg.scripts.prebuild+' && '+command:command;changes.push(['package.json',JSON.stringify(pkg,null,2)+'\n']);}
 if(!process.argv.includes('--check'))for(const[p,source]of changes){const full=resolve(root,p);if(!existsSync(full+'.before-colour-code'))writeFileSync(full+'.before-colour-code',readFileSync(full));writeFileSync(full,source);}
 console.log(process.argv.includes('--check')?'Colour variant code integration checks passed.':'Editable colour product codes installed. Existing catalogue products and QR identity preserved.');
+if(existsSync(resolve(root,'scripts/install-auto-colour-catalogue.mjs')))await import('./install-auto-colour-catalogue.mjs');
