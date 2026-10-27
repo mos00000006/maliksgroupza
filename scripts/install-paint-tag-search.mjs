@@ -55,7 +55,7 @@ if(!s.includes('ProductNameSearch')){
  const component='<ProductNameSearch brand={brand} disabled={busy} onChoose={productCode=>{setCode(productCode);void lookup(productCode);}} onReset={()=>{setProduct(null);setSaved(null);setPicture(null);setPictureMessage("");}}/>';
  s=s.slice(0,form.getStart(f))+component+s.slice(form.end);
 }
-if(!s.includes('colour: tag?.colour')){
+if(!s.includes('colour: tag?.colour')&&!s.includes('keepColourAndPrice ? enteredColour')){
  need(s.includes('type Draft = {')&&s.includes('const empty: Draft = {'),'Single tag draft differs.');s=s.replace('type Draft = {','type Draft = { colour: string;').replace('const empty: Draft = {','const empty: Draft = { colour: "",');
  need(s.includes('setDraft({ price: tag'),'Single tag load differs.');s=s.replace('setDraft({ price: tag','setDraft({ colour: tag?.colour || "", price: tag');
  const anchor='<label className={styles.check}><input type="checkbox" checked={draft.is_tile}';need(s.includes(anchor),'Single tag editor differs.');s=s.replace(anchor,'{!draft.is_tile && <label>Paint colour (optional)<input type="text" maxLength={80} value={draft.colour} placeholder="e.g. White, Ivory, Charcoal" onChange={e=>change({colour:e.target.value})}/></label>}\n'+anchor);
@@ -71,3 +71,5 @@ write(customer,s,ts.ScriptKind.TSX);
 // Ensure the existing build hook applies the surgical edits on GitHub as well.
 const pkg='package.json';const packageData=JSON.parse(read(pkg));packageData.scripts??={};const command='node scripts/install-paint-tag-search.mjs';if(!String(packageData.scripts.prebuild||'').includes('install-paint-tag-search.mjs')){packageData.scripts.prebuild=packageData.scripts.prebuild?packageData.scripts.prebuild+' && '+command:command;changes.push([pkg,JSON.stringify(packageData,null,2)+'\n']);}
 if(process.argv.includes('--check')){console.log('Paint colour and name-search integration checks passed.');}else{for(const [p,source] of changes){const path=resolve(root,p);if(!existsSync(path+'.before-paint-search'))writeFileSync(path+'.before-paint-search',readFileSync(path));writeFileSync(path,source);}console.log('Paint colour and name search installed. Existing studio tools and access controls preserved.');}
+
+if(existsSync(resolve(root,'scripts/install-colour-variant-code.mjs'))) await import('./install-colour-variant-code.mjs');
