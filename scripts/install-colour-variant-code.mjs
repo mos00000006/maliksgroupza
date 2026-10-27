@@ -36,3 +36,4 @@ const pkg=JSON.parse(read('package.json'));pkg.scripts??={};const command='node 
 if(!process.argv.includes('--check'))for(const[p,source]of changes){const full=resolve(root,p);if(!existsSync(full+'.before-colour-code'))writeFileSync(full+'.before-colour-code',readFileSync(full));writeFileSync(full,source);}
 console.log(process.argv.includes('--check')?'Colour variant code integration checks passed.':'Editable colour product codes installed. Existing catalogue products and QR identity preserved.');
 if(existsSync(resolve(root,'scripts/install-auto-colour-catalogue.mjs')))await import('./install-auto-colour-catalogue.mjs');
+if(existsSync(resolve(root,'scripts/install-torkcraft-images.mjs')))await import('./install-torkcraft-images.mjs');
