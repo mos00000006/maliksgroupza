@@ -1,0 +1,653 @@
+[
+  {
+    "code": "TC0001",
+    "name": "BLADE CONTRACTOR 150X40T 20/16",
+    "supplier_code": "TCP15040",
+    "supplier_name": "Blade Contractor 150 X 40t 20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP15040.jpg?lm=1721989625"
+  },
+  {
+    "code": "TC0002",
+    "name": "BLADE CONTRACTOR 160X40T 20/16",
+    "supplier_code": "TCP16040",
+    "supplier_name": "Blade Contractor 160 X 40t 20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP16040.jpg?lm=1721989625"
+  },
+  {
+    "code": "TC0003",
+    "name": "BLADE CONTRACTOR 170X40T 20/16",
+    "supplier_code": "TCP17040",
+    "supplier_name": "Blade Contractor 170 X 40t 20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP17040.jpg?lm=1721989625"
+  },
+  {
+    "code": "TC0004",
+    "name": "BLADE CONTRACTOR 180X40T 30/20/1",
+    "supplier_code": "TCP18040-30",
+    "supplier_name": "Blade Contractor 180 X 40t 30/20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP18040-30.jpg?lm=1721989626"
+  },
+  {
+    "code": "TC0005",
+    "name": "BLADE CONTRACTOR 185X24T",
+    "supplier_code": "",
+    "supplier_name": "",
+    "image_url": ""
+  },
+  {
+    "code": "TC0006",
+    "name": "BLADE CONTRACTOR 185X40T",
+    "supplier_code": "TCP18540",
+    "supplier_name": "Blade Contractor 185 X 40t 20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP18540.jpg?lm=1721989627"
+  },
+  {
+    "code": "TC0007",
+    "name": "BLADE CONTRACTOR 185X60T 30/20/16/",
+    "supplier_code": "TCP18560-30",
+    "supplier_name": "Blade Contractor 185x60t 30/20/16/1 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP18560-30.jpg?lm=1721989627"
+  },
+  {
+    "code": "TC0008",
+    "name": "BLADE CONTRACTOR ALUM 185X60T",
+    "supplier_code": "TCP18560AL",
+    "supplier_name": "Blade Contractor Alum 185 X 60t 20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP18560AL.jpg?lm=1721989627"
+  },
+  {
+    "code": "TC0009",
+    "name": "BLADE CONTRACTOR 190X24T 30/20/1",
+    "supplier_code": "TCP19024",
+    "supplier_name": "Blade Contractor 190 X 24t 30/20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP19024.jpg?lm=1721989627"
+  },
+  {
+    "code": "TC0010",
+    "name": "BLADE CONTRACTOR 190X40T 30/20/1",
+    "supplier_code": "TCP19040-30",
+    "supplier_name": "Blade Contractor 190 X 40t 30/20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP19040-30.jpg?lm=1721989627"
+  },
+  {
+    "code": "TC0011",
+    "name": "BLADE CONTRACTOR ALUM 190X60T",
+    "supplier_code": "TCP19060AL",
+    "supplier_name": "Blade Contractor Alum 190 X 60t 30/20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP19060AL.jpg?lm=1721989627"
+  },
+  {
+    "code": "TC0012",
+    "name": "BLADE CONTRACTOR 200X24T",
+    "supplier_code": "TCP20024",
+    "supplier_name": "Blade Contractor 200 X 24t 30/1/20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP20024.jpg?lm=1721989627"
+  },
+  {
+    "code": "TC0013",
+    "name": "BLADE CONTRACTOR 200X40T",
+    "supplier_code": "TCP20040",
+    "supplier_name": "Blade Contractor 200 X 40t 30/1/20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP20040.jpg?lm=1721989627"
+  },
+  {
+    "code": "TC0014",
+    "name": "BLADE CONTRACTOR 210X40T",
+    "supplier_code": "TCP21040-30",
+    "supplier_name": "Blade Contractor 210 X 40t 30-1-20-16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP21040-30.jpg?lm=1721989628"
+  },
+  {
+    "code": "TC0015",
+    "name": "BLADE CONTRACTOR 210X60T",
+    "supplier_code": "TCP21060",
+    "supplier_name": "Blade Contractor 210 X 60t 30-1-20-16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP21060.jpg?lm=1721989628"
+  },
+  {
+    "code": "TC0016",
+    "name": "BLADE CONTRACTOR ALUM 210X60T",
+    "supplier_code": "TCP21060AL",
+    "supplier_name": "Blade Contactor Alum 210 X 60t 30/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP21060AL.jpg?lm=1721989628"
+  },
+  {
+    "code": "TC0017",
+    "name": "BLADE CONTRACTOR 230X24T 30/1/2",
+    "supplier_code": "TCP23024",
+    "supplier_name": "Blade Contractor 230x24t 30/1/2 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP23024.jpg?lm=1723119040"
+  },
+  {
+    "code": "TC0018",
+    "name": "BLADE CONTRACTOR 230X40T",
+    "supplier_code": "TCP23040",
+    "supplier_name": "Blade Contractor 230 X 40t 30/1/20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP23040.jpg?lm=1728027477"
+  },
+  {
+    "code": "TC0019",
+    "name": "BLADE CONTRACTOR ALUM 230X60",
+    "supplier_code": "TCP23060AL",
+    "supplier_name": "Blade Contractor Alum 230 X 60 30-16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP23060AL.jpg?lm=1723119040"
+  },
+  {
+    "code": "TC0020",
+    "name": "BLADE CONTRACTOR 250X24T 30/16",
+    "supplier_code": "TCP25024",
+    "supplier_name": "Blade Contractor 250 X 24t 30/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP25024.jpg?lm=1728027478"
+  },
+  {
+    "code": "TC0021",
+    "name": "BLADE CONTRACTOR 250X40T",
+    "supplier_code": "TCP25040",
+    "supplier_name": "Blade Contractor 250 X 40t 30/1/20/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP25040.jpg?lm=1723119040"
+  },
+  {
+    "code": "TC0022",
+    "name": "BLADE CONTRACTOR 250X80T ATB",
+    "supplier_code": "TCP25080",
+    "supplier_name": "Blade Contractor 250 X 80t Atb 30/16 Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP25080.jpg?lm=1723119040"
+  },
+  {
+    "code": "TC0023",
+    "name": "BLADE CONTRACTOR ALUM 250X80T TC",
+    "supplier_code": "TCP25080AL",
+    "supplier_name": "Blade Contractor Alum 250 X 80t Tcg Neg 30mm Circular Saw Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCP25080AL.jpg?lm=1728027478"
+  },
+  {
+    "code": "TC0024",
+    "name": "BOILER MAKERS CHALK & HOLDER",
+    "supplier_code": "TCBC001",
+    "supplier_name": "Boiler Makers Chalk & Holder Welders White Soap Stone",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCBC001.jpg?lm=1719583958"
+  },
+  {
+    "code": "TC0025",
+    "name": "BLADE BRUSHCUTTER 255X40T 25.4MM",
+    "supplier_code": "TCBCB25540",
+    "supplier_name": "Blade Brushcutter 255 X 40t 25.4mm Bore Tct",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCBCB25540.jpg?lm=1745563023"
+  },
+  {
+    "code": "TC0026",
+    "name": "BLADE 4 TEETH 115MMX22.23MM FOR",
+    "supplier_code": "TC911504",
+    "supplier_name": "Blade 4 Teeth 115mm X 22.23mm For Wood On Angle Grinder",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC911504.jpg?lm=1721390482"
+  },
+  {
+    "code": "TC0027",
+    "name": "PLANER BLADES 82MM TUNGSTEN",
+    "supplier_code": "",
+    "supplier_name": "",
+    "image_url": ""
+  },
+  {
+    "code": "TC0028",
+    "name": "DIAMOND BLADE 115MM CONT THIN RIM",
+    "supplier_code": "TCDB80115",
+    "supplier_name": "Diamond Blade 115mm Cont. Thin Rim Glass Tile Stone Cladding",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCDB80115.jpg?lm=1738853595"
+  },
+  {
+    "code": "TC0029",
+    "name": "DIAMOND BLADE 115MM HONEYCOMB GLAS",
+    "supplier_code": "TCDB1240115",
+    "supplier_name": "Diamond Blade 115mm Honeycomb Glass & Tile Hot Pressed Industrial",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCDB1240115.jpg?lm=1738853593"
+  },
+  {
+    "code": "TC0030",
+    "name": "HOLESAW HSS 12MM",
+    "supplier_code": "TC28012",
+    "supplier_name": "Holesaw Hss 12mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28012.jpg?lm=1488274641"
+  },
+  {
+    "code": "TC0031",
+    "name": "HOLESAW HSS 14MM",
+    "supplier_code": "TC28014",
+    "supplier_name": "Hole Saw Hss 14mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28014.jpg?lm=1788790103"
+  },
+  {
+    "code": "TC0032",
+    "name": "HOLESAW HSS 16MM",
+    "supplier_code": "TC28016",
+    "supplier_name": "Hole Saw Hss 16mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28016.jpg?lm=1782389618"
+  },
+  {
+    "code": "TC0033",
+    "name": "HOLESAW HSS 18MM",
+    "supplier_code": "TC28018",
+    "supplier_name": "Hole Saw Hss 18mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28018.jpg?lm=1788790103"
+  },
+  {
+    "code": "TC0034",
+    "name": "HOLESAW HSS 20MM",
+    "supplier_code": "TC28020",
+    "supplier_name": "Hole Saw Hss 20mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28020.jpg?lm=1782389618"
+  },
+  {
+    "code": "TC0035",
+    "name": "HOLESAW HSS 22MM",
+    "supplier_code": "TC28022",
+    "supplier_name": "Hole Saw Hss 22mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28022.jpg?lm=1782389618"
+  },
+  {
+    "code": "TC0036",
+    "name": "HOLESAW HSS 24MM",
+    "supplier_code": "TC28024",
+    "supplier_name": "Hole Saw Hss 24mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28024.jpg?lm=1788790104"
+  },
+  {
+    "code": "TC0037",
+    "name": "HOLESAW HSS 25MM",
+    "supplier_code": "TC28025",
+    "supplier_name": "Hole Saw Hss 25mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28025.jpg?lm=1782389619"
+  },
+  {
+    "code": "TC0038",
+    "name": "HOLESAW HSS 28MM",
+    "supplier_code": "TC28028",
+    "supplier_name": "Hole Saw Hss 28mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28028.jpg?lm=1788790104"
+  },
+  {
+    "code": "TC0039",
+    "name": "HOLESAW HSS 30MM",
+    "supplier_code": "TC28030",
+    "supplier_name": "Hole Saw Hss 30mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28030.jpg?lm=1788790104"
+  },
+  {
+    "code": "TC0040",
+    "name": "HOLESAW HSS 32MM",
+    "supplier_code": "TC28032",
+    "supplier_name": "Hole Saw Hss 32mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28032.jpg?lm=1782389619"
+  },
+  {
+    "code": "TC0041",
+    "name": "HOLESAW HSS 35MM",
+    "supplier_code": "TC28035",
+    "supplier_name": "Hole Saw Hss 35mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28035.jpg?lm=1788790104"
+  },
+  {
+    "code": "TC0042",
+    "name": "HOLESAW HSS 38MM",
+    "supplier_code": "TC28038",
+    "supplier_name": "Hole Saw Hss 38mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28038.jpg?lm=1788790104"
+  },
+  {
+    "code": "TC0043",
+    "name": "HOLESAW HSS 40MM",
+    "supplier_code": "TC28040",
+    "supplier_name": "Hole Saw Hss 40mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28040.jpg?lm=1788790104"
+  },
+  {
+    "code": "TC0044",
+    "name": "HOLESAW HSS 42MM",
+    "supplier_code": "TC28042",
+    "supplier_name": "Hole Saw Hss 42mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28042.jpg?lm=1788790104"
+  },
+  {
+    "code": "TC0045",
+    "name": "HOLESAW HSS 45MM",
+    "supplier_code": "TC28045",
+    "supplier_name": "Hole Saw Hss 45mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28045.jpg?lm=1788790104"
+  },
+  {
+    "code": "TC0046",
+    "name": "HOLESAW HSS 50MM",
+    "supplier_code": "TC28050",
+    "supplier_name": "Hole Saw Hss 50mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC28050.jpg?lm=1782389619"
+  },
+  {
+    "code": "TC0047",
+    "name": "HOLE SAW TCT 16MM FOR METAL",
+    "supplier_code": "TC915001",
+    "supplier_name": "Hole Saw Tct 16mm For Metal",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC915001.jpg?lm=1488274671"
+  },
+  {
+    "code": "TC0048",
+    "name": "HOLE SAW TCT 19MM FOR METAL",
+    "supplier_code": "TC915004",
+    "supplier_name": "Hole Saw Tct 19mm For Metal",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC915004.jpg?lm=1488274671"
+  },
+  {
+    "code": "TC0049",
+    "name": "HOLE SAW TCT 20MM FOR METAL",
+    "supplier_code": "TC915005",
+    "supplier_name": "Hole Saw Tct 20mm For Metal",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC915005.jpg?lm=1488274672"
+  },
+  {
+    "code": "TC0050",
+    "name": "HOLE SAW TCT 22MM FOR METAL",
+    "supplier_code": "TC915006",
+    "supplier_name": "Hole Saw Tct 22mm For Metal",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC915006.jpg?lm=1488274672"
+  },
+  {
+    "code": "TC0051",
+    "name": "HOLE SAW TCT 25MM FOR METAL",
+    "supplier_code": "TC915010",
+    "supplier_name": "Hole Saw Tct 25mm For Metal",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC915010.jpg?lm=1488274672"
+  },
+  {
+    "code": "TC0052",
+    "name": "HOLE SAW TCT 30MM FOR METAL",
+    "supplier_code": "TC915015",
+    "supplier_name": "Hole Saw Tct 30mm For Metal",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC915015.jpg?lm=1488274673"
+  },
+  {
+    "code": "TC0053",
+    "name": "HOLE SAW TCT 32MM FOR METAL",
+    "supplier_code": "TC915016",
+    "supplier_name": "Hole Saw Tct 32mm For Metal",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC915016.jpg?lm=1488274673"
+  },
+  {
+    "code": "TC0054",
+    "name": "HOLE SAW TCT 35MM FOR METAL",
+    "supplier_code": "TC915020",
+    "supplier_name": "Hole Saw Tct 35mm For Metal",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC915020.jpg?lm=1488274673"
+  },
+  {
+    "code": "TC0055",
+    "name": "HOLE SAW TCT 38MM FOR METAL",
+    "supplier_code": "TC915023",
+    "supplier_name": "Hole Saw Tct 38mm For Metal",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC915023.jpg?lm=1488274674"
+  },
+  {
+    "code": "TC0056",
+    "name": "HOLE SAW TCT 40MM FOR METAL",
+    "supplier_code": "TC915025",
+    "supplier_name": "Hole Saw Tct 40mm For Metal",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC915025.jpg?lm=1488274674"
+  },
+  {
+    "code": "TC0057",
+    "name": "HOLE SAW TCT 45MM FOR METAL",
+    "supplier_code": "TC915030",
+    "supplier_name": "Hole Saw Tct 45mm For Metal",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC915030.jpg?lm=1488274674"
+  },
+  {
+    "code": "TC0058",
+    "name": "HOLE SAW TCT 50MM FOR METAL",
+    "supplier_code": "TC915035",
+    "supplier_name": "Hole Saw Tct 50mm For Metal",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC915035.jpg?lm=1488274674"
+  },
+  {
+    "code": "TC0059",
+    "name": "HOLLOW CORE BIT TCT 30 X 72MM M22",
+    "supplier_code": "TC322201",
+    "supplier_name": "Hollow Core Bit Tct 30 X 72mm M22",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322201.jpg?lm=1720100635"
+  },
+  {
+    "code": "TC0060",
+    "name": "HOLLOW CORE BIT TCT 35 X 72MM M22",
+    "supplier_code": "TC322202",
+    "supplier_name": "Hollow Core Bit Tct 35 X 72mm M22",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322202.jpg?lm=1720100635"
+  },
+  {
+    "code": "TC0061",
+    "name": "HOLLOW CORE BIT TCT 40 X 72MM M22",
+    "supplier_code": "TC322203",
+    "supplier_name": "Hollow Core Bit Tct 40 X 72mm M22",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322203.jpg?lm=1720100635"
+  },
+  {
+    "code": "TC0062",
+    "name": "HOLLOW CORE BIT TCT 45 X 72MM M22",
+    "supplier_code": "TC322204",
+    "supplier_name": "Hollow Core Bit Tct 45 X 72mm M22",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322204.jpg?lm=1720100635"
+  },
+  {
+    "code": "TC0063",
+    "name": "HOLLOW CORE BIT TCT 50 X 72MM M22",
+    "supplier_code": "TC322205",
+    "supplier_name": "Hollow Core Bit Tct 50 X 72mm M22",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322205.jpg?lm=1720100635"
+  },
+  {
+    "code": "TC0064",
+    "name": "HOLLOW CORE BIT TCT 55 X 72MM M22",
+    "supplier_code": "TC322206",
+    "supplier_name": "Hollow Core Bit Tct 55 X 72mm M22",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322206.jpg?lm=1720100635"
+  },
+  {
+    "code": "TC0065",
+    "name": "HOLLOW CORE BIT TCT 60 X 72MM M22",
+    "supplier_code": "TC322207",
+    "supplier_name": "Hollow Core Bit Tct 60 X 72mm M22",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322207.jpg?lm=1720100635"
+  },
+  {
+    "code": "TC0066",
+    "name": "HOLLOW CORE BIT TCT 65 X 72MM M22",
+    "supplier_code": "TC322208",
+    "supplier_name": "Hollow Core Bit Tct 65 X 72mm M22",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322208.jpg?lm=1720100635"
+  },
+  {
+    "code": "TC0067",
+    "name": "HOLLOW CORE BIT TCT 70 X 72MM M22",
+    "supplier_code": "TC322209",
+    "supplier_name": "Hollow Core Bit Tct 70 X 72mm M22",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322209.jpg?lm=1720100635"
+  },
+  {
+    "code": "TC0068",
+    "name": "HOLLOW CORE BIT TCT 80 X 72MM M22",
+    "supplier_code": "TC322210",
+    "supplier_name": "Hollow Core Bit Tct 80 X 72mm M22",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322210.jpg?lm=1720100635"
+  },
+  {
+    "code": "TC0069",
+    "name": "HOLLOW CORE BIT TCT 110 X 72MM M22",
+    "supplier_code": "TC322213",
+    "supplier_name": "Hollow Core Bit Tct 110 X 72mm M22",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322213.jpg?lm=1720100635"
+  },
+  {
+    "code": "TC0070",
+    "name": "ADAPTOR SDS PLUS 200MM X M22",
+    "supplier_code": "TC322225",
+    "supplier_name": "Adaptor Sds Plus 200mm X M22 For Hollow Core Bit",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322225.jpg?lm=1718781580"
+  },
+  {
+    "code": "TC0071",
+    "name": "ADAPTOR HEX 200MM X M22 FOR TCT CORE",
+    "supplier_code": "TC322240",
+    "supplier_name": "Adaptor Hex 200mmxm22 For Tct Core Bits",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC322240.jpg?lm=1718781580"
+  },
+  {
+    "code": "TC0072",
+    "name": "HOLE SAW SET 5PCE CARBON STEEL",
+    "supplier_code": "TC911032",
+    "supplier_name": "Hole Saw Set 5pce Carbon Steel",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC911032.jpg?lm=1720789485"
+  },
+  {
+    "code": "TC0073",
+    "name": "HOLE SAW SET CARBON STEEL 16PCE 19",
+    "supplier_code": "TC911048",
+    "supplier_name": "Hole Saw Set Carbon Steel 16pce 19 - 127mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TC911048.jpg?lm=1755843712"
+  },
+  {
+    "code": "TC0074",
+    "name": "CIRCLE HOLE CUTTER ADJUSTABLE",
+    "supplier_code": "TCCC30200",
+    "supplier_name": "Circle Hole Cutter Adjustable 30-200mm",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/TCCC30200.jpg?lm=1761574098"
+  },
+  {
+    "code": "TC0075",
+    "name": "TAP HSS 3 X 0.5 & DRILL 2.5MM 2PC SET",
+    "supplier_code": "NR6030C",
+    "supplier_name": "Tap Hss 3x0.5 & Drill 2.5mm 2pc Set",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR6030C.jpg?lm=1728637339"
+  },
+  {
+    "code": "TC0076",
+    "name": "TAP HSS 4 X 0.7 & DRILL 3.3MM 2PC SET",
+    "supplier_code": "NR6040C",
+    "supplier_name": "Tap Hss 4x0.7 & Drill 3.3mm 2pc Set",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR6040C.jpg?lm=1728637339"
+  },
+  {
+    "code": "TC0077",
+    "name": "TAP HSS 5 X 0.8 & DRILL 4.2MM 2PC SET",
+    "supplier_code": "NR6050C",
+    "supplier_name": "Tap Hss 5x0.8 & Drill 4.2mm 2pc Set",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR6050C.jpg?lm=1728637339"
+  },
+  {
+    "code": "TC0078",
+    "name": "TAP HSS 6 X 1.0 & DRILL 5.0MM 2PC SET",
+    "supplier_code": "NR6070C",
+    "supplier_name": "Tap Hss 6x1.0 & Drill 5.0mm 2pc Set",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR6070C.jpg?lm=1728637339"
+  },
+  {
+    "code": "TC0079",
+    "name": "TAP HSS 7 X 1.0 & DRILL 6.0MM 2PC SET",
+    "supplier_code": "NR6080C",
+    "supplier_name": "Tap Hss 7x1.0 & Drill 6.0mm 2pc Set",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR6080C.jpg?lm=1728637339"
+  },
+  {
+    "code": "TC0080",
+    "name": "TAP HSS 8 X 1.25 & DRILL 6.7MM 2PC SET",
+    "supplier_code": "NR6090C",
+    "supplier_name": "Tap Hss 8x1.25 & Drill 6.7mm 2pc Set",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR6090C.jpg?lm=1728637339"
+  },
+  {
+    "code": "TC0081",
+    "name": "TAP HSS 9 X 1.25 & DRILL 7.7MM 2PC SET",
+    "supplier_code": "NR6100C",
+    "supplier_name": "Tap Hss 9x1.25 & Drill 7.7mm 2pc Set",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR6100C.jpg?lm=1728637339"
+  },
+  {
+    "code": "TC0082",
+    "name": "TAP HSS 10 X 1.5 & DRILL 8.5MM 2PC SET",
+    "supplier_code": "NR6120C",
+    "supplier_name": "Tap Hss 10x1.5 & Drill 8.5mm 2pc Set",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR6120C.jpg?lm=1728637339"
+  },
+  {
+    "code": "TC0083",
+    "name": "TAP HSS 3 X 0.5MM ISO 1/CARD",
+    "supplier_code": "NR1030C",
+    "supplier_name": "Tap Hss 3x0.5mm Iso 1/card",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR1030C.jpg?lm=1695214167"
+  },
+  {
+    "code": "TC0084",
+    "name": "TAP HSS 4 X 0.7MM ISO 1/CARD",
+    "supplier_code": "NR1040C",
+    "supplier_name": "Tap Hss 4x0.7mm Iso 1/card",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR1040C.jpg?lm=1695214167"
+  },
+  {
+    "code": "TC0085",
+    "name": "TAP HSS 5 X 0.8MM ISO 1/CARD",
+    "supplier_code": "NR1050C",
+    "supplier_name": "Tap Hss 5x0.8mm Iso 1/card",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR1050C.jpg?lm=1695214167"
+  },
+  {
+    "code": "TC0086",
+    "name": "TAP HSS 6 X 1.0MM ISO 1/CARD",
+    "supplier_code": "NR1060C",
+    "supplier_name": "Tap Hss 6x1.0mm Iso 1/card",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR1060C.jpg?lm=1695214167"
+  },
+  {
+    "code": "TC0087",
+    "name": "TAP HSS 8 X 1.0MM ISO 1/CARD",
+    "supplier_code": "NR1080-1C",
+    "supplier_name": "Tap Hss 8mm X 1.0 1 Per Card",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR1080-1C.jpg?lm=1721634120"
+  },
+  {
+    "code": "TC0088",
+    "name": "TAP HSS 8 X 1.25MM ISO 1/CARD",
+    "supplier_code": "NR1080C",
+    "supplier_name": "Tap Hss 8x1.25mm Iso 1/card",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR1080C.jpg?lm=1721634112"
+  },
+  {
+    "code": "TC0089",
+    "name": "TAP HSS 9 X 1.0MM 1/CARD",
+    "supplier_code": "NR1090-1C",
+    "supplier_name": "Tap Hss 9mm X 1.0mm 1/card",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR1090-1C.jpg?lm=1695214168"
+  },
+  {
+    "code": "TC0090",
+    "name": "TAP HSS 10 X 1.0MM 1/CARD",
+    "supplier_code": "NR1100-1C",
+    "supplier_name": "Tap Hss 10mm X 1.0 1/card",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR1100-1C.jpg?lm=1695214168"
+  },
+  {
+    "code": "TC0091",
+    "name": "TAP HSS 10 X 1.50MM ISO 1/CARD",
+    "supplier_code": "NR1100C",
+    "supplier_name": "Tap Hss 10x1.50mm Iso 1/card",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR1100C.jpg?lm=1695214168"
+  },
+  {
+    "code": "TC0092",
+    "name": "TAP HSS 12MM X 1.50MM 1/CARD",
+    "supplier_code": "NR1120-1C",
+    "supplier_name": "Tap Hss 12mm X 1.50 I/card",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR1120-1C.jpg?lm=1695214168"
+  },
+  {
+    "code": "TC0093",
+    "name": "TAP HSS 12MM X 1.25MM 1/CARD",
+    "supplier_code": "NR1120-2C",
+    "supplier_name": "Tap Hss 12mm X 1.25 I/card",
+    "image_url": "https://b2c.et-dev.co.za/img/rs:fit:500:500:1/ex:1/data/products/vermontsales/NR1120-2C.jpg?lm=1695214168"
+  }
+]
