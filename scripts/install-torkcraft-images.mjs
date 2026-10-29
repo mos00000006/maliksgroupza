@@ -7,3 +7,4 @@ if(!s.includes('torkcraftImageHost')){
 }
 const pkg=JSON.parse(readFileSync('package.json','utf8'));pkg.scripts??={};const cmd='node scripts/install-torkcraft-images.mjs';if(!String(pkg.scripts.prebuild||'').includes(cmd)){pkg.scripts.prebuild=pkg.scripts.prebuild?pkg.scripts.prebuild+' && '+cmd:cmd;writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n');}
 console.log('Tork Craft catalogue image host enabled; existing image sources preserved.');
+if(existsSync('scripts/install-hamiltons-images.mjs'))await import('./install-hamiltons-images.mjs');

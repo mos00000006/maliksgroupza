@@ -1,0 +1,77 @@
+{
+  "missing_codes": [
+    {
+      "name": "Woodcoate 3-brush Set",
+      "source": "https://hamiltonsbrush.co.za/product/woodcoate-3-brush-set/"
+    },
+    {
+      "name": "Viva Roof Brush",
+      "source": "https://hamiltonsbrush.co.za/product/viva-roof-brush/"
+    },
+    {
+      "name": "Viva Waterproof Brush",
+      "source": "https://hamiltonsbrush.co.za/product/viva-waterproof-brush/"
+    },
+    {
+      "name": "Blending Brush",
+      "source": "https://hamiltonsbrush.co.za/product/blending-brush/"
+    },
+    {
+      "name": "12 Pc Artist Brush Set",
+      "source": "https://hamiltonsbrush.co.za/product/12-pc-artist-brush-set/"
+    },
+    {
+      "name": "Angled Trimming Brush",
+      "source": "https://hamiltonsbrush.co.za/product/angled-trimming-brush/"
+    },
+    {
+      "name": "Silkcoate 3-piece Brush Set",
+      "source": "https://hamiltonsbrush.co.za/product/silkcoate-3-piece-brush-set/"
+    },
+    {
+      "name": "Roof Renovator Brush",
+      "source": "https://hamiltonsbrush.co.za/product/roof-renovator-brush/"
+    },
+    {
+      "name": "Waterproof Brush",
+      "source": "https://hamiltonsbrush.co.za/product/waterproof-brush/"
+    },
+    {
+      "name": "Whitewash Brush",
+      "source": "https://hamiltonsbrush.co.za/product/whitewash-brush/"
+    },
+    {
+      "name": "Touch up Value Brush Set",
+      "source": "https://hamiltonsbrush.co.za/product/touch-up-value-brush-set/"
+    }
+  ],
+  "ambiguous_code": [
+    [
+      {
+        "code": "1315",
+        "name": "Hamilton’s SilkPro — 19mm",
+        "source": "https://hamiltonsbrush.co.za/product/silkpro/",
+        "ref_id": "turn60view0",
+        "image_id": 31
+      },
+      {
+        "code": "1315",
+        "name": "Hamilton’s SilkPro — 100mm",
+        "source": "https://hamiltonsbrush.co.za/product/silkpro/",
+        "ref_id": "turn60view0",
+        "image_id": 36
+      }
+    ]
+  ],
+  "image_resolution_errors": [
+    {
+      "code": "1120",
+      "reason": "Internal Error ()\n【turn115view5】 [wordlim: 200] Source: click({\"ref_id\":\"turn83view2\",\"id\":48}); Total lines: 1\nL0: Failed to fetch https://hamiltonsbrush.co.za/wp-content/uploads/1120-300x300.jpg: TimeoutError\n"
+    }
+  ],
+  "notes": [
+    "Source contains different pages for single sizes and full product ranges; stock codes were deduplicated.",
+    "1315 appears for both 19mm and 100mm SilkPro on the source page; omitted pending confirmation.",
+    "Not an assertion that all supplier products were imported. Unreadable pages and unpublished codes are excluded."
+  ]
+}
