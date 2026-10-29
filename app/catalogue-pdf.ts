@@ -1,3 +1,5 @@
+import { cataloguePdfCategory } from "./catalogue-pdf-grouping";
+
 export type WholesaleCatalogueProduct = {
   id: number;
   code: string;
@@ -150,6 +152,7 @@ const safeCategory = (value: string) => cleanText(value || "General") || "Genera
 
 const CATEGORY_ORDER = [
   "Plumbing",
+  "Fittings",
   "Electrical & Lighting",
   "Paints & Allied",
   "Waterproofing",
@@ -767,16 +770,16 @@ export async function buildWholesaleCataloguePdf(
   await tryLoadNexaFonts();
 
   const sorted = [...products].sort((a, b) => {
-    const categoryCompare = categoryRank(a.category) - categoryRank(b.category);
+    const categoryCompare = categoryRank(cataloguePdfCategory(a)) - categoryRank(cataloguePdfCategory(b));
     if (categoryCompare) return categoryCompare;
-    const labelCompare = safeCategory(a.category).localeCompare(safeCategory(b.category));
+    const labelCompare = cataloguePdfCategory(a).localeCompare(cataloguePdfCategory(b));
     if (labelCompare) return labelCompare;
     return cleanText(a.name || a.description || a.code).localeCompare(cleanText(b.name || b.description || b.code));
   });
 
   const groups = new Map<string, WholesaleCatalogueProduct[]>();
   for (const product of sorted) {
-    const category = safeCategory(product.category);
+    const category = cataloguePdfCategory(product);
     if (!groups.has(category)) groups.set(category, []);
     groups.get(category)!.push(product);
   }
@@ -908,16 +911,16 @@ export async function buildWholesaleLeafletPages(
   await tryLoadNexaFonts();
 
   const sorted = [...products].sort((a, b) => {
-    const categoryCompare = categoryRank(a.category) - categoryRank(b.category);
+    const categoryCompare = categoryRank(cataloguePdfCategory(a)) - categoryRank(cataloguePdfCategory(b));
     if (categoryCompare) return categoryCompare;
-    const labelCompare = safeCategory(a.category).localeCompare(safeCategory(b.category));
+    const labelCompare = cataloguePdfCategory(a).localeCompare(cataloguePdfCategory(b));
     if (labelCompare) return labelCompare;
     return cleanText(a.name || a.description || a.code).localeCompare(cleanText(b.name || b.description || b.code));
   });
 
   const groups = new Map<string, WholesaleCatalogueProduct[]>();
   for (const product of sorted) {
-    const category = safeCategory(product.category);
+    const category = cataloguePdfCategory(product);
     if (!groups.has(category)) groups.set(category, []);
     groups.get(category)!.push(product);
   }
