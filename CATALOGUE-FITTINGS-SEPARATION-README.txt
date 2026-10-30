@@ -13,6 +13,9 @@ Sections appear separately:
 - Waste & Trap Fittings
 - Fittings (other/unidentified fittings)
 
+Window blinds are moved to a dedicated "Window Blinds & Treatments" section, even when the source data labels them as plumbing fittings.
+Blind flanges, caps and rivets are not treated as window blinds.
+
 The existing Plumbing section continues to contain products that are not fitting types.
 Products are classified by their names/descriptions and context; short prefixes are kept distinct.
 This does not reclassify products in the online catalogue's category filter or change database categories.

@@ -171,6 +171,7 @@ const CATEGORY_ORDER = [
   "Steel & Metal",
   "Doors & Frames",
   "Windows",
+  "Window Blinds & Treatments",
   "Fencing",
   "Locksets",
   "Fasteners",

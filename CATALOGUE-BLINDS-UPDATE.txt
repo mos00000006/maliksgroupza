@@ -1,0 +1,7 @@
+ADDITIONAL CATEGORY CORRECTION — WINDOW BLINDS
+
+Window blinds are no longer grouped under Plumbing Fittings in the downloadable catalogue and interactive leaflet. They are placed in their own Window Blinds & Treatments section. Blind flanges/rivets/caps are excluded.
+
+This remains a display-only change. Database/online filter categories are not modified.
+
+Install both files inside app/ from this patch into your Hub and redeploy.

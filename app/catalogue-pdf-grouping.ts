@@ -30,6 +30,13 @@ export function cataloguePdfCategory(product: CataloguePdfGroupingProduct) {
   const categoryForMatching = category.replace(/[·&/\\-]+/g, " ");
   const name = (product.name || "").replace(/\s+/g, " ").trim();
   const productText = `${name} ${product.description || ""}`.replace(/\s+/g, " ").trim();
+  // Window blinds are home/window treatments, even when imported with a plumbing category.
+  // Exclude blind flanges, caps and rivets, which are not window coverings.
+  const windowBlindCategory = /\b(?:WINDOW\s*(?:BLINDS?|COVERINGS?|TREATMENTS?)|BLINDS?|CURTAINS?|SHADES?)\b/i.test(categoryForMatching);
+  const windowBlindProduct = /\bBLINDS?\b/i.test(productText) &&
+    !/\bBLIND\s+(?:FLANGES?|CAPS?|RIVETS?|PLUGS?|NUTS?)\b/i.test(productText);
+  if (windowBlindCategory || windowBlindProduct) return "Window Blinds & Treatments";
+
   const isPlumbing = plumbingFamilyCategory.test(categoryForMatching) || explicitFittingsCategory.test(categoryForMatching);
   const isFitting = explicitFittingsCategory.test(categoryForMatching) ||
     explicitFittingName.test(productText) ||
