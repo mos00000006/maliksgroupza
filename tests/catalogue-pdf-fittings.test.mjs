@@ -58,3 +58,9 @@ test("never generates the original mixed Fittings page", () => {
   ]);
   for (const item of products) assert.notEqual(cataloguePdfCategory(item), "Fittings");
 });
+
+test("real imported Alco blinds get their own catalogue page", () => {
+  assert.equal(cataloguePdfCategory(product("Alco Aluminium Blinds 25mm Black - 1000x1200 mm", "Homeware", "Decor ranges: Blinds. Includes brackets and fittings.")), "Window Blinds & Treatments");
+  assert.equal(cataloguePdfCategory(product("Alco PVC Blinds 25mm Charcoal Grey - 1200x1500 mm", "Homeware")), "Window Blinds & Treatments");
+  assert.equal(cataloguePdfCategory(product("Blind flange 20mm", "Pipe Fittings")), "Plumbing Accessories");
+});

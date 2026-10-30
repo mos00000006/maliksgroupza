@@ -1,17 +1,14 @@
-MALIKS GROUP HUB — CATALOGUE CATEGORY + GITHUB TEST FIX
+MALIKS CATALOGUE - FINAL REVIEWED PATCH (30 October 2026)
 
-Extract into the ROOT of your existing maliksgroupza repository, preserving paths:
- app/catalogue-pdf-grouping.ts
- app/catalogue-pdf.ts
- tests/catalogue-pdf-fittings.test.mjs
+Copy the app/ and tests/ folders into the repository root, replacing matching files.
+Commit and push, then run npm run check before production deployment.
 
-This supersedes all prior catalogue category patches. Do not layer older patches over this one.
+Corrections:
+- PDF / flipbook: no mixed Fittings section; UG/SV and fitting families separated.
+- PDF / flipbook: Alco blinds from existing Homeware records get a dedicated Window Blinds & Treatments section.
+- Online catalogue: a new Window Blinds & Treatments category filter; existing imported blinds appear there even without running a database migration, and are excluded from Homeware while browsing.
+- New/edited blinds automatically save with the blinds category.
+- Stock codes, prices, images and stored legacy product data remain intact.
+- Tests updated for intended classification.
 
-What changes:
- - The generated PDF and interactive leaflet no longer produce the old mixed Fittings page.
- - UG, SV, compression/HDPE, copper/brass, galvanised, PVC/pressure and waste/trap are separated.
- - Window blinds are displayed in Window Blinds & Treatments instead of plumbing.
- - The GitHub test expectations now match the new, intended catalogue sections.
-
-Does NOT change: source database classifications, live site deployment or online catalogue filter logic.
-After merging: npm run check, commit/push, deploy and regenerate the PDF/leaflet.
+Note: This patch does NOT rewrite pre-existing database records. PDF export classification and online catalogue browsing are adjusted at read time.

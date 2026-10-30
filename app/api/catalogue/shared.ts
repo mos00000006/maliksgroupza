@@ -22,6 +22,7 @@ export const productResponse = (row: Record<string, unknown>) => {
   const imageKey = String(row.image_key || "");
   return {
     ...row,
+    category: isWindowBlindProduct(row) ? "Window Blinds & Treatments" : row.category,
     image_url: imageKey.startsWith("static:")
       ? imageKey.slice("static:".length)
       : imageKey.startsWith("external:")
@@ -30,4 +31,12 @@ export const productResponse = (row: Record<string, unknown>) => {
           ? `/api/catalogue/${row.id}/image?v=${encodeURIComponent(String(row.updated_at || ""))}`
           : "",
   };
+};
+
+/** Match window blinds, not mechanical parts such as blind flanges. */
+export const isWindowBlindProduct = (row: Record<string, unknown>) => {
+  const category = String(row.category || "");
+  const name = String(row.name || "");
+  if (/^(?:window\s+)?blinds?(?:\s*(?:&|and)\s*(?:treatments?|coverings?))?$/i.test(category)) return true;
+  return /\bblinds?\b/i.test(name) && !/\bblind\s+(?:flanges?|caps?|rivets?|plugs?|nuts?)\b/i.test(name);
 };

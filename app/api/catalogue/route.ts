@@ -15,21 +15,28 @@ export async function GET(req: Request) {
   const q = (url.searchParams.get("q") || "").trim().toLowerCase();
   const category = (url.searchParams.get("category") || "").trim();
   const offset = (page - 1) * pageSize;
+  // Legacy blind stock is saved under Homeware (or other imported categories).
+  // Keep the stored category unchanged while making the catalogue filters accurate.
+  const blindsFilter = category === "Window Blinds & Treatments";
+  const categorySql = blindsFilter
+    ? "(lower(category)=lower('Window Blinds & Treatments') OR (lower(name) LIKE '%blind%' AND lower(name) NOT LIKE '%blind flange%' AND lower(name) NOT LIKE '%blind cap%' AND lower(name) NOT LIKE '%blind rivet%' AND lower(name) NOT LIKE '%blind plug%' AND lower(name) NOT LIKE '%blind nut%'))"
+    : "(lower(category)=lower(?) AND NOT (lower(name) LIKE '%blind%' AND lower(name) NOT LIKE '%blind flange%' AND lower(name) NOT LIKE '%blind cap%' AND lower(name) NOT LIKE '%blind rivet%' AND lower(name) NOT LIKE '%blind plug%' AND lower(name) NOT LIKE '%blind nut%'))";
+  const filterBind = blindsFilter ? [] : [category];
   const like = `%${q}%`;
 
   const count = q && category
     ? await env.DB.prepare(
         `SELECT COUNT(*) AS total FROM catalogue_products
-         WHERE active=1 AND lower(category)=lower(?) AND (
+         WHERE active=1 AND ${categorySql} AND (
            lower(name) LIKE ? OR lower(code) LIKE ? OR lower(description) LIKE ? OR lower(category) LIKE ?
          )`,
       )
-        .bind(category, like, like, like, like)
+        .bind(...filterBind, like, like, like, like)
         .first<{ total: number }>()
     : category
       ? await env.DB.prepare(
-          "SELECT COUNT(*) AS total FROM catalogue_products WHERE active=1 AND lower(category)=lower(?)",
-        ).bind(category).first<{ total: number }>()
+          `SELECT COUNT(*) AS total FROM catalogue_products WHERE active=1 AND ${categorySql}`,
+        ).bind(...filterBind).first<{ total: number }>()
       : q
     ? await env.DB.prepare(
         `SELECT COUNT(*) AS total FROM catalogue_products
@@ -46,15 +53,15 @@ export async function GET(req: Request) {
   const query = q && category
     ? env.DB.prepare(
         `SELECT * FROM catalogue_products
-         WHERE active=1 AND lower(category)=lower(?) AND (
+         WHERE active=1 AND ${categorySql} AND (
            lower(name) LIKE ? OR lower(code) LIKE ? OR lower(description) LIKE ? OR lower(category) LIKE ?
          )
          ORDER BY id DESC LIMIT ? OFFSET ?`,
-      ).bind(category, like, like, like, like, pageSize, offset)
+      ).bind(...filterBind, like, like, like, like, pageSize, offset)
     : category
       ? env.DB.prepare(
-          "SELECT * FROM catalogue_products WHERE active=1 AND lower(category)=lower(?) ORDER BY id DESC LIMIT ? OFFSET ?",
-        ).bind(category, pageSize, offset)
+          `SELECT * FROM catalogue_products WHERE active=1 AND ${categorySql} ORDER BY id DESC LIMIT ? OFFSET ?`,
+        ).bind(...filterBind, pageSize, offset)
       : q
         ? env.DB.prepare(
             `SELECT * FROM catalogue_products
@@ -94,7 +101,9 @@ export async function POST(req: Request) {
   const code = String(form.get("code") || "").trim();
   const name = String(form.get("name") || "").trim();
   const description = String(form.get("description") || "").trim();
-  const category = String(form.get("category") || "General").trim() || "General";
+  const requestedCategory = String(form.get("category") || "General").trim() || "General";
+  const category = /\bblinds?\b/i.test(name) && !/\bblind\s+(?:flanges?|caps?|rivets?|plugs?|nuts?)\b/i.test(name)
+    ? "Window Blinds & Treatments" : requestedCategory;
   const image = form.get("image");
 
   if (!code || !name)

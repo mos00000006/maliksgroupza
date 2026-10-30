@@ -33,8 +33,8 @@ export function cataloguePdfCategory(product: CataloguePdfGroupingProduct) {
   // Window blinds are home/window treatments, even when imported with a plumbing category.
   // Exclude blind flanges, caps and rivets, which are not window coverings.
   const windowBlindCategory = /\b(?:WINDOW\s*(?:BLINDS?|COVERINGS?|TREATMENTS?)|BLINDS?|CURTAINS?|SHADES?)\b/i.test(categoryForMatching);
-  const windowBlindProduct = /\bBLINDS?\b/i.test(productText) &&
-    !/\bBLIND\s+(?:FLANGES?|CAPS?|RIVETS?|PLUGS?|NUTS?)\b/i.test(productText);
+  const windowBlindProduct = /\bBLINDS?\b/i.test(name) &&
+    !/\bBLIND\s+(?:FLANGES?|CAPS?|RIVETS?|PLUGS?|NUTS?)\b/i.test(name);
   if (windowBlindCategory || windowBlindProduct) return "Window Blinds & Treatments";
 
   const isPlumbing = plumbingFamilyCategory.test(categoryForMatching) || explicitFittingsCategory.test(categoryForMatching);

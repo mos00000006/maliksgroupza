@@ -22,7 +22,9 @@ export async function PATCH(
   const code = String(form.get("code") || existing.code || "").trim();
   const name = String(form.get("name") || existing.name || "").trim();
   const description = String(form.get("description") ?? existing.description ?? "").trim();
-  const category = String(form.get("category") || existing.category || "General").trim() || "General";
+  const requestedCategory = String(form.get("category") || existing.category || "General").trim() || "General";
+  const category = /\bblinds?\b/i.test(name) && !/\bblind\s+(?:flanges?|caps?|rivets?|plugs?|nuts?)\b/i.test(name)
+    ? "Window Blinds & Treatments" : requestedCategory;
   const image = form.get("image");
   if (!code || !name)
     return Response.json({ error: "Product code and product name are required." }, { status: 400 });
