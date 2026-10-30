@@ -152,6 +152,13 @@ const safeCategory = (value: string) => cleanText(value || "General") || "Genera
 
 const CATEGORY_ORDER = [
   "Plumbing",
+  "Underground (UG)",
+  "Soil & Vent (SV)",
+  "HDPE & Compression Fittings",
+  "Copper & Brass Fittings",
+  "Galvanised Fittings",
+  "PVC & Pressure Fittings",
+  "Waste & Trap Fittings",
   "Fittings",
   "Electrical & Lighting",
   "Paints & Allied",

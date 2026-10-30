@@ -16,27 +16,41 @@ const cleanCategory = (value: string | null | undefined) =>
     .trim() || "General";
 
 const explicitFittingsCategory = /^(?:FITTINGS|PLUMBING FITTINGS|PIPE FITTINGS|BATHROOM FITTINGS|SANWARE FITTINGS)$/i;
-const plumbingFamilyCategory = /(?:PLUMB|BATHROOM|SANWARE|SANITARY|DRAINAGE|PIPE)/i;
+const plumbingFamilyCategory = /(?:PLUMB|BATHROOM|SANWARE|SANITARY|DRAINAGE|PIPE|FITTING)/i;
 const explicitFittingName = /\bFITTINGS?\b/i;
 const plumbingFittingName = /\b(?:ADAPTORS?|ADAPTERS?|BENDS?|BUSHES?|BUSHINGS?|CAPS?|CONNECTORS?|COUPLERS?|COUPLINGS?|ELBOWS?|FERRULES?|FLANGES?|GULL(?:Y|EY)(?:S)?|JUNCTIONS?|NIPPLES?|PLUGS?|REDUCERS?|RODDING\s+EYES?|SADDLES?|SOCKETS?|STOPCOCKS?|TEES?|TRAPS?|UNIONS?|VALVES?)\b|\bEND\s+CAPS?\b|\bPAN\s+SEALS?\b|\b(?:BASIN|BATH|SINK)\s+WASTES?\b/i;
 
 /**
- * Returns the section used by the generated catalogue PDF and leaflet.
- * This is deliberately presentation-only: the saved catalogue category is
- * never changed. Generic fitting words such as "socket" are only used inside
- * plumbing, bathroom and drainage families so tool sockets and electrical
- * sockets stay in their correct sections.
+ * Catalogue PDF / interactive leaflet sections are display-only. Database categories,
+ * stock codes, product images and product records remain unchanged.
+ * Put the named plumbing family first so UG and SV can never mix with generic fittings.
  */
 export function cataloguePdfCategory(product: CataloguePdfGroupingProduct) {
   const category = cleanCategory(product.category);
   const categoryForMatching = category.replace(/[·&/\\-]+/g, " ");
-  const productText = `${product.name || ""} ${product.description || ""}`.replace(/\s+/g, " ").trim();
+  const name = (product.name || "").replace(/\s+/g, " ").trim();
+  const productText = `${name} ${product.description || ""}`.replace(/\s+/g, " ").trim();
+  const isPlumbing = plumbingFamilyCategory.test(categoryForMatching) || explicitFittingsCategory.test(categoryForMatching);
+  const isFitting = explicitFittingsCategory.test(categoryForMatching) ||
+    explicitFittingName.test(productText) ||
+    (isPlumbing && plumbingFittingName.test(productText));
 
-  if (explicitFittingsCategory.test(categoryForMatching)) return FITTINGS_PDF_CATEGORY;
-  if (explicitFittingName.test(productText)) return FITTINGS_PDF_CATEGORY;
-  if (plumbingFamilyCategory.test(categoryForMatching) && plumbingFittingName.test(productText)) {
-    return FITTINGS_PDF_CATEGORY;
+  // The original wholesale range uses UG (underground) and SV (soil & vent).
+  // Require a plumbing context or the unmistakable prefix, not an incidental substring.
+  if (/^(?:UG\b|UNDERGROUND\b)/i.test(name) ||
+      (isPlumbing && /\b(?:UG|UNDERGROUND)\b/i.test(productText))) {
+    return "Underground (UG)";
   }
+  if (/^SV\b/i.test(name) ||
+      (isPlumbing && /\b(?:SOIL\s*(?:AND|&)\s*VENT|SOIL\s*VENT)\b/i.test(productText))) {
+    return "Soil & Vent (SV)";
+  }
+  if (!isFitting) return category;
 
-  return category;
+  if (/\b(?:HDPE|COMPRESSION|POLY\s*COMPRESSION)\b/i.test(productText)) return "HDPE & Compression Fittings";
+  if (/\b(?:COPPER|BRASS|CXC|C\s*X\s*C)\b/i.test(productText)) return "Copper & Brass Fittings";
+  if (/\b(?:GALVANISED|GALVANIZED|GALV\b|GI\b|MALLEABLE)\b/i.test(productText)) return "Galvanised Fittings";
+  if (/\b(?:PVC|UPVC|PRESSURE|SOLVENT\s*WELD)\b/i.test(productText)) return "PVC & Pressure Fittings";
+  if (/\b(?:WASTE|TRAP|BASIN|BATH|SINK)\b/i.test(productText)) return "Waste & Trap Fittings";
+  return FITTINGS_PDF_CATEGORY;
 }
