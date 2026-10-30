@@ -21,13 +21,20 @@ await build({
 const { cataloguePdfCategory } = await import(pathToFileURL(output));
 const product = (name, category = "Plumbing", description = "") => ({ name, category, description });
 
-test("puts explicit and implicit plumbing fittings into one PDF section", () => {
-  assert.equal(cataloguePdfCategory(product("Fitting comp HDPE elbow 20mm")), "Fittings");
-  assert.equal(cataloguePdfCategory(product("110 SV bend 45 degree")), "Fittings");
-  assert.equal(cataloguePdfCategory(product("Copper straight coupler 15mm")), "Fittings");
-  assert.equal(cataloguePdfCategory(product("Trap waste bath mini", "Bathroom · Baths")), "Fittings");
-  assert.equal(cataloguePdfCategory(product("Basin waste slotted", "Bathroom · Accessories")), "Fittings");
-  assert.equal(cataloguePdfCategory(product("Equal tee 25mm", "Pipe Fittings")), "Fittings");
+test("separates plumbing fittings into accurate catalogue sections", () => {
+  assert.equal(cataloguePdfCategory(product("Fitting comp HDPE elbow 20mm")), "HDPE & Compression Fittings");
+  assert.equal(cataloguePdfCategory(product("110 SV bend 45 degree")), "Soil & Vent (SV)");
+  assert.equal(cataloguePdfCategory(product("110 UG bend 45 degree")), "Underground (UG)");
+  assert.equal(cataloguePdfCategory(product("Copper straight coupler 15mm")), "Copper & Brass Fittings");
+  assert.equal(cataloguePdfCategory(product("Trap waste bath mini", "Bathroom · Baths")), "Waste & Trap Fittings");
+  assert.equal(cataloguePdfCategory(product("Basin waste slotted", "Bathroom · Accessories")), "Waste & Trap Fittings");
+  assert.equal(cataloguePdfCategory(product("Equal tee 25mm", "Pipe Fittings")), "Plumbing Accessories");
+});
+
+test("moves window blinds out of plumbing regardless of legacy category", () => {
+  assert.equal(cataloguePdfCategory(product("Venetian window blind 900mm", "Plumbing Fittings")), "Window Blinds & Treatments");
+  assert.equal(cataloguePdfCategory(product("Roller blinds", "Blinds")), "Window Blinds & Treatments");
+  assert.equal(cataloguePdfCategory(product("Blind flange 20mm", "Pipe Fittings")), "Plumbing Accessories");
 });
 
 test("keeps pipes, taps and unrelated sockets or adaptors in their existing sections", () => {
@@ -38,8 +45,16 @@ test("keeps pipes, taps and unrelated sockets or adaptors in their existing sect
   assert.equal(cataloguePdfCategory(product("Double wall socket", "Electrical & Lighting")), "Electrical & Lighting");
 });
 
-test("recognises explicit fitting records without changing unrelated category labels", () => {
-  assert.equal(cataloguePdfCategory(product("Galvanised fitting 90 degree", "General Hardware")), "Fittings");
-  assert.equal(cataloguePdfCategory(product("Copper elbow", "Plumbing Fittings")), "Fittings");
-  assert.equal(cataloguePdfCategory(product("Roof sheet", "  Roofing & Gutters  ")), "Roofing & Gutters");
+test("never generates the original mixed Fittings page", () => {
+  const products = [
+    product("Galvanised fitting 90 degree", "General Hardware"),
+    product("Copper elbow", "Plumbing Fittings"),
+    product("PVC elbow", "Fittings"),
+    product("Unspecified fitting", "Fittings"),
+    product("Roof sheet", "  Roofing & Gutters  "),
+  ];
+  assert.deepEqual(products.map(cataloguePdfCategory), [
+    "Galvanised Fittings", "Copper & Brass Fittings", "PVC & Pressure Fittings", "Plumbing Accessories", "Roofing & Gutters",
+  ]);
+  for (const item of products) assert.notEqual(cataloguePdfCategory(item), "Fittings");
 });

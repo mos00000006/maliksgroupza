@@ -1,19 +1,17 @@
-MALIKS GROUP HUB - ALL NEW TASK NOTIFICATIONS
+MALIKS GROUP HUB — CATALOGUE CATEGORY + GITHUB TEST FIX
 
-Replace these matching files in GitHub:
-- app/api/team/shared.ts
-- app/api/tasks/route.ts
-- app/api/sops/[id]/activate/route.ts
+Extract into the ROOT of your existing maliksgroupza repository, preserving paths:
+ app/catalogue-pdf-grouping.ts
+ app/catalogue-pdf.ts
+ tests/catalogue-pdf-fittings.test.mjs
 
-Behaviour:
-- Every newly created task creates an Inbox notification for every ACTIVE Hub member authorised to see that task's workspace.
-- Owner/Admin and Developer/Technical Admin receive all workspace task notifications.
-- Executive/EXCO with Full company access receives all workspace task notifications.
-- Store/workspace-restricted users only receive tasks for workspaces they are allowed to see.
-- A direct email assignee gets “assigned you a task” wording.
-- Other authorised users get “new task added” wording.
-- The direct assignee does not get a duplicate second notification.
-- Existing push notifications and unread app badge counts are used automatically.
-- SOP workflow activation is also covered: every task generated from an SOP creates notifications.
+This supersedes all prior catalogue category patches. Do not layer older patches over this one.
 
-No new migration, npm package, GitHub secret, or Cloudflare secret is required.
+What changes:
+ - The generated PDF and interactive leaflet no longer produce the old mixed Fittings page.
+ - UG, SV, compression/HDPE, copper/brass, galvanised, PVC/pressure and waste/trap are separated.
+ - Window blinds are displayed in Window Blinds & Treatments instead of plumbing.
+ - The GitHub test expectations now match the new, intended catalogue sections.
+
+Does NOT change: source database classifications, live site deployment or online catalogue filter logic.
+After merging: npm run check, commit/push, deploy and regenerate the PDF/leaflet.
