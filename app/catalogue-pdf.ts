@@ -159,7 +159,7 @@ const CATEGORY_ORDER = [
   "Galvanised Fittings",
   "PVC & Pressure Fittings",
   "Waste & Trap Fittings",
-  "Fittings",
+  "Plumbing Accessories",
   "Electrical & Lighting",
   "Paints & Allied",
   "Waterproofing",

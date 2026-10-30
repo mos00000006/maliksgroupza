@@ -4,7 +4,7 @@ export type CataloguePdfGroupingProduct = {
   description?: string | null;
 };
 
-export const FITTINGS_PDF_CATEGORY = "Fittings";
+export const UNCLASSIFIED_PLUMBING_CATEGORY = "Plumbing Accessories";
 
 const cleanCategory = (value: string | null | undefined) =>
   (value || "General")
@@ -44,20 +44,26 @@ export function cataloguePdfCategory(product: CataloguePdfGroupingProduct) {
 
   // The original wholesale range uses UG (underground) and SV (soil & vent).
   // Require a plumbing context or the unmistakable prefix, not an incidental substring.
-  if (/^(?:UG\b|UNDERGROUND\b)/i.test(name) ||
+  if (/^(?:(?:\d+(?:\.\d+)?\s*(?:MM)?\s*)?UG\b|UNDERGROUND\b)/i.test(name) ||
       (isPlumbing && /\b(?:UG|UNDERGROUND)\b/i.test(productText))) {
     return "Underground (UG)";
   }
-  if (/^SV\b/i.test(name) ||
+  if (/^(?:\d+(?:\.\d+)?\s*(?:MM)?\s*)?SV\b/i.test(name) ||
       (isPlumbing && /\b(?:SOIL\s*(?:AND|&)\s*VENT|SOIL\s*VENT)\b/i.test(productText))) {
     return "Soil & Vent (SV)";
   }
-  if (!isFitting) return category;
+  // Never recreate the erroneous broad Fittings catalogue page. Even legacy
+  // records saved with that category must be reassigned on export.
+  if (!isFitting) return explicitFittingsCategory.test(categoryForMatching) ? UNCLASSIFIED_PLUMBING_CATEGORY : category;
+
+  // Related non-plumbing fittings should go to their proper department.
+  if (/\b(?:CONDUIT|ELECTRICAL|CABLE|SWITCH|LIGHTING)\b/i.test(productText)) return "Electrical & Lighting";
+  if (/\b(?:GUTTER|DOWNPIPE|ROOFING)\b/i.test(productText)) return "Roofing & Gutters";
 
   if (/\b(?:HDPE|COMPRESSION|POLY\s*COMPRESSION)\b/i.test(productText)) return "HDPE & Compression Fittings";
   if (/\b(?:COPPER|BRASS|CXC|C\s*X\s*C)\b/i.test(productText)) return "Copper & Brass Fittings";
   if (/\b(?:GALVANISED|GALVANIZED|GALV\b|GI\b|MALLEABLE)\b/i.test(productText)) return "Galvanised Fittings";
   if (/\b(?:PVC|UPVC|PRESSURE|SOLVENT\s*WELD)\b/i.test(productText)) return "PVC & Pressure Fittings";
   if (/\b(?:WASTE|TRAP|BASIN|BATH|SINK)\b/i.test(productText)) return "Waste & Trap Fittings";
-  return FITTINGS_PDF_CATEGORY;
+  return UNCLASSIFIED_PLUMBING_CATEGORY;
 }
