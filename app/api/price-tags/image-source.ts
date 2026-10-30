@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 const raster = /^image\/(?:png|jpeg|webp|gif|avif)(?:;|$)/i;
-const allowed = new Set(["pulsetiles.co.za","www.pulsetiles.co.za","conantools.net","www.conantools.net","conantoolsusa.com","www.conantoolsusa.com"]);
+const allowed = new Set(["pulsetiles.co.za","www.pulsetiles.co.za","conantools.net","www.conantools.net","conantoolsusa.com","www.conantoolsusa.com","b2c.et-dev.co.za"]);
 export async function tagImageResponse(req: Request, row: { image_key: string; image_type: string } | null) {
   if (!row?.image_key) return new Response("Not found", { status: 404 });
   try {
