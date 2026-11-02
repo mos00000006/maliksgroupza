@@ -1,0 +1,57 @@
+-- Eurocelt official Eurofit catalogue PDF (EUROFIT-30-09.pdf). Codes as shown; no fabricated prices or image links.
+-- Idempotent and safe: retains existing records if a code already exists (case/space-insensitive).
+-- Run on a backup / staging D1 first.
+CREATE INDEX IF NOT EXISTS catalogue_products_normalised_code_idx ON catalogue_products(upper(trim(code)));
+--> statement-breakpoint
+WITH incoming(code,name,category) AS (VALUES
+('E105','Eurofit 110mm x 50mm x 90° SV AH double reducing junction','Plumbing'),
+('E012','Eurofit 110mm SV RR bent pan collar and seal AH','Plumbing'),
+('E002','Eurofit 110mm SV double RR socket','Plumbing'),
+('E011','Eurofit 110mm SV Kimberley collar','Plumbing'),
+('E008','Eurofit 110mm SV RR bent pan collar and seal plain','Plumbing'),
+('E081','Eurofit 110mm x 22° SV plain bend short radius','Plumbing'),
+('E074','Eurofit 110mm x 45° SV plain bend short radius','Plumbing'),
+('E073','Eurofit 110mm x 45° SV plain bend','Plumbing'),
+('E057','Eurofit 110mm x 90° SV AH bend','Plumbing'),
+('E058','Eurofit 110mm x 90° SV AH vent horn bend RR','Plumbing'),
+('E075','Eurofit 110mm x 45° SV AH bend','Plumbing'),
+('E055','Eurofit 110mm x 90° SV plain bend','Plumbing'),
+('E027','Eurofit 110mm x 45° SV plain junction','Plumbing'),
+('E017','Eurofit 110mm SV RR straight pan collar','Plumbing'),
+('E022','Eurofit 110mm x 90° SV plain junction','Plumbing'),
+('E023','Eurofit 110mm x 90° SV AH junction','Plumbing'),
+('E030','Eurofit 110mm x 50mm x 90° SV plain single reducing junction','Plumbing'),
+('E102','Eurofit 110mm x 50mm x 90° SV AH single reducing junction','Plumbing'),
+('E104','Eurofit 110mm x 50mm x 90° SV plain double reducing junction','Plumbing'),
+('E103','Eurofit 110mm x 50mm SV eccentric reducer','Plumbing'),
+('E029','Eurofit 110mm x 45° SV AR junction','Plumbing'),
+('E024','Eurofit 110mm x 45° UG plain junction','Plumbing'),
+('E007','Eurofit 110mm UG Kimberley collar','Plumbing'),
+('E001','Eurofit 110mm UG double RR socket','Plumbing'),
+('E155','Eurofit Gully P trap','Plumbing'),
+('E025','Eurofit 110mm x 45° UG AL junction [supplier text UJ AL]','Plumbing'),
+('E026','Eurofit 110mm x 45° UG AR junction','Plumbing'),
+('E020','Eurofit 110mm x 90° UG plain junction','Plumbing'),
+('E021','Eurofit 110mm x 90° UG AH junction','Plumbing'),
+('E072','Eurofit 110mm x 45° UG AH bend','Plumbing'),
+('E070','Eurofit 110mm x 45° UG plain bend','Plumbing'),
+('E071','Eurofit 110mm x 45° UG plain short radius bend','Plumbing'),
+('E080','Eurofit 110mm x 22.5° UG plain bend','Plumbing'),
+('E050','Eurofit 110mm x 90° UG plain bend','Plumbing'),
+('E052','Eurofit 110mm x 90° UG AH bend','Plumbing'),
+('E145','Eurofit 110mm x 45° UG rodding eye','Plumbing'),
+('E140','Eurofit Gully head and grid','Plumbing'),
+('CE041','Eurofit Gully grid only','Plumbing'),
+('E150','Eurofit 110mm UPVC earthenware adaptor','Plumbing'),
+('E307','Eurofit 15mm Polycop pipe 50m coil','Plumbing'),
+('E308','Eurofit 15mm Polycop pipe 100m coil','Plumbing'),
+('E326','Eurofit 22mm Polycop pipe 50m coil','Plumbing'),
+('E327','Eurofit 22mm Polycop pipe 100m coil','Plumbing'),
+('M501','Eurofit 15mm Masterbatt salmon','Plumbing'),
+('M502','Eurofit 15mm Masterbatt white','Plumbing'),
+('M505','Eurofit 22mm Masterbatt salmon','Plumbing'),
+('M506','Eurofit 22mm Masterbatt white','Plumbing')
+)
+INSERT INTO catalogue_products (code,name,description,category,active,created_by,created_at,updated_by,updated_at)
+SELECT i.code,i.name,'Supplier: Eurocelt Eurofit; confirm image/price before publishing',i.category,1,'system:eurofit-pdf-2026-11-02',datetime('now'),'system:eurofit-pdf-2026-11-02',datetime('now') FROM incoming i
+WHERE NOT EXISTS (SELECT 1 FROM catalogue_products p WHERE upper(trim(p.code))=upper(trim(i.code)));

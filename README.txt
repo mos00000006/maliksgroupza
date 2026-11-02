@@ -1,14 +1,19 @@
-MALIKS CATALOGUE - FINAL REVIEWED PATCH (30 October 2026)
+EUROFIT CATALOGUE IMPORT — reviewed partial import
 
-Copy the app/ and tests/ folders into the repository root, replacing matching files.
-Commit and push, then run npm run check before production deployment.
+Source: https://www.eurocelt.co.za/wp-content/uploads/2016/04/EUROFIT-30-09.pdf
+Products with explicit manufacturer codes: 47.
+No invented SKU, prices or image URLs.
 
-Corrections:
-- PDF / flipbook: no mixed Fittings section; UG/SV and fitting families separated.
-- PDF / flipbook: Alco blinds from existing Homeware records get a dedicated Window Blinds & Treatments section.
-- Online catalogue: a new Window Blinds & Treatments category filter; existing imported blinds appear there even without running a database migration, and are excluded from Homeware while browsing.
-- New/edited blinds automatically save with the blinds category.
-- Stock codes, prices, images and stored legacy product data remain intact.
-- Tests updated for intended classification.
+Files:
+  drizzle/0049_eurofit_catalogue.sql
+  docs/eurofit-products.csv
 
-Note: This patch does NOT rewrite pre-existing database records. PDF export classification and online catalogue browsing are adjusted at read time.
+IMPORTANT: The supplied Eurofit PDF contains SV, UG and Polycop/Masterbatt entries. It lists additional pipes and dimensions WITHOUT individual stock codes, which have not been fabricated.
+
+Apply the SQL to your Cloudflare D1 database (after backup) using your existing migration workflow. The migration inserts new codes and skips existing codes; it does NOT delete or replace unrelated products. Check existing-code overlaps manually before choosing to replace any SKU, because code-only matching is insufficient to identify duplicates.
+
+Category is 'Plumbing', matching the existing Hub online filter. The product names contain distinct 'UG' and 'SV' descriptions for the leaflet/PDF grouping.
+
+Images are intentionally left empty: the PDF has illustrations but no per-product image URLs suitable for catalogue image registration. The Hub image uploader can add them later.
+
+Test: SQL validated against an in-memory SQLite catalogue schema. Importing twice does not duplicate records. Full Hub build and deployed D1 verification not performed.
