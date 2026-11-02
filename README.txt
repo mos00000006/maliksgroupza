@@ -1,10 +1,15 @@
-Maliks Eurofit image follow-up (partial, verified images)
+EUROFIT PICTURE PATCH — IMAGES FROM YOUR TWO SUPPLIED BROCHURE PAGES
 
-This fixes the previous import's lack of images for THREE specifically matched items only:
-- E073 - 110mm SV 45 degree plain bend, retailer Eurofit photo
-- E030 - 110x50 SV eccentric reducer, retailer Eurofit E030 photo
-- E025 - 110mm UG 45 degree access junction, retailer Eurofit photo
+46 PNG files, matched by the supplier code.
 
-Apply original 0049 migration first, then 0050. Existing product images are never replaced. This SQL uses remote retailer-hosted photos, whose URLs may change or disallow hotlinking. Confirm picture rights before commercial publication.
+INSTALL:
+1. Copy public/eurofit/ into the root of your Hub repo.
+2. Apply drizzle/0051_eurofit_local_brochure_images.sql to your Cloudflare D1 database AFTER earlier Eurofit imports (0049, 0050). Merely copying the SQL to GitHub does not run it.
+3. Build/deploy your Hub (static public image paths become available).
+4. Hard refresh catalogue, search E001, E073, M501 and check the actual image.
 
-IMPORTANT: The remaining 44 Eurofit imported products do not yet have validated individual image URLs. This is not a complete image solution; DO NOT claim all images will display. Some original imported product descriptions/codes need audit against the supplier PDF (for example E030, E011, E008, E102-E105) before assigning further pictures. The recommended next step is to obtain Eurocelt's original product image pack or individual product photos and upload them into the Hub's existing image flow, then verify each image against its code.
+All image paths are local (/eurofit/...) and use image_key format supported by app/api/catalogue/shared.ts.
+The shared Masterbatts and Polycop illustrations do not show a specific size/colour or pipe length.
+Only image fields of Eurofit-named rows are updated. Existing R2/uploads are preserved. Previous external static links may be replaced.
+IMPORTANT: Uploaded pages are not a full product picture catalogue, so any codes not illustrated here remain unchanged.
+The supplied brochure prints CE041 for gully grid only; the image is shared with E140 and must be regarded as representative. Verify against supplier if product-specific photography is required.
