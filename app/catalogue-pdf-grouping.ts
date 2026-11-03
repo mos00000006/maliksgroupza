@@ -1,69 +1,70 @@
 export type CataloguePdfGroupingProduct = {
+  code?: string | null;
   category?: string | null;
   name?: string | null;
   description?: string | null;
 };
 
-export const UNCLASSIFIED_PLUMBING_CATEGORY = "Plumbing Accessories";
-
-const cleanCategory = (value: string | null | undefined) =>
-  (value || "General")
-    .replace(/[–—]/g, "-")
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/[^\x20-\x7E]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim() || "General";
-
-const explicitFittingsCategory = /^(?:FITTINGS|PLUMBING FITTINGS|PIPE FITTINGS|BATHROOM FITTINGS|SANWARE FITTINGS)$/i;
-const plumbingFamilyCategory = /(?:PLUMB|BATHROOM|SANWARE|SANITARY|DRAINAGE|PIPE|FITTING)/i;
-const explicitFittingName = /\bFITTINGS?\b/i;
-const plumbingFittingName = /\b(?:ADAPTORS?|ADAPTERS?|BENDS?|BUSHES?|BUSHINGS?|CAPS?|CONNECTORS?|COUPLERS?|COUPLINGS?|ELBOWS?|FERRULES?|FLANGES?|GULL(?:Y|EY)(?:S)?|JUNCTIONS?|NIPPLES?|PLUGS?|REDUCERS?|RODDING\s+EYES?|SADDLES?|SOCKETS?|STOPCOCKS?|TEES?|TRAPS?|UNIONS?|VALVES?)\b|\bEND\s+CAPS?\b|\bPAN\s+SEALS?\b|\b(?:BASIN|BATH|SINK)\s+WASTES?\b/i;
+const clean = (value?: string | null) => (value || "").replace(/\s+/g, " ").trim();
+const has = (text: string, pattern: RegExp) => pattern.test(text);
 
 /**
- * Catalogue PDF / interactive leaflet sections are display-only. Database categories,
- * stock codes, product images and product records remain unchanged.
- * Put the named plumbing family first so UG and SV can never mix with generic fittings.
+ * Single catalogue presentation taxonomy. Name/code is tested before a legacy
+ * generic category. Explicitly named categories remain the fallback.
+ * This never changes the stock code, photos, price, or stored product record.
  */
-export function cataloguePdfCategory(product: CataloguePdfGroupingProduct) {
-  const category = cleanCategory(product.category);
-  const categoryForMatching = category.replace(/[·&/\\-]+/g, " ");
-  const name = (product.name || "").replace(/\s+/g, " ").trim();
-  const productText = `${name} ${product.description || ""}`.replace(/\s+/g, " ").trim();
-  // Window blinds are home/window treatments, even when imported with a plumbing category.
-  // Exclude blind flanges, caps and rivets, which are not window coverings.
-  const windowBlindCategory = /\b(?:WINDOW\s*(?:BLINDS?|COVERINGS?|TREATMENTS?)|BLINDS?|CURTAINS?|SHADES?)\b/i.test(categoryForMatching);
-  const windowBlindProduct = /\bBLINDS?\b/i.test(name) &&
-    !/\bBLIND\s+(?:FLANGES?|CAPS?|RIVETS?|PLUGS?|NUTS?)\b/i.test(name);
-  if (windowBlindCategory || windowBlindProduct) return "Window Blinds & Treatments";
+export function cataloguePdfCategory(p: CataloguePdfGroupingProduct): string {
+  const name = clean(p.name).toUpperCase();
+  const code = clean(p.code).toUpperCase();
+  const category = clean(p.category) || "General";
+  const cat = category.toUpperCase();
+  const text = `${name} ${clean(p.description).toUpperCase()}`;
 
-  const isPlumbing = plumbingFamilyCategory.test(categoryForMatching) || explicitFittingsCategory.test(categoryForMatching);
-  const isFitting = explicitFittingsCategory.test(categoryForMatching) ||
-    explicitFittingName.test(productText) ||
-    (isPlumbing && plumbingFittingName.test(productText));
+  // Avoid treating blind rivets, blind flanges and blanking caps as window blinds.
+  if (has(name, /\b(?:BLINDS?|VENETIAN BLINDS?|ROLLER BLINDS?)\b/) &&
+      !has(name, /\bBLIND\s+(?:RIVETS?|FLANGES?|CAPS?|PLUGS?|NUTS?)\b/)) return "Window Blinds & Treatments";
+  if (cat === "WINDOW BLINDS & TREATMENTS") return "Window Blinds & Treatments";
 
-  // The original wholesale range uses UG (underground) and SV (soil & vent).
-  // Require a plumbing context or the unmistakable prefix, not an incidental substring.
-  if (/^(?:(?:\d+(?:\.\d+)?\s*(?:MM)?\s*)?UG\b|UNDERGROUND\b)/i.test(name) ||
-      (isPlumbing && /\b(?:UG|UNDERGROUND)\b/i.test(productText))) {
-    return "Underground (UG)";
-  }
-  if (/^(?:\d+(?:\.\d+)?\s*(?:MM)?\s*)?SV\b/i.test(name) ||
-      (isPlumbing && /\b(?:SOIL\s*(?:AND|&)\s*VENT|SOIL\s*VENT)\b/i.test(productText))) {
-    return "Soil & Vent (SV)";
-  }
-  // Never recreate the erroneous broad Fittings catalogue page. Even legacy
-  // records saved with that category must be reassigned on export.
-  if (!isFitting) return explicitFittingsCategory.test(categoryForMatching) ? UNCLASSIFIED_PLUMBING_CATEGORY : category;
+  // Adhesives containing words such as "cornice" must not become boards.
+  if (has(name, /\b(?:ADHESIVES?|GLUES?|SEALANTS?|SILICONES?|EPOXY|GROUT)\b/)) return "Adhesives & Chemicals";
 
-  // Related non-plumbing fittings should go to their proper department.
-  if (/\b(?:CONDUIT|ELECTRICAL|CABLE|SWITCH|LIGHTING)\b/i.test(productText)) return "Electrical & Lighting";
-  if (/\b(?:GUTTER|DOWNPIPE|ROOFING)\b/i.test(productText)) return "Roofing & Gutters";
+  // Distinguish tools and electrical sockets from plumbing fittings.
+  if (has(name, /\b(?:BLIND RIVET|POP RIVET|SCREWS?|BOLTS?|NUTS?|WASHERS?|NAILS?|ANCHORS?|RAWL\s*PLUGS?|WALL\s*PLUGS?)\b/)) return "Fasteners";
+  if (has(name, /\b(?:DRILL BITS?|SCREWDRIVERS?|SOCKET SET|SOCKET WRENCH|SPANNERS?|PLIERS?|HAMMERS?|SAWS?|GRINDERS?|WRENCHES?|CHISELS?)\b/)) return "Tools";
+  if (has(name, /\b(?:ELECTRICAL SOCKETS?|PLUG SOCKET|WALL SOCKET|LIGHT SWITCH|CONDUIT|CABLE|CIRCUIT BREAKER|LED LAMP|DOWNLIGHT)\b/)) return "Electrical & Lighting";
 
-  if (/\b(?:HDPE|COMPRESSION|POLY\s*COMPRESSION)\b/i.test(productText)) return "HDPE & Compression Fittings";
-  if (/\b(?:COPPER|BRASS|CXC|C\s*X\s*C)\b/i.test(productText)) return "Copper & Brass Fittings";
-  if (/\b(?:GALVANISED|GALVANIZED|GALV\b|GI\b|MALLEABLE)\b/i.test(productText)) return "Galvanised Fittings";
-  if (/\b(?:PVC|UPVC|PRESSURE|SOLVENT\s*WELD)\b/i.test(productText)) return "PVC & Pressure Fittings";
-  if (/\b(?:WASTE|TRAP|BASIN|BATH|SINK)\b/i.test(productText)) return "Waste & Trap Fittings";
-  return UNCLASSIFIED_PLUMBING_CATEGORY;
+  // Named building families: do not swallow these into generic hardware.
+  if (has(name, /\b(?:LOCKSETS?|MORTICE LOCK|CYLINDER LOCK|PADLOCKS?)\b/)) return "Locksets";
+  if (has(name, /\b(?:HINGES?|DOOR HANDLES?|CABINET HANDLES?|PULL HANDLES?|BRACKETS?|DOOR STOPS?)\b/) &&
+      !has(name, /\bPIPE\s+BRACKET\b/)) return "Ironmongery";
+  if (has(name, /\b(?:GYPSUM BOARD|CEILING BOARD|BOARD CEILING GYPSUM|FASCIA BOARD|RHINOBOARD|CORNICE|PLASTERBOARD)\b/)) return "Boards & Ceilings";
+  if (has(name, /\b(?:TIMBER|BRANDERING|PURLIN|RAFTERS?|PINE PLANK)\b/) &&
+      !has(name, /\bTIMBER\s+SCREWS?\b/)) return "Timber";
+  if (has(name, /\b(?:WATERPROOFING MEMBRANE|WATERPROOF FIX|FIX A LEAK|ACRYLIC WATERPROOF|LIQUID RUBBER|FIBRE FLEX)\b/)) return "Waterproofing";
+  if (has(name, /\b(?:GUTTER|DOWN\s*PIPE\s*GUTTER|ROOF\s*TILE|ROOF\s*SHEETING|ROOFING SHEET|ROOF UNDERLAY)\b/)) return "Roofing & Gutters";
+
+  // Pipes are different from fittings. Match first to avoid pipe UG => UG fitting.
+  if (has(name, /\b(?:PIPE|PIPING|POLYCOP|POLYCORP|POLYCOP2000)\b/) &&
+      !has(name, /\b(?:PIPE FITTING|PIPE CONNECTOR|PIPE COUPLING)\b/)) return "Plumbing Pipes";
+  if (has(name, /\bMASTERBATTS?\b/) || /^M50[1256]$/.test(code)) return "Plumbing Accessories";
+
+  const plumbingContext = has(cat, /\b(?:PLUMBING|FITTINGS?|DRAINAGE|SOIL|VENT|UNDERGROUND|UG|SV|WASTE)\b/) ||
+    has(name, /^(?:\d+(?:\.\d+)?\s*MM\s*)?(?:UG|SV|W)\b|\b(?:HDPE|POLYCOP|POLYCORP|UPVC|SOIL\s*&?\s*VENT)\b/) ||
+    /^E\d{3}$/.test(code);
+  // UG/SV are exclusively plumbing contexts. Do not classify a random 'UG' description.
+  if (plumbingContext && (has(name, /^(?:\d+(?:\.\d+)?\s*MM\s*)?UG\b|\bUNDERGROUND\b/) ||
+      has(cat, /\b(?:UNDERGROUND|UG)\b/) || has(name, /\bUG\s+(?:BEND|JUNCTION|SOCKET|COLLAR|REDUCER|ADAPTOR|TRAP|RODDING|GULLY)\b/))) return "Underground (UG)";
+  if (plumbingContext && (has(name, /^(?:\d+(?:\.\d+)?\s*MM\s*)?SV\b|\bSOIL\s*(?:AND|&)\s*VENT\b/) || has(cat, /\b(?:SOIL|VENT|SV)\b/))) return "Soil & Vent (SV)";
+  if (plumbingContext && has(name, /^W\s*\d+\s*MM/)) return "Waste & Trap Fittings";
+  if (plumbingContext && has(name, /\b(?:HDPE|COMPRESSION|COMP\s+HDPE)\b/)) return "HDPE & Compression Fittings";
+  if (plumbingContext && has(name, /\b(?:COPPER|BRASS|C\s*X\s*C)\b/)) return "Copper & Brass Fittings";
+  if (plumbingContext && has(name, /\b(?:GALVANISED|GALVANIZED|GALV\b|MALLEABLE)\b/)) return "Galvanised Fittings";
+  if (plumbingContext && has(name, /\b(?:UPVC|PVC|PRESSURE|SOLVENT WELD)\b/)) return "PVC & Pressure Fittings";
+  if (plumbingContext && has(name, /\b(?:WASTE|TRAP|GULLY|BASIN WASTE|BATH WASTE|SINK WASTE)\b/)) return "Waste & Trap Fittings";
+
+  // Never render the legacy mixed Fittings page.
+  if (/^(?:FITTINGS|PLUMBING FITTINGS|PIPE FITTINGS|BATHROOM FITTINGS|SANWARE FITTINGS)$/i.test(category)) return "Plumbing Accessories";
+  if (category === "Fasteners & Ironmongery") return "General Hardware";
+  if (category === "Roofing") return "Roofing & Gutters";
+  return category;
 }
