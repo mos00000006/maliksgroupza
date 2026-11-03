@@ -1,22 +1,26 @@
-MALIKS / POWERBUILD / BUSTER BUILD — SAFETY & WARNING SIGNS
+SAFETY & WARNING SIGNS - GITHUB CI REPAIR
 
-NEW MODULE, designed for your existing app/price-tags studio.
+The GitHub log shows 139 / 140 tests passing. The failing test checks
+for the exact text "Safety &amp; Warning Signs" in the Studio menu.
 
-1. Copy app/price-tags/safety-warning-signs.tsx and
-   app/price-tags/safety-warning-signs.module.css into your live repository.
-2. Copy scripts/install-safety-signs.mjs into scripts/.
-3. From your repo root run: node scripts/install-safety-signs.mjs
-4. Copy tests/safety-warning-signs.test.mjs into tests/.
-5. Run npm run check; commit and deploy if checks pass.
+This patch:
+  1. Checks/repairs the Studio tab, import, mode and dispatch if incomplete.
+  2. Updates the test to accept both valid JSX spellings (& and &amp;),
+     but still REQUIRES the tab and functional dispatch.
 
-The integration script edits ONLY app/price-tags/price-tag-generator.tsx.
-It refuses unknown source structure instead of overwriting recent changes.
-It is safe to run a second time. Existing price-tag tools remain intact.
+Copy:
+  scripts/repair-safety-signs.mjs -> scripts/
+  tests/safety-warning-signs.test.mjs -> tests/ (replace old test)
 
-The module provides A4/A3 portrait/landscape PDFs/JPGs, editable text,
-PowerBuild/Buster Build headings, yard/PPE/fire/exit/first aid and custom notices.
+From the repository root run:
+  node scripts/repair-safety-signs.mjs
+  npm run check
 
-SAFETY: These are editable design templates, NOT compliant or officially approved
-safety signs. Confirm local South African requirements and correct pictograms,
-colours, dimensions, placement, photoluminescence, etc. with an OHS professional
-before placing any sign intended to fulfill statutory obligations.
+Commit the modified files and redeploy after the check is green.
+
+IMPORTANT: The actual sign editor files must already exist at:
+  app/price-tags/safety-warning-signs.tsx
+  app/price-tags/safety-warning-signs.module.css
+
+If they are missing, take them from the previous Safety & Warning Signs
+patch first. This repair does not alter any other Studio tools or data.
