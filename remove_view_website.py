@@ -1,19 +1,32 @@
 #!/usr/bin/env python3
-"""Remove only PowerBuild 'View Website' links installed by prior Hub website patch."""
+"""Remove only Hub header View Website links; preserve all other modules."""
 from pathlib import Path
-import re
-
-root = Path(__file__).resolve().parent
-# Use repository root supplied as argument, or current directory.
-import sys
-repo = Path(sys.argv[1]).resolve() if len(sys.argv)>1 else Path.cwd()
-page = repo / 'app/page.tsx'
-if not page.exists():
-    raise SystemExit('Cannot find app/page.tsx. Run from the Hub repository root.')
-s = page.read_text(encoding='utf-8')
-# Remove exact self-contained header link only.
-pattern = re.compile(r'^\s*<a href="/shop" target="_blank" rel="noopener noreferrer" title="Open the live PowerBuild customer website"[^\n]*>↗ View Website</a>\s*\n', re.M)
-s2, count = pattern.subn('\n', s)
-if count:
-    page.write_text(s2, encoding='utf-8')
-print(f'Header View Website button removed: {count}; no other Hub files changed.')
+import re, sys
+repo=Path(sys.argv[1]).resolve() if len(sys.argv)>1 else Path.cwd()
+p=repo/'app'/'page.tsx'
+if not p.is_file():
+    raise SystemExit('ERROR: app/page.tsx not found. Run from the GitHub repo root.')
+s=p.read_text(encoding='utf-8')
+# Match a complete JSX anchor on one or multiple lines: only targets the View Website link.
+anchors=re.compile(r'<a\b(?:(?!</a>).)*</a>',re.S)
+removed=[]
+def replace(m):
+    tag=m.group(0)
+    if (re.search(r'\bView\s+(?:PowerBuild\s+)?Website\b',tag,re.I)
+        and (re.search(r'href\s*=\s*[\"\'](?:/shop|/shop/|https?://[^\"\']+)[\"\']',tag,re.I)
+             or re.search(r'title\s*=\s*[\"\'][^\"\']*customer website',tag,re.I))):
+        removed.append(tag)
+        return ''
+    return tag
+out=anchors.sub(replace,s)
+# Fail safely for unknown layouts rather than claiming success.
+if out==s:
+    if re.search(r'View\s+(?:PowerBuild\s+)?Website',s,re.I):
+        raise SystemExit('No recognized button removed. A View Website reference remains; please share your latest app/page.tsx.')
+    print('Already removed: no View Website link in app/page.tsx.')
+    sys.exit(0)
+backup=p.with_suffix('.tsx.view-website-backup')
+backup.write_text(s,encoding='utf-8')
+p.write_text(out,encoding='utf-8')
+print(f'Removed {len(removed)} View Website link(s) from app/page.tsx.')
+print(f'Backup: {backup.name}')
