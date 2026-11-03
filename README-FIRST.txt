@@ -1,23 +1,22 @@
-MALIKS GROUP HUB — FIX THE OUTDATED UG CLASSIFICATION TEST
+MALIKS / POWERBUILD / BUSTER BUILD — SAFETY & WARNING SIGNS
 
-GitHub Actions reports 135 passed, 1 failed.
-The failing case is in tests/catalogue-pdf-fittings.test.mjs:
-  PIPE UG 110MMX6M -> EXPECTED Plumbing Pipes (incorrect)
-  PIPE UG 110MMX6M -> ACTUAL Underground (UG) (correct)
+NEW MODULE, designed for your existing app/price-tags studio.
 
-HOW TO INSTALL
-1. Replace ONLY tests/catalogue-pdf-fittings.test.mjs in your GitHub repository
-   with the file at the same path in this ZIP.
-2. Commit to the branch used by your GitHub Actions and Cloudflare deploy.
-3. Run npm run check again.
+1. Copy app/price-tags/safety-warning-signs.tsx and
+   app/price-tags/safety-warning-signs.module.css into your live repository.
+2. Copy scripts/install-safety-signs.mjs into scripts/.
+3. From your repo root run: node scripts/install-safety-signs.mjs
+4. Copy tests/safety-warning-signs.test.mjs into tests/.
+5. Run npm run check; commit and deploy if checks pass.
 
-OR EDIT DIRECTLY IN GITHUB
-Find the row containing PIPE UG 110MMX6M inside the test and change its
-expected value from 'Plumbing Pipes' to 'Underground (UG)'.
+The integration script edits ONLY app/price-tags/price-tag-generator.tsx.
+It refuses unknown source structure instead of overwriting recent changes.
+It is safe to run a second time. Existing price-tag tools remain intact.
 
-The replacement also adds two UG regression examples.
-No Hub application logic, D1 migration, product codes, pictures, pricing or
-other tests are changed. This only fixes an outdated test expectation.
+The module provides A4/A3 portrait/landscape PDFs/JPGs, editable text,
+PowerBuild/Buster Build headings, yard/PPE/fire/exit/first aid and custom notices.
 
-VALIDATION: Checked source syntax/target test expectations. Full npm run check
-not executed in this environment because project node_modules are unavailable.
+SAFETY: These are editable design templates, NOT compliant or officially approved
+safety signs. Confirm local South African requirements and correct pictograms,
+colours, dimensions, placement, photoluminescence, etc. with an OHS professional
+before placing any sign intended to fulfill statutory obligations.
