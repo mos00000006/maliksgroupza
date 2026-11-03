@@ -1,11 +1,17 @@
-POWERBUILD — LEROY-INSPIRED FIND OUR STORES PAGE
+POWERBUILD STORE MANAGER — GITHUB LINT FIX
 
-Apply AFTER the PowerBuild_Leroy_Style_Complete_PATCH.zip. This ZIP REPLACES the older PowerBuild_Find_Our_Stores_PATCH.zip; do not layer both.
+This patch fixes the react-hooks/set-state-in-effect error at app/ecommerce-store-manager.tsx:15.
 
-Provides dedicated public /shop/find-us route, named branch cards, verified addresses, Google Maps directions and expandable Monday-Sunday hours. Branch search filters by name/region/location. Main website nav and management preview point to this dedicated route. Hub E-Commerce Control > Stores manages addresses, times, phone and publication status.
+INSTALL
+1. Replace only app/ecommerce-store-manager.tsx in your repository with the file in this ZIP.
+2. Commit/push and run npm run check in GitHub Actions.
 
-Install: copy app/ into your repository, preserving file paths; commit, deploy; then enter VERIFIED address/city/trading hours in Hub > E-Commerce Control > Stores and publish each verified branch.
+CHANGE
+- Loads branch data asynchronously from the existing endpoint in the effect.
+- Prevents state updates after the component unmounts.
+- Handles failed requests.
+- Preserves branch editing and save behaviour.
 
-All store workspaces remain listed, but unpublished/unverified ones deliberately do not display guessed locations or times. Existing shop/product data and orders remain intact. No live domain/deployment and no full production build performed.
+This ZIP does not remove the public storefront or any View Website button. If your intention is to remove the website entirely, the current deployed source needs a separate removal change.
 
-Caution: The Hub's current branch settings support one weekday schedule (Monday-Friday), separate Saturday and Sunday hours; use public notes for public holidays. Do not invent map coordinates. Public route and public API must be allowed in Cloudflare Access policy, while Hub management endpoints remain restricted.
+Validation: original source matched the ZIP used in this conversation, and replacement was checked mechanically. Full npm check not run locally due to lack of installed dependencies.
