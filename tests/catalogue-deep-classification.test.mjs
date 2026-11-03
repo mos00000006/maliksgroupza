@@ -17,7 +17,7 @@ try {
     ['SV 110MMX45 DEG PLAIN BEND','Plumbing','Soil & Vent (SV)'],
     ['FITTING COMP HDPE 90DEG ELBOW 20MM','Plumbing','HDPE & Compression Fittings'],
     ['W 50MMX45 DEG PLAIN BEND','Plumbing','Waste & Trap Fittings'],
-    ['PIPE UG 110MMX6M','Plumbing','Plumbing Pipes'],
+    ['PIPE UG 110MMX6M','Plumbing','Underground (UG)'],
     ['Alco Aluminium Blinds 25mm','Homeware','Window Blinds & Treatments'],
     ['BLIND RIVET 3.2X06','Fasteners & Ironmongery','Fasteners'],
     ['DRILL BIT HSS 10MM','General Hardware','Tools'],

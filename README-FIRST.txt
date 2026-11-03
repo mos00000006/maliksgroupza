@@ -1,26 +1,43 @@
-MALIKS GROUP HUB — CLOUDFLARE D1 MIGRATION ERROR 7500 FIX
+MALIKS GROUP HUB — UG MUST HAVE ITS OWN DEPARTMENT (2026-11-03)
 
-Problem: The prior catalogue category migration included explicit BEGIN TRANSACTION and COMMIT commands. Cloudflare D1 Wrangler migrations reject those SQL statements in this execution context, returning error code 7500.
+ROOT CAUSE
+The previous classifier tested PIPE first. Example PIPE UG 110MMX6M was deliberately
+placed under Plumbing Pipes; its test also required that incorrect behaviour.
+Further, the Hub category filter searches D1 stored categories directly, not PDF labels.
 
-Fix: This replacement retains all 212 original exact-stock-code UPDATE statements and removes ONLY the BEGIN TRANSACTION and COMMIT wrapper. No product codes, names, pictures, prices, permissions or other tables are changed by the SQL. Each statement still restricts updates to active products with system-maintained updated_by values.
+FIX IN THIS ZIP
+1. app/catalogue-pdf-grouping.ts: UG (including pipes) takes precedence over Plumbing Pipes.
+2. drizzle/CATALOGUE_UG_DEDICATED_DEPARTMENT.sql: updates every active clearly marked UG
+   product in the live DB, not just the old 212-code imported subset.
+3. app/catalogue-ug-category.ts + scripts/install-ug-category-guard.py:
+   prevents future new/edited UG products from being saved under Plumbing.
+4. tests/catalogue-ug-exclusive.test.mjs: regression tests for UG, UG pipes, other products.
+5. tests/catalogue-deep-classification.test.mjs: replaces the obsolete assertion that UG
+   pipes belong in Plumbing Pipes (this test is only appropriate if the previous deep
+   classification test is currently installed).
+6. audit/: SQL for before/after checks and examples of identifiable UG stock codes.
 
-INSTALLATION (GitHub repository)
-1. Back up the live D1 database and export current catalogue_products records before applying any migration.
-2. Replace the existing file at drizzle/CATALOGUE_REVIEWED_CLASSIFICATION.sql with the file from this ZIP, keeping the SAME filename. DO NOT add a second numbered migration or put the file into a different migration directory unless your migration config uses another path.
-3. Commit and push the replacement file.
-4. Confirm Cloudflare deployment uses this commit/branch. Re-run:
-   npx wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc
-5. Verify the migration shows success. If Wrangler reports the migration has already been applied, DO NOT manually delete migration history or force it to rerun; inspect the database first.
-6. Compare before/after categories using the preview and verification queries shipped with the original catalogue cleanup package. Check a few UG, SV, blinds, locks and fastener products in the live Hub.
+GITHUB INSTALLATION
+A. Backup current GitHub code and your live D1 database.
+B. Copy app/catalogue-pdf-grouping.ts and app/catalogue-ug-category.ts into app/.
+C. Copy scripts/install-ug-category-guard.py into scripts/ then run from repo root:
+      python scripts/install-ug-category-guard.py
+   Script modifies only category assignment in app/api/catalogue/route.ts and
+   app/api/catalogue/[id]/route.ts; reruns are safe. Do not replace latest API files.
+D. Copy tests/catalogue-ug-exclusive.test.mjs into tests/. Replace the previous
+   tests/catalogue-deep-classification.test.mjs with the supplied test IF present.
+E. Run npm run check. Resolve any pre-existing lint/build failures separately.
+F. Before applying SQL: inspect audit/UG_BEFORE.sql on the live D1 database.
+G. Copy drizzle/CATALOGUE_UG_DEDICATED_DEPARTMENT.sql into drizzle/ once.
+   Migration tooling may automatically apply ALL files in drizzle. Backup first.
+   To apply directly using Wrangler instead of migrations, use the SQL file with
+   wrangler d1 execute --file against your database (but do NOT also install it
+   as a migration if already executed directly).
+H. Run audit/UG_AFTER.sql: the first query MUST return ZERO rows.
+I. Reload Hub, select Underground (UG); check PIPE UG 110MMX6M appears there,
+   not under Plumbing or Plumbing Pipes, and regenerate the PDF and leaflet.
 
-SAFETY
-- A failed migration normally remains pending, but verify using: npx wrangler d1 migrations list maliks-group-hub-db --remote --config .deploy/wrangler.jsonc
-- D1 migration management controls execution; do not wrap migration SQL in BEGIN/COMMIT. Back up first and ensure no other deployment executes migrations concurrently.
-- This fix addresses ONLY SQL error 7500; it does not prove the live database schema matches the SQL or that all products are correctly classified.
-- If the next run fails with a different error (missing table/column), stop and share the new error instead of modifying live schema blindly.
-
-VALIDATION
-- Verified 212 UPDATE statements retained exactly unchanged.
-- Verified no explicit BEGIN, COMMIT or SAVEPOINT.
-- Executed SQL twice against a synthetic SQLite table with matching required columns: worked, preserved price/image, respected manual edits.
-- Not run against live Cloudflare D1 from this environment.
+LIMITS: This classification deliberately matches whole-word UG / UNDERGROUND in the
+product name or an explicitly UG category. Unknown abbreviations not in product name
+need a current D1 export to classify safely. Changes to the live database cannot be
+performed from this ZIP alone. Pricing/images are not touched.

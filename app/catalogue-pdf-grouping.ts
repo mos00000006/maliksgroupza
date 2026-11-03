@@ -43,7 +43,13 @@ export function cataloguePdfCategory(p: CataloguePdfGroupingProduct): string {
   if (has(name, /\b(?:WATERPROOFING MEMBRANE|WATERPROOF FIX|FIX A LEAK|ACRYLIC WATERPROOF|LIQUID RUBBER|FIBRE FLEX)\b/)) return "Waterproofing";
   if (has(name, /\b(?:GUTTER|DOWN\s*PIPE\s*GUTTER|ROOF\s*TILE|ROOF\s*SHEETING|ROOFING SHEET|ROOF UNDERLAY)\b/)) return "Roofing & Gutters";
 
-  // Pipes are different from fittings. Match first to avoid pipe UG => UG fitting.
+  // UG is a dedicated DEPARTMENT, including UG pipes. Always classify UG
+  // before generic Plumbing Pipes and before other fitting subcategories.
+  // Use word boundaries: PLUG, MUG and BLIND PLUG must NOT be treated as UG.
+  if (has(name, /\bUG\b|\bUNDERGROUND\b/) ||
+      has(cat, /^(?:UG|UNDERGROUND(?:\s*\(UG\))?)$/)) return "Underground (UG)";
+
+  // Pipes other than UG stay in their own relevant pipe department.
   if (has(name, /\b(?:PIPE|PIPING|POLYCOP|POLYCORP|POLYCOP2000)\b/) &&
       !has(name, /\b(?:PIPE FITTING|PIPE CONNECTOR|PIPE COUPLING)\b/)) return "Plumbing Pipes";
   if (has(name, /\bMASTERBATTS?\b/) || /^M50[1256]$/.test(code)) return "Plumbing Accessories";
@@ -51,9 +57,6 @@ export function cataloguePdfCategory(p: CataloguePdfGroupingProduct): string {
   const plumbingContext = has(cat, /\b(?:PLUMBING|FITTINGS?|DRAINAGE|SOIL|VENT|UNDERGROUND|UG|SV|WASTE)\b/) ||
     has(name, /^(?:\d+(?:\.\d+)?\s*MM\s*)?(?:UG|SV|W)\b|\b(?:HDPE|POLYCOP|POLYCORP|UPVC|SOIL\s*&?\s*VENT)\b/) ||
     /^E\d{3}$/.test(code);
-  // UG/SV are exclusively plumbing contexts. Do not classify a random 'UG' description.
-  if (plumbingContext && (has(name, /^(?:\d+(?:\.\d+)?\s*MM\s*)?UG\b|\bUNDERGROUND\b/) ||
-      has(cat, /\b(?:UNDERGROUND|UG)\b/) || has(name, /\bUG\s+(?:BEND|JUNCTION|SOCKET|COLLAR|REDUCER|ADAPTOR|TRAP|RODDING|GULLY)\b/))) return "Underground (UG)";
   if (plumbingContext && (has(name, /^(?:\d+(?:\.\d+)?\s*MM\s*)?SV\b|\bSOIL\s*(?:AND|&)\s*VENT\b/) || has(cat, /\b(?:SOIL|VENT|SV)\b/))) return "Soil & Vent (SV)";
   if (plumbingContext && has(name, /^W\s*\d+\s*MM/)) return "Waste & Trap Fittings";
   if (plumbingContext && has(name, /\b(?:HDPE|COMPRESSION|COMP\s+HDPE)\b/)) return "HDPE & Compression Fittings";
