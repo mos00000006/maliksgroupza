@@ -1,20 +1,11 @@
-POWERBUILD — FIND OUR STORES PATCH
+POWERBUILD — LEROY-INSPIRED FIND OUR STORES PAGE
 
-Apply AFTER the PowerBuild_Leroy_Style_Complete_PATCH.zip website patch. This patch updates the public storefront and E-Commerce Control.
+Apply AFTER the PowerBuild_Leroy_Style_Complete_PATCH.zip. This ZIP REPLACES the older PowerBuild_Find_Our_Stores_PATCH.zip; do not layer both.
 
-Files:
-- app/ecommerce-storefront.tsx + CSS: search-enabled store locator and map directions.
-- app/api/ecommerce/public/route.ts: read active store workspaces and confirmed profiles.
-- app/api/ecommerce/control/route.ts: secured store profile editing; creates table if absent.
-- app/ecommerce-control.tsx + app/ecommerce-store-manager.tsx: Stores tab to manage verified addresses, phone numbers and hours.
+Provides dedicated public /shop/find-us route, named branch cards, verified addresses, Google Maps directions and expandable Monday-Sunday hours. Branch search filters by name/region/location. Main website nav and management preview point to this dedicated route. Hub E-Commerce Control > Stores manages addresses, times, phone and publication status.
 
-HOW TO USE
-1. Back up repository and Cloudflare D1 database. Copy the patch files into the repository, preserving folders, commit and deploy.
-2. In Hub > E-Commerce Control > Stores, enter street address, city/town, phone and weekday/Saturday/Sunday hours for each branch.
-3. Tick 'Publish verified details' and Save branch. Publishing requires street address, city and weekday hours.
-4. Open /shop#find-stores. Store names come from the active Store workspaces in the Hub. All branches are listed; unverified addresses/hours are NOT invented.
-5. Get directions opens Google Maps search using the verified postal address, not guessed coordinates.
+Install: copy app/ into your repository, preserving file paths; commit, deploy; then enter VERIFIED address/city/trading hours in Hub > E-Commerce Control > Stores and publish each verified branch.
 
-Public domain/Cloudflare Access: public storefront and public catalogue API must be publicly readable, while /api/ecommerce/control and all Hub management paths stay restricted.
+All store workspaces remain listed, but unpublished/unverified ones deliberately do not display guessed locations or times. Existing shop/product data and orders remain intact. No live domain/deployment and no full production build performed.
 
-This patch does not invent or verify any addresses/hours, and cannot display missing details until your branch teams enter and publish them. No deployment or live tests have been run.
+Caution: The Hub's current branch settings support one weekday schedule (Monday-Friday), separate Saturday and Sunday hours; use public notes for public holidays. Do not invent map coordinates. Public route and public API must be allowed in Cloudflare Access policy, while Hub management endpoints remain restricted.

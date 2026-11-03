@@ -261,7 +261,7 @@ export default function EcommerceStorefront({ channel }: Props) {
         <nav id="powerbuild-main-nav" className={channel === "B2C" && !mobileMenuOpen ? styles.mobileNavClosed : undefined}>
           {channel === "B2B" && <Link className={styles.backHub} href="/">Company Hub</Link>}
           {channel === "B2C" && <a href="#products">Shop products</a>}
-          {channel === "B2C" && <a href="#find-stores">Find our stores</a>}
+          {channel === "B2C" && <Link href="/shop/find-us">Find our stores</Link>}
           <Link className={channel === "B2C" ? styles.activeChannel : ""} href="/shop">Retail Shop</Link>
           <Link className={channel === "B2B" ? styles.activeChannel : ""} href="/wholesale-shop">Wholesale B2B</Link>
           <button type="button" onClick={() => setTrackOpen(true)}>Track order</button>
@@ -328,20 +328,7 @@ export default function EcommerceStorefront({ channel }: Props) {
 
       {channel === "B2C" && <section className={styles.benefits} aria-label="Why choose PowerBuild"><div><span>▣</span><strong>Shop our full range</strong><small>Products organised into easy departments</small></div><div><span>🚚</span><strong>Collection or delivery</strong><small>Select your fulfilment preference at checkout</small></div><div><span>↻</span><strong>Connected to the Hub</strong><small>Catalogue updates appear without re-imports</small></div></section>}
 
-      {channel === "B2C" && <section id="find-stores" className={styles.storesSection}>
-        <div className={styles.storesIntro}><div><span>VISIT POWERBUILD</span><h2>Find our stores</h2><p>Search our branches, view confirmed trading hours and get directions.</p></div><label className={styles.storeSearch}><span>Search branch or area</span><input value={storeSearch} onChange={e => setStoreSearch(e.target.value)} placeholder="e.g. Chamdor, Midway, Kagiso" /></label></div>
-        <div className={styles.storesGrid}>
-          {(data?.stores || []).filter(store => `${store.name} ${store.city || ""} ${store.suburb || ""} ${store.region || ""}`.toLowerCase().includes(storeSearch.trim().toLowerCase())).map(store => {
-            const hasDetails = Boolean(store.published && store.address && store.city && store.weekdays);
-            const address = [store.address,store.suburb,store.city,store.province].filter(Boolean).join(", ");
-            return <article key={store.name} className={styles.storeCard}>
-              <div className={styles.storeCardTop}><span>POWERBUILD BRANCH</span><h3>{store.name}</h3><p>{hasDetails ? [store.suburb,store.city].filter(Boolean).join(" · ") : "Branch details being confirmed"}</p></div>
-              {hasDetails ? <><div className={styles.storeDetails}><strong>Address</strong><p>{address}</p><strong>Trading hours</strong><p>Monday–Friday: {store.weekdays}<br/>Saturday: {store.saturday || "Please contact branch"}<br/>Sunday: {store.sunday || "Please contact branch"}</p>{store.public_notes && <p>{store.public_notes}</p>}{store.phone && <p>Tel: <a href={`tel:${store.phone.replace(/[^+0-9]/g,"")}`}>{store.phone}</a></p>}</div><a className={styles.directionsBtn} href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noopener noreferrer">Get directions ↗</a></> : <div className={styles.storeDetails}><p>Address and opening hours will appear once confirmed by the branch.</p></div>}
-            </article>;
-          })}
-        </div>
-        {data?.stores && !(data.stores.some(store => `${store.name} ${store.city || ""} ${store.suburb || ""} ${store.region || ""}`.toLowerCase().includes(storeSearch.trim().toLowerCase()))) && <p>No branch matches your search.</p>}
-      </section>}
+      {channel === "B2C" && <section className={styles.storesSection}><div className={styles.storesIntro}><div><span>VISIT POWERBUILD</span><h2>Find a PowerBuild near you</h2><p>Store addresses, directions and individual branch trading hours.</p></div><Link className={styles.directionsBtn} href="/shop/find-us">View all stores →</Link></div></section>}
 
       <section id="products" className={styles.catalogue}>
         <div className={styles.sectionHeading}>
