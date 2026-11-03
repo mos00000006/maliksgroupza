@@ -13,7 +13,9 @@ const {cataloguePdfCategory:c}=await import(pathToFileURL(output));
 const cases=[
  ['UG 110MM 45 DEG PLAIN BEND','Plumbing','Underground (UG)'],
  ['SV 110MM 45 DEG PLAIN BEND','Plumbing','Soil & Vent (SV)'],
- ['PIPE UG 110MMX6M','Plumbing','Plumbing Pipes'],
+ ['110MM UG DOUBLE RR SOCKET','Plumbing','Underground (UG)'],
+ ['PIPE UNDERGROUND 110MMX6M','Plumbing','Underground (UG)'],
+ ['PIPE UG 110MMX6M','Plumbing','Underground (UG)'],
  ['FITTING COMP HDPE ELBOW','Plumbing','HDPE & Compression Fittings'],
  ['FITTING COMP COPPER ELBOW','Plumbing','Copper & Brass Fittings'],
  ['W 50MMX45 DEG PLAIN BEND','Plumbing','Waste & Trap Fittings'],
