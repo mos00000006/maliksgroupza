@@ -16,7 +16,7 @@ type CategoryPlan = {
   category: string;
   items: WholesaleCatalogueProduct[];
   productPages: number;
-  coverPage: number;
+  startPage: number;
   endPage: number;
 };
 
@@ -458,149 +458,13 @@ const drawContentsPage = async (
     ctx.textAlign = "center";
     ctx.fillStyle = BLUE;
     ctx.font = `900 20px ${FONT_BOLD}`;
-    const pageText = plan.coverPage === plan.endPage ? `PAGE ${plan.coverPage}` : `PAGES ${plan.coverPage}-${plan.endPage}`;
+    const pageText = plan.startPage === plan.endPage ? `PAGE ${plan.startPage}` : `PAGES ${plan.startPage}-${plan.endPage}`;
     ctx.fillText(pageText, CANVAS_W - 172, y + 44);
   });
 
   drawFooter(ctx, 2, totalPages);
   return canvasToJpeg(canvas, 0.975);
 };
-
-const selectCategoryImages = (items: WholesaleCatalogueProduct[], imageMap: Map<number, LoadedImage>) => {
-  const selected: Array<{ product: WholesaleCatalogueProduct; image: LoadedImage | null }> = [];
-  for (const product of items) {
-    const image = imageMap.get(product.id) ?? null;
-    if (image) selected.push({ product, image });
-    if (selected.length >= 3) break;
-  }
-  if (selected.length < 3) {
-    for (const product of items) {
-      if (selected.some((entry) => entry.product.id === product.id)) continue;
-      selected.push({ product, image: null });
-      if (selected.length >= 3) break;
-    }
-  }
-  return selected;
-};
-
-const drawCategoryCoverPage = async (
-  plan: CategoryPlan,
-  logo: LoadedImage | null,
-  imageMap: Map<number, LoadedImage>,
-  totalPages: number,
-) => {
-  const { canvas, ctx } = createPageCanvas();
-
-  const gradient = ctx.createLinearGradient(0, 0, CANVAS_W, CANVAS_H);
-  gradient.addColorStop(0, "#eaf3fd");
-  gradient.addColorStop(0.48, "#ffffff");
-  gradient.addColorStop(1, "#f4f7fb");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-
-  ctx.fillStyle = BLUE;
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(CANVAS_W, 0);
-  ctx.lineTo(CANVAS_W, 255);
-  ctx.lineTo(0, 360);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = YELLOW;
-  ctx.beginPath();
-  ctx.moveTo(0, 332);
-  ctx.lineTo(CANVAS_W, 226);
-  ctx.lineTo(CANVAS_W, 249);
-  ctx.lineTo(0, 355);
-  ctx.closePath();
-  ctx.fill();
-
-  drawLogo(ctx, logo, 70, 62, 226, 115);
-  ctx.fillStyle = WHITE;
-  ctx.textAlign = "right";
-  ctx.textBaseline = "middle";
-  ctx.font = `900 30px ${FONT_BOLD}`;
-  ctx.fillText("WHOLESALE DIVISION", CANVAS_W - 78, 92);
-  ctx.font = `600 21px ${FONT_REGULAR}`;
-  ctx.fillText("PRODUCT CATALOGUE", CANVAS_W - 78, 137);
-
-  ctx.textAlign = "center";
-  ctx.fillStyle = NAVY;
-  ctx.font = `900 58px ${FONT_BOLD}`;
-  const titleLines = wrapCanvasText(ctx, plan.category.toUpperCase(), CANVAS_W - 160, 2);
-  drawCenteredLines(ctx, titleLines, CANVAS_W / 2, 420, 68, NAVY);
-
-  drawRoundedRect(ctx, CANVAS_W / 2 - 150, 565, 300, 62, 22, YELLOW);
-  ctx.fillStyle = NAVY;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = `900 24px ${FONT_BOLD}`;
-  ctx.fillText(`${plan.items.length} PRODUCTS`, CANVAS_W / 2, 596);
-
-  ctx.fillStyle = MUTED;
-  ctx.font = `600 21px ${FONT_REGULAR}`;
-  ctx.fillText("Wholesale product range", CANVAS_W / 2, 660);
-
-  const samples = selectCategoryImages(plan.items, imageMap);
-  const cardW = 326;
-  const cardH = 450;
-  const gap = 24;
-  const totalW = cardW * 3 + gap * 2;
-  const left = (CANVAS_W - totalW) / 2;
-  const top = 730;
-
-  samples.forEach(({ product, image }, index) => {
-    const x = left + index * (cardW + gap);
-    drawShadow(ctx, 18, "rgba(15, 23, 42, 0.10)", 6);
-    drawRoundedRect(ctx, x, top, cardW, cardH, 24, WHITE, "#d7e1eb", 1.8);
-    clearShadow(ctx);
-
-    const imageX = x + 22;
-    const imageY = top + 24;
-    const imageW = cardW - 44;
-    const imageH = 292;
-    drawRoundedRect(ctx, imageX, imageY, imageW, imageH, 18, LIGHT, MID, 1.5);
-    if (image) {
-      drawImageContain(ctx, image, imageX + 12, imageY + 12, imageW - 24, imageH - 24);
-    } else {
-      ctx.fillStyle = BLUE;
-      ctx.font = `900 18px ${FONT_BOLD}`;
-      ctx.textAlign = "center";
-      ctx.fillText("PRODUCT IMAGE", x + cardW / 2, imageY + imageH / 2 - 8);
-      ctx.fillStyle = MUTED;
-      ctx.font = `600 15px ${FONT_REGULAR}`;
-      ctx.fillText("Image pending", x + cardW / 2, imageY + imageH / 2 + 22);
-    }
-
-    const productName = cleanText(product.name || product.description || product.code);
-    ctx.font = `900 21px ${FONT_BOLD}`;
-    const productLines = wrapCanvasText(ctx, productName, cardW - 42, 3);
-    drawCenteredLines(ctx, productLines, x + cardW / 2, top + 338, 25, TEXT);
-
-    drawRoundedRect(ctx, x + 65, top + 404, cardW - 130, 30, 15, SOFT_BLUE);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = BLUE;
-    ctx.font = `800 15px ${FONT_BOLD}`;
-    const publicCode = `CODE: ${cleanText(product.code)}`;
-    ctx.fillText(publicCode, x + cardW / 2, top + 419);
-  });
-
-  drawRoundedRect(ctx, 170, 1250, CANVAS_W - 340, 112, 28, WHITE, MID, 1.6);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = DEEP_BLUE;
-  ctx.font = `700 21px ${FONT_BOLD}`;
-  ctx.fillText("BROWSE THE COMPLETE RANGE ON THE FOLLOWING PAGES", CANVAS_W / 2, 1290);
-  ctx.fillStyle = MUTED;
-  ctx.font = `600 18px ${FONT_REGULAR}`;
-  ctx.fillText("All active products from the Company Hub catalogue are included.", CANVAS_W / 2, 1331);
-
-  drawFooter(ctx, plan.coverPage, totalPages);
-  return canvasToJpeg(canvas, 0.98);
-};
-
 
 const isAssortedProduct = (product: WholesaleCatalogueProduct) => {
   const text = `${product.name || ""} ${product.description || ""}`.toUpperCase();
@@ -705,10 +569,15 @@ const drawProductPage = async (
   ctx.fillText("PRODUCT CATALOGUE", CANVAS_W / 2, 80);
 
   drawRoundedRect(ctx, 54, 122, CANVAS_W - 108, 55, 18, NAVY);
+  ctx.fillStyle = YELLOW;
+  ctx.textAlign = "left";
+  ctx.font = `900 13px ${FONT_BOLD}`;
+  ctx.fillText(categoryPage === 1 ? "CATEGORY" : "CONTINUED", 78, 149);
   ctx.fillStyle = WHITE;
-  ctx.font = `900 25px ${FONT_BOLD}`;
-  const categoryLabel = categoryPages > 1 ? `${category.toUpperCase()} · ${categoryPage} / ${categoryPages}` : category.toUpperCase();
-  ctx.fillText(categoryLabel, CANVAS_W / 2, 149);
+  ctx.textAlign = "center";
+  ctx.font = `900 23px ${FONT_BOLD}`;
+  const categoryLabel = categoryPages > 1 ? `${category.toUpperCase()}  ·  ${categoryPage} / ${categoryPages}` : category.toUpperCase();
+  ctx.fillText(categoryLabel, CANVAS_W / 2 + 45, 149, CANVAS_W - 510);
   ctx.fillStyle = YELLOW;
   ctx.fillRect(84, 194, CANVAS_W - 168, 6);
 
@@ -796,10 +665,10 @@ export async function buildWholesaleCataloguePdf(
   let nextPage = 3; // Page 1 cover, page 2 contents.
   const plans: CategoryPlan[] = Array.from(groups.entries()).map(([category, items]) => {
     const productPages = Math.ceil(items.length / pageCapacity);
-    const coverPage = nextPage;
-    const endPage = coverPage + productPages;
+    const startPage = nextPage;
+    const endPage = startPage + productPages - 1;
     nextPage = endPage + 1;
-    return { category, items, productPages, coverPage, endPage };
+    return { category, items, productPages, startPage, endPage };
   });
   const totalPages = nextPage - 1;
 
@@ -859,22 +728,12 @@ export async function buildWholesaleCataloguePdf(
   addPage(await drawContentsPage(plans, logo, totalPages), "Pg2");
 
   let built = 0;
-  const renderTotal = plans.reduce((sum, plan) => sum + 1 + plan.productPages, 0);
+  const renderTotal = plans.reduce((sum, plan) => sum + plan.productPages, 0);
   for (const plan of plans) {
-    addPage(
-      await drawCategoryCoverPage(plan, logo, imageMap, totalPages),
-      `Pg${plan.coverPage}`,
-    );
-    built += 1;
-    onProgress?.(
-      `Building ${plan.category} section...`,
-      48 + Math.round((built / Math.max(1, renderTotal)) * 46),
-    );
-
     for (let start = 0; start < plan.items.length; start += pageCapacity) {
       const slice = plan.items.slice(start, start + pageCapacity);
       const categoryPage = Math.floor(start / pageCapacity) + 1;
-      const absolutePage = plan.coverPage + categoryPage;
+      const absolutePage = plan.startPage + categoryPage - 1;
       addPage(
         await drawProductPage(
           plan.category,
@@ -937,10 +796,10 @@ export async function buildWholesaleLeafletPages(
   let nextPage = 3;
   const plans: CategoryPlan[] = Array.from(groups.entries()).map(([category, items]) => {
     const productPages = Math.ceil(items.length / pageCapacity);
-    const coverPage = nextPage;
-    const endPage = coverPage + productPages;
+    const startPage = nextPage;
+    const endPage = startPage + productPages - 1;
     nextPage = endPage + 1;
-    return { category, items, productPages, coverPage, endPage };
+    return { category, items, productPages, startPage, endPage };
   });
   const totalPages = nextPage - 1;
 
@@ -995,19 +854,12 @@ export async function buildWholesaleLeafletPages(
     pushPage(await drawContentsPage(plans, logo, totalPages));
 
     let built = 0;
-    const renderTotal = plans.reduce((sum, plan) => sum + 1 + plan.productPages, 0);
+    const renderTotal = plans.reduce((sum, plan) => sum + plan.productPages, 0);
     for (const plan of plans) {
-      pushPage(await drawCategoryCoverPage(plan, logo, imageMap, totalPages));
-      built += 1;
-      onProgress?.(
-        `Preparing ${plan.category} pages...`,
-        46 + Math.round((built / Math.max(1, renderTotal)) * 50),
-      );
-
       for (let start = 0; start < plan.items.length; start += pageCapacity) {
         const slice = plan.items.slice(start, start + pageCapacity);
         const categoryPage = Math.floor(start / pageCapacity) + 1;
-        const absolutePage = plan.coverPage + categoryPage;
+        const absolutePage = plan.startPage + categoryPage - 1;
         pushPage(
           await drawProductPage(
             plan.category,
