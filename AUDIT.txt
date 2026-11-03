@@ -1,0 +1,6 @@
+Original SQL updates: 212
+Corrected SQL updates: 212
+Removed wrappers: BEGIN TRANSACTION; and COMMIT;
+Migration name: CATALOGUE_REVIEWED_CLASSIFICATION.sql (unchanged)
+SQLite in-memory test: PASS
+Remote D1 test: NOT RUN

@@ -2,7 +2,6 @@
 -- Applies only to known imported stock codes and system-maintained rows.
 -- Does not delete products, change price, image, code, status, or modify user-edited rows.
 -- Run against a D1 backup/staging copy first; production only after review.
-BEGIN TRANSACTION;
 UPDATE catalogue_products SET category='HDPE & Compression Fittings', updated_by='system:category-audit-v2', updated_at=datetime('now') WHERE code='WHPDF-CARD-P02-01' COLLATE NOCASE AND active=1 AND (updated_by LIKE 'system:%' OR updated_by IS NULL OR updated_by='') AND category<>'HDPE & Compression Fittings';
 UPDATE catalogue_products SET category='HDPE & Compression Fittings', updated_by='system:category-audit-v2', updated_at=datetime('now') WHERE code='WHPDF-CARD-P02-02' COLLATE NOCASE AND active=1 AND (updated_by LIKE 'system:%' OR updated_by IS NULL OR updated_by='') AND category<>'HDPE & Compression Fittings';
 UPDATE catalogue_products SET category='HDPE & Compression Fittings', updated_by='system:category-audit-v2', updated_at=datetime('now') WHERE code='WHPDF-CARD-P02-03' COLLATE NOCASE AND active=1 AND (updated_by LIKE 'system:%' OR updated_by IS NULL OR updated_by='') AND category<>'HDPE & Compression Fittings';
@@ -215,4 +214,3 @@ UPDATE catalogue_products SET category='Window Blinds & Treatments', updated_by=
 UPDATE catalogue_products SET category='Window Blinds & Treatments', updated_by='system:category-audit-v2', updated_at=datetime('now') WHERE code='X00012' COLLATE NOCASE AND active=1 AND (updated_by LIKE 'system:%' OR updated_by IS NULL OR updated_by='') AND category<>'Window Blinds & Treatments';
 UPDATE catalogue_products SET category='Window Blinds & Treatments', updated_by='system:category-audit-v2', updated_at=datetime('now') WHERE code='X00013' COLLATE NOCASE AND active=1 AND (updated_by LIKE 'system:%' OR updated_by IS NULL OR updated_by='') AND category<>'Window Blinds & Treatments';
 UPDATE catalogue_products SET category='Window Blinds & Treatments', updated_by='system:category-audit-v2', updated_at=datetime('now') WHERE code='X00008' COLLATE NOCASE AND active=1 AND (updated_by LIKE 'system:%' OR updated_by IS NULL OR updated_by='') AND category<>'Window Blinds & Treatments';
-COMMIT;
