@@ -74,11 +74,11 @@ export default function EcommerceStorefront({ channel }: Props) {
     notes: "",
   });
 
-  const load = async (nextPage = page) => {
+  const load = async (nextPage = page, searchTerm = q, selectedCategory = category) => {
     setLoading(true);
     const params = new URLSearchParams({ channel, page: String(nextPage), pageSize: "24" });
-    if (q.trim()) params.set("q", q.trim());
-    if (category) params.set("category", category);
+    if (searchTerm.trim()) params.set("q", searchTerm.trim());
+    if (selectedCategory) params.set("category", selectedCategory);
     const response = await fetch(`/api/ecommerce/public?${params.toString()}`, { cache: "no-store" });
     if (response.ok) {
       const json = (await response.json()) as StoreData;
@@ -253,7 +253,7 @@ export default function EcommerceStorefront({ channel }: Props) {
           <img src="/powerbuild-logo-transparent.png" alt="PowerBuild" />
           <span><strong>{data?.settings.store_name || (channel === "B2C" ? "PowerBuild Online" : "PowerBuild Wholesale Online")}</strong><small>{channel === "B2C" ? "Retail eCommerce" : "B2B Trade eCommerce"}</small></span>
         </Link>
-        {channel === "B2C" && <form className={styles.headerSearch} role="search" onSubmit={(event) => { event.preventDefault(); jumpToProducts(category); void load(1); }}><label htmlFor="powerbuild-search" className={styles.srOnly}>Search PowerBuild products</label><input id="powerbuild-search" value={q} onChange={(event) => setQ(event.target.value)} placeholder="What are you looking for? Search products, brands or codes" /><button type="submit" aria-label="Search products">⌕ <span>Search</span></button></form>}
+        {channel === "B2C" && <form className={styles.headerSearch} role="search" onSubmit={(event) => { event.preventDefault(); setPage(1); document.getElementById("products")?.scrollIntoView({ behavior: "smooth" }); void load(1, q, category); }}><label htmlFor="powerbuild-search" className={styles.srOnly}>Search PowerBuild products</label><input id="powerbuild-search" value={q} onChange={(event) => setQ(event.target.value)} placeholder="What are you looking for? Search products, brands or codes" /><button type="submit" aria-label="Search products">⌕ <span>Search</span></button></form>}
         {channel === "B2C" && <button className={styles.mobileMenuToggle} type="button" aria-expanded={mobileMenuOpen} aria-controls="powerbuild-main-nav" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>☰ Menu</button>}
         <nav id="powerbuild-main-nav" className={channel === "B2C" && !mobileMenuOpen ? styles.mobileNavClosed : undefined}>
           {channel === "B2B" && <Link className={styles.backHub} href="/">Company Hub</Link>}
@@ -265,7 +265,7 @@ export default function EcommerceStorefront({ channel }: Props) {
         </nav>
       </header>
 
-      {channel === "B2C" && <div className={styles.departmentNav}><button type="button" className={styles.departmentAll} onClick={() => jumpToProducts()}>☷ &nbsp;Shop all departments</button>{(data?.categories || []).slice(0, 7).map((item) => <button type="button" key={item} onClick={() => jumpToProducts(item)}>{item}</button>)}<button type="button" onClick={() => document.getElementById("promotions")?.scrollIntoView({behavior:"smooth"})}>Specials</button></div>}
+      {channel === "B2C" && <div className={styles.departmentNav}><button type="button" className={styles.departmentAll} onClick={() => jumpToProducts()}>☷ &nbsp;Shop all departments</button>{(data?.categories || []).slice(0, 7).map((item) => <button type="button" key={item} onClick={() => jumpToProducts(item)}>{item}</button>)}{!!specialImages.length && <button type="button" onClick={() => document.getElementById("promotions")?.scrollIntoView({behavior:"smooth"})}>Specials</button>}</div>}
       <section className={styles.hero}>
         <div>
           <span>{channel === "B2C" ? "YOUR PROJECT STARTS HERE  /  POWERBUILD SOUTH AFRICA" : "POWERBUILD WHOLESALE DIVISION"}</span>
@@ -276,7 +276,7 @@ export default function EcommerceStorefront({ channel }: Props) {
         <div className={styles.heroCard}>
           <div className={styles.heroIcon}>PB<span>+</span></div>
           <span className={styles.heroEyebrow}>THE POWERBUILD ADVANTAGE</span>
-          <strong>{channel === "B2C" ? "Retail pricing includes VAT" : "Wholesale pricing excludes VAT"}</strong>
+          <strong>{channel === "B2C" ? "Shop products and send your order" : "Wholesale pricing excludes VAT"}</strong>
           <small>{data?.settings.orders_enabled === false ? "Online orders are temporarily paused." : "Online ordering is open."}</small>
         </div>
       </section>
@@ -373,7 +373,7 @@ export default function EcommerceStorefront({ channel }: Props) {
             <div className={styles.cartHead}><div><small>{channel} ONLINE ORDER</small><h2>Your cart</h2></div><button onClick={() => setCartOpen(false)}>×</button></div>
             {!cart.length ? <p className={styles.empty}>Your cart is empty.</p> : <>
               <div className={styles.cartLines}>{cart.map((line) => <div className={styles.cartLine} key={randKey(line)}><div><b>{line.name}</b><small>{line.code} · {line.unit}</small></div><input type="number" min={line.min_qty} step="1" value={line.qty} onChange={(e) => setQty(line.id, Number(e.target.value))} /><span>{line.price > 0 ? money(line.price * line.qty) : "Pending"}</span><button onClick={() => setCart((current) => current.filter((item) => item.id !== line.id))}>Remove</button></div>)}</div>
-              <div className={styles.cartTotal}><span>{channel === "B2B" ? "Estimated total incl VAT" : "Order total incl VAT"}</span><strong>{pendingPrice ? `${money(cartTotal)} + price pending items` : money(cartTotal)}</strong></div>
+              <div className={styles.cartTotal}><span>{channel === "B2B" ? "Estimated total incl VAT" : "Estimated order total incl VAT"}</span><strong>{pendingPrice ? `${money(cartTotal)} + price pending items` : money(cartTotal)}</strong></div>
               <button className={styles.checkoutBtn} disabled={channel === "B2B" && !tradeVerified} onClick={() => setCheckoutOpen(true)}>{channel === "B2B" && !tradeVerified ? "Verify trade account first" : "Continue to checkout"}</button>
             </>}
           </aside>
@@ -400,7 +400,7 @@ export default function EcommerceStorefront({ channel }: Props) {
         </div>
       )}
 
-      <footer className={styles.footer}><span>PowerBuild Group online ordering</span><div><Link href="/">← Company Hub</Link>{data?.settings.support_whatsapp && <a href={`https://wa.me/${data.settings.support_whatsapp.replace(/\D/g, "")}`}>WhatsApp support</a>}{data?.settings.support_email && <a href={`mailto:${data.settings.support_email}`}>Email support</a>}</div></footer>
+      <footer className={styles.footer}><span>© PowerBuild · Building supplies for every project</span><div>{data?.settings.support_whatsapp && <a href={`https://wa.me/${data.settings.support_whatsapp.replace(/\D/g, "")}`}>WhatsApp support</a>}{data?.settings.support_email && <a href={`mailto:${data.settings.support_email}`}>Email support</a>}</div></footer>
     </main>
   );
 }
