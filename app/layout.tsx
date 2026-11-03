@@ -12,6 +12,8 @@ import "./phase-eight.css";
 import "./mobile-improvements.css";
 import "./launch-splash.css";
 import LaunchSplash from "./launch-splash";
+import HubDisplaySize from "./hub-display-size";
+import "./hub-display-size.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -65,6 +67,7 @@ export default function RootLayout({
       >
         <LaunchSplash />
         {children}
+        <HubDisplaySize />
       </body>
     </html>
   );

@@ -1,55 +1,32 @@
-# Maliks Group Hub — Independent Edition
+# Maliks Group Hub — Display Size accessibility patch
 
-This is the company-controlled Maliks Group Hub. It contains the existing operational modules and no longer depends on ChatGPT Sites for sign-in or hosting.
+## What it does
+Adds a small floating **Aa Display size** control to internal Hub pages. Users can select 100%, 110%, 125%, 135% or 150%, or reset to normal. The browser saves the setting locally, independently for each device/browser. This scales interface text, buttons and form controls together, including fixed-pixel text. It does **not** edit any database records, product prices, catalogue images or access permissions. Public shop, public product QR and API paths are excluded.
 
-## What runs the Hub
+## Install
+1. Back up your current `app/layout.tsx` before applying changes.
+2. Add `app/hub-display-size.tsx` and `app/hub-display-size.css` to your repository.
+3. For the existing layout, add these lines with its other imports:
+   `import HubDisplaySize from "./hub-display-size";`
+   `import "./hub-display-size.css";`
+   Then insert `<HubDisplaySize />` just before `</body>`.
+4. A ready-to-use `app/layout.tsx` is provided **from the original uploaded Hub ZIP**. Only replace your current layout with it if it still matches; otherwise use step 3 to preserve newer layout changes.
+5. Add `tests/hub-display-size.test.mjs` and run `npm run check`, then deploy on GitHub/Cloudflare.
+6. Test the controls at 100%, 125% and 150% on desktop/mobile, including tables, modal dialogs, sidebar and price tag studio.
 
-- **Application:** Cloudflare Worker on a Maliks Group-owned account
-- **Secure login:** Cloudflare Access with approved email addresses, one-time email codes, or company SSO/MFA
-- **Business data:** Cloudflare D1 database
-- **Documents and pictures:** Cloudflare R2 private object storage
-- **AI Sidekick:** OpenAI API key stored as an encrypted Cloudflare secret
-- **Permissions:** Owner, Developer / Technical Admin, management, member, and read-only roles enforced by the Hub; users only receive their allocated workspaces
+## Verification performed
+4 focused source-level tests passed locally. A full production build and browser usability check against the **latest deployed Hub** were not performed. At 150%, some dense screens may need scrolling, and this should be tested on mobile. Browser-specific zoom behavior should also be checked on Safari/Firefox.
 
-The installed app is a PWA. Once the independent URL is live, installed devices receive new versions automatically through the service worker; reinstalling is normally unnecessary.
+## Error audit based on latest supplied GitHub CI output
+- ESLint: 0 errors, 52 warnings. Majority are unoptimised `<img>` elements, React effect dependency warnings, and unused variables.
+- Production Vite build: passed.
+- Node tests: 80 passed, 1 failed (outdated `powerbuild-live-storefront.test.mjs` asserting `View Website` exists). The separate earlier removal test correction must be committed. It is not part of this accessibility patch.
+- Source log also includes expected errors emitted by negative-path tests and non-blocking bundling warnings, which are not automatically live defects.
+- These results are from the user-supplied log, not a fresh complete run or live security/functionality audit.
 
-## Local setup
-
-Requirements: Node.js 22.13 or later and npm.
-
-```bash
-npm ci
-cp .dev.vars.example .dev.vars
-npm run db:migrate:local
-npm run dev
-```
-
-Local Cloudflare Access simulates the owner account configured in `vite.config.ts`.
-
-## Verification
-
-```bash
-npm run check
-```
-
-## First company deployment
-
-Upload the contents of this folder to a private GitHub repository, then follow
-`GITHUB-CLOUDFLARE-SETUP.md`. GitHub Actions validates, migrates and deploys the
-full Hub automatically after the required repository secrets are added.
-
-No ChatGPT account or ChatGPT-hosted authentication is used. Cloudflare Access
-provides the independent company sign-in and the Worker verifies its signed JWT.
-
-The owner email is `msallikutti@gmail.com`. Change `OWNER_EMAIL` and `OWNER_NAME` in both `vite.config.ts` and `infrastructure/wrangler.jsonc` only if ownership changes.
-
-## Zak's access
-
-Zak can receive two distinct permissions:
-
-1. **Hub role:** `Developer / Technical Admin` for application administration.
-2. **Cloudflare account role:** scoped access to Workers, D1, R2, logs and deployments. He should not receive billing ownership or the owner's recovery methods.
-
-Use individual accounts and MFA. Never share the owner's password or API keys.
-
-See `docs/SECURITY.md` and `docs/OPERATIONS.md` for the handover controls and recurring maintenance.
+## Known follow-up review areas
+- Sidebar subtitle font sizes as small as 6.5px in `professional-hub.module.css` even at default zoom; audit mobile clipping at 125%/150%.
+- Remaining image optimisation warnings.
+- React effect dependency and unused variable warnings.
+- Missing product pictures and catalogue completeness require functional checks against live database; logs do not prove they are correct.
+- Test/access permissions, public QR routes, D1 limits, catalogue PDFs, price tags, store forms and backup/migrations in staging before claiming a full Hub audit.

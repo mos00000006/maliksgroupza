@@ -1,0 +1,17 @@
+/* Hub-only floating accessibility control; independent of the main navigation. */
+.hubDisplaySize { position: fixed; right: 18px; bottom: 18px; z-index: 10000; font-family: Arial, sans-serif; font-size: 14px; color: #172b43; }
+.hubDisplaySize button { cursor: pointer; font-family: inherit; font-size: 14px; min-height: 42px; }
+.hubDisplaySizeToggle { display: flex; align-items: center; gap: 9px; padding: 9px 14px; background: #12365f; color: white; border: 2px solid #f5c72b; border-radius: 999px; box-shadow: 0 7px 22px #142b3d40; font-weight: 700; }
+.hubDisplaySizeToggle > span:last-child { background: #f5c72b; color: #13283d; border-radius: 10px; padding: 4px 6px; }
+.hubDisplaySizePanel { width: min(340px, calc(100vw - 24px)); margin-bottom: 10px; padding: 18px; background: #fff; color: #172b43; border: 2px solid #d1dce9; border-radius: 16px; box-shadow: 0 12px 36px #11294345; }
+.hubDisplaySizeHeading { font-size: 20px; font-weight: 800; }
+.hubDisplaySizePanel p { margin: 8px 0 16px; line-height: 1.45; font-size: 14px; }
+.hubDisplaySizeOptions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.hubDisplaySizeOptions button { border: 1px solid #a8bbcf; border-radius: 8px; background: #f1f5fa; color: #152d4b; font-weight: 800; }
+.hubDisplaySizeOptions button[aria-pressed="true"] { background: #f5c72b; color: #102238; border: 2px solid #12365f; }
+.hubDisplaySizeActions { display: flex; justify-content: space-between; gap: 8px; margin-top: 14px; }
+.hubDisplaySizeActions button { border: 0; border-radius: 7px; background: #e9eef4; color: #172b43; padding: 7px 10px; font-weight: 700; }
+.hubDisplaySizeActions button:last-child { background: #12365f; color: #fff; }
+.hubDisplaySize button:focus-visible { outline: 3px solid #ec9f00; outline-offset: 3px; }
+@media (max-width: 600px) { .hubDisplaySize { bottom: 10px; right: 10px; } .hubDisplaySizeToggle { padding: 7px 9px; } }
+@media print { .hubDisplaySize { display: none !important; } }
