@@ -2,8 +2,9 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import styles from "./ecommerce-control.module.css";
+import EcommerceStoreManager from "./ecommerce-store-manager";
 
-type Tab = "Overview" | "Products" | "Orders" | "B2B Accounts" | "Settings";
+type Tab = "Overview" | "Products" | "Orders" | "B2B Accounts" | "Settings" | "Stores";
 type Product = {
   id: number; code: string; name: string; category: string; image_url: string;
   b2c_enabled: number; b2b_enabled: number; retail_price_inc_vat: number; wholesale_price_ex_vat: number;
@@ -104,7 +105,7 @@ export default function EcommerceControl() {
       <div className={styles.storeLinks}><a href="/shop" target="_blank" rel="noreferrer">Open B2C Store ↗</a><a href="/wholesale-shop" target="_blank" rel="noreferrer">Open B2B Store ↗</a></div>
     </div>
 
-    <nav className={styles.tabs}>{(["Overview","Products","Orders","B2B Accounts","Settings"] as Tab[]).map((item) => <button key={item} className={tab === item ? styles.active : ""} onClick={() => setTab(item)}>{item}</button>)}</nav>
+    <nav className={styles.tabs}>{(["Overview","Products","Orders","B2B Accounts","Stores","Settings"] as Tab[]).map((item) => <button key={item} className={tab === item ? styles.active : ""} onClick={() => setTab(item)}>{item}</button>)}</nav>
 
     <div style={{display:"flex", flexWrap:"wrap", gap:10, padding:"0 22px 18px"}}><a href="/shop" target="_blank" rel="noopener noreferrer" style={{background:"#ffce2b",color:"#122942",padding:"11px 18px",borderRadius:10,fontWeight:900,textDecoration:"none"}}>↗ View Retail Website</a><a href="/wholesale-shop" target="_blank" rel="noopener noreferrer" style={{background:"#183858",color:"white",padding:"11px 18px",borderRadius:10,fontWeight:850,textDecoration:"none"}}>↗ View Wholesale Portal</a></div>
     {tab === "Overview" && <div className={styles.content}>
@@ -135,6 +136,7 @@ export default function EcommerceControl() {
       <div className={styles.customers}>{customers.map((customer) => <article key={customer.id}><header><div><small>{customer.status}</small><h3>{customer.company_name}</h3><p>{customer.contact_name} · {customer.email}</p></div><strong>{customer.customer_code || "NO ACCOUNT CODE"}</strong></header><div className={styles.customerMeta}><span><b>WhatsApp</b>{customer.whatsapp || "—"}</span><span><b>VAT</b>{customer.vat_number || "—"}</span><span><b>Registration</b>{customer.registration_number || "—"}</span><span><b>Terms</b>{customer.credit_terms}</span><span><b>Pricing</b>{customer.pricing_tier}</span><span><b>Portal access</b>{customer.portal_code || "Issued on approval"}</span></div><p>{customer.delivery_address}</p><div className={styles.customerActions}>{customer.status !== "Approved" && <button onClick={() => void updateCustomerStatus(customer,"Approved")}>Approve & issue code</button>}{customer.status === "Approved" && <><button className={styles.secondary} onClick={() => void navigator.clipboard?.writeText(customer.portal_code)}>Copy access code</button>{customer.whatsapp && <a href={`https://wa.me/${customer.whatsapp.replace(/\D/g,"")}?text=${encodeURIComponent(`Your PowerBuild Wholesale Online account is approved. Trade access code: ${customer.portal_code}. Open /wholesale-shop`)}`} target="_blank" rel="noreferrer">Send via WhatsApp</a>}<a href={`mailto:${customer.email}?subject=${encodeURIComponent("PowerBuild Wholesale Online account approved")}&body=${encodeURIComponent(`Your B2B trade account is approved. Access code: ${customer.portal_code}\n\nPortal: /wholesale-shop`)}`}>Send via email</a></>}{customer.status !== "Declined" && <button className={styles.danger} onClick={() => void updateCustomerStatus(customer,"Declined")}>Decline</button>}</div></article>)}</div>
     </div>}
 
+    {tab === "Stores" && <EcommerceStoreManager />}
     {tab === "Settings" && <form className={`${styles.content} ${styles.settings}`} onSubmit={saveSettings}>
       <div className={styles.panelHead}><div><small>STORE SETTINGS</small><h3>Online channel configuration</h3></div><button type="submit">Save settings</button></div>
       <div className={styles.settingsGrid}>
