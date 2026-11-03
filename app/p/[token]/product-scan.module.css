@@ -12,3 +12,4 @@
 .neutral .header{background:#292929;border-color:#ddd}.neutral .header span{color:#fff;letter-spacing:0}.neutral{background:#f4f4f4;color:#292929}
 
 .comboIncludes{margin-top:24px}.comboIncludes h2{font-size:18px;margin:0 0 12px}.comboIncludes ul{padding-left:20px;margin:0;line-height:1.7}.photo>div{width:100%;min-width:0}
+.branchPrice{display:inline-flex;margin-top:12px;padding:7px 10px;border-radius:999px;background:#fff3b5;color:#584700;font-size:10px;font-weight:900;letter-spacing:.8px}

@@ -6,7 +6,7 @@ import { measureTiles, type PriceTag } from "../../lib/price-tags";
 import styles from "./product-scan.module.css";
 const money = (cents: number) => new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" }).format(cents / 100);
 const decimal = (value: number) => value.toLocaleString("en-ZA", { maximumFractionDigits: 3 });
-export default function ProductScanPage({ token, initialProduct = null }: { token: string; initialProduct?: PriceTag | null }) {
+export default function ProductScanPage({ token, branch = "", initialProduct = null }: { token: string; branch?: string; initialProduct?: PriceTag | null }) {
   const [product, setProduct] = useState<PriceTag | null>(initialProduct); const [status, setStatus] = useState(initialProduct ? "" : "Loading product…");
   const [rooms, setRooms] = useState([{ id: 1, length: "", width: "" }]); const [waste, setWaste] = useState("10");
   const [mode, setMode] = useState<"rooms" | "area">("rooms"); const [area, setArea] = useState("");
@@ -14,14 +14,15 @@ export default function ProductScanPage({ token, initialProduct = null }: { toke
     let active = true;
     const load = async () => {
       try {
-        const res = await fetch(`/api/public-price-tags/${encodeURIComponent(token)}`, { cache: "no-store" }); const json = await res.json();
+        const query = branch ? `?branch=${encodeURIComponent(branch)}` : "";
+        const res = await fetch(`/api/public-price-tags/${encodeURIComponent(token)}${query}`, { cache: "no-store" }); const json = await res.json();
         if (active) { if (!res.ok) { setProduct(null); setStatus(json.error || "Product unavailable."); } else { setProduct(json.product); setStatus(""); } }
       } catch { if (active) setStatus("Could not load the current price. Check your connection and refresh."); }
     };
     if (!initialProduct || initialProduct.token !== token) void load(); const refresh = () => { if (!document.hidden) void load(); };
     document.addEventListener("visibilitychange", refresh); const timer = window.setInterval(refresh, 60000);
     return () => { active = false; document.removeEventListener("visibilitychange", refresh); window.clearInterval(timer); };
-  }, [token, initialProduct]);
+  }, [token, branch, initialProduct]);
   const buster = product?.brand === "busterbuild";
   const brandName = product ? (buster ? "BusterBuild" : "PowerBuild") : "Product & Price";
   const result = product?.is_tile ? measureTiles(mode === "area" ? [{ length: Number(area), width: 1 }] : rooms.map(r => ({ length: Number(r.length), width: Number(r.width) })), Number(waste), product.coverage_per_box, product.price_cents, product.unit) : null;
@@ -31,7 +32,7 @@ export default function ProductScanPage({ token, initialProduct = null }: { toke
       {status && <p role="status" className={styles.connection}>{status}</p>}
       <section className={styles.product}>
         <div className={styles.photo}>{product.kind === "combo" && product.combo_items ? <ComboComposition items={product.combo_items} /> : <ProductPicture src={product.image_url} alt={product.name} removeBackground={!product.is_tile} />}</div>
-        <div className={styles.productInfo}><div className={styles.code}>PRODUCT CODE · {product.code}</div><h1>{product.name}</h1><div className={styles.price}>{money(product.price_cents)}<span>{product.unit === "M2" ? "per m²" : product.unit === "BOX" ? "per box" : "each"}</span></div><p className={styles.vat}>Price includes VAT</p>
+        <div className={styles.productInfo}><div className={styles.code}>PRODUCT CODE · {product.code}</div>{product.branch_name && <div className={styles.branchPrice}>PRICE FOR {product.branch_name.toUpperCase()}</div>}<h1>{product.name}</h1>{product.colour && <p>Colour: <b>{product.colour}</b></p>}<div className={styles.price}>{money(product.price_cents)}<span>{product.unit === "M2" ? "per m²" : product.unit === "BOX" ? "per box" : "each"}</span></div><p className={styles.vat}>Price includes VAT</p>
           {product.is_tile && <div className={styles.packs}><span><b>{product.coverage_per_box} m²</b>per box</span>{product.pieces_per_box > 0 && <span><b>{product.pieces_per_box} {Number(product.pieces_per_box) === 1 ? "tile" : "tiles"}</b>per box</span>}{product.tile_width_mm > 0 && product.tile_length_mm > 0 && <span><b>{product.tile_width_mm} × {product.tile_length_mm}</b>mm per tile</span>}</div>}
           {product.kind === "combo" && <div className={styles.comboIncludes}><h2>{product.includes_title || "This combo includes"}</h2><ul>{product.includes_text?.split("\n").filter(line=>line.trim()).map((line,index)=><li key={index}>{line}</li>)}</ul></div>}
           <p className={styles.note}>While stocks last. Confirm availability with our team.</p></div>

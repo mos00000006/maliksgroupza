@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { build } from "esbuild";
 const compiledHelpers = await build({entryPoints:[new URL("../app/lib/price-tags.ts",import.meta.url).pathname],bundle:true,platform:"node",format:"esm",write:false});
-const { measureTiles, parseTagInput, isPublicPriceTagRequest, tileDefaults, tagBrand, tagTable, tagCustomerUrl } = await import(`data:text/javascript;base64,${Buffer.from(compiledHelpers.outputFiles[0].text).toString("base64")}`);
+const { measureTiles, parseTagInput, parseTagBranches, isPublicPriceTagRequest, tileDefaults, tagBrand, tagTable, tagCustomerUrl } = await import(`data:text/javascript;base64,${Buffer.from(compiledHelpers.outputFiles[0].text).toString("base64")}`);
 
 const token = "2b2b2b2b-1234-4567-8901-2b2b2b2b2b2b";
 test("tile estimates use full boxes, multiple rooms, wastage and the selected pricing basis", () => {
@@ -25,6 +25,12 @@ test("tag input rejects fractional pieces, missing tile coverage and invalid mon
  assert.throws(()=>parseTagInput({...valid,published:"false"}));
  const defaults=tileDefaults({name:"Porcelain 1200x1800mm",category:"Tiles & Flooring",description:""});
  assert.equal(defaults.coverage_per_box,0); // Never infer a box's coverage from nominal dimensions.
+});
+test("branch selection is unique, bounded and preserved in customer QR links",()=>{
+ assert.deepEqual(parseTagBranches(["PowerBuild Sungate","powerbuild sungate","Midway PowerBuild"]),["PowerBuild Sungate","Midway PowerBuild"]);
+ assert.throws(()=>parseTagBranches("PowerBuild Sungate"));assert.throws(()=>parseTagBranches(["All Branches"]));assert.throws(()=>parseTagBranches(["x".repeat(121)]));
+ const url=tagCustomerUrl("https://hub.example",{token,code:"TEST1",branch_name:"PowerBuild Sungate"});
+ assert.equal(new URL(url).searchParams.get("branch"),"PowerBuild Sungate");
 });
 test("anonymous access is limited to exact public QR routes, never management or writes",()=>{
  assert.equal(isPublicPriceTagRequest(`/p/${token}`,"GET"),true);
@@ -49,11 +55,13 @@ test("price-tag APIs enforce permissions, stable QR tokens, public whitelisting 
  db.exec(readFileSync(new URL("../drizzle/0036_price_tag_designer_sign_in.sql",import.meta.url),"utf8"));
  db.exec(readFileSync(new URL("../drizzle/0038_price_tag_combos.sql",import.meta.url),"utf8"));
  db.exec(readFileSync(new URL("../drizzle/0045_single_price_tag_colour.sql",import.meta.url),"utf8"));
+ db.exec(readFileSync(new URL("../drizzle/0054_price_tag_branch_prices.sql",import.meta.url),"utf8"));
+ db.exec("CREATE TABLE workspaces (name TEXT PRIMARY KEY,type TEXT,active INTEGER);INSERT INTO workspaces VALUES ('PowerBuild Sungate','Store',1),('Midway PowerBuild','Store',1),('Head Office','Head Office',1)");
  const sessionToken='c'.repeat(64);const hash=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(sessionToken))).toString('hex');
  db.prepare('INSERT INTO price_tag_designer_sessions VALUES (?,?,?,?,?)').run(hash,'owner@example.com','moses moyana',Math.floor(Date.now()/1000)+1000,0);
 
  db.prepare("INSERT INTO catalogue_products (code,name,description,category,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run("TEST1","Test Tile","PRIVATE DESCRIPTION","Tiles","owner","today","today");
- globalThis.__priceTagEnv={DB:{prepare(sql){let args=[];return {bind(...values){args=values;return this;},async first(){return db.prepare(sql).get(...args)||null;},async run(){db.prepare(sql).run(...args);return {success:true};}};}}};
+ globalThis.__priceTagEnv={DB:{prepare(sql){let args=[];return {bind(...values){args=values;return this;},async first(){return db.prepare(sql).get(...args)||null;},async all(){return {results:db.prepare(sql).all(...args)};},async run(){db.prepare(sql).run(...args);return {success:true};}};}}};
  globalThis.__priceTagMember=null;
  const admin=await route("../app/api/price-tags/route.ts"); const pub=await route("../app/api/public-price-tags/[token]/route.ts");
  const input={product_id:1,price:"123.45",unit:"M2",is_tile:true,coverage_per_box:1.44,pieces_per_box:4,published:true};
@@ -65,6 +73,12 @@ test("price-tag APIs enforce permissions, stable QR tokens, public whitelisting 
  input.price="234.56";const changed=(await (await post()).json()).tag;assert.equal(changed.token,saved.token);
  const params={params:Promise.resolve({token:saved.token})};const response=await pub.GET(new Request("https://example.com"),params);
  const json=await response.json();assert.equal(json.product.price_cents,23456);assert.equal(response.headers.get("cache-control"),"no-store");
+ input.price="199.99";input.branches=["PowerBuild Sungate"];const branchSaved=(await(await post()).json()).tag;
+ assert.equal(branchSaved.branch_name,"PowerBuild Sungate");assert.equal(branchSaved.price_cents,19999);
+ assert.equal(db.prepare("SELECT price_cents FROM powerbuild_price_tags WHERE product_id=1").get().price_cents,23456);
+ const branchPublic=await(await pub.GET(new Request("https://example.com?branch=PowerBuild%20Sungate"),params)).json();
+ assert.equal(branchPublic.product.price_cents,19999);assert.equal(branchPublic.product.branch_name,"PowerBuild Sungate");
+ delete input.branches;input.price="234.56";
  for(const privateKey of ["description","updated_by","created_by","image_key"]) assert.equal(privateKey in json.product,false);
  const busterInput={...input,brand:"busterbuild",price:"259.99"};
  const busterPost=()=>admin.POST(new Request("https://example.com/api/price-tags",{method:"POST",headers:{"content-type":"application/json",cookie:`__Host-hub_designer=${sessionToken}`},body:JSON.stringify(busterInput)}));

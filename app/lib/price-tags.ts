@@ -1,3 +1,5 @@
+import {colourProductCode} from "./colour-product-code";
+import {parsePaintColour} from "./paint-tag-fields";
 import type { ComboItem } from "./combo-tags";
 export type TagBrand = "powerbuild" | "busterbuild";
 export function tagBrand(value: unknown): TagBrand {
@@ -8,19 +10,34 @@ export function tagBrand(value: unknown): TagBrand {
 export function tagTable(brand: TagBrand) {
   return brand === "busterbuild" ? "busterbuild_price_tags" : "powerbuild_price_tags";
 }
-export function tagCustomerUrl(origin: string, tag: { token: string; code: string; brand?: TagBrand }) {
+export const ALL_BRANCHES = "All Branches";
+export function tagCustomerUrl(origin: string, tag: { token: string; code: string; brand?: TagBrand; branch_name?: string }) {
   const url = new URL(`/p/${tag.token}`, origin);
   if (tag.brand === "busterbuild") url.searchParams.set("code", tag.code);
+  if (tag.branch_name && tag.branch_name !== ALL_BRANCHES) url.searchParams.set("branch", tag.branch_name);
   return url.href;
 }
 export type TagUnit = "EA" | "M2" | "BOX";
-export type PriceTag = {
+export type PriceTag = { colour?: string | null;
   kind?: "combo"; combo_items?: ComboItem[]; includes_title?: string; includes_text?: string; brand?: TagBrand; token: string; product_id: number; code: string; name: string; description: string;
   price_cents: number; unit: TagUnit; is_tile: boolean; coverage_per_box: number;
   pieces_per_box: number; tile_width_mm: number; tile_length_mm: number;
-  published: boolean; image_url: string; updated_at: string;
+  published: boolean; image_url: string; updated_at: string; branch_name?: string;
 };
 export const TAG_TOKEN = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+export function parseTagBranches(value: unknown) {
+  if (value === undefined || value === null) return [] as string[];
+  if (!Array.isArray(value) || value.length > 50) throw new Error("Choose up to 50 branches.");
+  const branches: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    const branch = String(item ?? "").trim();
+    if (!branch || branch.length > 120 || branch.toLowerCase() === ALL_BRANCHES.toLowerCase()) throw new Error("Choose valid company branches.");
+    const key = branch.toLowerCase();
+    if (!seen.has(key)) { seen.add(key); branches.push(branch); }
+  }
+  return branches;
+}
 export function isPublicPriceTagRequest(path: string, method: string) {
   if (!["GET", "HEAD"].includes(method)) return false;
   if (path === "/price-tag-assets/busterbuild-logo-white.png" || path === "/price-tag-assets/busterbuild-template.jpg" || path === "/price-tag-assets/busterbuild-logo.png" || path === "/powerbuild-logo-transparent.png" || path === "/price-tag-assets/powerbuild-rail.png") return true;
@@ -50,7 +67,7 @@ export function parseTagInput(body: Record<string, unknown>) {
   const length = number("tile_length_mm", 10000);
   if (body.is_tile && (coverage <= 0 || !["M2", "BOX"].includes(unit))) throw new Error("For tiles, enter the confirmed m² per box and choose per m² or per box.");
   if (!body.is_tile && unit !== "EA") throw new Error("Use each for a standard product, or enable tile mode.");
-  return { product_id: Number(body.product_id), price_cents: priceCents, unit, is_tile: body.is_tile ? 1 : 0,
+  return { product_code: colourProductCode(body.product_code), colour: parsePaintColour(body.colour), product_id: Number(body.product_id), price_cents: priceCents, unit, is_tile: body.is_tile ? 1 : 0,
     coverage_per_box: coverage, pieces_per_box: pieces, tile_width_mm: width, tile_length_mm: length, published: body.published ? 1 : 0 };
 }
 export type Room = { length: number; width: number };

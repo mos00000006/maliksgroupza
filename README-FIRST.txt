@@ -1,24 +1,42 @@
-MALIKS GROUP HUB — ACTUAL SAFETY SIGNS INTEGRATION FIX
+PRICE TAG STUDIO — BRANCH PRICING
+=================================
 
-WHAT THE GITHUB LOG PROVED
-The Safety Signs component exists and passes its module test. But the actual app/price-tags/price-tag-generator.tsx file is missing the SafetyWarningSigns import, mode, dispatch and menu button. The previous patch ZIP alone does NOT integrate the tool.
+WHAT THIS PATCH ADDS
+- All Branches remains the normal company-wide product price.
+- Choose one store, several stores, or All Branches in Price Tag Studio.
+- One entered price can be saved to every selected branch.
+- Existing branch prices reload when the product is selected again.
+- Every printed/JPG tag displays its branch name in a dedicated line below the
+  product name, outside the product-picture area.
+- Each branch tag QR opens the customer page with that branch's current price.
+- The customer page clearly states which branch price is being shown.
+- Multiple selected branches generate one printable tag per branch.
+- Existing company-wide prices, QR tokens, pictures and Smart Measure details
+  are preserved.
 
-REQUIRED STEPS (from repository root, using terminal or GitHub Codespaces):
-1. Copy this ZIP contents into the matching paths in your repo.
-2. Run: node scripts/repair-safety-signs.mjs
-3. Verify: git diff -- app/price-tags/price-tag-generator.tsx
-   You MUST see the four changes listed below in the changed generator file.
-4. Run: node --test tests/safety-warning-signs.test.mjs
-5. Run: npm run check
-6. Run: git add app/price-tags/price-tag-generator.tsx app/price-tags/safety-warning-signs.tsx app/price-tags/safety-warning-signs.module.css scripts/repair-safety-signs.mjs tests/safety-warning-signs.test.mjs
-7. Run: git commit -m "Connect Safety Warning Signs to Price Tag Studio"
-8. Push to your deployment branch.
+IMPORTANT BUSTERBUILD RULE
+The BusterBuild sales app continues using the All Branches price. Branch-specific
+prices apply to their printed tags and customer QR pages only.
 
-IMPORTANT: Uploading just the script, test, or ZIP to GitHub does NOT execute the installer. The changed app/price-tags/price-tag-generator.tsx MUST be committed. If using GitHub's website editor and cannot run commands, apply these four changes manually in that file:
-A. Add import SafetyWarningSigns from "./safety-warning-signs"; after import StoreSignage.
-B. Add |"safety-signs" inside the mode useState string union.
-C. Add: if (brand && mode === "safety-signs") return <SafetyWarningSigns brand={brand} onBack={()=>setMode("single")} />; alongside the other mode returns.
-D. Add: <button type="button" onClick={()=>setMode("safety-signs")}>Safety &amp; Warning Signs</button> alongside the other tool menu buttons.
+INSTALL
+1. Copy every folder from this patch into the Maliks Group Hub repository,
+   preserving the app/, drizzle/ and tests/ paths. Replace matching files.
+2. Prepare the production Cloudflare configuration if needed:
+      npm run config:production
+3. Apply the new D1 migration:
+      npx wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc
+4. Commit, push and allow the normal Cloudflare deployment to complete.
 
-EXISTING OTHER TOOLS/PRICES/PRODUCTS: Not changed by installer.
-No D1 migration needed. Compliance: pictograms are only draft examples; certify statutory signage separately.
+HOW TO USE IT
+1. Open Price Tag Studio and choose PowerBuild or BusterBuild.
+2. Load the product.
+3. For a new product, first save its All Branches price.
+4. Select one or more branches.
+5. Enter the branch price and select Generate.
+6. One branch-labelled tag is added to the print sheet for every selected store.
+
+VALIDATION COMPLETED
+- Production build passed.
+- Price tag, paint search and colour-code compatibility tests passed: 20/20.
+- Branch override test confirms Sungate pricing does not change the All Branches price.
+- ESLint completed with no errors; existing image-element notices remain warnings.
