@@ -1,20 +1,12 @@
-MALIKS GROUP HUB - PDF + FLIPBOOK COVER-PAGE LAYOUT PATCH
+POWERBUILD — REMOVE VIEW WEBSITE BUTTON (SAFE TARGETED PATCH)
 
-Install: replace app/catalogue-pdf.ts in the Hub repository with this file.
-Do not replace catalogue data, product images, category grouping, or other modules.
+This removes only the '↗ View Website' button in the Hub header.
+It does not delete catalogue data, storefront code or the site's routes.
 
-CHANGES
-- Keep the existing full artwork cover ONLY on page 1.
-- Retain the contents/index on page 2.
-- Remove every full-page category cover/divider in the generated PDF AND interactive flipbook.
-- Start each category directly on its first product-grid page with a navy/yellow category header.
-- Update contents page start/end page references and every footer/page counter.
-- Reduce page count by one page for every nonempty category.
-- Do not alter categories, product codes, descriptions, or image URLs.
+1. Copy remove_view_website.py into your GitHub repo root.
+2. Run: python remove_view_website.py
+3. Commit the updated app/page.tsx (the script itself need not be committed).
+4. Redeploy.
 
-CHECKS
-Static source checks verified: one primary cover for PDF, one for flipbook,
-no separate category cover renderer, sequential pages for both outputs.
-A full production build/browser rendering and live deployment have not been run.
-
-Apply to the latest Hub version ONLY if app/catalogue-pdf.ts matches the recently supplied catalogue patch; merge if the file has changed since then.
+If the script reports 0 removed, this exact button is not present in your version.
+Do not replace app/page.tsx with an older version just to remove the button.
