@@ -42,6 +42,7 @@ export default function EcommerceStorefront({ channel }: Props) {
   const [data, setData] = useState<StoreData | null>(null);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -231,16 +232,30 @@ export default function EcommerceStorefront({ channel }: Props) {
     setCartOpen(false);
   };
 
+  const departmentIcons: Record<string, string> = {
+    Plumbing: "🚰", "Electrical & Lighting": "💡", "Paints & Allied": "🎨",
+    Waterproofing: "💧", "Roofing & Gutters": "🏠", Timber: "🪵",
+    "Boards & Ceilings": "▤", "Tiles & Sanware": "◈", "Tools & Hardware": "🛠️",
+    "Building Materials": "🧱", "Window Blinds & Treatments": "▥", Flooring: "▦",
+  };
+  const jumpToProducts = (selectedCategory = "") => {
+    setCategory(selectedCategory);
+    setPage(1);
+    document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   const specialImages = useMemo(() => data?.specials.flatMap((special) => special.images.map((image) => ({ ...image, title: special.title }))) || [], [data]);
 
   return (
     <main className={styles.store}>
+      {channel === "B2C" && <div className={styles.utilityBar}><span>POWERBUILD • BUILD WITH CONFIDENCE</span><div><span>Find building supplies, finishes and more</span><Link href="/wholesale-shop">Trade customers</Link></div></div>}
       <header className={styles.header}>
         <Link className={styles.brand} href={channel === "B2C" ? "/shop" : "/wholesale-shop"}>
           <img src="/powerbuild-logo-transparent.png" alt="PowerBuild" />
           <span><strong>{data?.settings.store_name || (channel === "B2C" ? "PowerBuild Online" : "PowerBuild Wholesale Online")}</strong><small>{channel === "B2C" ? "Retail eCommerce" : "B2B Trade eCommerce"}</small></span>
         </Link>
-        <nav>
+        {channel === "B2C" && <form className={styles.headerSearch} role="search" onSubmit={(event) => { event.preventDefault(); jumpToProducts(category); void load(1); }}><label htmlFor="powerbuild-search" className={styles.srOnly}>Search PowerBuild products</label><input id="powerbuild-search" value={q} onChange={(event) => setQ(event.target.value)} placeholder="What are you looking for? Search products, brands or codes" /><button type="submit" aria-label="Search products">⌕ <span>Search</span></button></form>}
+        {channel === "B2C" && <button className={styles.mobileMenuToggle} type="button" aria-expanded={mobileMenuOpen} aria-controls="powerbuild-main-nav" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>☰ Menu</button>}
+        <nav id="powerbuild-main-nav" className={channel === "B2C" && !mobileMenuOpen ? styles.mobileNavClosed : undefined}>
           {channel === "B2B" && <Link className={styles.backHub} href="/">Company Hub</Link>}
           {channel === "B2C" && <a href="#products">Shop products</a>}
           <Link className={channel === "B2C" ? styles.activeChannel : ""} href="/shop">Retail Shop</Link>
@@ -250,11 +265,13 @@ export default function EcommerceStorefront({ channel }: Props) {
         </nav>
       </header>
 
+      {channel === "B2C" && <div className={styles.departmentNav}><button type="button" className={styles.departmentAll} onClick={() => jumpToProducts()}>☷ &nbsp;Shop all departments</button>{(data?.categories || []).slice(0, 7).map((item) => <button type="button" key={item} onClick={() => jumpToProducts(item)}>{item}</button>)}<button type="button" onClick={() => document.getElementById("promotions")?.scrollIntoView({behavior:"smooth"})}>Specials</button></div>}
       <section className={styles.hero}>
         <div>
           <span>{channel === "B2C" ? "YOUR PROJECT STARTS HERE  /  POWERBUILD SOUTH AFRICA" : "POWERBUILD WHOLESALE DIVISION"}</span>
           <h1>{channel === "B2C" ? "Everything to build something brilliant." : "Trade ordering built for hardware businesses."}</h1>
-          <p>{channel === "B2C" ? "From foundations to finishing touches. Explore our live range of building materials, tiles, sanitaryware, paints, plumbing and tools — updated straight from the PowerBuild catalogue." : "Approved B2B customers can order in bulk, use trade pack quantities and send purchase references directly to Head Office."}</p>
+          <p>{channel === "B2C" ? "Building materials, paint, plumbing, tiles, tools and more. Find what your next project needs, all in one place." : "Approved B2B customers can order in bulk, use trade pack quantities and send purchase references directly to Head Office."}</p>
+          {channel === "B2C" && <div className={styles.heroActions}><button type="button" onClick={() => jumpToProducts()}>Shop all products <span>→</span></button><button type="button" className={styles.heroSecondary} onClick={() => document.getElementById("departments")?.scrollIntoView({behavior:"smooth"})}>Browse departments</button></div>}
         </div>
         <div className={styles.heroCard}>
           <div className={styles.heroIcon}>PB<span>+</span></div>
@@ -295,20 +312,21 @@ export default function EcommerceStorefront({ channel }: Props) {
         </section>
       )}
 
+      {channel === "B2C" && <section id="departments" className={styles.departments}><div className={styles.departmentHeading}><div><span>FIND IT FASTER</span><h2>Shop by department</h2><p>Everything you need, organised by project and product type.</p></div><button type="button" onClick={() => jumpToProducts()}>View all departments →</button></div><div className={styles.departmentGrid}>{(data?.categories || []).slice(0, 12).map((item, index) => <button className={styles.departmentTile} key={item} type="button" onClick={() => jumpToProducts(item)}><span className={`${styles.departmentTileIcon} ${styles[`tileTone${index % 4}`]}`} aria-hidden="true">{departmentIcons[item] || "▦"}</span><strong>{item}</strong><span className={styles.departmentArrow}>↗</span></button>)}</div></section>}
       {!!specialImages.length && (
-        <section className={styles.specials}>
-          <div className={styles.sectionHeading}><div><span>CURRENT PROMOTIONS</span><h2>Store specials</h2></div></div>
+        <section id="promotions" className={styles.specials}>
+          <div className={styles.sectionHeading}><div><span>OFFERS FROM THE HUB</span><h2>Latest promotions</h2><p className={styles.catalogueIntro}>Promotions published by your team appear here automatically.</p></div></div>
           <div className={styles.specialScroller}>
             {specialImages.slice(0, 8).map((image) => <img key={image.id} src={image.url} alt={image.title} />)}
           </div>
         </section>
       )}
 
-      {channel === "B2C" && <section className={styles.benefits} aria-label="Why choose PowerBuild"><div><span>01</span><strong>Explore the range</strong><small>Thousands of essentials in one place</small></div><div><span>02</span><strong>Shop your way</strong><small>Collection or delivery enquiry</small></div><div><span>03</span><strong>Always up to date</strong><small>Live products from our catalogue</small></div></section>}
+      {channel === "B2C" && <section className={styles.benefits} aria-label="Why choose PowerBuild"><div><span>▣</span><strong>Shop our full range</strong><small>Products organised into easy departments</small></div><div><span>🚚</span><strong>Collection or delivery</strong><small>Select your fulfilment preference at checkout</small></div><div><span>↻</span><strong>Connected to the Hub</strong><small>Catalogue updates appear without re-imports</small></div></section>}
 
       <section id="products" className={styles.catalogue}>
         <div className={styles.sectionHeading}>
-          <div><span>EXPLORE WHAT WE STOCK</span><h2>{data?.total || 0} products to power your next project</h2><p className={styles.catalogueIntro}>Search our current range by product, code or department. Prices shown where confirmed.</p></div>
+          <div><span>THE POWERBUILD RANGE</span><h2>{category || (q ? "Search results" : "Shop popular essentials")}</h2><p className={styles.catalogueIntro}>{data?.total ?? 0} matching products · Live from the Hub · Prices shown where confirmed</p></div>
           <div className={styles.filters}>
             <form onSubmit={(e) => { e.preventDefault(); void load(1); }}><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search product code, name or category" /><button>Search</button></form>
             <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }}><option value="">All categories</option>{data?.categories.map((item) => <option key={item}>{item}</option>)}</select>
@@ -317,19 +335,19 @@ export default function EcommerceStorefront({ channel }: Props) {
 
         {channel === "B2C" && !!data?.categories.length && <div className={styles.categoryChips}><button type="button" className={!category ? styles.selectedChip : ""} onClick={() => setCategory("")}>All departments</button>{data.categories.slice(0, 14).map((item) => <button type="button" key={item} className={category === item ? styles.selectedChip : ""} onClick={() => { setCategory(item); setPage(1); }}>{item}</button>)}</div>}
 
-        {loading ? <div className={styles.loading}>Loading online catalogue…</div> : (
+        {loading ? <div className={styles.loading}>Loading online catalogue…</div> : !data?.products.length ? <div className={styles.loading}>No products match this search. Try another product name or department.</div> : (
           <div className={styles.grid}>
             {data?.products.map((product) => (
               <article key={product.id} className={styles.productCard}>
                 <div className={styles.imageWrap}>{product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" /> : <span className={styles.imageFallback}><span>POWERBUILD</span><small>Image coming soon</small></span>}{product.featured && <b>FEATURED</b>}</div>
                 <small>{product.category}</small>
                 <h3>{product.name}</h3>
-                <p>{product.code}</p>
+                <p>SKU: {product.code}</p>
                 <div className={styles.priceRow}>
                   <span>{product.price_locked ? <><strong>Trade price locked</strong><small>Verify approved B2B account</small></> : product.price > 0 ? <><strong>{money(product.price)}</strong><small>{product.price_basis}</small></> : <><strong>Price on request</strong><small>Head Office will confirm</small></>}</span>
                   <em>{product.stock_status}</em>
                 </div>
-                <button type="button" disabled={product.stock_status === "Unavailable" || Boolean(product.price_locked)} onClick={() => add(product)}>{product.price_locked ? "Verify to order" : `Add ${product.min_qty > 1 ? `min ${product.min_qty}` : "to cart"}`}</button>
+                <button type="button" disabled={product.stock_status === "Unavailable" || Boolean(product.price_locked)} onClick={() => add(product)}>{product.price_locked ? "Verify to order" : `＋ Add ${product.min_qty > 1 ? `min ${product.min_qty}` : "to cart"}`}</button>
               </article>
             ))}
           </div>
