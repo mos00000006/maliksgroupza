@@ -31,7 +31,7 @@ export default function HubDisplaySize() {
         const stored = Number(window.localStorage.getItem(KEY));
         if (validLevel(stored)) {
           setLevel(stored);
-          document.documentElement.style.zoom = String(stored / 100);
+          // Magnification is applied by the effect that observes level.
         }
       } catch {
         // Storage may be disabled; the control remains usable.
@@ -39,13 +39,20 @@ export default function HubDisplaySize() {
     }, 0);
     return () => {
       window.clearTimeout(start);
-      document.documentElement.style.removeProperty("zoom");
     };
   }, []);
 
+  useEffect(() => {
+    if (!active) return;
+    // React owns state; this effect synchronises the DOM after a size change.
+    document.documentElement.style.zoom = String(level / 100);
+    return () => {
+      document.documentElement.style.removeProperty("zoom");
+    };
+  }, [active, level]);
+
   function changeSize(next: Level) {
     setLevel(next);
-    document.documentElement.style.zoom = String(next / 100);
     try {
       window.localStorage.setItem(KEY, String(next));
     } catch {

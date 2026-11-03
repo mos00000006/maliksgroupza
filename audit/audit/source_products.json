@@ -1,0 +1,3229 @@
+[
+  {
+    "code": "WHPDF-CARD-P02-01",
+    "name": "FITTING COMP HDPE 90DEG ELBOW 20MM",
+    "description": "FITTING COMP HDPE 90DEG ELBOW 20MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-02",
+    "name": "FITTING COMP HDPE MALE THREAD ADAPTOR 20X1/2",
+    "description": "FITTING COMP HDPE MALE THREAD ADAPTOR 20X1/2",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-03",
+    "name": "FITTING COMP HDPE FEMALE THREAD ADAPTOR 20X1/2",
+    "description": "FITTING COMP HDPE FEMALE THREAD ADAPTOR 20X1/2",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-04",
+    "name": "FITTING COMP HDPE REDUCING COUPLING 20X25MM",
+    "description": "FITTING COMP HDPE REDUCING COUPLING 20X25MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-05",
+    "name": "FITTING COMP HDPE EQUAL TEE 20MM",
+    "description": "FITTING COMP HDPE EQUAL TEE 20MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-06",
+    "name": "FITTING COMP HDPE MALE THREAD ADAPTOR 20X3/4",
+    "description": "FITTING COMP HDPE MALE THREAD ADAPTOR 20X3/4",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-07",
+    "name": "FITTING COMP HDPE END CAP 20MM",
+    "description": "FITTING COMP HDPE END CAP 20MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-08",
+    "name": "FITTING COMP HDPE REDUCING TEE 25X20MM",
+    "description": "FITTING COMP HDPE REDUCING TEE 25X20MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-09",
+    "name": "FITTING COMP HDPE BALL VALVE 20MM",
+    "description": "FITTING COMP HDPE BALL VALVE 20MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-10",
+    "name": "FITTING COMP HDPE COUPLING 20MM",
+    "description": "FITTING COMP HDPE COUPLING 20MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-11",
+    "name": "W 40MMX45 DEG PLAIN BEND SABS",
+    "description": "W 40MMX45 DEG PLAIN BEND SABS",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-12",
+    "name": "W 40MMX45 DEG IE BEND SABS",
+    "description": "W 40MMX45 DEG IE BEND SABS",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-13",
+    "name": "W 40MMX90 DEG PLAIN JUNCTION SABS",
+    "description": "W 40MMX90 DEG PLAIN JUNCTION SABS",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-14",
+    "name": "W 50MMX90 DEG PLAIN BEND SABS",
+    "description": "W 50MMX90 DEG PLAIN BEND SABS",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-15",
+    "name": "W 40MMX90 DEG IE BEND SABS",
+    "description": "W 40MMX90 DEG IE BEND SABS",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-16",
+    "name": "W 50MMX90 DEG IE BEND",
+    "description": "W 50MMX90 DEG IE BEND",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-17",
+    "name": "W 50MMX45 DEG PLAIN BEND",
+    "description": "W 50MMX45 DEG PLAIN BEND",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-18",
+    "name": "W 50MMX45 DEG IE BEND",
+    "description": "W 50MMX45 DEG IE BEND",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-19",
+    "name": "W 50MMX90 DEG PLAIN T JUNCTION",
+    "description": "W 50MMX90 DEG PLAIN T JUNCTION",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-20",
+    "name": "W 50MMX90 DEG IE JUNCTION SABS",
+    "description": "50MM solvent-weld waste fitting from the original wholesale catalogue.",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-21",
+    "name": "W 50MMX90 DEG IE BEND SABS",
+    "description": "W 50MMX90 DEG IE BEND SABS",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-22",
+    "name": "W 50MMX45 DEG PLAIN BEND SABS",
+    "description": "W 50MMX45 DEG PLAIN BEND SABS",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-23",
+    "name": "W 50MMX45 DEG PLAIN JUNCTION SABS",
+    "description": "W 50MMX45 DEG PLAIN JUNCTION SABS",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-24",
+    "name": "W 50MMX45 DEG IE JUNCTION SABS",
+    "description": "W 50MMX45 DEG IE JUNCTION SABS",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P02-25",
+    "name": "W45MMX90 DEG PLAIN BEND SABS",
+    "description": "W45MMX90 DEG PLAIN BEND SABS",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-01",
+    "name": "PIPE UG 110MMX6M",
+    "description": "PIPE UG 110MMX6M",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-02",
+    "name": "PIPE WASTE 50MMX6M",
+    "description": "PIPE WASTE 50MMX6M",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-03",
+    "name": "PIPE HDPE 20MMX100M C10",
+    "description": "PIPE HDPE 20MMX100M C10",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-04",
+    "name": "PIPE POLYCORP 15MMX100M",
+    "description": "PIPE POLYCORP 15MMX100M",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-05",
+    "name": "PIPE SV 110MMX6M",
+    "description": "PIPE SV 110MMX6M",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-06",
+    "name": "UG 110MMX90 DEG LONG RADIUS BEND",
+    "description": "UG 110MMX90 DEG LONG RADIUS BEND",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-07",
+    "name": "UG 110MMX22.5 DEG PLAIN BEND",
+    "description": "UG 110MMX22.5 DEG PLAIN BEND",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-08",
+    "name": "UG 110MMX45 DEG PLAIN Y JUNCTION",
+    "description": "UG 110MMX45 DEG PLAIN Y JUNCTION",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-09",
+    "name": "UG 110MM DEG PLAIN Y JUNCTION",
+    "description": "UG 110MM DEG PLAIN Y JUNCTION",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-10",
+    "name": "UG 110MM SINGLE SOCKET",
+    "description": "UG 110MM SINGLE SOCKET",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-11",
+    "name": "SV 110MMX45 DEG PLAIN BEND",
+    "description": "SV 110MMX45 DEG PLAIN BEND",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-12",
+    "name": "SV 110MMX90 DEG IT T JUNCTION",
+    "description": "SV 110MMX90 DEG IT T JUNCTION",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-13",
+    "name": "SV 110MM FLEXIBLE PAN CONNECTOR 50MM",
+    "description": "SV 110MM FLEXIBLE PAN CONNECTOR 50MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-14",
+    "name": "SV 110M KIMBERLEY SOCKET",
+    "description": "SV 110M KIMBERLEY SOCKET",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-15",
+    "name": "SV 110MX90 DEG PLAIN BEND",
+    "description": "SV 110MX90 DEG PLAIN BEND",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-16",
+    "name": "PAN SEAL RING BROWN BOX",
+    "description": "PAN SEAL RING BROWN BOX",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-17",
+    "name": "TRAP WASTE P 30X40 BLACK",
+    "description": "TRAP WASTE P 30X40 BLACK",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-18",
+    "name": "TRAP WASTE BATH MINI 40X40 BLACK",
+    "description": "TRAP WASTE BATH MINI 40X40 BLACK",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-19",
+    "name": "MASTERBATT 15MM",
+    "description": "MASTERBATT 15MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-20",
+    "name": "TAPE PLUMBERS 12MMX10M",
+    "description": "TAPE PLUMBERS 12MMX10M",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-21",
+    "name": "HOSE CONNECTOR",
+    "description": "HOSE CONNECTOR - BRAIDED F3/4XF3/4 35CM; NYLON BRAIDED F1/2XF1/2 35CM; HOSE CONNECTOR NYLO (wording as shown in source catalogue).",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-22",
+    "name": "PIPE COMPOSITE ALU PEX 110X5MMX100M",
+    "description": "PIPE COMPOSITE ALU PEX 110X5MMX100M",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P03-23",
+    "name": "STANDPIPE GALVANIZED 1/2\"",
+    "description": "STANDPIPE GALVANIZED 1/2\"",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-01",
+    "name": "FITTING COMP COPPER 90D ELBOW 15MM",
+    "description": "FITTING COMP COPPER 90D ELBOW 15MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-02",
+    "name": "FITTING COMP COPPER STRAIGHT COUPLER 15MM",
+    "description": "FITTING COMP COPPER STRAIGHT COUPLER 15MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-03",
+    "name": "FITTING COMP COPPER SADDLE 15MM",
+    "description": "FITTING COMP COPPER SADDLE 15MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-04",
+    "name": "FITTING COMP COPPER EQUAL TEE 15MM",
+    "description": "FITTING COMP COPPER EQUAL TEE 15MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-05",
+    "name": "FITTING COMP COPPER FITTINGS REDUCING COUPLER 20X15",
+    "description": "FITTING COMP COPPER FITTINGS REDUCING COUPLER 20X15",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-06",
+    "name": "FITTING COMP COPPER CAP 15MM",
+    "description": "FITTING COMP COPPER CAP 15MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-07",
+    "name": "FITTING COMP COPPER 90D ELBOW 22MM",
+    "description": "FITTING COMP COPPER 90D ELBOW 22MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-08",
+    "name": "FITTING COMP COPPER STRAIGHT COUPLER 22MM",
+    "description": "FITTING COMP COPPER STRAIGHT COUPLER 22MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-09",
+    "name": "FITTING COMP COPPER EQUAL TEE 22MM",
+    "description": "FITTING COMP COPPER EQUAL TEE 22MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-10",
+    "name": "FITTING COMP COPPER SADDLE 22MM",
+    "description": "FITTING COMP COPPER SADDLE 22MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-11",
+    "name": "FITTING COMP BRASS RING 15MM",
+    "description": "FITTING COMP BRASS RING 15MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-12",
+    "name": "FITTING COMP BRASS STRAIGHT COUPLER CxMI 15MMX1/2",
+    "description": "FITTING COMP BRASS STRAIGHT COUPLER CxMI 15MMX1/2",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-13",
+    "name": "FITTING COMP BRASS STRAIGHT COUPLER CxC 15MM",
+    "description": "FITTING COMP BRASS STRAIGHT COUPLER CxC 15MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-14",
+    "name": "FITTING COMP BRASS TEE CxCxC 15MM",
+    "description": "FITTING COMP BRASS TEE CxCxC 15MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-15",
+    "name": "FITTING COMP BRASS ELBOW CxC 15MM",
+    "description": "FITTING COMP BRASS ELBOW CxC 15MM",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-16",
+    "name": "FITTING COMP BRASS DELCOP 15MM 1/2 FI COUPLER",
+    "description": "FITTING COMP BRASS DELCOP 15MM 1/2 FI COUPLER",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-17",
+    "name": "FITTING COMP BRASS DELCOP 15MM 1/2 MI COUPLER",
+    "description": "FITTING COMP BRASS DELCOP 15MM 1/2 MI COUPLER",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-18",
+    "name": "FITTING COMP BRASS DELCOP 15MM 1/2 FI TEE",
+    "description": "FITTING COMP BRASS DELCOP 15MM 1/2 FI TEE",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-19",
+    "name": "FITTINGS GALVANIZED 90 DEG ELBOW",
+    "description": "FITTINGS GALVANIZED 90 DEG ELBOW",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-20",
+    "name": "FITTINGS GALVANIZED 270 SOCKET 1/2 INCH",
+    "description": "FITTINGS GALVANIZED 270 SOCKET 1/2 INCH",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-21",
+    "name": "FITTINGS GALVANIZED BARREL NIPPLE 1/2X2INCH",
+    "description": "FITTINGS GALVANIZED BARREL NIPPLE 1/2X2INCH",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-22",
+    "name": "FITTINGS GALVANIZED 290 PLUG 1/2 INCH",
+    "description": "FITTINGS GALVANIZED 290 PLUG 1/2 INCH",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P04-23",
+    "name": "COPPER PIPE",
+    "description": "COPPER PIPE",
+    "category": "Plumbing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-01",
+    "name": "GUTTER ANGLE SQUARE INT 0.4X300X75MM",
+    "description": "GUTTER ANGLE SQUARE INT 0.4X300X75MM",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-02",
+    "name": "WATERPROOFING MEMBRANE",
+    "description": "WATERPROOFING MEMBRANE",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-03",
+    "name": "DOWN PIPE GUTTER GALV ROUND CRIMP SHOW 0.40X75MMX2.7M",
+    "description": "DOWN PIPE GUTTER GALV ROUND CRIMP SHOW 0.40X75MMX2.7M",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-04",
+    "name": "DOWN PIPE GUTTER GALV MAXI RIPPLE CRIMP BUDGET 100X75MMX2.7M",
+    "description": "DOWN PIPE GUTTER GALV MAXI RIPPLE CRIMP BUDGET 100X75MMX2.7M",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-05",
+    "name": "GUTTER DOMESTIC BUDGET 100X75MMX6.0M",
+    "description": "GUTTER DOMESTIC BUDGET 100X75MMX6.0M",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-06",
+    "name": "OUTLET GUTTER LIPPED SQUARE REP BUDGET 100X75MM",
+    "description": "OUTLET GUTTER LIPPED SQUARE REP BUDGET 100X75MM",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-07",
+    "name": "BOARD FASCIA FIBER CEMENT 225X3.6 9MM",
+    "description": "BOARD FASCIA FIBER CEMENT 225X3.6 9MM",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-08",
+    "name": "OFFSET ROUND GUTTER GALV CRIMP 0.40X75X600MM",
+    "description": "OFFSET ROUND GUTTER GALV CRIMP 0.40X75X600MM",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-09",
+    "name": "ROOFTILE MARLEY DOUBLE ROMAN UNIVERSAL",
+    "description": "ROOFTILE MARLEY DOUBLE ROMAN UNIVERSAL",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-10",
+    "name": "CORRUGATED ROOF SHEETING",
+    "description": "CORRUGATED ROOF SHEETING",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-11",
+    "name": "UNDERLAY ROOFTILE",
+    "description": "UNDERLAY ROOFTILE",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-12",
+    "name": "ROOF SHEETING CHROMADEK GREEN 0.4MM H/D 6M",
+    "description": "ROOF SHEETING CHROMADEK GREEN 0.4MM H/D 6M",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-13",
+    "name": "ROOF SHEETING IBR",
+    "description": "ROOF SHEETING IBR",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-14",
+    "name": "BOARD CEILING GYPSUM",
+    "description": "BOARD CEILING GYPSUM",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-15",
+    "name": "TIMBER BXX/SABS BRANDERING",
+    "description": "TIMBER BXX/SABS BRANDERING",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-16",
+    "name": "TIMBER BXX/SABS PURLIN",
+    "description": "TIMBER BXX/SABS PURLIN",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P05-17",
+    "name": "TIMBER BXX/SABS RAFTERS",
+    "description": "TIMBER BXX/SABS RAFTERS",
+    "category": "Roofing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-01",
+    "name": "FANCY CYLINDER LOCKSET",
+    "description": "FANCY CYLINDER LOCKSET. Visual variant 1 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-02",
+    "name": "FANCY CYLINDER LOCKSET",
+    "description": "FANCY CYLINDER LOCKSET. Visual variant 2 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-03",
+    "name": "CYLINDER LOCKSET",
+    "description": "CYLINDER LOCKSET. Visual variant 3 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-04",
+    "name": "FANCY CYLINDER LOCKSET",
+    "description": "FANCY CYLINDER LOCKSET. Visual variant 4 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-05",
+    "name": "GEORGIAN LOCKSET",
+    "description": "GEORGIAN LOCKSET. Visual variant 5 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-06",
+    "name": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE",
+    "description": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE. Visual variant 6 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-07",
+    "name": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE",
+    "description": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE. Visual variant 7 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-08",
+    "name": "H/DUTY MORTICE LOCKSET",
+    "description": "H/DUTY MORTICE LOCKSET. Visual variant 8 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-09",
+    "name": "FANCY CYLINDER LOCKSET",
+    "description": "FANCY CYLINDER LOCKSET. Visual variant 9 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-10",
+    "name": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE",
+    "description": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE. Visual variant 10 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-11",
+    "name": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE",
+    "description": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE. Visual variant 11 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-12",
+    "name": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE",
+    "description": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE. Visual variant 12 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-13",
+    "name": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE",
+    "description": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE. Visual variant 13 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-14",
+    "name": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE",
+    "description": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE. Visual variant 14 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-15",
+    "name": "CYLINDER LOCKSET",
+    "description": "CYLINDER LOCKSET. Visual variant 15 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-16",
+    "name": "CYLINDER LOCKSET",
+    "description": "CYLINDER LOCKSET. Visual variant 16 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-17",
+    "name": "CYLINDER LOCKSET 3 LEVER MORTICE",
+    "description": "CYLINDER LOCKSET 3 LEVER MORTICE. Visual variant 17 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-18",
+    "name": "CYLINDER LOCKSET 3 LEVER MORTICE",
+    "description": "CYLINDER LOCKSET 3 LEVER MORTICE. Visual variant 18 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-19",
+    "name": "CYLINDER LOCKSET 3 LEVER MORTICE",
+    "description": "CYLINDER LOCKSET 3 LEVER MORTICE. Visual variant 19 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-20",
+    "name": "CYLINDER LOCKSET 3 LEVER MORTICE",
+    "description": "CYLINDER LOCKSET 3 LEVER MORTICE. Visual variant 20 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-21",
+    "name": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE",
+    "description": "FANCY CYLINDER LOCKSET 3 LEVER MORTICE. Visual variant 21 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-22",
+    "name": "ROCCA 2 LEVER MORTICE LOCKSET",
+    "description": "ROCCA 2 LEVER MORTICE LOCKSET. Visual variant 22 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-23",
+    "name": "ROCCA MORTICE LOCKSET RL20",
+    "description": "ROCCA MORTICE LOCKSET RL20. Visual variant 23 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P06-24",
+    "name": "ROCCA MORTICE LOCKSET RL50",
+    "description": "ROCCA MORTICE LOCKSET RL50. Visual variant 24 as shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-01",
+    "name": "DOOR MASONITE WHITE 2,4,6 PANEL",
+    "description": "DOOR MASONITE WHITE 2,4,6 PANEL",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-02",
+    "name": "DOOR MASONITE CLASSIC GREY 2,4,6 PANEL",
+    "description": "DOOR MASONITE CLASSIC GREY 2,4,6 PANEL",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-03",
+    "name": "DOOR MASONITE",
+    "description": "DOOR MASONITE",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-04",
+    "name": "DOOR MASONITE HARDWOOD HORIZONTAL",
+    "description": "DOOR MASONITE HARDWOOD HORIZONTAL",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-05",
+    "name": "DOOR MASONITE SAPELE",
+    "description": "DOOR MASONITE SAPELE",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-06",
+    "name": "DOOR MASONITE WHITE HORIZONTAL",
+    "description": "DOOR MASONITE WHITE HORIZONTAL",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-07",
+    "name": "DOOR ALU 3 PANEL FULL RIGHT/LEFT",
+    "description": "DOOR ALU 3 PANEL FULL RIGHT/LEFT",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-08",
+    "name": "DOOR PINE 8 PANE FULL",
+    "description": "DOOR PINE 8 PANE FULL",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-09",
+    "name": "DOOR PINE 8 PANE STABLE",
+    "description": "DOOR PINE 8 PANE STABLE",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-10",
+    "name": "DOOR PINE BACK TO BACK",
+    "description": "DOOR PINE BACK TO BACK",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-11",
+    "name": "DOOR PINE OB Z BRACED",
+    "description": "DOOR PINE OB Z BRACED",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-12",
+    "name": "DOOR ALU 4 PANEL FULL",
+    "description": "DOOR ALU 4 PANEL FULL",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-13",
+    "name": "DOOR ALU FANCY ARROW",
+    "description": "DOOR ALU FANCY ARROW",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-14",
+    "name": "DOOR ALU SLIDING",
+    "description": "DOOR ALU SLIDING",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-15",
+    "name": "COMBINATION DOOR HD O/I LEFT",
+    "description": "COMBINATION DOOR HD O/I LEFT",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-16",
+    "name": "COMBINATION DOOR HD O/I RIGHT",
+    "description": "COMBINATION DOOR HD O/I RIGHT",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-17",
+    "name": "COMBINATION DOOR HD O/O RIGHT",
+    "description": "COMBINATION DOOR HD O/O RIGHT",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-18",
+    "name": "COMBINATION DOOR HD O/O LEFT",
+    "description": "COMBINATION DOOR HD O/O LEFT",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-19",
+    "name": "DOORFRAME STEEL STABLE RIGHT H/D",
+    "description": "DOORFRAME STEEL STABLE RIGHT H/D",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-20",
+    "name": "DOORFRAME STEEL STABLE LEFT H/D",
+    "description": "DOORFRAME STEEL STABLE LEFT H/D",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P07-21",
+    "name": "WHITE SOLID DOOR 8 PANEL",
+    "description": "WHITE SOLID DOOR 8 PANEL",
+    "category": "Doors & Frames",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P08-01",
+    "name": "POST CORNER 2.4 X 65MM ECONO GALV",
+    "description": "POST CORNER 2.4 X 65MM ECONO GALV",
+    "category": "Fencing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P08-02",
+    "name": "WIRE MESH CHICKEN ELECTRO",
+    "description": "WIRE MESH CHICKEN ELECTRO",
+    "category": "Fencing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P08-03",
+    "name": "K STANDARD 2.4M V01 FOR 100+",
+    "description": "K STANDARD 2.4M V01 FOR 100+",
+    "category": "Fencing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P08-04",
+    "name": "WIRE MESH 1.8X30M RANGE",
+    "description": "Available variants: HOT DIP 100X100 / HOT DIP 50X50 / ELECTRO 50X100 / ELECTRO 100X100 / ELECTRO 50X50 / SUPER COMBO 50X100 / SUPER COMBO 100X100 / SUPER COMBO 50X50",
+    "category": "Fencing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P08-05",
+    "name": "WIRE BARBED GALV DOUBLE STRAND 50KG H/D",
+    "description": "WIRE BARBED GALV DOUBLE STRAND 50KG H/D",
+    "category": "Fencing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P08-06",
+    "name": "GALVANISED BARBED WIRE HEAVY DUTY RANGE",
+    "description": "Available variants: WIRE BARBED GALV DOUBLE STRAND - +/- 40 HEAVY DUTY / WIRE BARBED GALV DOUBLE STRAND - +/- 17KG HEAVY DUTY / WIRE BARBED GALV DOUBLE STRAND - +/- 35KG HEAVY DUTY / + more variants",
+    "category": "Fencing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P08-07",
+    "name": "FENCE STAY GALV L/D",
+    "description": "FENCE STAY GALV L/D",
+    "category": "Fencing",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-01",
+    "name": "TOMMY FIX BLIND RIVET RANGE",
+    "description": "Available variants: 3.2X06 100 PCS / 3.2X08 100 PCS / 3.2X10 100 PCS / 3.2X12 100 PCS / 3.2X18 100 PCS / 3.2X21 100 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-02",
+    "name": "TOMMY FIX BLIND RIVET RANGE",
+    "description": "Available variants: 4.0X06 100 PCS / 4.0X08 100 PCS / 4.0X10 100 PCS / 4.0X12 100 PCS / 4.0X15 100 PCS / 4.0X18 100 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-03",
+    "name": "TOMMY FIX BLIND RIVET RANGE",
+    "description": "Additional blind-rivet assortment shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-04",
+    "name": "TOMMY FIX BLIND RIVET RANGE",
+    "description": "Available variants: 4.0X10 100 PCS / 4.0X12 100 PCS / 4.8X12 100 PCS / 4.8X15 100 PCS / 4.8X18 100 PCS / 4.8X21 100 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-05",
+    "name": "TOMMY FIX BLIND RIVET RANGE",
+    "description": "Available variants: 4.0X15 100 PCS / 4.0X21 100 PCS / 4.8X10 100 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "TF-BR4824-100",
+    "name": "BLIND RIVET 4.8X24 100 PCS",
+    "description": "4.8X24 - 100 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-07",
+    "name": "TOMMY FIX BLIND RIVET RANGE",
+    "description": "Additional blind-rivet assortment shown in the original wholesale catalogue.",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-08",
+    "name": "TOMMY FIX BLIND RIVET RANGE",
+    "description": "Available variants: 4.8X10 25 PCS / 4.8X12 25 PCS / 4.8X15 25 PCS / 4.8X21 25 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-09",
+    "name": "TOMMY FIX WALL PLUG RANGE",
+    "description": "Available variants: 10MM 10 PCS / 12MM 5 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-10",
+    "name": "TOMMY FIX BONDED WASHER RANGE",
+    "description": "Available variants: 6X19 200 PCS / 6X19 500 PCS / 6X26 200 PCS / 6X26 500 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-11",
+    "name": "TOMMY FIX BONDED WASHER RANGE",
+    "description": "Available variants: 6X19 25 PCS / 6X19 50 PCS / 6X26 25 PCS / 6X26 50 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-12",
+    "name": "TOMMY FIX TOP SPEED SCREW RANGE",
+    "description": "Available variants: 5.5X38 100 PCS / 5.5X50 100 PCS / 5.5X65 100 PCS / 5.5X90 100 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-13",
+    "name": "TOMMY FIX COACH SCREW COMBO RANGE",
+    "description": "Available variants: 8X60 20 PCS / 8X60 60 PCS / 6X50 60 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-14",
+    "name": "TOMMY FIX COACH SCREW COMBO RANGE",
+    "description": "Available variants: 6X30 8 PCS / 6X50 8 PCS / 6X60 8 PCS / 8X30 8 PCS / 8X50 8 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-15",
+    "name": "TOMMY FIX COACH SCREW COMBO RANGE",
+    "description": "Available variants: 10X40 8 PCS / 10X50 8 PCS / 10X75 8 PCS / 8X75 8 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-16",
+    "name": "TOMMY FIX DRYWALL SCREW RANGE",
+    "description": "Available variants: 3.5X25 25 PCS / 3.5X25 50 PCS / 3.5X35 100 PCS / 3.5X32 25 PCS / 3.5X32 50 PCS / 3.5X32 100 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-17",
+    "name": "TOMMY FIX DRYWALL SCREW RANGE",
+    "description": "Available variants: 3.5X41 25 PCS / 3.5X41 50 PCS / 3.5X41 100 PCS / 4.0X75 25 PCS / 4.0X75 50 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-18",
+    "name": "TOMMY FIX DRYWALL SCREW RANGE",
+    "description": "Available variants: 3.5X25 200 PCS / 3.5X25 500 PCS / 3.5X32 200 PCS / 3.5X32 500 PCS / 3.5X41 200 PCS / 4X75 200 PCS / 4X75 500 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-19",
+    "name": "TOMMY FIX EXPANSION BOLT RANGE",
+    "description": "Available variants: 10X75 10 PCS / 12X90 10 PCS / 6X50 25 PCS / 8X65 25 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-20",
+    "name": "TOMMY FIX EXPANSION BOLT RANGE",
+    "description": "Available variants: 6X50 2 PCS / 6X50 4 PCS / 6X50 10 PCS / 8X65 2 PCS / 8X65 4 PCS / 9X65 10 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-21",
+    "name": "TOMMY FIX EXPANSION BOLT RANGE",
+    "description": "Available variants: 10X75 2 PCS / 10X75 4 PCS / 12X90 2 PCS / 12X90 4 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-22",
+    "name": "TOMMY FIX TEK SCREW RANGE",
+    "description": "Available variants: 5.5X20 100 PCS / 5.5X25 100 PCS / 5.5X30 100 PCS / 5.5X40 100 PCS / 5.5X50 100 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-23",
+    "name": "TOMMY FIX NAIL IN ANCHOR RANGE",
+    "description": "Available variants: 5X35 50 PCS / 5X35 100 PCS / 5X50 50 PCS / 5X50 100 PCS / 6X35 50 PCS / 6X35 100 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-24",
+    "name": "TOMMY FIX NAIL IN ANCHOR RANGE",
+    "description": "Available variants: 6X45 50 PCS / 6X45 100 PCS / 6X55 50 PCS / 6X70 50 PCS / 6X70 100 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P09-25",
+    "name": "TOMMY FIX NAIL IN ANCHOR RANGE",
+    "description": "Available variants: 8X60 50 PCS / 8X60 100 PCS / 8X80 50 PCS / 8X80 100 PCS / 8X100 50 PCS / 8X100 10 PCS (as printed in source)",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P10F-01",
+    "name": "TOMMY FIX NAIL IN ANCHOR RANGE",
+    "description": "Available variants: 5X35 5 PCS / 5X35 10 PCS / 5X50 10 PCS / 5X50 15 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P10F-02",
+    "name": "TOMMY FIX NAIL IN ANCHOR RANGE",
+    "description": "Available variants: 6X35 5 PCS / 6X35 10 PCS / 6X35 15 PCS / 6X45 5 PCS / 6X45 10 PCS / 6X45 15 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P10F-03",
+    "name": "TOMMY FIX NAIL IN ANCHOR RANGE",
+    "description": "Available variants: 6X55 5 PCS / 6X55 10 PCS / 6X55 15 PCS / 6X70 5 PCS / 6X70 10 PCS / 6X70 15 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P10F-04",
+    "name": "TOMMY FIX NAIL IN ANCHOR RANGE",
+    "description": "Available variants: 8X60 5 PCS / 8X60 10 PCS / 8X60 15 PCS / 8X80 5 PCS / 8X80 10 PCS / 8X80 15 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P10F-05",
+    "name": "TOMMY FIX NAIL IN ANCHOR RANGE",
+    "description": "Available variants: 8X100 5 PCS / 8X100 10 PCS / 8X100 15 PCS / 8X120 5 PCS / 8X120 10 PCS / 8X120 15 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P10F-06",
+    "name": "TOMMY FIX SQUARE WASHER RANGE",
+    "description": "Available variants: 10 200 PCS / 12 25 PCS / 12 100 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P10F-07",
+    "name": "TOMMY FIX SQUARE WASHER RANGE",
+    "description": "Available variants: 10 10 PCS / 10 25 PCS / 12 10 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P10F-08",
+    "name": "TOMMY FIX GREEN WALL PLUG RANGE",
+    "description": "Available variants: 11 25 PCS / 11 50 PCS / 11 100 PCS",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P10F-09",
+    "name": "TOMMY FIX WALL PLUG RANGE",
+    "description": "10MM (10PCS) / 12MM (5PCS).",
+    "category": "Fasteners & Ironmongery",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P10W-01",
+    "name": "ALUMINIUM WINDOW PT66 RANGE",
+    "description": "Available variants: OBS / H/D",
+    "category": "Windows",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P10W-02",
+    "name": "ALUMINIUM WINDOW PT99 RANGE",
+    "description": "Available variants: OBS",
+    "category": "Windows",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "PT129",
+    "name": "ALUMINIUM WINDOW PT129",
+    "description": "ALUMINIUM WINDOW PT129",
+    "category": "Windows",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "PT126",
+    "name": "ALUMINIUM WINDOW PT126",
+    "description": "ALUMINIUM WINDOW PT126",
+    "category": "Windows",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "PTT126",
+    "name": "ALUMINIUM WINDOW PTT126",
+    "description": "ALUMINIUM WINDOW PTT126",
+    "category": "Windows",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "PT612",
+    "name": "ALUMINIUM WINDOW PT612",
+    "description": "ALUMINIUM WINDOW PT612",
+    "category": "Windows",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "PT1212",
+    "name": "ALUMINIUM WINDOW PT1212",
+    "description": "ALUMINIUM WINDOW PT1212",
+    "category": "Windows",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "PT1515",
+    "name": "ALUMINIUM WINDOW PT1515",
+    "description": "ALUMINIUM WINDOW PT1515",
+    "category": "Windows",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "P4TT1515",
+    "name": "ALUMINIUM WINDOW P4TT1515",
+    "description": "ALUMINIUM WINDOW P4TT1515",
+    "category": "Windows",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "PTT159",
+    "name": "ALUMINIUM WINDOW PTT159",
+    "description": "ALUMINIUM WINDOW PTT159",
+    "category": "Windows",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "PT69 OBS",
+    "name": "ALUMINIUM WINDOW PT69 OBS",
+    "description": "ALUMINIUM WINDOW PT69 OBS",
+    "category": "Windows",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "PT69",
+    "name": "ALUMINIUM WINDOW PT69",
+    "description": "ALUMINIUM WINDOW PT69",
+    "category": "Windows",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-01",
+    "name": "DRIPP VALUE KOTE",
+    "description": "DRIPP VALUE KOTE - sizes shown in original wholesale catalogue: 5L / 20L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-02",
+    "name": "DRIPP EXPERT KOTE",
+    "description": "DRIPP EXPERT KOTE - sizes shown in original wholesale catalogue: 5L / 20L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-03",
+    "name": "DRIPP SHEEN SUPER ACRYLIC",
+    "description": "DRIPP SHEEN SUPER ACRYLIC - sizes shown in original wholesale catalogue: 5L / 20L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-04",
+    "name": "DRIPP ROOF KOTE",
+    "description": "DRIPP ROOF KOTE - sizes shown in original wholesale catalogue: 5L / 20L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-05",
+    "name": "DRIPP MULTI KOTE",
+    "description": "DRIPP MULTI KOTE - sizes shown in original wholesale catalogue: 5L / 20L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-06",
+    "name": "DRIPP LIQUID RUBBER",
+    "description": "DRIPP LIQUID RUBBER - sizes shown in original wholesale catalogue: 5L / 20L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-07",
+    "name": "DRIPP GLAMOUR STONE",
+    "description": "DRIPP GLAMOUR STONE - sizes shown in original wholesale catalogue: 5L / 20L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-08",
+    "name": "DRIPP HI-HIDING",
+    "description": "DRIPP HI-HIDING - sizes shown in original wholesale catalogue: 5L / 20L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-09",
+    "name": "ECOSTAR WHITE ACRYLIC PVA",
+    "description": "ECOSTAR WHITE ACRYLIC PVA - sizes shown in original wholesale catalogue: 5L / 20L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-10",
+    "name": "DRIPP ACRYLIC WATERPROOF",
+    "description": "DRIPP ACRYLIC WATERPROOF - sizes shown in original wholesale catalogue: 5L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-11",
+    "name": "NASCA SPRAY ASSORTED",
+    "description": "NASCA SPRAY ASSORTED - sizes shown in original wholesale catalogue: ASSORTED.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-12",
+    "name": "FIBRE FLEX",
+    "description": "FIBRE FLEX - sizes shown in original wholesale catalogue: 5L / 20L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-13",
+    "name": "SUPREME COAT ACRYLIC PVA",
+    "description": "SUPREME COAT ACRYLIC PVA - sizes shown in original wholesale catalogue: 5L / 20L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-14",
+    "name": "FLASH HARRY WATERPROOF FIX A LEAK",
+    "description": "FLASH HARRY WATERPROOF FIX A LEAK - sizes shown in original wholesale catalogue: 5L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "WHPDF-CARD-P11-15",
+    "name": "SUPER 2000 ACRYLIC PVA",
+    "description": "SUPER 2000 ACRYLIC PVA - sizes shown in original wholesale catalogue: 5L / 20L.",
+    "category": "Paints & Allied",
+    "source": "0014_wholesale_one_by_one_catalogue_fix.sql"
+  },
+  {
+    "code": "L00215",
+    "name": "Acetic Silicone Sealant – Beige 300ml",
+    "description": "Warm beige sealant for subtle, elegant finishes that match natural tile tones perfectly. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00213",
+    "name": "Acetic Silicone Sealant – Black 300ml",
+    "description": "Adds a sleek, dark edge to your seals – perfect for black or modern-themed bathrooms. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00211",
+    "name": "Acetic Silicone Sealant – Clear 300ml",
+    "description": "Creates a clear, watertight seal around tiles, basins, and glass for a clean professional finish. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00214",
+    "name": "Acetic Silicone Sealant – Grey 300ml",
+    "description": "Perfect for sealing grey tile edges and joints – gives a smooth, modern look that lasts. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00212",
+    "name": "Acetic Silicone Sealant – White 300ml",
+    "description": "Reliable white sealant that blends seamlessly for neat, long-lasting protection in wet areas. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00021",
+    "name": "Alco Aluminium Blinds 25mm Black - 1000x1200 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1000x1200-mm. Package dimensions: 107 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00022",
+    "name": "Alco Aluminium Blinds 25mm Black - 1200x1500 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1200x1500-mm. Package dimensions: 127 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00023",
+    "name": "Alco Aluminium Blinds 25mm Black - 1500x1800 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1500x1800-mm. Package dimensions: 158 × 6.8 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00024",
+    "name": "Alco Aluminium Blinds 25mm Black - 1800x2100 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1800x2100-mm. Package dimensions: 68 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00025",
+    "name": "Alco Aluminium Blinds 25mm Black - 2100x2200 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 2100x2200-mm. Package dimensions: 218 × 7.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00020",
+    "name": "Alco Aluminium Blinds 25mm Black - 600x900 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 600x900-mm. Package dimensions: 67.5 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00039",
+    "name": "Alco Aluminium Blinds 25mm Cream - 1000x1200 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1000x1200-mm. Package dimensions: 107 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00040",
+    "name": "Alco Aluminium Blinds 25mm Cream - 1200x1500 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1200x1500-mm. Package dimensions: 127 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00041",
+    "name": "Alco Aluminium Blinds 25mm Cream - 1500x1800 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1500x1800-mm. Package dimensions: 158 × 6.8 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00042",
+    "name": "Alco Aluminium Blinds 25mm Cream - 1800x2100 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1800x2100-mm. Package dimensions: 68 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00043",
+    "name": "Alco Aluminium Blinds 25mm Cream - 2100x2200 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 2100x2200-mm. Package dimensions: 218 × 7.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00038",
+    "name": "Alco Aluminium Blinds 25mm Cream - 600x900 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 600x900-mm. Package dimensions: 67.5 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00027",
+    "name": "Alco Aluminium Blinds 25mm Gold - 1000x1200 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1000x1200-mm. Package dimensions: 107 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00028",
+    "name": "Alco Aluminium Blinds 25mm Gold - 1200x1500 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1200x1500-mm. Package dimensions: 127 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00029",
+    "name": "Alco Aluminium Blinds 25mm Gold - 1500x1800 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1500x1800-mm. Package dimensions: 158 × 6.8 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00030",
+    "name": "Alco Aluminium Blinds 25mm Gold - 1800x2100 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1800x2100-mm. Package dimensions: 68 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00031",
+    "name": "Alco Aluminium Blinds 25mm Gold - 2100x2200 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 2100x2200-mm. Package dimensions: 218 × 7.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00026",
+    "name": "Alco Aluminium Blinds 25mm Gold - 600x900 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 600x900-mm. Package dimensions: 67.5 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00033",
+    "name": "Alco Aluminium Blinds 25mm Sandy Gold - 1000x1200 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1000x1200-mm. Package dimensions: 107 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00034",
+    "name": "Alco Aluminium Blinds 25mm Sandy Gold - 1200x1500 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1200x1500-mm. Package dimensions: 127 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00035",
+    "name": "Alco Aluminium Blinds 25mm Sandy Gold - 1500x1800 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1500x1800-mm. Package dimensions: 158 × 6.8 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00036",
+    "name": "Alco Aluminium Blinds 25mm Sandy Gold - 1800x2100 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1800x2100-mm. Package dimensions: 68 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00037",
+    "name": "Alco Aluminium Blinds 25mm Sandy Gold - 2100x2200 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 2100x2200-mm. Package dimensions: 218 × 7.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00032",
+    "name": "Alco Aluminium Blinds 25mm Sandy Gold - 600x900 mm",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 600x900-mm. Package dimensions: 67.5 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00015",
+    "name": "Alco Aluminium Blinds 25mm Silver - 1000x1200",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1000x1200. Package dimensions: 107 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00016",
+    "name": "Alco Aluminium Blinds 25mm Silver - 1200x1500",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1200x1500. Package dimensions: 127 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00017",
+    "name": "Alco Aluminium Blinds 25mm Silver - 1500x1800",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1500x1800. Package dimensions: 158 × 6.8 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00018",
+    "name": "Alco Aluminium Blinds 25mm Silver - 1800x2100",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1800x2100. Package dimensions: 68 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00019",
+    "name": "Alco Aluminium Blinds 25mm Silver - 2100x2200",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 2100x2200. Package dimensions: 218 × 7.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00014",
+    "name": "Alco Aluminium Blinds 25mm Silver - 600x900",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 600x900. Package dimensions: 67.5 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00310",
+    "name": "Alco Aluminium Straight Trim Mill Finish 10mm",
+    "description": "Creates a clean, protective finish along tiled edges and corners for a neat installation. Durable aluminium construction with a simple mill finish, suitable for 10mm tiles. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00312",
+    "name": "Alco Aluminium Straight Trim Mill Finish 12mm",
+    "description": "Creates a clean, protective finish along tiled edges and corners for a neat installation. Durable aluminium construction with a mill finish, suitable for 12mm tiles. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00311",
+    "name": "Alco Aluminium Straight Trim Polish Silver 10mm",
+    "description": "Provides a neat, protective finish for tiled edges and corners with a sleek polished silver look. Durable aluminium construction, suitable for 10mm tiles. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00313",
+    "name": "Alco Aluminium Straight Trim Polish Silver 12mm",
+    "description": "Provides a clean, polished finish for tiled edges and corners while helping protect exposed edges. Durable aluminium construction, suitable for 12mm tiles. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00208",
+    "name": "Alco Flex Adhesive (1kg)",
+    "description": "Alco flex adhesive, 1kg, small pack for quick repairs or small jobs. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00143",
+    "name": "Alco Flex Adhesive (5kg)",
+    "description": "Alco flex adhesive, 5kg, strong and easy to use tile adhesive. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00160",
+    "name": "Alco Light Grey Mosaic Fix (5kg)",
+    "description": "Specialised adhesive. Non-slip, quick-setting formula provides precise alignment and strong bonding. Decor ranges: Mosaic Fix.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00169",
+    "name": "Alco Plaster Sealer (2kg)",
+    "description": "Compact plaster sealer designed to prepare plastered walls before tiling or painting. Prevents over-absorption and ensures even bonding. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00170",
+    "name": "Alco Plaster Sealer (5kg)",
+    "description": "Medium pack plaster sealer for larger areas. Reduces porosity and provides a stable surface for adhesives and paints. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00045",
+    "name": "Alco PVC Blinds 25mm Charcoal Grey - 1000x1200 mm",
+    "description": " Size: 1000x1200-mm. Package dimensions: 108.5 × 7.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00046",
+    "name": "Alco PVC Blinds 25mm Charcoal Grey - 1200x1500 mm",
+    "description": " Size: 1200x1500-mm. Package dimensions: 128.5 × 8 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00047",
+    "name": "Alco PVC Blinds 25mm Charcoal Grey - 1500x1800 mm",
+    "description": " Size: 1500x1800-mm. Package dimensions: 158.5 × 9 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00048",
+    "name": "Alco PVC Blinds 25mm Charcoal Grey - 1800x2100 mm",
+    "description": " Size: 1800x2100-mm. Package dimensions: 178.5 × 9.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00049",
+    "name": "Alco PVC Blinds 25mm Charcoal Grey - 2100x2200 mm",
+    "description": " Size: 2100x2200-mm. Package dimensions: 218.5 × 10.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00044",
+    "name": "Alco PVC Blinds 25mm Charcoal Grey - 600x900 mm",
+    "description": " Size: 600x900-mm. Package dimensions: 68.5 × 7.5 × 4 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00051",
+    "name": "Alco PVC Blinds 25mm Latte - 1000x1200 mm",
+    "description": " Size: 1000x1200-mm. Package dimensions: 108.5 × 7.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00052",
+    "name": "Alco PVC Blinds 25mm Latte - 1200x1500 mm",
+    "description": " Size: 1200x1500-mm. Package dimensions: 128.5 × 8 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00053",
+    "name": "Alco PVC Blinds 25mm Latte - 1500x1800 mm",
+    "description": " Size: 1500x1800-mm. Package dimensions: 158.5 × 9 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00054",
+    "name": "Alco PVC Blinds 25mm Latte - 1800x2100 mm",
+    "description": " Size: 1800x2100-mm. Package dimensions: 178.5 × 9.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00055",
+    "name": "Alco PVC Blinds 25mm Latte - 2100x2200 mm",
+    "description": " Size: 2100x2200-mm. Package dimensions: 218.5 × 10.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00050",
+    "name": "Alco PVC Blinds 25mm Latte - 600x900 mm",
+    "description": " Size: 600x900-mm. Package dimensions: 68.5 × 7.5 × 4 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00069",
+    "name": "Alco PVC Blinds 25mm Mahogany - 1000x1200 mm",
+    "description": "Sleek PVC blinds designed for durability and everyday convenience. Made from lightweight, moisture-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1000x1200-mm. Package dimensions: 108.5 × 7.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00070",
+    "name": "Alco PVC Blinds 25mm Mahogany - 1200x1500 mm",
+    "description": "Sleek PVC blinds designed for durability and everyday convenience. Made from lightweight, moisture-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1200x1500-mm. Package dimensions: 128.5 × 8 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00071",
+    "name": "Alco PVC Blinds 25mm Mahogany - 1500x1800 mm",
+    "description": "Sleek PVC blinds designed for durability and everyday convenience. Made from lightweight, moisture-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1500x1800-mm. Package dimensions: 158.5 × 9 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00072",
+    "name": "Alco PVC Blinds 25mm Mahogany - 1800x2100 mm",
+    "description": "Sleek PVC blinds designed for durability and everyday convenience. Made from lightweight, moisture-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1800x2100-mm. Package dimensions: 178.5 × 9.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00073",
+    "name": "Alco PVC Blinds 25mm Mahogany - 2100x2200 mm",
+    "description": "Sleek PVC blinds designed for durability and everyday convenience. Made from lightweight, moisture-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 2100x2200-mm. Package dimensions: 218.5 × 10.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00068",
+    "name": "Alco PVC Blinds 25mm Mahogany - 600x900 mm",
+    "description": "Sleek PVC blinds designed for durability and everyday convenience. Made from lightweight, moisture-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 600x900-mm. Package dimensions: 68.5 × 7.5 × 4 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00057",
+    "name": "Alco PVC Blinds 25mm Taupe - 1000x1200 mm",
+    "description": " Size: 1000x1200-mm. Package dimensions: 108.5 × 7.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00058",
+    "name": "Alco PVC Blinds 25mm Taupe - 1200x1500 mm",
+    "description": " Size: 1200x1500-mm. Package dimensions: 128.5 × 8 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00059",
+    "name": "Alco PVC Blinds 25mm Taupe - 1500x1800 mm",
+    "description": " Size: 1500x1800-mm. Package dimensions: 158.5 × 9 × 3.4 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00060",
+    "name": "Alco PVC Blinds 25mm Taupe - 1800x2100 mm",
+    "description": " Size: 1800x2100-mm. Package dimensions: 178.5 × 9.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00061",
+    "name": "Alco PVC Blinds 25mm Taupe - 2100x2200 mm",
+    "description": " Size: 2100x2200-mm. Package dimensions: 218.5 × 10.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00056",
+    "name": "Alco PVC Blinds 25mm Taupe - 600x900 mm",
+    "description": " Size: 600x900-mm. Package dimensions: 68.5 × 7.5 × 4 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00063",
+    "name": "Alco PVC Blinds 25mm White - 1000x1200",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1000x1200. Package dimensions: 107 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00064",
+    "name": "Alco PVC Blinds 25mm White - 1200x1500",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1200x1500. Package dimensions: 127 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00065",
+    "name": "Alco PVC Blinds 25mm White - 1500x1800",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1500x1800. Package dimensions: 158 × 6.8 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00066",
+    "name": "Alco PVC Blinds 25mm White - 1800x2100",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 1800x2100. Package dimensions: 68 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00067",
+    "name": "Alco PVC Blinds 25mm White - 2100x2200",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 2100x2200. Package dimensions: 218 × 7.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00062",
+    "name": "Alco PVC Blinds 25mm White - 600x900",
+    "description": "Sleek aluminium blinds designed for durability and everyday convenience. Made from lightweight, rust-resistant material, they’re ideal for humid areas and direct sunlight. Easy to clean and maintain, with a smooth swivel mechanism for light control, and quick installation using the included brackets and fittings. Size: 600x900. Package dimensions: 67.5 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00161",
+    "name": "Alco White Mosaic Fix (5kg)",
+    "description": "Bright white adhesive. Prevents dark backings from showing through glass tiles while ensuring a strong bond. Decor ranges: Mosaic Fix.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00009",
+    "name": "Aluminium Blinds Coffee - 1000x1200 MM",
+    "description": " Size: 1000x1200-mm. Package dimensions: 107 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00010",
+    "name": "Aluminium Blinds Coffee - 1200x1500 MM",
+    "description": " Size: 1200x1500-mm. Package dimensions: 127 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00011",
+    "name": "Aluminium Blinds Coffee - 1500x1800 MM",
+    "description": " Size: 1500x1800-mm. Package dimensions: 158 × 6.8 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00012",
+    "name": "Aluminium Blinds Coffee - 1800x2100 MM",
+    "description": " Size: 1800x2100-mm. Package dimensions: 68 × 7 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00013",
+    "name": "Aluminium Blinds Coffee - 2100x2200 MM",
+    "description": " Size: 2100x2200-mm. Package dimensions: 218 × 7.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "X00008",
+    "name": "Aluminium Blinds Coffee - 600x900 MM",
+    "description": " Size: 600x900-mm. Package dimensions: 67.5 × 6.5 × 3.5 cm. Decor ranges: Blinds.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00262",
+    "name": "Aluminium Stair Nose Tie In 12mm",
+    "description": "Provides a strong, neat finish to tiled stair edges while helping protect against chips and wear. Durable aluminium construction, suitable for 12mm tiles. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00192",
+    "name": "Aluminium Straight Trim Black 10mm",
+    "description": "Provides a neat, protective finish for tiled edges and corners with a sleek black look. Durable aluminium construction, suitable for 10mm tiles. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00193",
+    "name": "Aluminium Straight Trim Black 12mm",
+    "description": "Provides a clean, protective finish for tiled edges and corners with a sleek black appearance. Durable aluminium construction, suitable for 12mm tiles. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00456",
+    "name": "Aluminium Straight Trim – Mill Finish 12mm",
+    "description": "Durable aluminium trim in mill finish for clean edges and a neat, modern appearance. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00455",
+    "name": "Aluminium Straight Trim – Shiny Silver 10mm",
+    "description": "Shiny silver trim for an elegant, high-polish border that completes your tiling perfectly. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00459",
+    "name": "Aluminium Trim – Shiny Silver 12mm",
+    "description": "High-shine silver trim offering a reflective, elegant finish that elevates any tile layout. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01040",
+    "name": "Amazon Mix Glass Mosaic 300X300X4mm",
+    "description": "Amazon Mix glass mosaic, colourful mix of tones, 25x25mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00087",
+    "name": "Aqua Leaves Decor Tile 300×600mm",
+    "description": "Soft aqua leaf decor tile bringing freshness and calm to any room. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00088",
+    "name": "Aqua White Leaves Decor Tile 300×600mm",
+    "description": "Aqua white leaf decor tile combining subtle colour and natural form. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00347",
+    "name": "Armani UV Panel 1220x2440x2.5mm",
+    "description": "High Gloss Wall UV Sheet Decor ranges: Uv Sheets.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01043",
+    "name": "Aston Black Glass Mosaic 300X300X4mm",
+    "description": "Aston Black glass mosaic, bold dark style, 15x15mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00063",
+    "name": "Azuro Silver Decor Wall Tile 300X600mm",
+    "description": "Azuro Silver decor wall tile, polished silver tones, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00003",
+    "name": "Barcelona Grey Wall Panel 2900x175mm",
+    "description": "Contemporary Barcelona Grey wall panel, 2.9m, providing a stylish neutral finish suitable for modern spaces. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00116",
+    "name": "Barcelona Mahogany Wall Panel 2900x175mm",
+    "description": "Rich Barcelona Mahogany wall panel, 2.9m, crafted for durability and a refined wooden aesthetic. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00004",
+    "name": "Barcelona Marble Wall Panel 2900x175mm",
+    "description": "Elegant Barcelona Marble wall panel, 2.9m, delivering a luxurious stone-inspired look for walls. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00130",
+    "name": "Barcelona Matt Grey Wall Panel 2900x175mm",
+    "description": "Modern Barcelona Matt Grey wall panel, durable and sleek, ideal for contemporary interiors. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00001",
+    "name": "Barcelona Nero Wall Panel 2900x175mm",
+    "description": "Sleek Barcelona Nero wall panel, 2.9m x 175mm, offering bold, modern style with easy installation. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00115",
+    "name": "Barcelona Teak Wall Panel 2900x175mm",
+    "description": "Barcelona Teak wall panel, 2.9m length, offering warm natural wood tones with durable 0.175mm thickness. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00002",
+    "name": "Barcelona Wengue Wall Panel 2900x175mm",
+    "description": "Warm Barcelona Wengue wall panel, 2.9m x 175mm, combining elegance and durability for interiors. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00129",
+    "name": "Barcelona Wood Wall Panel 2900x160x22mm",
+    "description": "Barcelona Wood wall panel, 2.9m x 160mm x 22mm, designed for strong, stylish, and easy installation. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00094",
+    "name": "Black Decor Tile 300×600mm",
+    "description": "Elegant black decor tile with a smooth matte appearance. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00097",
+    "name": "Black Decor Tile 300×600mm",
+    "description": "Deep black decor tile adding contrast and sophistication. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00093",
+    "name": "Black Decor Tile 300×600mm",
+    "description": "Bold black decor tile for dramatic and contemporary spaces. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00103",
+    "name": "Black Décor Tile300x600mm",
+    "description": "Chic black décor tile with modern styling and bold appeal. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00138",
+    "name": "Brechia Beige Uv Panel 1220X2700X3mm",
+    "description": "1220×2700×3mm warm beige UV panel with natural tones, adding softness and warmth to interiors. Decor ranges: Uv Sheets.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00083",
+    "name": "Bubble Black Decor Tile 300×600mm",
+    "description": "Modern black decor tile with a bubble design for bold contrast. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00084",
+    "name": "Bubble White Decor Tile 300×600mm",
+    "description": "Bright white bubble decor tile that adds movement and texture. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01016",
+    "name": "Capulet Porcelain Mosaic 300X300X4mm",
+    "description": "Capulet ceramic mosaic, elegant finish, 295x295mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01092",
+    "name": "Casa Bronze Mosaic Mix Bronze Tone Blend 300×300×8mm",
+    "description": "Casa Bronze mosaic mix, mixed bronze tones, 300×300mm Decor ranges: Glass Mosaics, Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00072",
+    "name": "Casa Nero Decor Wall Tile 300X600mm",
+    "description": "Casa Nero decor wall tile, bold black design, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01093",
+    "name": "Casa Silver Mosaic Mix Silver Tone Blend 300×300×8mm",
+    "description": "Casa Silver mosaic mix, mixed silver tones, 300×300mm Decor ranges: Glass Mosaics, Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01022",
+    "name": "Checkered Porcelain Ceramic Mosaic 300X300X4mm",
+    "description": "Checkered mosaic, 295x295mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00082",
+    "name": "Circle Digital Decor Tile 300x600mm",
+    "description": "Digital circle design decor tile adding texture and visual depth. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "N00048",
+    "name": "Cladding Black Slate 60X150mm",
+    "description": "Cladding Black Slate, rugged black stone finish, 60x150mm Decor ranges: Natural Stone Cladding.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "N00047",
+    "name": "Cladding Desert Sand 60X150mm",
+    "description": "Cladding Desert Sand, rustic sandy tones, 60x150mm Decor ranges: Natural Stone Cladding.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "N00046",
+    "name": "Cladding Silver Shine 60X150mm",
+    "description": "A natural Silver Shine stone cladding featuring subtle silver and grey tones, designed to add texture and depth to modern interior and exterior walls. Decor ranges: Natural Stone Cladding.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00095",
+    "name": "Clinker Decor Tile 300×600mm",
+    "description": "Textured clinker-style decor tile for rustic yet refined appeal. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "A17316",
+    "name": "Colorado Graffito Elevation Tile 300X600mm",
+    "description": "Colorado Graffito elevation tile, 300x600mm, rugged stone-inspired texture perfect for feature walls. Decor ranges: Cladding Look Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "N00049",
+    "name": "Copper Cladding – 60×15mm",
+    "description": "Stylish copper wall cladding with a 60×15mm pattern, providing warmth and texture to any interior or exterior wall. Measures 60mm in width and 15mm thick. Decor ranges: Natural Stone Cladding.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01097",
+    "name": "Cosmic Alu Glass Mosaic Polished Aluminium Style 25×25×3.8mm",
+    "description": "Cosmic Alu glass mosaic, polished aluminium style, 25×25mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01055",
+    "name": "Cosmic Beige Glass Mosaic 300X300X4mm",
+    "description": "Cosmic Beige glass mosaic, neutral beige gloss, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01096",
+    "name": "Cosmic Bronze Glass Mosaic Polished Bronze Style 25×25×3.8mm",
+    "description": "Cosmic Bronze glass mosaic, polished bronze style, 25×25mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01054",
+    "name": "Cosmic Crema Glass Mosaic 300mmx300mmx4mm",
+    "description": "Cosmic Crema glass mosaic, warm cream tones, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01062",
+    "name": "Cosmic Gris Glass Mosaic 300mmx300mmx4mm",
+    "description": "Cosmic Gris glass mosaic, polished grey finish, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01053",
+    "name": "Cosmic Nero Glass Mosaic 300mmx300mmx4mm",
+    "description": "Cosmic Nero glass mosaic, glossy dark finish, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01098",
+    "name": "Cosmic Silver Glass Mosaic Polished Silver Style 25×25×3.8mm",
+    "description": "Cosmic Silver glass mosaic, polished silver style, 25×25mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01039",
+    "name": "Crystal White Glass Mosaic 300X300X4mm",
+    "description": "Crystal White glass mosaic, polished bright white, 25x25mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00081",
+    "name": "Decor Tile 300×600mm",
+    "description": "Simple and versatile decor tile for a clean, timeless look. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01084",
+    "name": "Dove Grey Mosaic Tile Soft Grey Finish 282×325×6mm",
+    "description": "Dove Grey mosaic tile, soft grey finish, 282×325mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01041",
+    "name": "Draft Nero Glass Mosaic 300X300X4mm",
+    "description": "Draft Nero glass mosaic, strong black finish, 25x25mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "A17844",
+    "name": "Dubois Dark Beige Elevation Tile 300X600mm",
+    "description": "Dubois Dark Beige elevation tile, 300x600mm, natural earth tones for warm, rustic wall finishes. Decor ranges: Cladding Look Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "A17313",
+    "name": "Dubois Dark Grey Elevation Tile 300X600mm",
+    "description": "Dark grey Dubois elevation tile, 300x600mm, bold texture ideal for accent walls or exterior finishes. Decor ranges: Cladding Look Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "A17314",
+    "name": "Dubois Grigio Elevation Tile 300X600mm",
+    "description": "Dubois Grigio elevation tile, 300x600mm, natural stone-look finish adding depth and style to spaces. Decor ranges: Cladding Look Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "A17315",
+    "name": "Dubois Light Grey Elevation Tile 300X600mm",
+    "description": "Light grey Dubois elevation tile, 300x600mm, textured finish bringing subtle tone variation to walls. Decor ranges: Cladding Look Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "A17874",
+    "name": "Dubois Verde Elevation Wall Tile 300X600mm",
+    "description": "Dubois Verde elevation wall tile, textured green tones for stylish feature walls, 300x600mm Decor ranges: Cladding Look Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01033",
+    "name": "Everton Porcelain Mosaic 300X300X4mm",
+    "description": "Everton ceramic mosaic, neutral light tone, 295x295mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01077",
+    "name": "Flurry Black Glass Mosaic 282X325X4mm",
+    "description": "Flurry Black glass mosaic, bold glossy black, 282x325mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01064",
+    "name": "Frenzy Bronze Mosaic 300X300X4mm",
+    "description": "Frenzy Bronze mosaic, glossy bronze mix, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01063",
+    "name": "Frenzy Cloud Glass Mosaic Soft Cloud Tone Finish 300×336×4mm",
+    "description": "Frenzy Cloud glass mosaic, soft cloud tone finish, 300×336mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01066",
+    "name": "Frenzy Mix Gris Mosaic 300X300X4mm",
+    "description": "Frenzy Mix Gris mosaic, mixed grey glossy finish, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00180",
+    "name": "Fromable Aluminium Trim 10mm",
+    "description": "Flexible aluminium trim that shapes perfectly around curves and custom edges. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00181",
+    "name": "Fromable Aluminium Trim 12mm",
+    "description": "Formable trim made for easy bending – ideal for corners and rounded surfaces. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01085",
+    "name": "Fusion Blend Glass Mosaic Mixed Neutral Tones 300×300×4mm",
+    "description": "Fusion Blend glass mosaic, blended neutral tones, 300×300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01059",
+    "name": "Fusion Red Glass Mosaic 300mmx300mmx4mm",
+    "description": "Fusion Red glass mosaic, bold glossy red, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01052",
+    "name": "Fusion Silver Glass Mosaic Polished Silver Style 300×300×4mm",
+    "description": "Fusion Silver glass mosaic, polished silver style, 300×300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01060",
+    "name": "Galaxy Azul Glass Mosaic 300mmx300mmx4mm",
+    "description": "Galaxy Azul glass mosaic, glossy deep blue, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00348",
+    "name": "Galaxy Ink UV Panel 1220x2440x2.5mm",
+    "description": "High Gloss Wall UV Sheet Decor ranges: Uv Sheets.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01072",
+    "name": "Galaxy Verde Glass Mosaic 300X300X4mm",
+    "description": "Galaxy Verde glass mosaic, bright green finish, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01087",
+    "name": "Glamour Azul Glass Mosaic 300x300x4mm",
+    "description": "Glamour Azul glass mosaic, good for residential use 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01075",
+    "name": "Glamour Bronze Glass Mosaic 300X300X6mm",
+    "description": "Glamour Bronze glass mosaic, polished bronze style, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01073",
+    "name": "Glamour Gris Glass Mosaic 300X300X6mm",
+    "description": "Glamour Gris glass mosaic, luxury glossy grey, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01061",
+    "name": "Glass Mix Sheet Size Mosaic 300mmx300mmx4mm",
+    "description": "Glass Mix Sheet Size mosaic, assorted colour tones, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "A17719",
+    "name": "Harmony Crema Elevation Tile 300X600mm",
+    "description": "Harmony Crema elevation tile, 300x600mm, soft cream tones with stone-like surface for timeless elegance. Decor ranges: Cladding Look Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00100",
+    "name": "High Gloss Decor Tile 300×600mm",
+    "description": "Gloss decor tile with a brilliant reflective surface for bright interiors. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00080",
+    "name": "High Gloss Decor Tile 300×600mm",
+    "description": "Gloss-finished decor tile offering a sleek and reflective surface. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00101",
+    "name": "High Gloss Ivory Decor Tile 300×600mm",
+    "description": "Ivory high-gloss decor tile combining shine with soft warmth. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01018",
+    "name": "Hillcrest Porcelain Mosaic 300X300X4mm",
+    "description": "Hillcrest ceramic mosaic, neutral finish, 295x295mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00142",
+    "name": "Homey Silicone Sealant White",
+    "description": "Durable white silicone sealant for kitchens, bathrooms, and windows. Flexible, waterproof, and resistant to mold. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00076",
+    "name": "Honeycomb Gold Decor Wall Tile 300X600mm",
+    "description": "Honeycomb Gold decor wall tile, polished golden design, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00070",
+    "name": "Honeycomb Grey Decor Wall Tile 300X600mm",
+    "description": "Honeycomb Grey decor wall tile, patterned grey tone, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01045",
+    "name": "Hoxton Nero Glass Mosaic 300X300X4mm",
+    "description": "Hoxton Nero glass mosaic, polished deep black, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01044",
+    "name": "Hoxton Pearl Glass Mosaic 300X300X4mm",
+    "description": "Hoxton Pearl glass mosaic, glossy pearl white, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01048",
+    "name": "Husky Lara Gold Glass Mosaic 300X300X4mm",
+    "description": "Husky Lara Gold glass mosaic, polished gold look, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01049",
+    "name": "Husky Lara Gris Glass Mosaic 300X300X4mm",
+    "description": "Husky Lara Gris glass mosaic, soft grey polished look, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01057",
+    "name": "Jasper Azul Glass Mosaic 300mmx300mmx4mm",
+    "description": "Jasper Azul glass mosaic, bright blue finish, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01050",
+    "name": "Jasper Nero Glass Mosaic Polished Nero Style 300×300×4mm",
+    "description": "Jasper Nero glass mosaic, polished nero style, 300×300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01006",
+    "name": "Jomo02 Glass Mosaic 300X300mm",
+    "description": "Jomo02 glass mosaic, classic pattern design, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01007",
+    "name": "Jomo03 Glass Mosaic 300X300mm",
+    "description": "A decorative glass mosaic featuring a polished patterned finish, designed to add colour, texture, and visual interest to feature walls and splashback areas. Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01019",
+    "name": "Kloof Porcelain Mosaic 300X300X4mm",
+    "description": "Kloof ceramic mosaic, warm finish, 295x295mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01025",
+    "name": "Kulula Porcelain Mosaic 295X295mm",
+    "description": "Kulula ceramic mosaic, warm neutral finish, 295x295mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00068",
+    "name": "Leaf Bianco Decor Wall Tile 300X600mm",
+    "description": "Leaf Bianco decor wall tile, elegant white finish, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00062",
+    "name": "Leaf Nero Decor Wall Tile 300X600mm",
+    "description": "Leaf Nero decor wall tile, bold black pattern, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00079",
+    "name": "Leaves White Decor Tile 300×600mm",
+    "description": "Nature-inspired white tile with delicate leaf detailing. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00073",
+    "name": "Lucido Gold Decor Wall Tile 300X600mm",
+    "description": "Lucido Gold decor wall tile, glossy golden finish, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00074",
+    "name": "Lucido Silver Decor Wall Tile 300X600mm",
+    "description": "Lucido Silver decor wall tile, glossy silver tones, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00086",
+    "name": "Matrix Decor Tile 300×600mm",
+    "description": "Modern matrix design decor tile suited for sleek wall spaces. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00089",
+    "name": "Matrix Decor Tile 300×600mm",
+    "description": "Matrix pattern decor tile ideal for modern feature walls. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00078",
+    "name": "Matrix Decor Tile 300×600mm",
+    "description": "Contemporary decor tile with a refined geometric design. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00263",
+    "name": "Mechanical Polish Aluminium Straight Trim (10mm)",
+    "description": "Strong 10mm polished aluminium straight trim with mechanical finish, perfect for modern tile installations. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00264",
+    "name": "Mechanical Polish Aluminium Straight Trim (12mm)",
+    "description": "Durable 12mm mechanical polished aluminium trim, ensuring neat tile edges and long-lasting protection. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00040",
+    "name": "Milan Ink Uv Panel 2700X1200X2.5mm",
+    "description": "2700×1200×2.5mm dark ink-inspired UV panel with a sleek finish, perfect for a luxury touch. Decor ranges: Uv Sheets.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00118",
+    "name": "Mill Finish Aluminium Straight Trim (12mm)",
+    "description": "Durable 12mm aluminium trim with mill finish, designed for edge protection and seamless tile transitions. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01076",
+    "name": "Moreno Carrara Glass Mosaic 282X325X4mm",
+    "description": "Moreno Carrara glass mosaic, marble-inspired white look, 282x325mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00066",
+    "name": "Mosaico Grey Decor Wall Tile 300X600mm",
+    "description": "Mosaico Grey decor wall tile, modern patterned grey, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00067",
+    "name": "Mosaico Silver Decor Wall Tile 300X600mm",
+    "description": "Mosaico Silver decor wall tile, polished silver style, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00091",
+    "name": "Net White Decor Tile 300×600mm",
+    "description": "White net decor tile offering soft dimension to bathroom or kitchen walls. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00090",
+    "name": "Net White Decor Tile 300×600mm",
+    "description": "Textured white net design tile for subtle pattern and depth. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01058",
+    "name": "Oasis Azul Glass Mosaic 300mmx336mmx4mm",
+    "description": "Oasis Azul glass mosaic, polished aqua tones, 300x336mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01051",
+    "name": "Oasis Brown Glass Mosaic Warm Brown Tone Finish 300×336×4mm",
+    "description": "Oasis Brown glass mosaic, warm brown tone finish, 300×336mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01088",
+    "name": "Oasis Nero Glass Mosaic Polished Black Finish 300×300×4mm",
+    "description": "Oasis Nero glass mosaic, polished black finish, 300×300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00060",
+    "name": "Otis Silver Decor Tile 300X600mm",
+    "description": "Otis Silver decor wall tile, elegant silver finish, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01034",
+    "name": "Oxford Porcelain Ceramic Mosaic 300X300X4mm",
+    "description": "Oxford mosaic, 295x295mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01070",
+    "name": "Paradise Aqua Glass Mosaic 260X300X4mm",
+    "description": "Paradise Aqua glass mosaic, soft aqua tones, 260x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01068",
+    "name": "Paradise Azul Glass Mosaic 260X300X4mm",
+    "description": "Paradise Azul glass mosaic, polished blue finish, 260x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01069",
+    "name": "Paradise Cararra Glass Mosaic 260X300X4mm",
+    "description": "Paradise Cararra glass mosaic, marble-effect white, 260x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00117",
+    "name": "Polish Silver Aluminium Straight Trim (10mm)",
+    "description": "Premium 10mm polished silver aluminium trim, offering clean edges and protection for tile corners and finishes. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00119",
+    "name": "Polish Silver Aluminium Straight Trim (12mm)",
+    "description": "Elegant 12mm polished silver aluminium trim, providing stylish finishing and protection for tiled edges. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00239",
+    "name": "Powergripp Cornice Adhesive (2kg)",
+    "description": "Powergripp cornice adhesive, 2kg, easy application for decorative finishes. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00238",
+    "name": "Powergripp Cornice Adhesive (5kg)",
+    "description": "Powergripp cornice adhesive, 5kg, secure fix for ceiling cornices. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00195",
+    "name": "Powergripp Flex Tile Adhesive (1kg)",
+    "description": "Powergripp flex tile adhesive, 1kg, ideal for small tiling jobs. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00196",
+    "name": "Powergripp Flex Tile Adhesive (5kg)",
+    "description": "Powergripp flex tile adhesive, 5kg, flexible bond for tiles. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00241",
+    "name": "Powergripp Mosaic Fix Light Grey (5kg)",
+    "description": "Powergripp mosaic fix in light grey, 5kg, perfect for mosaics and small tiles. Decor ranges: Mosaic Fix.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00240",
+    "name": "Powergripp Mosaic Fix White (5kg)",
+    "description": "Powergripp mosaic fix in white, 5kg, reliable bond for mosaic installations. Decor ranges: Mosaic Fix.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00236",
+    "name": "Powergripp Plaster Sealer (2kg)",
+    "description": "Powergripp plaster sealer, 2kg, protects plaster surfaces before finishing. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "L00237",
+    "name": "Powergripp Plaster Sealer (5kg)",
+    "description": "Powergripp plaster sealer, 5kg, strong surface preparation solution. Decor ranges: Silicones Flex Adhesives.",
+    "category": "Adhesives & Chemicals",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00317",
+    "name": "Pulse Aluminium Tile In Ramp Trim Shiny Silver 10mm",
+    "description": "Creates a smooth, polished transition at tiled edges for a neat and professional finish. Durable aluminium construction with a shiny silver finish, suitable for 10mm tiles. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00320",
+    "name": "Pulse Pvc Expansion Joints With Light Grey Infill",
+    "description": "Helps accommodate movement between tiled surfaces while maintaining a neat, professional finish. Features a durable PVC construction with a subtle light grey infill. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00116",
+    "name": "Pulse Straight Aluminium Trim – Mill Finish 10mm",
+    "description": "Mill finish trim made for clean transitions – simple, sturdy, and versatile for any project. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00166",
+    "name": "PVC Tile Trim 12mm Buff 2.4m",
+    "description": "12mm buff PVC tile trim providing reliable tile edge protection and a smooth 2.4m finishing profile. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00164",
+    "name": "PVC Tile Trim 12mm Ivory 2.4m",
+    "description": "12mm ivory PVC tile trim designed for neat tile edge finishing and long-lasting 2.4m installation support. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00165",
+    "name": "PVC Tile Trim 12mm Light Grey 2.4m",
+    "description": "12mm light grey PVC tile trim offering durable edge protection and a professional tile finishing solution. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00158",
+    "name": "PVC Tile Trim 8mm Ivory 2.4m",
+    "description": "Durable PVC tile trim in ivory, ideal for protecting tile edges while providing a clean 2.4m finishing profile. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00157",
+    "name": "PVC Tile Trim 8mm White 2.4m",
+    "description": "Durable PVC tile trim in white, designed for clean tile edge protection and a neat 2.4m installation finish. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00092",
+    "name": "Rangolii White Decor Tile 300×600mm",
+    "description": "Art-inspired Rangolii decor tile with intricate white patterns. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00065",
+    "name": "Reo Bianco Decor Wall Tile 300X600mm",
+    "description": "Reo Bianco decor wall tile, polished white tone, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00064",
+    "name": "Reo Nero Decor Wall Tile 300X600mm",
+    "description": "Reo Nero decor wall tile, strong black glossy finish, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01071",
+    "name": "Riviera Autumn Glass Mosaic 300X300X4mm",
+    "description": "Riviera Autumn glass mosaic, warm seasonal tones, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01101",
+    "name": "Roma Beige Porcelain Mosaic Matt Finish 300×300mm",
+    "description": "Roma Beige porcelain mosaic, matt beige finish, 300×300mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01100",
+    "name": "Roma Dark Grey Porcelain Mosaic Matt Finish 300×300mm",
+    "description": "Roma Dark Grey porcelain mosaic, matt dark grey finish, 300×300mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01099",
+    "name": "Roma Light Grey Porcelain Mosaic Matt Finish 300×300mm",
+    "description": "Roma Light Grey porcelain mosaic, matt light grey finish, 300×300mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01102",
+    "name": "Roma White Porcelain Mosaic Matt Finish 300×300mm",
+    "description": "Roma White porcelain mosaic, matt white finish, 300×300mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00149",
+    "name": "Romano Grey Uv Panel 2700X1200X2.5mm",
+    "description": "2700×1200×2.5mm classic grey UV panel with subtle detailing for a refined, modern look. Decor ranges: Uv Sheets.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00006",
+    "name": "Rose Gold Wall Panel 2900x145mm",
+    "description": "Classic Rosewall wall panel, 2.9m x 145mm, featuring subtle tones for an elegant and timeless design. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00461",
+    "name": "Round Aluminium Trim – Matt Black 10mm",
+    "description": "Matte black round trim for a subtle yet bold finish – the perfect designer detail. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01056",
+    "name": "Safari Grey Glass Mosaic 300mmx300mmx4mm",
+    "description": "Safari Grey glass mosaic, earthy glossy grey finish, 300x300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00405",
+    "name": "Sparking Listello Black 8x2500mm",
+    "description": "Adds a sleek decorative accent to tiled walls with a bold black sparkle finish. Ideal for creating stylish borders, feature lines and modern tile details. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00467",
+    "name": "Sparking Listello Blue 8x2500mm",
+    "description": "Vibrant blue listello strip that adds personality and a pop of colour to any tiled wall. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00406",
+    "name": "Sparking Listello Gold 8x2500mm",
+    "description": "Adds an elegant decorative accent to tiled walls with a warm gold sparkle finish. Ideal for creating stylish borders, feature lines and refined tile details. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00469",
+    "name": "Sparking Listello Grey 8x2500mm",
+    "description": "Add sparkle and character to your space with this glossy grey decorative listello strip. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00468",
+    "name": "Sparking Listello White 8x2500mm",
+    "description": "Crisp white listello that brightens up tile layouts with clean, reflective beauty. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01089",
+    "name": "Splendid Bey Glass Mosaic Neutral Beige Tone 300×300×4mm",
+    "description": "Splendid Bey glass mosaic, neutral beige tone finish, 300×300mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00172",
+    "name": "Square Aluminium Steel Trim – Black 12mm",
+    "description": "Matte black trim offering a striking contrast and a flawless finish to dark tile installations. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00314",
+    "name": "Square Aluminium Steel Trim – Gun Grey 10mm",
+    "description": "Bold gun grey trim that enhances contemporary tile designs with a premium metallic look. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00316",
+    "name": "Square Aluminium Steel Trim – Matt Bronze 10mm",
+    "description": "Warm bronze trim for a modern, high-end edge that complements rich or neutral tones. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00032",
+    "name": "Square Aluminium Steel Trim – Polished Silver 10mm",
+    "description": "Classic silver trim that delivers a polished, timeless edge to walls and floors. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00182",
+    "name": "Square Aluminium Steel Trim – Polished Silver 12mm",
+    "description": "Smooth polished silver trim offering a reflective edge for premium tiled surfaces. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00183",
+    "name": "Stainless Steel Trim – Silver 10mm",
+    "description": "Strong silver steel trim that ensures perfect alignment and elegant edging every time. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00458",
+    "name": "Straight Aluminium Trim – Mill Finish 10mm",
+    "description": "Mill finish trim that adds an industrial, modern aesthetic with durability you can trust. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00457",
+    "name": "Straight Aluminium Trim – Silver 10mm",
+    "description": "Classic silver straight trim for sharp, clean finishing along tiled walls and floors. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00134",
+    "name": "Strip For Barcelona Metal Grey",
+    "description": "Stylish grey metal strip designed for Barcelona panels, adding stability and clean finishes. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00012",
+    "name": "Strip For Wall Panel Barcelona Grey",
+    "description": "Durable edge strip for Barcelona Grey panels, giving a smooth finish and added stability. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00010",
+    "name": "Strip For Wall Panel Barcelona Nero",
+    "description": "Matching finishing strip for Barcelona Nero wall panels, providing clean edges and seamless installation. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00125",
+    "name": "Strip For Wall Panel Barcelona Teak Wall",
+    "description": "Matching Barcelona Teak strip for seamless panel installation, creating clean edges and added strength. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00133",
+    "name": "Strip For Wall Panel Barcelona Wood",
+    "description": "Durable finishing strip for Barcelona Wood panels, ensuring smooth edges and professional installation results. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "N00050",
+    "name": "Teakwood Cladding – 60×15mm",
+    "description": "Rich teakwood textured cladding for natural, timeless appeal. Ideal for feature walls. Measures 60mm in width and 15mm thick. Decor ranges: Natural Stone Cladding.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01038",
+    "name": "Tessa Mosiac Nero Glass 300X300X4mm",
+    "description": "Tessa Nero glass mosaic, deep black finish, 25x25mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00191",
+    "name": "Transition Strip Aluminium Matt Silver",
+    "description": "Provides a neat, durable finish between different flooring surfaces while protecting exposed edges. The matt silver aluminium finish offers a clean, modern look for a variety of spaces. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "T00460",
+    "name": "Trim – Aluminium Mill Finish 12mm",
+    "description": "Sleek mill finish aluminium trim for a simple yet polished edge in tile installations. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00203",
+    "name": "U Profile Steel – Gold 2mmx3m",
+    "description": "Add a sleek, luxurious finish to your interiors with this durable gold-finish steel trim, designed for neat edging and decorative detailing. Measuring 3m in length, it provides a clean, professional finish for tiling and interior applications. Decor ranges: Tile Edges Trims.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00077",
+    "name": "Vector White Decor Tile 300×600mm",
+    "description": "Elegant white decor tile with a subtle vector pattern for modern interiors. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00098",
+    "name": "Veliver Decor Tile 300×600mm",
+    "description": "Veliver decor tile with a smooth, modern surface and minimalist tone. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01042",
+    "name": "Volga Mix Glass Mosaic 300X300X4mm",
+    "description": "Volga Mix glass mosaic, stylish colour blend, 25x25mm Decor ranges: Glass Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "I00013",
+    "name": "Wall Panel Metal Clip",
+    "description": "Strong metal clip for securely fixing wall panels in place, designed for easy installation. Decor ranges: Wall Panels.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01035",
+    "name": "White Ceramic Mosaic 300X300X4mm",
+    "description": "White ceramic mosaic, classic polished white, 295x295mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00102",
+    "name": "White Decor Tile 300×600mm",
+    "description": "Smooth white decor tile for a clean, contemporary finish. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00085",
+    "name": "White Decor Tile 300×600mm",
+    "description": "Classic white decor tile with a smooth, polished finish. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "C01021",
+    "name": "Winterton Porcelain Mosaic 300X300X4mm",
+    "description": "Winterton ceramic mosaic, cool finish, 295x295mm Decor ranges: Rustic Mosaics.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00099",
+    "name": "Ziron Decor Tile 300×600mm",
+    "description": "Ziron decor tile offering refined texture for stylish wall accents. 300×600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  },
+  {
+    "code": "M00069",
+    "name": "Zodiac Silver Decor Wall Tile 300X600mm",
+    "description": "Zodiac Silver decor wall tile, stylish polished silver, 300x600mm Decor ranges: Decor Tiles.",
+    "category": "Homeware",
+    "source": "0028_pulse_decor_catalogue_import.sql"
+  }
+]
