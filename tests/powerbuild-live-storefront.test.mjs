@@ -14,8 +14,8 @@ test('new catalogue items reach retail via left join, while explicit opt-out rem
 test('product images use the same retail visibility conditions', () => {
   assert.match(imageRoute, /COALESCE\(e\.b2c_enabled,1\)=1 OR e\.b2b_enabled=1/);
 });
-test('Hub links to website and storefront has live-refresh behavior', () => {
-  assert.match(hub, /View Website/);
+test('Hub no longer shows View Website shortcut while storefront refresh remains intact', () => {
+  assert.doesNotMatch(hub, /View Website/);
   assert.match(storefront, /window\.addEventListener\("focus", refresh\)/);
   assert.match(storefront, /id="products"/);
 });
