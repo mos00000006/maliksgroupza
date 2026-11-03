@@ -26,28 +26,67 @@ type PresetKey = keyof typeof presets;
 const color: Record<SignFamily, string> = { warning: "#edb92f", mandatory: "#1156a2", prohibition: "#d72c29", emergency: "#15834e", fire: "#c82726", notice: "#164b7a" };
 
 function Symbol({ family, pictogram }: { family: SignFamily; pictogram: string }) {
-  const ink = family === "warning" ? "#111" : "#fff";
-  const shared = { fill: "none", stroke: ink, strokeWidth: 6, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  return <svg viewBox="0 0 180 180" role="img" aria-label={`${family} symbol: ${pictogram}`}>
+  const ink = family === "warning" || family === "prohibition" ? "#101010" : "#fff";
+  const surface = family === "warning" ? "#edb92f" : family === "prohibition" ? "#fff" : color[family];
+  return <svg viewBox="0 0 180 180" role="img" aria-label={`${family} safety pictogram: ${pictogram}`}>
     {family === "warning" ? <path d="M90 14 171 158H9Z" fill="#edb92f" stroke="#171717" strokeWidth="11" strokeLinejoin="round"/> :
       family === "prohibition" ? <circle cx="90" cy="90" r="77" fill="#fff" stroke="#d72c29" strokeWidth="15"/> :
       family === "mandatory" ? <circle cx="90" cy="90" r="77" fill="#1156a2"/> :
       <rect x="12" y="12" width="156" height="156" rx="12" fill={color[family]}/>}
-    <g {...shared} stroke={family === "warning" || family === "prohibition" ? "#101010" : "#fff"}>
-      {pictogram === "forklift" && <><path d="M45 119V77h53v42H45Zm53-42h22l12 27v15h-12M45 119h-8M126 48v70M140 48v70M126 118h19"/><circle cx="62" cy="131" r="12"/><circle cx="116" cy="131" r="12"/></>}
-      {pictogram === "truck" && <><path d="M35 78h73v47H35zM108 92h21l17 23v10h-38"/><circle cx="60" cy="134" r="11"/><circle cx="127" cy="134" r="11"/></>}
-      {pictogram === "slip" && <><circle cx="80" cy="53" r="10"/><path d="m85 69-18 30 29 12 16 27M69 98 46 112M96 111l30-7M40 145h99"/></>}
-      {pictogram === "helmet" && <><path d="M42 108h96M51 107c0-57 78-57 78 0M90 57v24M62 111q28 19 57 0"/></>}
-      {pictogram === "boot" && <><path d="M42 64v62h100v-24H95L79 64zM43 114h99"/></>}
-      {pictogram === "glasses" && <><path d="M27 78h20l7 38h30l7-33 7 33h30l7-38h18M84 86h10"/></>}
-      {pictogram === "person" && <><circle cx="90" cy="60" r="16"/><path d="M90 80v46m-24-24 24-22 24 22m-24 24-22 24m22-24 22 24"/></>}
-      {pictogram === "cigarette" && <><path d="M41 106h91v15H41zM118 106v15M59 90q-10-10 0-18t0-18m22 36q-10-10 0-18t0-18"/></>}
-      {pictogram === "exit" && <><path d="M40 42h62v96H40zM106 92h40m-15-15 15 15-15 15"/><circle cx="66" cy="66" r="9"/><path d="m66 77-10 24 20 12 8 21M61 96l-14 15"/></>}
-      {pictogram === "cross" && <path d="M73 37h34v36h36v34h-36v36H73v-36H37V73h36Z" fill="#fff" stroke="none"/>}
-      {pictogram === "extinguisher" && <><rect x="67" y="63" width="48" height="81" rx="9"/><path d="M77 63V47h31v16m-31-16 8-14h24M111 65q27-9 30 25"/></>}
-      {pictogram === "assembly" && <><circle cx="90" cy="90" r="16"/><path d="M90 26v36m-12-12 12 12 12-12M90 154v-36m-12 12 12-12 12 12M26 90h36m-12-12 12 12-12 12m104-12h-36m12-12-12 12 12 12"/></>}
-      {pictogram === "info" && <><circle cx="90" cy="90" r="54"/><path d="M90 81v39M90 58v3"/></>}
-    </g>
+    {pictogram === "forklift" && <g fill={ink}>
+      <circle cx="52" cy="129" r="15"/><circle cx="116" cy="129" r="15"/>
+      <path d="M30 116V79c0-6 5-11 11-11h48l13 32h20v20H72a23 23 0 0 0-40 0H20v-4Z"/>
+      <path d="M72 44h31l13 49h-14L91 57H72Z"/><path d="M72 57h-9v41h34l-6-14H76V66h18l-3-9Z" fill={surface}/>
+      <path d="M126 42h10v78h-10zM142 42h8v91h-8zM126 127h37v7h-37z"/>
+    </g>}
+    {pictogram === "truck" && <g fill={ink}>
+      <path d="M25 68h80v57H25zM105 86h25l24 26v13h-49z"/>
+      <path d="M116 94h12l14 15h-26z" fill={surface}/><rect x="35" y="78" width="60" height="30" rx="3" fill={surface}/>
+      <circle cx="53" cy="132" r="15"/><circle cx="130" cy="132" r="15"/><circle cx="53" cy="132" r="6" fill={surface}/><circle cx="130" cy="132" r="6" fill={surface}/>
+    </g>}
+    {pictogram === "slip" && <g fill={ink}>
+      <circle cx="74" cy="47" r="12"/><path d="m68 64 25 8 17 28-13 7-15-22-17 23-17-8 5-12 11 4 13-18-14-4Z"/>
+      <path d="m91 104 23 5 21 26-12 10-19-21-28-5 4-15ZM56 101l-18 19-12-9 21-25Z"/>
+      <path d="M36 145c19-8 37-8 54 0 17-8 35-8 54 0-18 8-36 8-54 1-17 7-35 7-54-1Z"/>
+      <path d="m110 58 12-12 6 6-12 12zm13 18 17-5 3 9-17 4z"/>
+    </g>}
+    {pictogram === "helmet" && <g fill={ink}>
+      <path d="M39 108c1-34 20-57 48-62v43h9V46c28 5 46 28 47 62h8v14H29v-14Z"/>
+      <path d="M49 105h82c-5-23-19-38-35-43v30H87V62c-18 5-33 20-38 43Z" fill={surface}/>
+      <path d="M46 122c8 13 24 20 44 20s36-7 44-20Z"/>
+    </g>}
+    {pictogram === "boot" && <g fill={ink}>
+      <path d="M38 49h47l8 50 20 16h35v27H33V49Z"/>
+      <path d="M47 59h28l6 45 26 21H47Z" fill={surface}/><path d="M29 132h123v17H29z"/>
+      <path d="m75 69 17 4-2 9-14-3zm3 18 17 4-2 9-14-3z"/>
+    </g>}
+    {pictogram === "glasses" && <g fill={ink}>
+      <path d="M23 70h28c8 0 15 4 20 10h38c5-6 12-10 20-10h28l-8 50c-2 10-11 18-22 18H105c-11 0-20-8-22-19l-2-16H69l-2 16c-2 11-11 19-22 19H31c-10 0-19-8-21-18Zm18 14-16 2 6 34c1 3 3 5 7 5h8c4 0 7-3 8-7l4-27c-4-5-10-7-17-7Zm98 0c-7 0-13 2-17 7l4 27c1 4 4 7 8 7h8c4 0 6-2 7-5l6-34Z"/>
+    </g>}
+    {pictogram === "person" && <g fill={ink}>
+      <circle cx="90" cy="50" r="17"/><path d="M72 72h36l13 38-13 4-9-25v25l17 30-14 8-12-24-12 24-14-8 17-30V89l-9 25-13-4Z"/>
+    </g>}
+    {pictogram === "cigarette" && <g fill={ink}>
+      <rect x="34" y="104" width="103" height="19" rx="3"/><rect x="113" y="104" width="8" height="19" fill={surface}/>
+      <path d="M53 95c-12-10-10-23 1-31 6-5 6-10 1-17l10-7c11 15 8 27-3 36-6 5-7 8 0 13Zm31 0c-12-10-10-23 1-31 6-5 6-10 1-17l10-7c11 15 8 27-3 36-6 5-7 8 0 13Z"/>
+    </g>}
+    {pictogram === "exit" && <g fill={ink}>
+      <path d="M25 32h68v116H25Zm13 14v88h42V46Z"/><circle cx="77" cy="60" r="11"/>
+      <path d="m70 74 22 8 17 22-10 8-14-17-13 19 16 8 7 28-13 3-7-21-26-13 9-29-13 16-10-8 21-25Z"/>
+      <path d="M107 71h29l-10-10 9-9 27 27-27 27-9-9 10-10h-29Z"/>
+    </g>}
+    {pictogram === "cross" && <path d="M72 31h36v41h41v36h-41v41H72v-41H31V72h41Z" fill={ink}/>} 
+    {pictogram === "extinguisher" && <g fill={ink}>
+      <path d="M62 72c0-7 6-13 13-13h40c7 0 13 6 13 13v68c0 7-6 13-13 13H75c-7 0-13-6-13-13Z"/>
+      <path d="M76 59V43h12v-9h28v12H91v13Zm16 0v-9h30l17 11-6 10-14-9Z"/>
+      <path d="M127 70c23 1 29 20 22 40l-11-4c5-14 2-23-11-24Z"/><circle cx="95" cy="95" r="19" fill={surface}/><path d="m95 95 10-10m-20 21h20" fill="none" stroke={ink} strokeWidth="5" strokeLinecap="round"/>
+    </g>}
+    {pictogram === "assembly" && <g fill={ink}>
+      <circle cx="90" cy="85" r="10"/><circle cx="64" cy="103" r="9"/><circle cx="116" cy="103" r="9"/>
+      <path d="M77 99h26l8 27H69Zm-25 14h21l6 25H46Zm55 0h21l6 25h-33Z"/>
+      <path d="M30 30h34v12H50l18 18-9 9-18-18v14H30Zm120 0v35h-12V51l-18 18-9-9 18-18h-14V30ZM30 150v-35h12v14l18-18 9 9-18 18h14v12Zm120 0h-35v-12h14l-18-18 9-9 18 18v-14h12Z"/>
+    </g>}
+    {pictogram === "info" && <g fill={ink}><circle cx="90" cy="90" r="57"/><circle cx="90" cy="61" r="9" fill={surface}/><path d="M81 78h18v61H81z" fill={surface}/></g>}
     {family === "prohibition" && <path d="M36 36 144 144" stroke="#d72c29" strokeWidth="15"/>}
   </svg>;
 }
