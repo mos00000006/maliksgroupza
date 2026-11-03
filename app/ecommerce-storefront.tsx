@@ -105,6 +105,14 @@ export default function EcommerceStorefront({ channel }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channel, category]);
 
+  // Refresh when the customer returns to the tab; changes in the Hub need no second import.
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === "visible") void load(page); };
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channel, category, q, page]);
+
   const cartCount = cart.reduce((sum, line) => sum + line.qty, 0);
   const cartTotal = cart.reduce((sum, line) => sum + line.price * line.qty, 0);
   const pendingPrice = cart.some((line) => line.price <= 0);
@@ -233,7 +241,8 @@ export default function EcommerceStorefront({ channel }: Props) {
           <span><strong>{data?.settings.store_name || (channel === "B2C" ? "PowerBuild Online" : "PowerBuild Wholesale Online")}</strong><small>{channel === "B2C" ? "Retail eCommerce" : "B2B Trade eCommerce"}</small></span>
         </Link>
         <nav>
-          <Link className={styles.backHub} href="/" aria-label="Back to Company Hub">← Back to Company Hub</Link>
+          {channel === "B2B" && <Link className={styles.backHub} href="/">Company Hub</Link>}
+          {channel === "B2C" && <a href="#products">Shop products</a>}
           <Link className={channel === "B2C" ? styles.activeChannel : ""} href="/shop">Retail Shop</Link>
           <Link className={channel === "B2B" ? styles.activeChannel : ""} href="/wholesale-shop">Wholesale B2B</Link>
           <button type="button" onClick={() => setTrackOpen(true)}>Track order</button>
@@ -243,11 +252,13 @@ export default function EcommerceStorefront({ channel }: Props) {
 
       <section className={styles.hero}>
         <div>
-          <span>{channel === "B2C" ? "BUILD • REPAIR • IMPROVE" : "POWERBUILD WHOLESALE DIVISION"}</span>
-          <h1>{channel === "B2C" ? "Hardware delivered from the PowerBuild network." : "Trade ordering built for hardware businesses."}</h1>
-          <p>{channel === "B2C" ? "Browse the group catalogue, choose your branch and submit your order for collection or delivery." : "Approved B2B customers can order in bulk, use trade pack quantities and send purchase references directly to Head Office."}</p>
+          <span>{channel === "B2C" ? "YOUR PROJECT STARTS HERE  /  POWERBUILD SOUTH AFRICA" : "POWERBUILD WHOLESALE DIVISION"}</span>
+          <h1>{channel === "B2C" ? "Everything to build something brilliant." : "Trade ordering built for hardware businesses."}</h1>
+          <p>{channel === "B2C" ? "From foundations to finishing touches. Explore our live range of building materials, tiles, sanitaryware, paints, plumbing and tools — updated straight from the PowerBuild catalogue." : "Approved B2B customers can order in bulk, use trade pack quantities and send purchase references directly to Head Office."}</p>
         </div>
         <div className={styles.heroCard}>
+          <div className={styles.heroIcon}>PB<span>+</span></div>
+          <span className={styles.heroEyebrow}>THE POWERBUILD ADVANTAGE</span>
           <strong>{channel === "B2C" ? "Retail pricing includes VAT" : "Wholesale pricing excludes VAT"}</strong>
           <small>{data?.settings.orders_enabled === false ? "Online orders are temporarily paused." : "Online ordering is open."}</small>
         </div>
@@ -293,20 +304,24 @@ export default function EcommerceStorefront({ channel }: Props) {
         </section>
       )}
 
-      <section className={styles.catalogue}>
+      {channel === "B2C" && <section className={styles.benefits} aria-label="Why choose PowerBuild"><div><span>01</span><strong>Explore the range</strong><small>Thousands of essentials in one place</small></div><div><span>02</span><strong>Shop your way</strong><small>Collection or delivery enquiry</small></div><div><span>03</span><strong>Always up to date</strong><small>Live products from our catalogue</small></div></section>}
+
+      <section id="products" className={styles.catalogue}>
         <div className={styles.sectionHeading}>
-          <div><span>OUR CATALOGUE</span><h2>{data?.total || 0} products available online</h2></div>
+          <div><span>EXPLORE WHAT WE STOCK</span><h2>{data?.total || 0} products to power your next project</h2><p className={styles.catalogueIntro}>Search our current range by product, code or department. Prices shown where confirmed.</p></div>
           <div className={styles.filters}>
             <form onSubmit={(e) => { e.preventDefault(); void load(1); }}><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search product code, name or category" /><button>Search</button></form>
             <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }}><option value="">All categories</option>{data?.categories.map((item) => <option key={item}>{item}</option>)}</select>
           </div>
         </div>
 
+        {channel === "B2C" && !!data?.categories.length && <div className={styles.categoryChips}><button type="button" className={!category ? styles.selectedChip : ""} onClick={() => setCategory("")}>All departments</button>{data.categories.slice(0, 14).map((item) => <button type="button" key={item} className={category === item ? styles.selectedChip : ""} onClick={() => { setCategory(item); setPage(1); }}>{item}</button>)}</div>}
+
         {loading ? <div className={styles.loading}>Loading online catalogue…</div> : (
           <div className={styles.grid}>
             {data?.products.map((product) => (
               <article key={product.id} className={styles.productCard}>
-                <div className={styles.imageWrap}>{product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" /> : <span>No image</span>}{product.featured && <b>FEATURED</b>}</div>
+                <div className={styles.imageWrap}>{product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" /> : <span className={styles.imageFallback}><span>POWERBUILD</span><small>Image coming soon</small></span>}{product.featured && <b>FEATURED</b>}</div>
                 <small>{product.category}</small>
                 <h3>{product.name}</h3>
                 <p>{product.code}</p>

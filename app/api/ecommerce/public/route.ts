@@ -77,8 +77,8 @@ export async function GET(req: Request) {
   const q = text(url.searchParams.get("q")).toLowerCase();
   const category = text(url.searchParams.get("category"));
   const offset = (page - 1) * pageSize;
-  const enabledColumn = channel === "B2B" ? "e.b2b_enabled" : "e.b2c_enabled";
-  const clauses = ["p.active=1", `${enabledColumn}=1`];
+  const visibility = channel === "B2B" ? "e.b2b_enabled=1" : "COALESCE(e.b2c_enabled,1)=1";
+  const clauses = ["p.active=1", visibility];
   const binds: Array<string | number> = [];
   if (q) {
     clauses.push("(lower(p.name) LIKE ? OR lower(p.code) LIKE ? OR lower(p.description) LIKE ? OR lower(p.category) LIKE ?)");
@@ -94,12 +94,12 @@ export async function GET(req: Request) {
   const [settings, count, categories, branches, specials] = await Promise.all([
     readEcommerceSettings(),
     env.DB.prepare(
-      `SELECT COUNT(*) AS total FROM catalogue_products p JOIN ecommerce_product_settings e ON e.catalogue_product_id=p.id WHERE ${where}`,
+      `SELECT COUNT(*) AS total FROM catalogue_products p LEFT JOIN ecommerce_product_settings e ON e.catalogue_product_id=p.id WHERE ${where}`,
     ).bind(...binds).first<{ total: number }>(),
     env.DB.prepare(
       `SELECT DISTINCT p.category AS category
-       FROM catalogue_products p JOIN ecommerce_product_settings e ON e.catalogue_product_id=p.id
-       WHERE p.active=1 AND ${enabledColumn}=1 AND p.category<>'' ORDER BY p.category`,
+       FROM catalogue_products p LEFT JOIN ecommerce_product_settings e ON e.catalogue_product_id=p.id
+       WHERE p.active=1 AND ${visibility} AND p.category<>'' ORDER BY p.category`,
     ).all<{ category: string }>(),
     env.DB.prepare(
       "SELECT name FROM workspaces WHERE active=1 AND type='Store' ORDER BY name",
@@ -111,7 +111,7 @@ export async function GET(req: Request) {
     `SELECT p.*,e.b2c_enabled,e.b2b_enabled,e.retail_price_inc_vat,e.wholesale_price_ex_vat,
             e.b2b_min_qty,e.unit,e.stock_status,e.featured,e.sort_order
      FROM catalogue_products p
-     JOIN ecommerce_product_settings e ON e.catalogue_product_id=p.id
+     LEFT JOIN ecommerce_product_settings e ON e.catalogue_product_id=p.id
      WHERE ${where}
      ORDER BY e.featured DESC,e.sort_order,p.name
      LIMIT ? OFFSET ?`,
@@ -293,11 +293,10 @@ export async function POST(req: Request) {
   const ids = Array.from(new Set(lines.map((line) => Number(line.product_id || 0)).filter((id) => id > 0)));
   if (!ids.length) return Response.json({ error: "No valid products were supplied." }, { status: 400 });
   const placeholders = ids.map(() => "?").join(",");
-  const enabledColumn = channel === "B2B" ? "e.b2b_enabled" : "e.b2c_enabled";
   const productRows = await env.DB.prepare(
     `SELECT p.id,p.code,p.name,p.category,e.retail_price_inc_vat,e.wholesale_price_ex_vat,e.b2b_min_qty,e.unit
-     FROM catalogue_products p JOIN ecommerce_product_settings e ON e.catalogue_product_id=p.id
-     WHERE p.active=1 AND ${enabledColumn}=1 AND p.id IN (${placeholders})`,
+     FROM catalogue_products p LEFT JOIN ecommerce_product_settings e ON e.catalogue_product_id=p.id
+     WHERE p.active=1 AND ${channel === "B2B" ? "e.b2b_enabled=1" : "COALESCE(e.b2c_enabled,1)=1"} AND p.id IN (${placeholders})`,
   ).bind(...ids).all<Record<string, unknown>>();
   const byId = new Map(productRows.results.map((row) => [Number(row.id), row]));
 

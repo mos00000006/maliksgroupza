@@ -106,6 +106,7 @@ export default function EcommerceControl() {
 
     <nav className={styles.tabs}>{(["Overview","Products","Orders","B2B Accounts","Settings"] as Tab[]).map((item) => <button key={item} className={tab === item ? styles.active : ""} onClick={() => setTab(item)}>{item}</button>)}</nav>
 
+    <div style={{display:"flex", flexWrap:"wrap", gap:10, padding:"0 22px 18px"}}><a href="/shop" target="_blank" rel="noopener noreferrer" style={{background:"#ffce2b",color:"#122942",padding:"11px 18px",borderRadius:10,fontWeight:900,textDecoration:"none"}}>↗ View Retail Website</a><a href="/wholesale-shop" target="_blank" rel="noopener noreferrer" style={{background:"#183858",color:"white",padding:"11px 18px",borderRadius:10,fontWeight:850,textDecoration:"none"}}>↗ View Wholesale Portal</a></div>
     {tab === "Overview" && <div className={styles.content}>
       <div className={styles.kpis}>
         <div><small>B2C PRODUCTS</small><strong>{dashboard?.b2c_products || 0}</strong><span>Enabled for retail online</span></div>

@@ -4,3 +4,39 @@
 @media(max-width:480px){.grid{grid-template-columns:1fr}.brand img{width:42px;height:42px}.header nav a,.header nav button{flex:1;text-align:center}.hero h1{font-size:36px}.cartLine{grid-template-columns:1fr 70px}.specials,.catalogue{padding-left:14px;padding-right:14px}.tradePanel{margin-left:14px;margin-right:14px}}
 .trackBox{width:min(760px,calc(100% - 30px));max-height:calc(100% - 40px);overflow:auto;margin:auto;background:#fff;border-radius:20px;padding:22px;box-sizing:border-box}.trackFields{display:grid;grid-template-columns:1fr 1fr auto;gap:9px;margin-top:18px}.trackFields input{border:1px solid #cad8e6;border-radius:10px;padding:11px 12px;font:inherit}.trackFields button{border:0;border-radius:10px;background:#1769dc;color:#fff;padding:11px 16px;font-weight:900}.trackResult{margin-top:18px;border:1px solid #dce5ed;border-radius:13px;overflow:hidden}.trackResult>header{display:flex;align-items:center;justify-content:space-between;padding:14px;background:#f3f7fb}.trackResult h3{margin:3px 0}.trackResult small{color:#1769dc;font-size:9px;font-weight:900}.trackResult>header>strong{border-radius:999px;background:#102943;color:#fff;padding:7px 10px;font-size:10px}.trackMeta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px}.trackMeta span{display:grid;padding:9px;background:#f8fafc;border-radius:8px;font-size:10px;color:#6d7e91}.trackMeta b{color:#19314e}.trackLines{padding:0 12px 12px}.trackLines>div{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-top:1px solid #edf1f5;font-size:10px}@media(max-width:650px){.trackFields,.trackMeta{grid-template-columns:1fr}}
 .tradeVerifiedRow{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px}.tradeVerifiedRow .secondary{border:1px solid #d6e0ea;background:#f4f7fa;color:#17314d;padding:8px 10px;border-radius:8px;font-size:10px;font-weight:850}
+
+/* PowerBuild consumer storefront refresh (keeps all existing order/wholesale interactions). */
+.store{background:#f5f7fa;color:#12253b}
+.header{background:#142b46;border-bottom:3px solid #ffce2c;box-shadow:0 10px 32px rgba(12,31,51,.12)}
+.header nav a,.header nav button{border-radius:999px;transition:background .2s,transform .2s}
+.header nav a:hover,.header nav button:hover{transform:translateY(-2px)}
+.header .brand strong{letter-spacing:.7px;font-size:19px}
+.hero{min-height:390px;position:relative;overflow:hidden;align-items:center;background:radial-gradient(circle at 85% 30%,rgba(255,205,39,.2),transparent 26%),linear-gradient(126deg,#0e233c 0%,#183f68 58%,#112d4c 100%);padding-top:70px;padding-bottom:70px}
+.hero:after{content:"";pointer-events:none;position:absolute;right:-85px;bottom:-220px;width:530px;height:530px;border:75px solid rgba(255,204,31,.09);border-radius:50%}
+.hero h1{font-weight:950;letter-spacing:-2.5px;line-height:1.05;max-width:760px}
+.hero p{font-size:17px;max-width:650px}
+.heroCard{position:relative;z-index:1;min-height:185px;border:1px solid rgba(255,255,255,.21);background:rgba(255,255,255,.08);backdrop-filter:blur(8px);box-shadow:0 25px 55px rgba(0,0,0,.16);padding:30px}
+.heroIcon{font-size:60px;font-weight:1000;letter-spacing:-6px;line-height:1;color:#ffcf2a;margin-bottom:21px}
+.heroIcon span{color:#fff;font-size:35px;vertical-align:top;letter-spacing:0}
+.heroEyebrow{display:block;color:#ffcf2a;font-size:11px;font-weight:900;letter-spacing:1.2px;margin-bottom:11px}
+.heroCard strong{font-size:20px;line-height:1.35}
+.benefits{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:-27px clamp(18px,5vw,86px) 12px;position:relative;z-index:2}
+.benefits>div{min-width:0;display:grid;grid-template-columns:48px 1fr;column-gap:12px;align-content:center;background:white;border:1px solid #e6ecf1;border-radius:17px;padding:23px;box-shadow:0 12px 28px rgba(12,36,63,.07)}
+.benefits>div>span{grid-row:span 2;color:#e1ae15;font-size:24px;font-weight:950}
+.benefits strong{font-size:14px}.benefits small{color:#708196;font-size:12px;margin-top:3px}
+.catalogue{padding-top:50px}
+.catalogueIntro{color:#718197;font-size:13px;margin:9px 0 0}
+.sectionHeading h2{font-weight:950;letter-spacing:-.8px;font-size:clamp(24px,2.7vw,36px)}
+.categoryChips{display:flex;gap:9px;overflow-x:auto;padding:4px 0 23px;margin-bottom:7px;scrollbar-width:thin}
+.categoryChips button{white-space:nowrap;border:1px solid #d7e2ed;border-radius:999px;padding:10px 16px;background:white;color:#294766;font-weight:800;font-size:12px;cursor:pointer}
+.categoryChips button:hover,.categoryChips .selectedChip{background:#153451;color:#fff;border-color:#153451}
+.productCard{border-radius:19px;box-shadow:0 10px 30px rgba(18,43,70,.06);transition:transform .2s,box-shadow .2s}
+.productCard:hover{transform:translateY(-4px);box-shadow:0 18px 36px rgba(18,43,70,.12)}
+.imageWrap{background:linear-gradient(145deg,#f8fafc,#edf3f8);height:230px}
+.productCard h3{font-size:15px;font-weight:850}
+.productCard>button{background:#173553;border-radius:999px}
+.productCard>button:hover{background:#0e66bc}
+.imageFallback{display:flex;flex-direction:column;align-items:center;gap:7px;opacity:.45;text-align:center}.imageFallback>span{font-size:16px;letter-spacing:1px;font-weight:950}.imageFallback>small{font-size:11px}
+.footer{border-top:4px solid #ffcf2a}
+@media(max-width:850px){.benefits{grid-template-columns:1fr;margin-top:0;margin-bottom:0;padding-top:12px}.hero{min-height:0}}
+@media(max-width:650px){.hero{padding-top:45px;padding-bottom:45px}.hero h1{font-size:39px}.hero p{font-size:14px}.benefits>div{padding:15px}.header nav{overflow-x:auto;flex-wrap:nowrap;max-width:100%}.header nav a,.header nav button{white-space:nowrap}}

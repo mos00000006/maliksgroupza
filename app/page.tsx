@@ -1722,6 +1722,7 @@ export default function Home() {
             </p>
           </div>
           <div className="actions">
+            <a href="/shop" target="_blank" rel="noopener noreferrer" title="Open the live PowerBuild customer website" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 14px", background: "#ffcf26", color: "#12283d", borderRadius: 11, fontWeight: 850, textDecoration: "none", whiteSpace: "nowrap", fontSize: 12 }}>↗ View Website</a>
             {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStockOrdersView && !isStoreSpecialsView && !isEcommerceControlView && !isSystemControlView && !isRolloutOnboardingView && (
               <label>
                 ⌕

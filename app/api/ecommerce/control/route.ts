@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     ).bind(...bindValues).first<{ total: number }>();
     const rows = await env.DB.prepare(
       `SELECT p.id,p.code,p.name,p.description,p.category,p.image_key,p.updated_at,
-              COALESCE(e.b2c_enabled,0) AS b2c_enabled,COALESCE(e.b2b_enabled,0) AS b2b_enabled,
+              COALESCE(e.b2c_enabled,1) AS b2c_enabled,COALESCE(e.b2b_enabled,0) AS b2b_enabled,
               COALESCE(e.retail_price_inc_vat,0) AS retail_price_inc_vat,
               COALESCE(e.wholesale_price_ex_vat,0) AS wholesale_price_ex_vat,
               COALESCE(e.b2b_min_qty,1) AS b2b_min_qty,COALESCE(e.unit,'EA') AS unit,
@@ -100,7 +100,7 @@ export async function GET(req: Request) {
 
   const [settings, b2c, b2b, pendingCustomers, newOrders] = await Promise.all([
     readEcommerceSettings(),
-    env.DB.prepare("SELECT COUNT(*) AS total FROM ecommerce_product_settings WHERE b2c_enabled=1").first<{ total: number }>(),
+    env.DB.prepare("SELECT COUNT(*) AS total FROM catalogue_products p LEFT JOIN ecommerce_product_settings e ON e.catalogue_product_id=p.id WHERE p.active=1 AND COALESCE(e.b2c_enabled,1)=1").first<{ total: number }>(),
     env.DB.prepare("SELECT COUNT(*) AS total FROM ecommerce_product_settings WHERE b2b_enabled=1").first<{ total: number }>(),
     env.DB.prepare("SELECT COUNT(*) AS total FROM ecommerce_b2b_customers WHERE status='Pending'").first<{ total: number }>(),
     env.DB.prepare("SELECT COUNT(*) AS total FROM ecommerce_orders WHERE status IN ('New','Awaiting Pricing')").first<{ total: number }>(),
