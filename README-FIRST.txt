@@ -7,6 +7,14 @@ eye protection, restricted entry, no smoking, emergency exit, first aid, fire
 extinguisher and assembly-point symbols remain sharp in A4/A3 PDF and JPG
 exports.
 
+NEW STORE FACILITY SIGNS
+- Dispatch & Collections
+- Goods Receiving
+- Shared Toilets
+- Men's Toilet
+- Women's Toilet
+- Accessible Toilet
+
 WHAT THE GITHUB LOG PROVED
 The Safety Signs component exists and passes its module test. But the actual app/price-tags/price-tag-generator.tsx file is missing the SafetyWarningSigns import, mode, dispatch and menu button. The previous patch ZIP alone does NOT integrate the tool.
 

@@ -20,6 +20,12 @@ const presets = {
   firstaid: { label: "First aid", family: "emergency", heading: "FIRST AID", detail: "First aid equipment located here.", pictogram: "cross" },
   extinguisher: { label: "Fire extinguisher", family: "fire", heading: "FIRE EXTINGUISHER", detail: "Keep equipment accessible.", pictogram: "extinguisher" },
   assembly: { label: "Assembly point", family: "emergency", heading: "ASSEMBLY POINT", detail: "Report here during an evacuation.", pictogram: "assembly" },
+  dispatch: { label: "Dispatch & collections", family: "notice", heading: "DISPATCH & COLLECTIONS", detail: "Customer collections and outgoing deliveries report here.", pictogram: "dispatch" },
+  receiving: { label: "Goods receiving", family: "notice", heading: "GOODS RECEIVING", detail: "Supplier deliveries and incoming stock report here.", pictogram: "receiving" },
+  toilets: { label: "Toilets", family: "notice", heading: "TOILETS", detail: "Customer and staff facilities.", pictogram: "toilets" },
+  mens: { label: "Men's toilet", family: "notice", heading: "MEN'S TOILET", detail: "Male facilities.", pictogram: "male" },
+  womens: { label: "Women's toilet", family: "notice", heading: "WOMEN'S TOILET", detail: "Female facilities.", pictogram: "female" },
+  accessible: { label: "Accessible toilet", family: "notice", heading: "ACCESSIBLE TOILET", detail: "Accessible customer and staff facilities.", pictogram: "accessible" },
   custom: { label: "Custom safety notice", family: "notice", heading: "SAFETY NOTICE", detail: "Enter site-specific instructions.", pictogram: "info" },
 } as const satisfies Record<string, Preset>;
 type PresetKey = keyof typeof presets;
@@ -85,6 +91,32 @@ function Symbol({ family, pictogram }: { family: SignFamily; pictogram: string }
       <circle cx="90" cy="85" r="10"/><circle cx="64" cy="103" r="9"/><circle cx="116" cy="103" r="9"/>
       <path d="M77 99h26l8 27H69Zm-25 14h21l6 25H46Zm55 0h21l6 25h-33Z"/>
       <path d="M30 30h34v12H50l18 18-9 9-18-18v14H30Zm120 0v35h-12V51l-18 18-9-9 18-18h-14V30ZM30 150v-35h12v14l18-18 9 9-18 18h14v12Zm120 0h-35v-12h14l-18-18 9-9 18 18v-14h12Z"/>
+    </g>}
+    {pictogram === "dispatch" && <g fill={ink}>
+      <path d="M24 74h73v49H24Zm73 13h25l22 22v14H97Z"/><path d="M107 96h12l13 13h-25Z" fill={surface}/>
+      <circle cx="51" cy="130" r="13"/><circle cx="121" cy="130" r="13"/><circle cx="51" cy="130" r="5" fill={surface}/><circle cx="121" cy="130" r="5" fill={surface}/>
+      <path d="M102 42h32l-10-10 9-9 27 27-27 27-9-9 10-10h-32Z"/>
+    </g>}
+    {pictogram === "receiving" && <g fill={ink}>
+      <path d="M82 24h16v34h18L90 84 64 58h18Z"/><path d="m44 83 46-18 46 18-46 19Z"/>
+      <path d="M43 89 84 106v41L43 130Zm94 0-41 17v41l41-17Z"/><path d="M82 108h16v38H82Z" fill={surface}/>
+      <path d="M33 149h114v10H33zM43 138h13v12H43zm80 0h13v12h-13z"/>
+    </g>}
+    {pictogram === "toilets" && <g fill={ink}>
+      <circle cx="56" cy="45" r="12"/><path d="M42 62h28l10 39-11 3-7-25v68H50v-38H39v38H27V79l-7 25-11-3 10-39Z"/>
+      <circle cx="126" cy="45" r="12"/><path d="M112 62h28l18 56h-17v29h-12v-29h-6v29h-12v-29H94Z"/>
+      <rect x="87" y="34" width="6" height="116" rx="3"/>
+    </g>}
+    {pictogram === "male" && <g fill={ink}>
+      <circle cx="90" cy="43" r="15"/><path d="M71 64h38l14 46-14 4-9-31v65H85v-45H80v45H65V83l-9 31-14-4 14-46Z"/>
+    </g>}
+    {pictogram === "female" && <g fill={ink}>
+      <circle cx="90" cy="43" r="15"/><path d="M72 64h36l24 68h-26v17H92v-17h-4v17H74v-17H48Z"/><path d="m63 76-19 44-13-6 23-50Zm54 0 19 44 13-6-23-50Z"/>
+    </g>}
+    {pictogram === "accessible" && <g fill={ink}>
+      <circle cx="82" cy="38" r="13"/><path d="M69 57h24l5 35h31v14H88l-7-36h-12Z"/>
+      <path d="M74 83c-17 4-29 19-29 37 0 22 18 40 40 40 20 0 36-14 39-32h-15c-3 10-12 18-24 18-14 0-26-12-26-26 0-10 6-19 16-23Z"/>
+      <path d="m96 109 25 34h23l-30-45Z"/>
     </g>}
     {pictogram === "info" && <g fill={ink}><circle cx="90" cy="90" r="57"/><circle cx="90" cy="61" r="9" fill={surface}/><path d="M81 78h18v61H81z" fill={surface}/></g>}
     {family === "prohibition" && <path d="M36 36 144 144" stroke="#d72c29" strokeWidth="15"/>}
