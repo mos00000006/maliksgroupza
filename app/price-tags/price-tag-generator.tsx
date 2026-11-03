@@ -2,6 +2,7 @@
 import {sameProductCode} from "../lib/colour-product-code";
 import ColourVariantCode from "./colour-variant-code";
 import ProductNameSearch from "./product-name-search";
+import BulkPriceTagStudio from "./bulk-price-tag-studio";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { toJpeg } from "../lib/vendor/html-to-image.mjs";
@@ -25,7 +26,7 @@ type BranchPrice = { branch_name: string; price_cents: number; updated_at: strin
 type Draft = { colour: string; price: string; unit: TagUnit; is_tile: boolean; coverage_per_box: string; pieces_per_box: string; tile_width_mm: string; tile_length_mm: string; published: boolean };
 const empty: Draft = { colour: "", price: "", unit: "EA", is_tile: false, coverage_per_box: "", pieces_per_box: "", tile_width_mm: "", tile_length_mm: "", published: true };
 export default function PriceTagGenerator() {
-  const [mode,setMode]=useState<"single"|"combo"|"name-tag"|"business-card"|"whatsapp"|"certificate"|"signage"|"outdoor"|"staff-id"|"safety-signs">("single");
+  const [mode,setMode]=useState<"single"|"combo"|"name-tag"|"business-card"|"whatsapp"|"certificate"|"signage"|"outdoor"|"staff-id"|"safety-signs"|"bulk">("single");
   const [brand,setBrand]=useState<TagBrand|null>(null);
   const brandName=brand === "busterbuild" ? "BusterBuild" : "PowerBuild";
   const exportRef=useRef<HTMLDivElement>(null);
@@ -143,6 +144,7 @@ export default function PriceTagGenerator() {
     await Promise.all(Array.from(document.querySelectorAll<HTMLImageElement>("[data-print-sheet] img")).map(async img => { try { await img.decode(); } catch { /* Broken image remains visible for review. */ } }));
     setMessage(""); window.print();
   };
+  if (brand && mode === "bulk") return <BulkPriceTagStudio brand={brand} onBack={()=>setMode("single")} />;
   if (brand && mode === "staff-id") return <StaffIdGenerator brand={brand} onBack={()=>setMode("single")} />;
   if (brand && mode === "outdoor") return <OutdoorSignage brand={brand} onBack={()=>setMode("single")} />;
   if (brand && mode === "signage") return <StoreSignage brand={brand} onBack={()=>setMode("single")} />;
@@ -159,7 +161,7 @@ export default function PriceTagGenerator() {
     <section className={styles.controls}>
       <header className={styles.header}><img src={brand === "busterbuild" ? "/price-tag-assets/busterbuild-logo.png" : "/powerbuild-logo-transparent.png"} alt={brandName} /><div><small>{brandName.toUpperCase()} RETAIL</small><h1>Price tag studio</h1><p>Your design. Your products. Ready to print.</p></div><Link href="/">Back to Hub</Link></header>
       <button type="button" className={styles.switchBrand} onClick={()=>{setBrand(null);setCode("");setProduct(null);setSaved(null);setPicture(null);setQueue([]);setDraft(empty);setBranches([]);setSelectedBranches([]);setBranchPrices({});setCompanyPriceCents(null);setDirty(false);setMessage("");}}>Change brand</button>
-      <div className={styles.buttons} style={{marginBottom:20}}><button type="button" aria-pressed={true}>Single product tag</button><button type="button" onClick={()=>setMode("combo")}>Create a combo</button><button type="button" onClick={()=>setMode("name-tag")}>Salesperson name tags</button><button type="button" onClick={()=>setMode("business-card")}>Business cards</button><button type="button" onClick={()=>setMode("whatsapp")}>WhatsApp adverts</button><button type="button" onClick={()=>setMode("certificate")}>Staff certificates</button><button type="button" onClick={()=>setMode("signage")}>Store signage</button><button type="button" onClick={()=>setMode("safety-signs")}>Safety &amp; Warning Signs</button><button type="button" onClick={()=>setMode("outdoor")}>Outdoor boards &amp; billboards</button><button type="button" onClick={()=>setMode("staff-id")}>Staff ID cards</button><Link href="/training">Staff training &amp; knowledge tests →</Link></div>
+      <div className={styles.buttons} style={{marginBottom:20}}><button type="button" aria-pressed={true}>Single product tag</button><button type="button" onClick={()=>setMode("bulk")}>Bulk A4 price tags</button><button type="button" onClick={()=>setMode("combo")}>Create a combo</button><button type="button" onClick={()=>setMode("name-tag")}>Salesperson name tags</button><button type="button" onClick={()=>setMode("business-card")}>Business cards</button><button type="button" onClick={()=>setMode("whatsapp")}>WhatsApp adverts</button><button type="button" onClick={()=>setMode("certificate")}>Staff certificates</button><button type="button" onClick={()=>setMode("signage")}>Store signage</button><button type="button" onClick={()=>setMode("safety-signs")}>Safety &amp; Warning Signs</button><button type="button" onClick={()=>setMode("outdoor")}>Outdoor boards &amp; billboards</button><button type="button" onClick={()=>setMode("staff-id")}>Staff ID cards</button><Link href="/training">Staff training &amp; knowledge tests →</Link></div>
       <div className={styles.editor}>
         <section className={styles.panel}><h2>1. Choose a product</h2>
           <ProductNameSearch brand={brand} disabled={busy} onChoose={productCode=>{setCode(productCode);void lookup(productCode);}} onReset={()=>{setProduct(null);setSaved(null);setPicture(null);setPictureMessage("");}}/>

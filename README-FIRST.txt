@@ -1,6 +1,10 @@
 POWERBUILD / BUSTERBUILD — BULK A4 EXCEL PRICE TAGS PATCH
 ================================================================
 
+CORRECTED DROP-IN VERSION
+This version includes the updated Price Tag Studio menu. After the files are
+copied and deployed, “Bulk A4 price tags” appears beside “Single product tag”.
+
 WHAT THIS ADDS
 - A new “Bulk A4 price tags” option inside Price Tag Studio.
 - Managers can upload XLS, XLSX or CSV price lists.
@@ -23,11 +27,12 @@ PRIVACY AND DATA
 INSTALL
 1. Copy every folder from this patch into the ROOT of the Company Hub project.
    Keep the app, public, scripts and tests folder structure exactly as supplied.
-2. Run:
+   Replace the matching price-tag-generator.tsx file when asked.
+2. Run this once to register the automatic prebuild repair hook:
 
    node scripts/install-bulk-price-tags.mjs
 
-3. Then run:
+3. Run:
 
    npm run check
 
@@ -35,7 +40,7 @@ INSTALL
 
 HOW MANAGERS USE IT
 1. Open Price Tag Studio and choose PowerBuild or BusterBuild.
-2. Choose “Bulk A4 price tags”.
+2. On the Studio menu, choose “Bulk A4 price tags”.
 3. Download the Excel template, or upload the manager’s own XLS/XLSX/CSV file.
 4. Review the imported products and correct any names, prices or units.
 5. Choose 6 larger tags or 8 compact tags per A4 page.
@@ -53,6 +58,7 @@ Optional:
 - Branch / Store / Shop
 
 VALIDATION COMPLETED
+- Corrected drop-in Studio menu integration checked.
 - Modern XLSX workbook import passed.
 - Legacy XLS workbook import passed.
 - South African price formats passed.
