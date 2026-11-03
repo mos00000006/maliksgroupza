@@ -13,6 +13,8 @@ WHAT THIS PATCH ADDS
 - Multiple selected branches generate one printable tag per branch.
 - Existing company-wide prices, QR tokens, pictures and Smart Measure details
   are preserved.
+- The existing Safety & Warning Signs Studio tab is preserved and remains
+  connected after Branch Pricing is installed.
 
 IMPORTANT BUSTERBUILD RULE
 The BusterBuild sales app continues using the All Branches price. Branch-specific
@@ -37,6 +39,7 @@ HOW TO USE IT
 
 VALIDATION COMPLETED
 - Production build passed.
-- Price tag, paint search and colour-code compatibility tests passed: 20/20.
+- Price tag, paint search, colour-code and Safety Signs compatibility tests
+  passed: 22/22.
 - Branch override test confirms Sungate pricing does not change the All Branches price.
 - ESLint completed with no errors; existing image-element notices remain warnings.
