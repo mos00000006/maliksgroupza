@@ -1,17 +1,13 @@
-POWERBUILD — REMOVE VIEW WEBSITE BUTTON (FINAL)
+POWERBUILD WEBSITE BUTTON REMOVAL
 
-The previous ZIP contained a script that was never run by simply uploading it.
-This package is specifically for removing the visible Hub header button.
+This package removes the header “View Website” button and the retail/wholesale website shortcut buttons within E-Commerce Control. It does NOT delete any website routes or catalogue data.
 
-RECOMMENDED: In your GitHub repository root, execute:
-    python remove_view_website.py
+DIRECT REPLACEMENTS:
+- app/page.tsx (based on PowerBuild_Leroy_Style_Complete_PATCH.zip)
+- app/ecommerce-control.tsx (based on PowerBuild_Leroy_Find_Our_Stores_PATCH.zip)
 
-Then review and commit app/page.tsx, push and wait for your deployment to complete.
-The script creates app/page.tsx.view-website-backup and does not modify any other Hub file.
-If the button remains on the public deployment, check that your latest commit actually deployed and hard-refresh the browser (Ctrl+Shift+R).
+WARNING: These are based on the latest available historical patches, NOT on your live repository. Replacing newer GitHub files with these versions may overwrite recent work. PREFERRED: apply only the exact removals shown in remove-buttons.patch to the CURRENT files.
 
-ALTERNATIVE (GitHub website editor):
-Open app/page.tsx and search for "View Website". Delete only the complete <a ...>↗ View Website</a> element. Commit the change.
+GitHub browser steps: open app/page.tsx > Edit > search 'View Website' > delete the entire <a ...>↗ View Website</a> line > Commit. Then open app/ecommerce-control.tsx and delete the one div containing View Retail Website and View Wholesale Portal > Commit. Wait for your GitHub workflow to successfully DEPLOY, not just run lint. Refresh the live Hub (Ctrl+Shift+R).
 
-IMPORTANT: This does NOT remove /shop routes, the customer-facing website or E-Commerce Control; it only removes the View Website button.
-Do not upload this ZIP and expect GitHub to run its Python script automatically.
+If it remains, confirm your live Cloudflare deployment is using the GitHub branch you edited, and verify the deployment completed successfully.
