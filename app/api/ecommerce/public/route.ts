@@ -107,18 +107,6 @@ export async function GET(req: Request) {
     publicSpecials(),
   ]);
 
-  const storeDetails = await env.DB.prepare(`SELECT w.name,w.region,
-    COALESCE(s.address,'') address,COALESCE(s.suburb,'') suburb,COALESCE(s.city,'') city,
-    COALESCE(s.province,'') province,COALESCE(s.phone,'') phone,
-    COALESCE(s.weekdays,'') weekdays,COALESCE(s.saturday,'') saturday,
-    COALESCE(s.sunday,'') sunday,COALESCE(s.public_notes,'') public_notes,
-    COALESCE(s.published,0) published
-    FROM workspaces w LEFT JOIN ecommerce_store_profiles s ON s.workspace_name=w.name
-    WHERE w.active=1 AND w.type='Store' ORDER BY w.name`)
-    .all<Record<string, unknown>>()
-    .catch(async () => env.DB.prepare("SELECT name,region FROM workspaces WHERE active=1 AND type='Store' ORDER BY name").all<Record<string, unknown>>()
-      .catch(() => ({ results: [] as Record<string, unknown>[] })));
-
   const products = await env.DB.prepare(
     `SELECT p.*,e.b2c_enabled,e.b2b_enabled,e.retail_price_inc_vat,e.wholesale_price_ex_vat,
             e.b2b_min_qty,e.unit,e.stock_status,e.featured,e.sort_order
@@ -157,7 +145,6 @@ export async function GET(req: Request) {
     })),
     categories: categories.results.map((row) => row.category),
     branches: branches.results.map((row) => row.name),
-    stores: storeDetails.results.map((row) => ({ ...row, published: Number(row.published || 0) === 1 })),
     specials,
     trade_account: tradeAccount ? {
       id: Number(tradeAccount.id),

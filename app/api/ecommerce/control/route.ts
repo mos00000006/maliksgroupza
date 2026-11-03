@@ -18,33 +18,11 @@ async function authorised() {
   return canAccessEcommerceControl(member) ? member : null;
 }
 
-async function ensureStoreProfiles() {
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS ecommerce_store_profiles (
-    workspace_name TEXT PRIMARY KEY, address TEXT NOT NULL DEFAULT '', suburb TEXT NOT NULL DEFAULT '',
-    city TEXT NOT NULL DEFAULT '', province TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '',
-    weekdays TEXT NOT NULL DEFAULT '', saturday TEXT NOT NULL DEFAULT '', sunday TEXT NOT NULL DEFAULT '',
-    public_notes TEXT NOT NULL DEFAULT '', published INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT ''
-  )`).run();
-}
-
 export async function GET(req: Request) {
   const member = await authorised();
   if (!member) return Response.json({ error: "Full company access is required for E-Commerce Control." }, { status: 403 });
   const url = new URL(req.url);
   const view = text(url.searchParams.get("view") || "dashboard");
-
-  if (view === "stores") {
-    await ensureStoreProfiles();
-    const rows = await env.DB.prepare(`SELECT w.name,w.region,
-      COALESCE(s.address,'') address,COALESCE(s.suburb,'') suburb,COALESCE(s.city,'') city,
-      COALESCE(s.province,'') province,COALESCE(s.phone,'') phone,
-      COALESCE(s.weekdays,'') weekdays,COALESCE(s.saturday,'') saturday,
-      COALESCE(s.sunday,'') sunday,COALESCE(s.public_notes,'') public_notes,
-      COALESCE(s.published,0) published
-      FROM workspaces w LEFT JOIN ecommerce_store_profiles s ON s.workspace_name=w.name
-      WHERE w.active=1 AND w.type='Store' ORDER BY w.name`).all<Record<string, unknown>>();
-    return Response.json({ stores: rows.results, can_edit: canManageEcommercePricing(member) });
-  }
 
   if (view === "products") {
     const q = text(url.searchParams.get("q")).toLowerCase();
@@ -148,26 +126,6 @@ export async function POST(req: Request) {
   const payload = (await req.json()) as Record<string, unknown>;
   const action = text(payload.action);
   const now = new Date().toISOString();
-
-  if (action === "save_store") {
-    if (!canManageEcommercePricing(member)) return Response.json({ error: "Full company access required to edit store details." }, { status: 403 });
-    await ensureStoreProfiles();
-    const name = text(payload.name);
-    const branch = await env.DB.prepare("SELECT name FROM workspaces WHERE name=? AND active=1 AND type='Store'").bind(name).first();
-    if (!branch) return Response.json({ error: "Store does not exist in Company Workspaces." }, { status: 404 });
-    const fields = ["address","suburb","city","province","phone","weekdays","saturday","sunday","public_notes"] as const;
-    const values = fields.map(k => text(payload[k]).slice(0,k === "address" ? 400 : 160));
-    const publish = Boolean(payload.published);
-    if (publish && (!values[0] || !values[2] || !values[5])) return Response.json({ error: "Enter street address, city and weekday trading hours before publishing." }, { status: 400 });
-    await env.DB.prepare(`INSERT INTO ecommerce_store_profiles
-      (workspace_name,address,suburb,city,province,phone,weekdays,saturday,sunday,public_notes,published,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(workspace_name) DO UPDATE SET
-      address=excluded.address,suburb=excluded.suburb,city=excluded.city,province=excluded.province,
-      phone=excluded.phone,weekdays=excluded.weekdays,saturday=excluded.saturday,sunday=excluded.sunday,
-      public_notes=excluded.public_notes,published=excluded.published,updated_at=excluded.updated_at`)
-      .bind(name,...values,publish ? 1 : 0,now).run();
-    return Response.json({ ok: true });
-  }
 
   if (action === "save_product") {
     if (!canManageEcommercePricing(member)) {
