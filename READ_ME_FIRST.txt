@@ -1,36 +1,44 @@
-# MALIKS GROUP HUB — Sales / Tills patch for your ORIGINAL ZIP
+MALIKS GROUP HUB — Fix GitHub npm run check (3 errors in new-files/app/tills)
+===================================================================================
 
-**Ready to copy. NO terminal, Git, Node script, or installer needed to apply these files.**
+This ZIP is only for the exact GitHub error you pasted on 5 November 2026.
+It contains the two corrected TSX files at these *exact* paths:
 
-This patch was built from the exact **maliksgroupza(3).zip** you uploaded.
-It contains FOUR original Hub files already updated for Sales / Tills, plus NINE new files.
-The ZIP is a **folder overlay**, not a complete website or an automatic deployment.
+  new-files/app/tills/page.tsx
+  new-files/app/tills/till-checkout.tsx
 
-## Install by copying files (Windows)
+INSTALL WITHOUT TERMINAL OR GIT:
+1. Extract this patch ZIP to a separate folder.
+2. Open your GitHub-connected "maliksgroupza" folder in Windows File Explorer.
+   It must be the folder that contains package.json.
+3. From this extracted patch, copy ONLY the "new-files" folder.
+4. Paste it into the root "maliksgroupza" folder. Choose Merge / Replace
+   destination files when Windows asks. This replaces ONLY the two TSX files
+   listed above; it does not replace other Hub code.
+5. To update GitHub, either (a) commit/push from VS Code once Git is installed,
+   OR (b) upload the two corrected files directly to the SAME paths in the
+   GitHub repository using the GitHub website, and commit that change.
+6. The GitHub workflow needs to run on the NEW commit. The old failed job
+   cannot be repaired retroactively.
 
-1. Extract your original `maliksgroupza(3).zip` into a fresh folder. Open the inside `maliksgroupza` folder (you should see `app`, `worker`, `tests`, `package.json`).
-2. Download and extract **Maliks_Hub_ORIGINAL_ZIP_Direct_Paste_Sales_Tills_Patch.zip** into a *separate* folder.
-3. Open the extracted patch folder. Select the `app`, `worker` and `tests` folders, then **Copy**.
-4. Paste into the original `maliksgroupza` folder. When Windows asks, choose **Merge folders** and **Replace destination files**.
-5. If an old install has created a separate `new-files` folder under the Hub project, **inspect it first**. Only remove the outdated staging copies at `new-files/app/tills`, `new-files/app/api/tills`, `new-files/app/lib/tills-route-policy.ts`, and `new-files/tests/tills-access.test.mjs` and `new-files/tests/tills-full-access.test.mjs`. Keep any unrelated files. If you are starting from the original ZIP, there is no `new-files` directory, so skip this step.
-6. In VS Code, open the patched `maliksgroupza` folder and review the changed files. When you are ready to validate or deploy, you will still need a functioning development environment or GitHub workflow. **Copying files on your PC does not update the online GitHub repo.**
+What changed:
+- Replaced HTML anchor navigation to / with Next.js Link in two places.
+- Replaced synchronous React state resetting in useEffect with a branch-change
+  handler, cancelling stale price lookups when switching stores.
+- Kept the demo-only POS, cashier role and full-access Hub switch behaviour.
 
-## What you will get
+VERIFY:
+- On the next GitHub Actions run, the 3 prior lint errors from
+  "new-files/app/tills" should no longer appear. The 101 previous warnings
+  are separate and are not fatal with the configuration shown in your log.
+- This is a *targeted source-file correction*, not a full build verification;
+  other errors may appear when npm run test starts.
 
-- Admin may assign the existing `Sales / Tills` role to one active Store branch.
-- Cashier is redirected to `/tills` and cannot use unrelated private Hub screens or APIs.
-- Owner/admin and technical admin retain Hub access and can open Sales / Tills and go back.
-- Executive/EXCO with Full company scope can switch to Sales / Tills; store/regional managers can use authorised stores.
-- Read-only search of published branch price tags; VAT-inclusive demo basket and cash change preview only.
-- No real sale submission, payment acceptance, receipt printing or stock/accounting updates.
-
-## Important safety — avoid overwriting newer Hub changes
-
-The four modified files (`app/page.tsx`, `app/api/access.ts`, `app/api/team/route.ts`, `worker/index.ts`) are exact patched copies from **your uploaded original ZIP**. They are NOT safe to paste over a newer, independently updated Hub without comparing changes first. If your current GitHub-connected folder has newer catalogue, product, prices or permission changes, **do not overwrite those four files**. Use this patch with a fresh extraction of your original ZIP or request a merge against your latest repo snapshot.
-
-## Verification
-
-- Applied the source Git patch successfully against the four original files in the uploaded ZIP.
-- Ran 10 targeted Sales / Tills permission and UI contract tests.
-- Verified none of the original `new-files/` staging paths is included in this patch.
-- Full Hub build and live Cloudflare deployment have NOT been run here.
+IMPORTANT:
+The preferred long-term cleanup is to remove the entire obsolete new-files/
+staging directory from the GitHub repository AFTER confirming the actual files
+are installed under app/tills/. Merely copying this patch does not delete the
+staging directory, and it does not publish to GitHub automatically.
+Do NOT use this as a replacement for the complete Sales / Tills integration;
+it fixes the three lint errors in the duplicated staging copies only.
+Nothing here enables live payment, inventory or accounting transactions.

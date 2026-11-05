@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import styles from "./tills.module.css";
 
 type Product={id:number;code:string;name:string;category:string;price_cents:number;unit:string;coverage_per_box:number};
@@ -24,7 +25,22 @@ export default function TillCheckout({username,role,stores}:{username:string;rol
       window.history.replaceState(null,"",window.location.pathname);
     });
   },[]);
-  useEffect(()=>{setLines([]);setProducts([]);setCash("");setSearch("");setError("");setMessage("");request.current?.abort();field.current?.focus();},[branch]);
+  const changeBranch=(nextBranch:string)=>{
+    if(nextBranch===branch)return;
+    // Changing store is an explicit user action. Discard the preview basket and
+    // cancel its previous-branch lookup before switching the price book.
+    request.current?.abort();
+    request.current=null;
+    setWorking(false);
+    setLines([]);
+    setProducts([]);
+    setCash("");
+    setSearch("");
+    setError("");
+    setMessage("");
+    setBranch(nextBranch);
+    field.current?.focus();
+  };
   const add=(product:Product)=>{
     setLines(current=>{const existing=current.find(line=>line.product.id===product.id);
       return existing?current.map(line=>line.product.id===product.id?{...line,quantity:normalizeQty(line.quantity+1)}:line):[...current,{product,quantity:1}];
@@ -37,7 +53,8 @@ export default function TillCheckout({username,role,stores}:{username:string;rol
     setWorking(true);setError("");
     try {
       const r=await fetch(`/api/tills/catalogue?branch=${encodeURIComponent(branch)}&q=${encodeURIComponent(term)}`,{cache:"no-store",signal:controller.signal});
-      const data=await r.json();if(!r.ok)throw new Error(data.error || "Product lookup failed.");
+      const data=await r.json();if(controller.signal.aborted)return;
+      if(!r.ok)throw new Error(data.error || "Product lookup failed.");
       const found=(data.products||[]) as Product[];
       // Enter/scan adds a unique exact-code match directly to the current basket.
       const exact=found.find(p=>p.code.toLowerCase()===term.toLowerCase());
@@ -52,14 +69,14 @@ export default function TillCheckout({username,role,stores}:{username:string;rol
   return <main className={styles.page}>
     <header className={styles.header}>
       <div><small>MALIKS GROUP HUB · RETAILOS</small><h1>Sales / Tills</h1><p>Cashier: <strong>{username}</strong> · {role}</p></div>
-      <div className={styles.right}><span className={styles.demo}>DEMO — NO LIVE SALES</span>{role!=="Sales / Tills"&&<a href="/">Back to Hub</a>}<a href="/cdn-cgi/access/logout">Sign out</a></div>
+      <div className={styles.right}><span className={styles.demo}>DEMO — NO LIVE SALES</span>{role!=="Sales / Tills"&&<Link href="/">Switch back to Hub</Link>}<a href="/cdn-cgi/access/logout">Sign out</a></div>
     </header>
     <div className={styles.notice}><strong>Pilot checkout preview only.</strong> Products and VAT amounts are visible, but no sale can be posted, paid, printed or deducted from inventory. RetailOS offline synchronisation is not yet connected to this Hub screen.</div>
     <section className={styles.content}>
       <div className={styles.left}>
         <div className={styles.panel}>
           <label className={styles.label} htmlFor="tillBranch">Store / branch</label>
-          <select id="tillBranch" value={branch} onChange={e=>setBranch(e.target.value)}>{stores.map(s=><option key={s}>{s}</option>)}</select>
+          <select id="tillBranch" value={branch} onChange={e=>changeBranch(e.target.value)}>{stores.map(s=><option key={s}>{s}</option>)}</select>
           <div className={styles.scanHeader}><h2>Scan or search product</h2><span>Barcode / code / name</span></div>
           <form className={styles.scanForm} onSubmit={e=>{e.preventDefault();void searchProducts();}}>
             <input ref={field} autoFocus aria-label="Product code, barcode or name" autoComplete="off" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Scan product code or type its name" maxLength={100}/>

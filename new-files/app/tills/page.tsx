@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getHubMember } from "../api/access";
 import { tillBranches, tillMember } from "../api/tills/shared";
 import TillCheckout from "./till-checkout";
@@ -11,7 +12,7 @@ export default async function TillPage() {
     const signedIn = await getHubMember({allowSalesTillsAccess:true,allowBuyerAccess:true,allowStockOrdersAccess:true,allowEmployeeRecordsOnly:true});
     return <main style={{padding:40,fontFamily:"Arial, sans-serif"}}><h1>Sales / Tills access required</h1>
       <p>{signedIn ? "Your current Hub assignment does not include Sales / Tills." : "Sign in with your approved Hub account."}</p>
-      <a href="/">Return to Hub</a></main>;
+      <Link href="/">Return to Hub</Link></main>;
   }
   const stores = await tillBranches(member);
   if (!stores.length) return <main style={{padding:40,fontFamily:"Arial, sans-serif"}}><h1>No store assigned</h1><p>Ask your Hub administrator to assign an active retail branch.</p></main>;
