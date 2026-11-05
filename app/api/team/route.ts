@@ -155,6 +155,7 @@ export async function POST(req: Request) {
       "Department Manager",
       "Buyer",
       "Branch Stock Orders",
+      "Sales / Tills",
       "Human Resource (HR)",
       "Member / Contributor",
       "Read only",
@@ -167,7 +168,7 @@ export async function POST(req: Request) {
     requestedScope = ["Full company", "Selected workspaces", "Assigned workspace", "Read only"].includes(String(p.access_scope))
       ? String(p.access_scope)
       : "Assigned workspace",
-    accessScope = role === "Human Resource (HR)" || role === "Buyer" || role === "Branch Stock Orders"
+    accessScope = role === "Human Resource (HR)" || role === "Buyer" || role === "Branch Stock Orders" || role === "Sales / Tills"
       ? "Assigned workspace"
       : requestedScope === "Full company" && !["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO"].includes(role)
         ? "Assigned workspace"
@@ -183,7 +184,7 @@ export async function POST(req: Request) {
     workspaceAccess = JSON.stringify(
       role === "Buyer"
         ? ["Buyer Workspace"]
-        : role === "Branch Stock Orders"
+        : role === "Branch Stock Orders" || role === "Sales / Tills"
           ? validWorkspaces.slice(0, 1)
         : accessScope === "Full company"
           ? []
@@ -195,7 +196,7 @@ export async function POST(req: Request) {
       ? "Human Resources"
       : role === "Buyer"
         ? "Buying"
-        : role === "Branch Stock Orders"
+        : role === "Branch Stock Orders" || role === "Sales / Tills"
           ? validWorkspaces[0] || "Store Operations"
         : accessScope === "Assigned workspace" && validWorkspaces[0]
           ? validWorkspaces[0]
@@ -206,6 +207,11 @@ export async function POST(req: Request) {
       "https://maliks-group-hub.moyanamoses006.workers.dev/",
     ).toString(),
     createdAt = new Date().toISOString();
+  if (role === "Sales / Tills") {
+    const store = await env.DB.prepare("SELECT name FROM workspaces WHERE lower(name)=lower(?) AND active=1 AND type='Store'")
+      .bind(validWorkspaces[0] || "").first();
+    if (!store) return Response.json({error:"Choose one active retail store for the Sales / Tills user."}, {status:400});
+  }
   if (role === "Owner / Admin" && email !== fallbackOwner.email)
     return Response.json(
       { error: "Sulliman Alikutti is the sole Hub owner. Assign another access role." },
@@ -312,6 +318,7 @@ export async function PATCH(req: Request) {
       "Department Manager",
       "Buyer",
       "Branch Stock Orders",
+      "Sales / Tills",
       "Human Resource (HR)",
       "Member / Contributor",
       "Read only",
@@ -321,7 +328,7 @@ export async function PATCH(req: Request) {
     requestedScope = ["Full company", "Selected workspaces", "Assigned workspace", "Read only"].includes(String(p.access_scope))
       ? String(p.access_scope)
       : "Assigned workspace",
-    accessScope = role === "Human Resource (HR)" || role === "Buyer" || role === "Branch Stock Orders"
+    accessScope = role === "Human Resource (HR)" || role === "Buyer" || role === "Branch Stock Orders" || role === "Sales / Tills"
       ? "Assigned workspace"
       : requestedScope === "Full company" && !["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO"].includes(role)
         ? "Assigned workspace"
@@ -336,13 +343,18 @@ export async function PATCH(req: Request) {
     validWorkspaces = requestedWorkspaces.filter((workspace) => validNames.has(workspace)),
     assigned = role === "Buyer"
       ? ["Buyer Workspace"]
-      : role === "Branch Stock Orders"
+      : role === "Branch Stock Orders" || role === "Sales / Tills"
         ? validWorkspaces.slice(0, 1)
       : accessScope === "Full company"
         ? []
         : accessScope === "Assigned workspace" || role === "Human Resource (HR)"
           ? validWorkspaces.slice(0, 1)
           : validWorkspaces;
+  if (role === "Sales / Tills") {
+    const store = await env.DB.prepare("SELECT name FROM workspaces WHERE lower(name)=lower(?) AND active=1 AND type='Store'")
+      .bind(assigned[0] || "").first();
+    if (!store) return Response.json({error:"Choose one active retail store for the Sales / Tills user."}, {status:400});
+  }
   if (role === "Owner / Admin" && email !== fallbackOwner.email)
     return Response.json(
       { error: "Sulliman Alikutti is the sole Hub owner. Assign another access role." },
@@ -365,7 +377,7 @@ export async function PATCH(req: Request) {
     ? "Human Resources"
     : role === "Buyer"
       ? "Buying"
-      : role === "Branch Stock Orders"
+      : role === "Branch Stock Orders" || role === "Sales / Tills"
         ? assigned[0] || "Store Operations"
       : accessScope === "Assigned workspace"
         ? assigned[0]

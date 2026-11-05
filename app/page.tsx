@@ -98,6 +98,7 @@ const nav = [
   "Executive Overview",
   "My Work",
   "Store Operations",
+  "Sales / Tills",
   "Store Specials",
   "E-Commerce Control",
   "Store Audits",
@@ -348,10 +349,12 @@ function SidebarIcon({ name }: { name: string }) {
 const HUMAN_RESOURCE_ROLE = "Human Resource (HR)";
 const BUYER_ROLE = "Buyer";
 const BRANCH_STOCK_ROLE = "Branch Stock Orders";
+const SALES_TILLS_ROLE = "Sales / Tills";
 const navigationForUser = (user: CurrentHubUser) => {
   if (user.role === HUMAN_RESOURCE_ROLE) return ["Employee Records"];
   if (user.role === BUYER_ROLE) return ["Buyer Workspace", "Stock Orders", "Store Specials", "Our Catalogue"];
   if (user.role === BRANCH_STOCK_ROLE) return ["Stock Orders"];
+  if (user.role === SALES_TILLS_ROLE) return ["Sales / Tills"];
   let workspaceAccess: string[] = [];
   if (Array.isArray(user.workspace_access)) workspaceAccess = user.workspace_access;
   else {
@@ -375,6 +378,7 @@ const navigationForUser = (user: CurrentHubUser) => {
     if (item === "Buyer Workspace") return fullCompany;
     if (item === "E-Commerce Control") return fullCompany;
     if (fullCompany) return true;
+    if (item === "Sales / Tills") return ["Store Manager", "Regional Manager"].includes(user.role || "");
     if (item === "Stock Orders") return ["Regional Manager", "Store Manager", "Department Manager"].includes(user.role || "");
     if (item === "Wholesale Division") return wholesale;
     return !["Executive Overview", "Developments", "Approvals", "Reports"].includes(item);
@@ -1643,6 +1647,10 @@ export default function Home() {
               key={n}
               className={active === n ? "active" : ""}
               onClick={() => {
+                if (n === "Sales / Tills") {
+                  window.location.assign("/tills");
+                  return;
+                }
                 setActive(n);
                 setSearch("");
                 setMobileNavOpen(false);
@@ -2391,19 +2399,20 @@ export default function Home() {
                       const isHr = role === HUMAN_RESOURCE_ROLE;
                       const isBuyer = role === BUYER_ROLE;
                       const isBranchStock = role === BRANCH_STOCK_ROLE;
+                      const isTills = role === SALES_TILLS_ROLE;
                       setMemberDraft({
                         ...memberDraft,
                         role,
-                        department: isHr ? "Human Resources" : isBuyer ? "Buying" : isBranchStock ? (memberDraft.workspace_access[0] || memberDraft.department) : memberDraft.department,
+                        department: isHr ? "Human Resources" : isBuyer ? "Buying" : isBranchStock || isTills ? (memberDraft.workspace_access[0] || memberDraft.department) : memberDraft.department,
                         access_scope:
-                          isHr || isBuyer || isBranchStock
+                          isHr || isBuyer || isBranchStock || isTills
                             ? "Assigned workspace"
                             : !elevated && memberDraft.access_scope === "Full company"
                               ? "Assigned workspace"
                               : memberDraft.access_scope,
                         workspace_access: isBuyer
                           ? ["Buyer Workspace"]
-                          : isHr || isBranchStock
+                          : isHr || isBranchStock || isTills
                             ? memberDraft.workspace_access.slice(0, 1)
                             : memberDraft.workspace_access,
                       });
@@ -2420,6 +2429,7 @@ export default function Home() {
                     <option>Department Manager</option>
                     <option>{BUYER_ROLE}</option>
                     <option>{BRANCH_STOCK_ROLE}</option>
+                    <option>{SALES_TILLS_ROLE}</option>
                     <option>{HUMAN_RESOURCE_ROLE}</option>
                     <option>Member / Contributor</option>
                     <option>Read only</option>
@@ -2428,8 +2438,8 @@ export default function Home() {
                 <label>
                   Department / Store
                   <input
-                    value={memberDraft.role === HUMAN_RESOURCE_ROLE ? "Human Resources" : memberDraft.role === BUYER_ROLE ? "Buying" : memberDraft.role === BRANCH_STOCK_ROLE ? (memberDraft.workspace_access[0] || memberDraft.department) : memberDraft.department}
-                    readOnly={memberDraft.role === HUMAN_RESOURCE_ROLE || memberDraft.role === BUYER_ROLE || memberDraft.role === BRANCH_STOCK_ROLE}
+                    value={memberDraft.role === HUMAN_RESOURCE_ROLE ? "Human Resources" : memberDraft.role === BUYER_ROLE ? "Buying" : (memberDraft.role === BRANCH_STOCK_ROLE || memberDraft.role === SALES_TILLS_ROLE) ? (memberDraft.workspace_access[0] || memberDraft.department) : memberDraft.department}
+                    readOnly={memberDraft.role === HUMAN_RESOURCE_ROLE || memberDraft.role === BUYER_ROLE || memberDraft.role === BRANCH_STOCK_ROLE || memberDraft.role === SALES_TILLS_ROLE}
                     onChange={(e) =>
                       setMemberDraft({
                         ...memberDraft,
@@ -2443,7 +2453,7 @@ export default function Home() {
                   Access level
                   <select
                     value={memberDraft.access_scope}
-                    disabled={memberDraft.role === HUMAN_RESOURCE_ROLE || memberDraft.role === BUYER_ROLE || memberDraft.role === BRANCH_STOCK_ROLE}
+                    disabled={memberDraft.role === HUMAN_RESOURCE_ROLE || memberDraft.role === BUYER_ROLE || memberDraft.role === BRANCH_STOCK_ROLE || memberDraft.role === SALES_TILLS_ROLE}
                     onChange={(e) =>
                       setMemberDraft({
                         ...memberDraft,
@@ -2492,6 +2502,12 @@ export default function Home() {
                   </span>
                 </div>
               )}
+              {memberDraft.role === SALES_TILLS_ROLE && (
+                <div className="accessEditNotice"><span><b>Sales / Tills — one-branch checkout access</b><br />
+                  When this person signs into the Hub, they will open the Sales / Tills window only.
+                  Other Hub pages and protected APIs are blocked. The checkout is currently a read-only pilot with no live sales posting.
+                </span></div>
+              )}
               {memberDraft.access_scope === "Assigned workspace" && memberDraft.role !== BUYER_ROLE && (
                 <div className="workspaceAccessPicker singleWorkspacePicker">
                   <b>
@@ -2499,6 +2515,8 @@ export default function Home() {
                       ? "Store assigned to this HR user (Employee Records only)"
                       : memberDraft.role === BRANCH_STOCK_ROLE
                         ? "Branch assigned to this Stock Orders user"
+                        : memberDraft.role === SALES_TILLS_ROLE
+                          ? "Retail store assigned to this cashier"
                         : "Store or division assigned to this person"}
                   </b>
                   <select
@@ -2512,7 +2530,7 @@ export default function Home() {
                     }
                   >
                     <option value="">Select a store or division</option>
-                    {workspaces.map((workspace) => (
+                    {workspaces.filter(workspace=>memberDraft.role!==SALES_TILLS_ROLE || workspace.type==="Store").map((workspace) => (
                       <option key={workspace.id} value={workspace.name}>
                         {workspace.name}
                       </option>
@@ -2520,7 +2538,7 @@ export default function Home() {
                   </select>
                 </div>
               )}
-              {memberDraft.role !== BUYER_ROLE && memberDraft.role !== BRANCH_STOCK_ROLE && ["Selected workspaces", "Read only"].includes(memberDraft.access_scope) && (
+              {memberDraft.role !== BUYER_ROLE && memberDraft.role !== BRANCH_STOCK_ROLE && memberDraft.role !== SALES_TILLS_ROLE && ["Selected workspaces", "Read only"].includes(memberDraft.access_scope) && (
                 <div className="workspaceAccessPicker">
                   <b>
                     {memberDraft.access_scope === "Read only"

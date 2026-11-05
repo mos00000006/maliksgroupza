@@ -1,66 +1,44 @@
-# MALIKS GROUP HUB — Correct Sales / Tills GitHub patch
+# Maliks Group Hub — Fix the 3 GitHub Actions lint errors
 
-This is **a targeted Hub update, not an entire Hub replacement**. Use it with the existing GitHub-connected Hub repo. It repairs the 3 errors from the `npm run check` log, removes the obsolete `new-files/` duplicates, and enables full-access users to switch to the checkout preview.
+Your log shows **3 errors under `new-files/app/tills/`**. They are the original installation copies, not the intended live files under `app/tills/`.
 
-## Correct project paths (no `new-files/`)
+The 101 warnings do not by themselves prevent `npm run lint` from succeeding with the current configuration. The `[BABEL]` message is informational.
 
-- `app/tills/page.tsx` — Next.js Link navigation
-- `app/tills/till-checkout.tsx` — safe branch switching, no setState effect, Back to Hub link
-- `app/lib/tills-route-policy.ts` — cashier restrictions and approved manager/full-company roles
-- `app/api/tills/shared.ts` — server-side permission and branch checks
-- `app/api/tills/session/route.ts`, `app/api/tills/catalogue/route.ts` — read-only endpoints
-- `app/tills/tills.module.css` — styling
-- `tests/tills-access.test.mjs`, `tests/tills-full-access.test.mjs` — access checks
-- `hub-tills-assignment.patch` — guarded changes to the four EXISTING Hub files (`worker/index.ts`, `app/api/access.ts`, `app/api/team/route.ts`, `app/page.tsx`)
-- `APPLY-MALIKS-HUB-TILLS.mjs` — checks and applies the existing-file patch, then cleans **only** known obsolete `new-files/` copies.
+## Installation: VS Code linked to GitHub
 
-## Installation — choose ONE of these approaches
-
-### Recommended: extract outside the repository
-
-1. In VS Code, open your **actual Maliks Hub** repository (the folder with `package.json` and `.git`). Save/commit current work and make a **new branch**, such as `fix/sales-tills-access`.
-2. Extract this ZIP somewhere **outside the Git repository**, for example `C:\Users\YOURNAME\Downloads\Maliks_Hub_Tills_Correct_Patch`.
-3. Open VS Code Terminal in the Hub repository root. Run:
+1. **Save and commit any current work**, or use a new branch. Open your existing Maliks Hub folder in VS Code (the folder containing `package.json` and `.git`).
+2. Extract this ZIP. Copy **only** `FIX-MALIKS-HUB-CI.mjs` to the root of that folder, beside `package.json`. Do **not** paste another `new-files/` folder.
+3. Open **Terminal > New Terminal** and run:
 
    ```powershell
-   node "C:\Users\YOURNAME\Downloads\Maliks_Hub_Tills_Correct_Patch\APPLY-MALIKS-HUB-TILLS.mjs"
+   node .\FIX-MALIKS-HUB-CI.mjs
+   npm run check
    ```
 
-   Replace the path with your actual extracted folder. The installer applies the original Hub patch if needed, copies the final checkout files to the proper paths, and removes the known staging copies. Existing files copied over are backed up to your computer's temporary directory.
-
-### If you're PASTING into your Maliks Hub folder
-
-1. First save/commit your current work and create a **new Git branch**.
-2. Extract the ZIP and copy its **contents** (the `app/`, `tests/`, `.patch`, `.mjs`, `.md` entries) to the **project root**, alongside `package.json`. Merge folders. Do **not** create a nested `new-files/` directory or a `Maliks_Hub_Tills_Correct_Patch/` folder inside the repo.
-3. From the Hub root, run:
+4. If `npm run check` succeeds, run:
 
    ```powershell
-   node .\APPLY-MALIKS-HUB-TILLS.mjs
+   git status --short
+   git add -A
+   git commit -m "Remove obsolete Sales Tills staging files"
+   git push
    ```
 
-   This checks and applies the original Hub role/menu/Worker patch if needed; it will remove the older `new-files/` checkout copies that GitHub was linting. Since you've already pasted the corrected files, they will not be copied again.
+5. Check the **new** GitHub Actions run for that pushed commit; older runs won't change.
 
-### Run checks and push from VS Code
+## What the script does
 
-```powershell
-npm run check
-npm run build
-git status
-```
+- Requires existing `app/tills/page.tsx` and `app/tills/till-checkout.tsx` before changing anything.
+- Removes only these exact duplicate paths when present: `new-files/app/tills/*`, `new-files/app/api/tills/*`, `new-files/app/lib/tills-route-policy.ts`, and `new-files/tests/tills-*`.
+- Uses `git rm -f` **only for those tracked staging duplicates**, staging their deletion for your next Git commit.
+- Copies old staging files to your operating system's temporary directory before deletion.
+- Preserves all actual `app/` files, current sales/till role code, catalogue, price tags, accounting and Cloudflare configuration.
+- Does **not** apply the original permissions patch. Use the previously supplied corrected Hub integration package if you still need to install that functionality.
 
-After both commands succeed, review the changes and stage only the intended source, tests, `.gitignore`, patch/installer files and the removal of staging copies. Commit and push your feature branch. Let GitHub Actions run before merging into your live branch.
+## If the command refuses to run
 
-**If `git apply` refuses to apply or recognise the earlier patch, STOP and send the output.** The existing Hub code has diverged; forcing or replacing `app/page.tsx` or `worker/index.ts` could remove new catalogue, price-tag or permission changes.
+If it reports `app/tills/page.tsx does not exist` or another missing actual till file, **do not delete the staging folder**. The correct live checkout wasn't installed. Use the previously supplied corrected integration ZIP before running this cleanup.
 
-## Expected permissions
+If ESLint reports errors under `app/tills/` (rather than `new-files/app/tills/`) **after** this fix, send the new error output: that is a different issue in the live files.
 
-- **Owner / Admin, Developer / Technical Admin:** Full Hub, open Sales / Tills and switch back.
-- **Executive / EXCO:** Sales / Tills when assigned **Full company** scope; switch back.
-- **Store / Regional Manager:** Sales / Tills for authorised branches; switch back.
-- **Sales / Tills cashier:** only assigned branch checkout; restricted Hub pages and APIs return an access denial.
-
-**Safety:** This is a **checkout preview only**. It does not enable real sale posting, invoicing, payment acceptance, stock deductions or accounting entries. Existing tills and live Hub data must remain unchanged until proper testing.
-
-## Testing note
-
-`node --test tests/tills-access.test.mjs tests/tills-full-access.test.mjs` requires the project's TypeScript dependency (normally present after `npm install`). The global Hub checks are `npm run check` and `npm run build`.
+**This changes repository source files only. It does not enable live payment or stock transactions.**

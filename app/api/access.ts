@@ -14,6 +14,8 @@ export type HubMember = {
 export const HUMAN_RESOURCE_ROLE = "Human Resource (HR)";
 export const BUYER_ROLE = "Buyer";
 export const BRANCH_STOCK_ROLE = "Branch Stock Orders";
+export { SALES_TILLS_ROLE } from "../lib/tills-route-policy";
+import { SALES_TILLS_ROLE } from "../lib/tills-route-policy";
 
 export function isHumanResourceRole(member: HubMember | null | undefined) {
   return Boolean(member && member.role === HUMAN_RESOURCE_ROLE);
@@ -79,7 +81,7 @@ export function canApproveBuyerOrders(member: HubMember | null | undefined) {
   );
 }
 
-export async function getHubMember(options: { allowEmployeeRecordsOnly?: boolean; allowBuyerAccess?: boolean; allowStockOrdersAccess?: boolean } = {}) {
+export async function getHubMember(options: { allowEmployeeRecordsOnly?: boolean; allowBuyerAccess?: boolean; allowStockOrdersAccess?: boolean; allowSalesTillsAccess?: boolean } = {}) {
   await initTeamTables();
   const user = await getAuthenticatedUser();
   if (!user?.email) return null;
@@ -95,6 +97,7 @@ export async function getHubMember(options: { allowEmployeeRecordsOnly?: boolean
   if (isHumanResourceRole(member) && !options.allowEmployeeRecordsOnly) return null;
   if (isBuyerRole(member) && !options.allowBuyerAccess) return null;
   if (isBranchStockRole(member) && !options.allowStockOrdersAccess) return null;
+  if (member?.role === SALES_TILLS_ROLE && !options.allowSalesTillsAccess) return null;
   return member;
 }
 

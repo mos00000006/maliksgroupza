@@ -1,5 +1,6 @@
 import { isD1DailyLimit, dailyLimitResponse } from "../app/lib/daily-limit";
 import { isPublicPriceTagRequest } from "../app/lib/price-tags";
+import { cashierPathPolicy, SALES_TILLS_ROLE } from "../app/lib/tills-route-policy";
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
@@ -207,6 +208,22 @@ const worker = {
           "Invitation required",
           `The signed-in account ${email} is not yet approved for the Maliks Group Hub.`,
         ));
+      }
+
+      // Cashiers have a single, isolated workspace. Never let a till-only
+      // account reach legacy Hub API handlers merely by typing their URL.
+      if (member.role === SALES_TILLS_ROLE) {
+        const policy = cashierPathPolicy(url.pathname, request.method);
+        if (policy === "redirect") {
+          const destination = new URL("/tills", request.url);
+          destination.search = url.search;
+          return secure(Response.redirect(destination.toString(), 302));
+        }
+        if (policy === "deny") {
+          return secure(url.pathname.startsWith("/api/")
+            ? Response.json({ error: "Sales / Tills access is limited to the assigned checkout." }, { status: 403 })
+            : accessPage("Restricted till access", "Your account can use the sales checkout only."));
+        }
       }
 
       const canManage = ["Owner / Admin", "Developer / Technical Admin"].includes(member.role);
