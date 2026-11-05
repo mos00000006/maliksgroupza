@@ -3,9 +3,8 @@ export const staffCardSize = (kind: StaffCardKind) => kind === "name-tag"
   ? { width:75, height:40, pixelsWide:1800, pixelsHigh:960 }
   : { width:90, height:50, pixelsWide:1800, pixelsHigh:1000 };
 
-// A single JPEG on an exact-size PDF page. No browser printer scaling is involved.
-export function staffCardPdf(jpeg:string,kind:StaffCardKind):Blob {
-  const size=staffCardSize(kind),w=size.width*72/25.4,h=size.height*72/25.4;
+function buildImagePdf(jpeg:string,pageWidthMm:number,pageHeightMm:number,pixelsWide:number,pixelsHigh:number):Blob {
+  const w=pageWidthMm*72/25.4,h=pageHeightMm*72/25.4;
   const raw=atob(jpeg.split(',')[1]);const picture=Uint8Array.from(raw,c=>c.charCodeAt(0));
   const encoder=new TextEncoder();const chunks:Uint8Array[]=[];let length=0;const offsets=[0];
   const put=(value:string|Uint8Array)=>{const bytes=typeof value==='string'?encoder.encode(value):value;chunks.push(bytes);length+=bytes.length;};
@@ -14,7 +13,7 @@ export function staffCardPdf(jpeg:string,kind:StaffCardKind):Blob {
   object(1,'<< /Type /Catalog /Pages 2 0 R >>');
   object(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
   object(3,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${w.toFixed(5)} ${h.toFixed(5)}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
-  offsets[4]=length;put(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${size.pixelsWide} /Height ${size.pixelsHigh} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${picture.length} >>\nstream\n`);put(picture);put('\nendstream\nendobj\n');
+  offsets[4]=length;put(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${pixelsWide} /Height ${pixelsHigh} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${picture.length} >>\nstream\n`);put(picture);put('\nendstream\nendobj\n');
   const draw=`q\n${w.toFixed(5)} 0 0 ${h.toFixed(5)} 0 0 cm\n/Im0 Do\nQ\n`;
   object(5,`<< /Length ${encoder.encode(draw).length} >>\nstream\n${draw}endstream`);
   const xref=length;put('xref\n0 6\n0000000000 65535 f \n');
@@ -22,4 +21,14 @@ export function staffCardPdf(jpeg:string,kind:StaffCardKind):Blob {
   put(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
   const bytes=new Uint8Array(length);let at=0;for(const chunk of chunks){bytes.set(chunk,at);at+=chunk.length;}
   return new Blob([bytes.buffer],{type:'application/pdf'});
+}
+
+// A single JPEG on an exact-size PDF page. No browser printer scaling is involved.
+export function staffCardPdf(jpeg:string,kind:StaffCardKind):Blob {
+  const size=staffCardSize(kind);
+  return buildImagePdf(jpeg,size.width,size.height,size.pixelsWide,size.pixelsHigh);
+}
+
+export function jpegPagePdf(jpeg:string,pageWidthMm:number,pageHeightMm:number,pixelsWide:number,pixelsHigh:number):Blob {
+  return buildImagePdf(jpeg,pageWidthMm,pageHeightMm,pixelsWide,pixelsHigh);
 }
