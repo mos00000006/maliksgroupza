@@ -16,7 +16,7 @@
 .tagName{height:10.2%}.busterTag .tagName{height:10.4%}.branchName{position:absolute;top:54%;left:5%;z-index:3;width:90%;height:2.6%;display:flex;align-items:center;justify-content:center;color:#0c4e8a;font-size:1.45cqw;line-height:1;font-weight:900;letter-spacing:.08cqw;text-align:center;text-transform:uppercase;overflow:hidden}.busterTag .branchName{top:53.1%;color:#9c6900}
 .branchSelector{margin:18px 0;padding:16px;border:1px solid #dce5ed;border-radius:12px;background:#f7fafc}.branchSelector>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px}.branchSelector h3{margin:0;font-size:15px}.branchSelector>div:first-child button{padding:8px 11px;font-size:12px}.branchGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;max-height:190px;overflow:auto;padding:3px}.panel .branchOption{display:flex;flex-direction:row;align-items:center;gap:8px;padding:9px 10px;border:1px solid #d5e0e8;border-radius:8px;background:#fff;font-size:12px;cursor:pointer}.branchOption input{width:16px;height:16px;accent-color:#0c4e8a}.branchSummary{margin:10px 0 0!important;font-size:12px!important;color:#50687a}.allBranchesButton[aria-pressed="true"]{background:#ffcf00;color:#123756;border-color:#e3b900}
 
-/* Six full-design single-product tags on a single A4 portrait image. */
+/* Five full-design single-product tags on a single A4 portrait image, matching the requested sample layout. */
 .a4Options{background:#f6f9fc;border:1px solid #cadbe6;border-radius:12px;padding:16px;margin:22px 0 0}
 .a4Options h3{font-size:16px;margin:0 0 9px;color:#123756}
 .a4Options p{margin:0 0 12px}
@@ -25,18 +25,25 @@
 .a4Pager{display:flex;align-items:center;gap:12px;justify-content:center;margin-top:12px}
 .a4Pager span{font-size:13px;font-weight:700}
 .a4Pager button{font-size:12px;padding:7px 10px}
-.a4PreviewSection{max-width:810px;margin:35px auto 10px;padding:0 16px}
+.a4PreviewSection{max-width:980px;margin:35px auto 10px;padding:0 16px}
 .a4PreviewHeading{text-align:center;margin:0 0 14px}
 .a4PreviewHeading h2{margin:0 0 6px;font-size:22px}
 .a4PreviewHeading p{margin:0 0 12px;font-size:13px;color:#617180}
-.a4Preview{max-width:600px;margin:auto;border:1px solid #d9e3e9;box-shadow:0 10px 32px #16394c17}
-.a4Sheet{width:100%;aspect-ratio:210/297;box-sizing:border-box;padding:4.6%;background:#fff;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,max-content);column-gap:2.4%;row-gap:2.4%;align-content:center;justify-content:center;overflow:hidden}
-.a4Cell{width:100%;aspect-ratio:3/2;min-width:0;min-height:0;position:relative;box-sizing:border-box}
-.a4Cell:has(.tag){outline:1px dashed #ccd4d9;outline-offset:1px}
-.a4Cell .tag{width:100%;height:100%;aspect-ratio:3/2;box-shadow:none}
+.a4Preview{max-width:780px;margin:auto;border:1px solid #d9e3e9;box-shadow:0 10px 32px #16394c17;background:#fff}
+.a4Sheet{width:100%;aspect-ratio:210/297;box-sizing:border-box;padding:2.4%;background:#fff;overflow:hidden}
+.a4SheetColumns{width:100%;height:100%;display:grid;grid-template-columns:minmax(0,1.62fr) minmax(0,1fr);column-gap:2.2%}
+.a4LandscapeColumn{display:flex;flex-direction:column;gap:1.8%}
+.a4PortraitColumn{display:flex;flex-direction:column;justify-content:space-between;gap:2.5%}
+.a4Cell{width:100%;min-width:0;min-height:0;position:relative;box-sizing:border-box;background:#fff}
+.a4LandscapeSlot{aspect-ratio:3/2}
+.a4PortraitSlot{aspect-ratio:2/3;overflow:hidden}
+.a4Cell:has(.tag),.a4PortraitSlot:has(.a4PortraitInner){outline:1px dashed #ccd4d9;outline-offset:1px}
+.a4LandscapeSlot .tag{width:100%;height:100%;aspect-ratio:3/2;box-shadow:none}
+.a4PortraitInner{position:absolute;inset:0}
+.a4PortraitInner .tag{position:absolute;top:0;left:0;width:150%;height:66.6666667%;aspect-ratio:3/2;box-shadow:none;transform-origin:top left;transform:rotate(90deg) translateY(-100%)}
 .a4ExportStage{position:fixed;left:-100000px;top:0;width:1240px;height:1754px;pointer-events:none}
 .a4ExportStage .a4Sheet{width:1240px;height:1754px;aspect-ratio:auto;box-shadow:none}
 .remove .copySelector{display:flex;flex-direction:row;align-items:center;gap:5px;margin:0;font-size:12px;font-weight:700;color:#234d70}
 .copySelector select{width:52px;padding:6px;border:1px solid #c8d6e2;border-radius:6px;font-size:13px;background:#fff;color:#234d70}
-@media(max-width:760px){.a4PreviewSection{padding:0 5px}.a4Options{padding:12px}.a4Actions button{width:100%}.remove{flex-wrap:wrap;gap:8px}.remove>div{flex-wrap:wrap}}
+@media(max-width:760px){.a4PreviewSection{padding:0 5px}.a4Options{padding:12px}.a4Actions button{width:100%}.remove{flex-wrap:wrap;gap:8px}.remove>div{flex-wrap:wrap}.a4Preview{max-width:100%}}
 @media print{.a4PreviewSection,.a4ExportStage{display:none!important}}

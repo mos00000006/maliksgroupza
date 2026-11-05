@@ -24,10 +24,24 @@ import PriceTagCard from "./price-tag-card";
 import styles from "./price-tags.module.css";
 type TagPrintItem = { tag: PriceTag; url: string };
 function A4SingleTagSheet({ items }: { items: TagPrintItem[] }) {
-  return <div className={styles.a4Sheet} aria-label="A4 sheet with up to six product price tags">
-    {Array.from({ length: A4_SINGLE_TAGS_PER_PAGE }, (_, slot) => <div className={styles.a4Cell} key={slot}>
-      {items[slot] && <PriceTagCard tag={items[slot].tag} url={items[slot].url} />}
-    </div>)}
+  const renderLandscape = (item: TagPrintItem | undefined, key: string) => <div className={`${styles.a4Cell} ${styles.a4LandscapeSlot}`} key={key}>
+    {item && <PriceTagCard tag={item.tag} url={item.url} />}
+  </div>;
+  const renderPortrait = (item: TagPrintItem | undefined, key: string) => <div className={`${styles.a4Cell} ${styles.a4PortraitSlot}`} key={key}>
+    {item && <div className={styles.a4PortraitInner}><PriceTagCard tag={item.tag} url={item.url} /></div>}
+  </div>;
+  return <div className={styles.a4Sheet} aria-label="A4 sheet with five product price tags">
+    <div className={styles.a4SheetColumns}>
+      <div className={styles.a4LandscapeColumn}>
+        {renderLandscape(items[0], 'landscape-0')}
+        {renderLandscape(items[2], 'landscape-2')}
+        {renderLandscape(items[3], 'landscape-3')}
+      </div>
+      <div className={styles.a4PortraitColumn}>
+        {renderPortrait(items[1], 'portrait-1')}
+        {renderPortrait(items[4], 'portrait-4')}
+      </div>
+    </div>
   </div>;
 }
 type Product = { id: number; code: string; name: string; category: string; description: string; image_url: string };
@@ -162,7 +176,7 @@ export default function PriceTagGenerator() {
         style:{boxShadow:"none",margin:"0",width:"1240px",height:"1754px"}
       });
       const link=document.createElement("a");
-      link.download=`${brand === "busterbuild" ? "BusterBuild" : "PowerBuild"}-Six-Product-Tags-A4-${pageIndex+1}.jpg`;
+      link.download=`${brand === "busterbuild" ? "BusterBuild" : "PowerBuild"}-Five-Product-Tags-A4-${pageIndex+1}.jpg`;
       link.href=data;document.body.appendChild(link);link.click();link.remove();
       setMessage(`A4 sheet ${pageIndex+1} downloaded as one high-resolution JPG (2480 × 3508 px), with ${page.length} price tag${page.length===1?"":"s"}.`);
     }catch(error){
@@ -231,17 +245,17 @@ export default function PriceTagGenerator() {
           <button className={styles.primary} disabled={busy || !sameProductCode(code,product.code) || (selectedBranches.length>0&&companyPriceCents===null)} onClick={() => void save()}>{busy ? "Saving…" : draft.published ? selectedBranches.length>1?`Generate ${selectedBranches.length} branch tags`:"Generate price tag" : "Save and hide QR page"}</button>
           <p className={styles.hint}>{brand === "busterbuild" && (selectedBranches.length?"Branch-specific prices apply to these printed tags and QR pages. The BusterBuild sales app continues using the All Branches price. ":"Published All Branches BusterBuild prices also update the connected sales app, usually within one minute while online. ")}The QR link stays connected to the selected branch price when you update this tag. Reprint shelf tags after a price change.</p></>}
         </section>
-        <section className={styles.panel}><h2>4. Print &amp; share</h2><p>Individual tags retain the 150 × 100 mm print format. The new six-tag A4 JPG places smaller tags (approximately 94 × 63 mm each) together on one portrait sheet.</p>
+        <section className={styles.panel}><h2>4. Print &amp; share</h2><p>Individual tags retain the 150 × 100 mm print format. The A4 picture now uses your preferred 5-tag layout: three landscape tags on the left and two portrait tags on the right, matching your sample sheet.</p>
           <label>Customer website address<input type="url" value={base} onChange={e => { setBase(e.target.value); setDirty(true); setQueue([]);setTagCopies({});setA4Page(0); }} /></label><p className={styles.hint}>Use the public HTTPS address where this Hub is deployed. Verify the first tag with your phone before printing a batch.</p>
           {saved && !dirty && saved.published && publicUrl && <a className={styles.customerLink} href={publicUrl} target="_blank" rel="noreferrer">Open customer page ↗</a>}
           {dirty && saved && <p className={styles.notice}>Save your changes to update the printable tag.</p>}
           <div className={styles.buttons}><button disabled={!queue.length || busy || jpgBusy || a4Busy || (dirty && Boolean(saved))} onClick={() => void downloadJpg(queue[queue.length-1])}>{jpgBusy?"Preparing JPG…":"Download latest JPG"}</button><button disabled={!queue.length || busy || jpgBusy || a4Busy || (dirty && Boolean(saved))} onClick={() => void print()}>Print / Save as PDF ({queue.length})</button><button disabled={!queue.length || a4Busy} onClick={() => {setQueue([]);setTagCopies({});setA4Page(0);}}>Clear print sheet</button></div>
           <div className={styles.a4Options}>
-            <h3>Six single-product tags on one A4 picture</h3>
-            <p>Generate up to six different tags (or choose multiple copies of one tag). They will be placed together on an A4 portrait page, with a single JPG download per page. The original full-size tag download remains available.</p>
+            <h3>Five single-product tags on one A4 picture</h3>
+            <p>Generate up to five different tags (or choose multiple copies of one tag). They will be arranged on one A4 portrait page in the same mixed landscape-and-portrait style as your example, with one JPG download per page. The original full-size tag download remains available.</p>
             <div className={styles.a4Actions}>
-              <strong>{a4Pages.length ? `A4 sheet ${displayedA4Page+1} of ${a4Pages.length} · ${a4Pages[displayedA4Page]?.length || 0}/6 tags` : "0/6 tags on A4"}</strong>
-              <button type="button" disabled={!a4Pages.length || a4Busy || jpgBusy || busy || (dirty && Boolean(saved))} onClick={()=>void downloadA4Jpg(displayedA4Page)}>{a4Busy ? "Preparing A4 JPG…" : "Download A4 picture (6 tags)"}</button>
+              <strong>{a4Pages.length ? `A4 sheet ${displayedA4Page+1} of ${a4Pages.length} · ${a4Pages[displayedA4Page]?.length || 0}/5 tags` : "0/5 tags on A4"}</strong>
+              <button type="button" disabled={!a4Pages.length || a4Busy || jpgBusy || busy || (dirty && Boolean(saved))} onClick={()=>void downloadA4Jpg(displayedA4Page)}>{a4Busy ? "Preparing A4 JPG…" : "Download A4 picture (5 tags)"}</button>
             </div>
             {a4Pages.length>1 && <div className={styles.a4Pager}>
               <button type="button" disabled={displayedA4Page===0 || a4Busy} onClick={()=>setA4Page(displayedA4Page-1)}>Previous A4</button>
@@ -255,11 +269,11 @@ export default function PriceTagGenerator() {
       </div>
       {!queue.length && <div className={styles.empty}>Search by product name or code and enter a price, then select Generate price tag to see your design.</div>}
     </section>
-    {!!a4Pages.length && <section className={styles.a4PreviewSection} aria-label="Preview of your six-tags-per-A4 JPG">
-      <div className={styles.a4PreviewHeading}><h2>A4 image preview</h2><p>Portrait A4 · 2 columns × 3 rows · original QR codes included</p><button type="button" disabled={a4Busy || jpgBusy || busy || (dirty && Boolean(saved))} onClick={()=>void downloadA4Jpg(displayedA4Page)}>{a4Busy ? "Preparing A4 JPG…" : "Download this A4 JPG"}</button></div>
+    {!!a4Pages.length && <section className={styles.a4PreviewSection} aria-label="Preview of your five-tags-per-A4 JPG">
+      <div className={styles.a4PreviewHeading}><h2>A4 image preview</h2><p>Portrait A4 · 5 tags · 3 landscape left + 2 portrait right · original QR codes included</p><button type="button" disabled={a4Busy || jpgBusy || busy || (dirty && Boolean(saved))} onClick={()=>void downloadA4Jpg(displayedA4Page)}>{a4Busy ? "Preparing A4 JPG…" : "Download this A4 JPG"}</button></div>
       <div className={styles.a4Preview}><A4SingleTagSheet items={a4Pages[displayedA4Page]}/></div>
     </section>}
-    <section className={styles.printSheet} data-print-sheet aria-label="Printable price tags">{queue.map(item => <div key={tagKey(item.tag)} className={styles.printItem}><div className={styles.remove}><span>{item.tag.code} · {item.tag.branch_name||ALL_BRANCHES}</span><div><label className={styles.copySelector}>A4 copies <select aria-label={`A4 copies of ${item.tag.name}`} disabled={a4Busy || jpgBusy || busy} value={tagCopies[tagKey(item.tag)] ?? 1} onChange={e=>setTagCopies(prev=>({...prev,[tagKey(item.tag)]:Number(e.target.value)}))}>{[1,2,3,4,5,6].map(amount=><option key={amount} value={amount}>{amount}</option>)}</select></label><button disabled={jpgBusy || a4Busy || busy || (dirty && Boolean(saved))} onClick={()=>void downloadJpg(item)}>Download JPG</button><button disabled={a4Busy} onClick={() => setQueue(prev => prev.filter(p => tagKey(p.tag) !== tagKey(item.tag)))}>Remove from print sheet</button></div></div><PriceTagCard tag={item.tag} url={item.url} /></div>)}</section>
+    <section className={styles.printSheet} data-print-sheet aria-label="Printable price tags">{queue.map(item => <div key={tagKey(item.tag)} className={styles.printItem}><div className={styles.remove}><span>{item.tag.code} · {item.tag.branch_name||ALL_BRANCHES}</span><div><label className={styles.copySelector}>A4 copies <select aria-label={`A4 copies of ${item.tag.name}`} disabled={a4Busy || jpgBusy || busy} value={tagCopies[tagKey(item.tag)] ?? 1} onChange={e=>setTagCopies(prev=>({...prev,[tagKey(item.tag)]:Number(e.target.value)}))}>{[1,2,3,4,5].map(amount=><option key={amount} value={amount}>{amount}</option>)}</select></label><button disabled={jpgBusy || a4Busy || busy || (dirty && Boolean(saved))} onClick={()=>void downloadJpg(item)}>Download JPG</button><button disabled={a4Busy} onClick={() => setQueue(prev => prev.filter(p => tagKey(p.tag) !== tagKey(item.tag)))}>Remove from print sheet</button></div></div><PriceTagCard tag={item.tag} url={item.url} /></div>)}</section>
     {exportItem&&<div ref={exportRef} className={styles.exportStage} aria-hidden="true"><PriceTagCard tag={exportItem.tag} url={exportItem.url} /></div>}
     {a4ExportPage!==null && a4Pages[a4ExportPage] && <div ref={a4ExportRef} className={styles.a4ExportStage} aria-hidden="true"><A4SingleTagSheet items={a4Pages[a4ExportPage]}/></div>}
   </main>;
