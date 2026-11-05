@@ -1,5 +1,6 @@
 "use client";
 import {sameProductCode} from "../lib/colour-product-code";
+import { A4_SINGLE_TAGS_PER_PAGE, paginateA4SingleTags } from "../lib/a4-single-tag-layout";
 import ColourVariantCode from "./colour-variant-code";
 import ProductNameSearch from "./product-name-search";
 import BulkPriceTagStudio from "./bulk-price-tag-studio";
@@ -21,6 +22,14 @@ import StaffCardStudio from "./staff-card-studio";
 import ComboCreator from "./combo-creator";
 import PriceTagCard from "./price-tag-card";
 import styles from "./price-tags.module.css";
+type TagPrintItem = { tag: PriceTag; url: string };
+function A4SingleTagSheet({ items }: { items: TagPrintItem[] }) {
+  return <div className={styles.a4Sheet} aria-label="A4 sheet with up to six product price tags">
+    {Array.from({ length: A4_SINGLE_TAGS_PER_PAGE }, (_, slot) => <div className={styles.a4Cell} key={slot}>
+      {items[slot] && <PriceTagCard tag={items[slot].tag} url={items[slot].url} />}
+    </div>)}
+  </div>;
+}
 type Product = { id: number; code: string; name: string; category: string; description: string; image_url: string };
 type BranchPrice = { branch_name: string; price_cents: number; updated_at: string };
 type Draft = { colour: string; price: string; unit: TagUnit; is_tile: boolean; coverage_per_box: string; pieces_per_box: string; tile_width_mm: string; tile_length_mm: string; published: boolean };
@@ -32,11 +41,18 @@ export default function PriceTagGenerator() {
   const exportRef=useRef<HTMLDivElement>(null);
   const [exportItem,setExportItem]=useState<{tag:PriceTag;url:string}|null>(null);
   const [jpgBusy,setJpgBusy]=useState(false);
+  const a4ExportRef=useRef<HTMLDivElement>(null);
+  const [a4ExportPage,setA4ExportPage]=useState<number|null>(null);
+  const [a4Busy,setA4Busy]=useState(false);
+  const [a4Page,setA4Page]=useState(0);
+  const [tagCopies,setTagCopies]=useState<Record<string,number>>({});
   const [picture, setPicture] = useState<{blob:Blob;dataUrl:string}|null>(null);
   const [pictureMessage,setPictureMessage] = useState("");
   const [code, setCode] = useState(""); const [product, setProduct] = useState<Product | null>(null);
   const [draft, setDraft] = useState<Draft>(empty); const [saved, setSaved] = useState<PriceTag | null>(null);
-  const [queue, setQueue] = useState<Array<{ tag: PriceTag; url: string }>>([]);
+  const [queue, setQueue] = useState<TagPrintItem[]>([]);
+  const a4Pages = paginateA4SingleTags(queue, item => tagCopies[`${item.tag.token}:${item.tag.branch_name || ALL_BRANCHES}`] ?? 1);
+  const displayedA4Page = Math.min(a4Page, Math.max(0, a4Pages.length - 1));
   const [branches,setBranches]=useState<string[]>([]); const [selectedBranches,setSelectedBranches]=useState<string[]>([]);
   const [branchPrices,setBranchPrices]=useState<Record<string,number>>({}); const [companyPriceCents,setCompanyPriceCents]=useState<number|null>(null);
   const [base, setBase] = useState(""); const [busy, setBusy] = useState(false); const [message, setMessage] = useState(""); const [dirty, setDirty] = useState(false);
@@ -130,6 +146,29 @@ export default function PriceTagGenerator() {
     }catch{setMessage("The JPG could not download. Check that the product picture loads, then try again.");}
     finally{setJpgBusy(false);setExportItem(null);}
   };
+  const downloadA4Jpg=async(pageIndex:number)=>{
+    const page=a4Pages[pageIndex];
+    if(!page?.length || a4Busy || jpgBusy) return;
+    setA4Busy(true);setMessage(`Preparing A4 sheet ${pageIndex+1} of ${a4Pages.length}…`);
+    try{
+      flushSync(()=>setA4ExportPage(pageIndex));
+      await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+      const node=a4ExportRef.current?.firstElementChild as HTMLElement|null;
+      if(!node)throw new Error("The A4 page could not be prepared.");
+      await Promise.all(Array.from(node.querySelectorAll("img")).map(img=>img.decode()));
+      const data=await toJpeg(node,{
+        quality:0.98,pixelRatio:2,backgroundColor:"#ffffff",width:1240,height:1754,
+        skipFonts:true,cacheBust:false,
+        style:{boxShadow:"none",margin:"0",width:"1240px",height:"1754px"}
+      });
+      const link=document.createElement("a");
+      link.download=`${brand === "busterbuild" ? "BusterBuild" : "PowerBuild"}-Six-Product-Tags-A4-${pageIndex+1}.jpg`;
+      link.href=data;document.body.appendChild(link);link.click();link.remove();
+      setMessage(`A4 sheet ${pageIndex+1} downloaded as one high-resolution JPG (2480 × 3508 px), with ${page.length} price tag${page.length===1?"":"s"}.`);
+    }catch(error){
+      setMessage(error instanceof Error ? `The A4 JPG could not download: ${error.message}` : "The A4 JPG could not download. Check that each product image loads, then try again.");
+    }finally{setA4ExportPage(null);setA4Busy(false);}
+  };
   const enteredCents = Math.round(Number(draft.price) * 100);
   const boxPriceCents = draft.is_tile && Number.isSafeInteger(enteredCents) && enteredCents > 0
     ? draft.unit === "BOX" ? enteredCents : Number(draft.coverage_per_box) > 0 ? Math.round(enteredCents * Number(draft.coverage_per_box)) : null
@@ -160,7 +199,7 @@ export default function PriceTagGenerator() {
   return <main className={styles.generator}>
     <section className={styles.controls}>
       <header className={styles.header}><img src={brand === "busterbuild" ? "/price-tag-assets/busterbuild-logo.png" : "/powerbuild-logo-transparent.png"} alt={brandName} /><div><small>{brandName.toUpperCase()} RETAIL</small><h1>Price tag studio</h1><p>Your design. Your products. Ready to print.</p></div><Link href="/">Back to Hub</Link></header>
-      <button type="button" className={styles.switchBrand} onClick={()=>{setBrand(null);setCode("");setProduct(null);setSaved(null);setPicture(null);setQueue([]);setDraft(empty);setBranches([]);setSelectedBranches([]);setBranchPrices({});setCompanyPriceCents(null);setDirty(false);setMessage("");}}>Change brand</button>
+      <button type="button" className={styles.switchBrand} onClick={()=>{setBrand(null);setCode("");setProduct(null);setSaved(null);setPicture(null);setQueue([]);setTagCopies({});setA4Page(0);setDraft(empty);setBranches([]);setSelectedBranches([]);setBranchPrices({});setCompanyPriceCents(null);setDirty(false);setMessage("");}}>Change brand</button>
       <div className={styles.buttons} style={{marginBottom:20}}><button type="button" aria-pressed={true}>Single product tag</button><button type="button" onClick={()=>setMode("bulk")}>Bulk A4 price tags</button><button type="button" onClick={()=>setMode("combo")}>Create a combo</button><button type="button" onClick={()=>setMode("name-tag")}>Salesperson name tags</button><button type="button" onClick={()=>setMode("business-card")}>Business cards</button><button type="button" onClick={()=>setMode("whatsapp")}>WhatsApp adverts</button><button type="button" onClick={()=>setMode("certificate")}>Staff certificates</button><button type="button" onClick={()=>setMode("signage")}>Store signage</button><button type="button" onClick={()=>setMode("safety-signs")}>Safety &amp; Warning Signs</button><button type="button" onClick={()=>setMode("outdoor")}>Outdoor boards &amp; billboards</button><button type="button" onClick={()=>setMode("staff-id")}>Staff ID cards</button><Link href="/training">Staff training &amp; knowledge tests →</Link></div>
       <div className={styles.editor}>
         <section className={styles.panel}><h2>1. Choose a product</h2>
@@ -192,18 +231,36 @@ export default function PriceTagGenerator() {
           <button className={styles.primary} disabled={busy || !sameProductCode(code,product.code) || (selectedBranches.length>0&&companyPriceCents===null)} onClick={() => void save()}>{busy ? "Saving…" : draft.published ? selectedBranches.length>1?`Generate ${selectedBranches.length} branch tags`:"Generate price tag" : "Save and hide QR page"}</button>
           <p className={styles.hint}>{brand === "busterbuild" && (selectedBranches.length?"Branch-specific prices apply to these printed tags and QR pages. The BusterBuild sales app continues using the All Branches price. ":"Published All Branches BusterBuild prices also update the connected sales app, usually within one minute while online. ")}The QR link stays connected to the selected branch price when you update this tag. Reprint shelf tags after a price change.</p></>}
         </section>
-        <section className={styles.panel}><h2>4. Print &amp; share</h2><p>Tags match your 3:2 template and print at 150 × 100 mm. Use A4, 100% scale, background graphics on and browser headers/footers off.</p>
-          <label>Customer website address<input type="url" value={base} onChange={e => { setBase(e.target.value); setDirty(true); setQueue([]); }} /></label><p className={styles.hint}>Use the public HTTPS address where this Hub is deployed. Verify the first tag with your phone before printing a batch.</p>
+        <section className={styles.panel}><h2>4. Print &amp; share</h2><p>Individual tags retain the 150 × 100 mm print format. The new six-tag A4 JPG places smaller tags (approximately 94 × 63 mm each) together on one portrait sheet.</p>
+          <label>Customer website address<input type="url" value={base} onChange={e => { setBase(e.target.value); setDirty(true); setQueue([]);setTagCopies({});setA4Page(0); }} /></label><p className={styles.hint}>Use the public HTTPS address where this Hub is deployed. Verify the first tag with your phone before printing a batch.</p>
           {saved && !dirty && saved.published && publicUrl && <a className={styles.customerLink} href={publicUrl} target="_blank" rel="noreferrer">Open customer page ↗</a>}
           {dirty && saved && <p className={styles.notice}>Save your changes to update the printable tag.</p>}
-          <div className={styles.buttons}><button disabled={!queue.length || busy || jpgBusy || (dirty && Boolean(saved))} onClick={() => void downloadJpg(queue[queue.length-1])}>{jpgBusy?"Preparing JPG…":"Download latest JPG"}</button><button disabled={!queue.length || busy || jpgBusy || (dirty && Boolean(saved))} onClick={() => void print()}>Print / Save as PDF ({queue.length})</button><button disabled={!queue.length} onClick={() => setQueue([])}>Clear print sheet</button></div>
-          <p className={styles.hint}>Find another product by name or code to build a print sheet. The print sheet is kept for this session; saved prices and QR links stay in the Hub.</p>
+          <div className={styles.buttons}><button disabled={!queue.length || busy || jpgBusy || a4Busy || (dirty && Boolean(saved))} onClick={() => void downloadJpg(queue[queue.length-1])}>{jpgBusy?"Preparing JPG…":"Download latest JPG"}</button><button disabled={!queue.length || busy || jpgBusy || a4Busy || (dirty && Boolean(saved))} onClick={() => void print()}>Print / Save as PDF ({queue.length})</button><button disabled={!queue.length || a4Busy} onClick={() => {setQueue([]);setTagCopies({});setA4Page(0);}}>Clear print sheet</button></div>
+          <div className={styles.a4Options}>
+            <h3>Six single-product tags on one A4 picture</h3>
+            <p>Generate up to six different tags (or choose multiple copies of one tag). They will be placed together on an A4 portrait page, with a single JPG download per page. The original full-size tag download remains available.</p>
+            <div className={styles.a4Actions}>
+              <strong>{a4Pages.length ? `A4 sheet ${displayedA4Page+1} of ${a4Pages.length} · ${a4Pages[displayedA4Page]?.length || 0}/6 tags` : "0/6 tags on A4"}</strong>
+              <button type="button" disabled={!a4Pages.length || a4Busy || jpgBusy || busy || (dirty && Boolean(saved))} onClick={()=>void downloadA4Jpg(displayedA4Page)}>{a4Busy ? "Preparing A4 JPG…" : "Download A4 picture (6 tags)"}</button>
+            </div>
+            {a4Pages.length>1 && <div className={styles.a4Pager}>
+              <button type="button" disabled={displayedA4Page===0 || a4Busy} onClick={()=>setA4Page(displayedA4Page-1)}>Previous A4</button>
+              <span>Page {displayedA4Page+1} / {a4Pages.length}</span>
+              <button type="button" disabled={displayedA4Page===a4Pages.length-1 || a4Busy} onClick={()=>setA4Page(displayedA4Page+1)}>Next A4</button>
+            </div>}
+          </div>
+          <p className={styles.hint}>Find another product by name or code to build the A4 sheet. Each tag can have its own product, price and QR code. The print sheet is kept for this session; saved prices and QR links stay in the Hub.</p>
           {message && <p role="status" className={styles.notice}>{message}</p>}
         </section>
       </div>
       {!queue.length && <div className={styles.empty}>Search by product name or code and enter a price, then select Generate price tag to see your design.</div>}
     </section>
-    <section className={styles.printSheet} data-print-sheet aria-label="Printable price tags">{queue.map(item => <div key={tagKey(item.tag)} className={styles.printItem}><div className={styles.remove}><span>{item.tag.code} · {item.tag.branch_name||ALL_BRANCHES}</span><div><button disabled={jpgBusy || busy || (dirty && Boolean(saved))} onClick={()=>void downloadJpg(item)}>Download JPG</button><button onClick={() => setQueue(prev => prev.filter(p => tagKey(p.tag) !== tagKey(item.tag)))}>Remove from print sheet</button></div></div><PriceTagCard tag={item.tag} url={item.url} /></div>)}</section>
+    {!!a4Pages.length && <section className={styles.a4PreviewSection} aria-label="Preview of your six-tags-per-A4 JPG">
+      <div className={styles.a4PreviewHeading}><h2>A4 image preview</h2><p>Portrait A4 · 2 columns × 3 rows · original QR codes included</p><button type="button" disabled={a4Busy || jpgBusy || busy || (dirty && Boolean(saved))} onClick={()=>void downloadA4Jpg(displayedA4Page)}>{a4Busy ? "Preparing A4 JPG…" : "Download this A4 JPG"}</button></div>
+      <div className={styles.a4Preview}><A4SingleTagSheet items={a4Pages[displayedA4Page]}/></div>
+    </section>}
+    <section className={styles.printSheet} data-print-sheet aria-label="Printable price tags">{queue.map(item => <div key={tagKey(item.tag)} className={styles.printItem}><div className={styles.remove}><span>{item.tag.code} · {item.tag.branch_name||ALL_BRANCHES}</span><div><label className={styles.copySelector}>A4 copies <select aria-label={`A4 copies of ${item.tag.name}`} disabled={a4Busy || jpgBusy || busy} value={tagCopies[tagKey(item.tag)] ?? 1} onChange={e=>setTagCopies(prev=>({...prev,[tagKey(item.tag)]:Number(e.target.value)}))}>{[1,2,3,4,5,6].map(amount=><option key={amount} value={amount}>{amount}</option>)}</select></label><button disabled={jpgBusy || a4Busy || busy || (dirty && Boolean(saved))} onClick={()=>void downloadJpg(item)}>Download JPG</button><button disabled={a4Busy} onClick={() => setQueue(prev => prev.filter(p => tagKey(p.tag) !== tagKey(item.tag)))}>Remove from print sheet</button></div></div><PriceTagCard tag={item.tag} url={item.url} /></div>)}</section>
     {exportItem&&<div ref={exportRef} className={styles.exportStage} aria-hidden="true"><PriceTagCard tag={exportItem.tag} url={exportItem.url} /></div>}
+    {a4ExportPage!==null && a4Pages[a4ExportPage] && <div ref={a4ExportRef} className={styles.a4ExportStage} aria-hidden="true"><A4SingleTagSheet items={a4Pages[a4ExportPage]}/></div>}
   </main>;
 }
