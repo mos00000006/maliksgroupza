@@ -84,3 +84,14 @@
  .printAudit small{display:block;color:#718b9c;margin-top:1mm}
  .printFooter{display:flex;justify-content:space-between;gap:5mm;border-top:2px solid #eab922;padding-top:2.5mm;margin:4.5mm 0 0;font-size:6.8pt;font-weight:800;color:#5b7a90;break-inside:avoid}
 }
+
+/* Four-column supplier-return and transfer documents: keep the right edge inside A4. */
+@media print{
+ .printItemsFour colgroup col:nth-child(1){width:18%!important}
+ .printItemsFour colgroup col:nth-child(2){width:50%!important}
+ .printItemsFour colgroup col:nth-child(3){width:16%!important}
+ .printItemsFour colgroup col:nth-child(4){width:16%!important}
+}
+/* Signature names in the live detail screen reflect document type. */
+.paperEvidence .signature{display:flex;flex-wrap:wrap;gap:9px 24px}
+.paperEvidence .signature span{display:inline-block;white-space:normal}

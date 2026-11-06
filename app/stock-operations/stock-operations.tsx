@@ -18,6 +18,21 @@ const KINDS:{kind:Kind;title:string;sub:string;icon:string}[]=[
   {kind:'TRANSFER',title:'Stock transfers',sub:'Branch / DC movements',icon:'⇄'},
 ];
 const duties:Duty[]=['Receiving / GRV','Stock Controller','DC / Transfers','Stock Manager'];
+
+/** Shared, document-type-specific labels for the on-screen record and its A4 control copy. */
+const STOCK_DOCUMENT_LAYOUT:Record<Kind,{
+ title:string; quantity:string; expected:string; finalColumn?:'Rejected'|'Variance';
+ information:string; notes:string; signatures:[string,string];
+}>={
+ GRV:{title:'Goods Received Voucher',quantity:'Received',expected:'Expected',finalColumn:'Rejected',information:'Receiving & delivery controls',notes:'Delivery notes / discrepancies',signatures:['Receiving manager','Driver / supplier representative']},
+ COUNT:{title:'Stock Count Sheet',quantity:'Counted quantity',expected:'System quantity',finalColumn:'Variance',information:'Stock count information',notes:'Count sheet / variance notes',signatures:['Counted by','Verified by · Stock Controller']},
+ ADJUSTMENT:{title:'Stock Adjustment Request',quantity:'Physical quantity',expected:'System quantity',finalColumn:'Variance',information:'Adjustment justification',notes:'Reason for adjustment',signatures:['Requested by · Stock Controller','Authorised by · Stock Manager']},
+ SUPPLIER_RETURN:{title:'Supplier Return Note',quantity:'Return quantity',expected:'Reference quantity',information:'Supplier return information',notes:'Return reason / references',signatures:['Return prepared by','Authorised by · Stock Manager']},
+ TRANSFER:{title:'Stock Transfer Note',quantity:'Transfer quantity',expected:'Reference quantity',information:'Transfer information',notes:'Transfer / discrepancy notes',signatures:['Issued by · Sending branch','Received by · Destination branch']},
+};
+/** This is a document variance, not a live inventory adjustment. */
+const stockVariance=(line:Record<string,unknown>)=>moneyCount(Number(line.document_quantity||0)-Number(line.expected_quantity||0));
+
 const moneyCount=(value:number)=>new Intl.NumberFormat('en-ZA',{maximumFractionDigits:3}).format(value);
 const date=(value:string)=>value?new Date(value).toLocaleString('en-ZA',{dateStyle:'medium',timeStyle:'short'}):'—';
 const blankLine=(item:Item):Line=>({catalogue_product_id:item.id,code:item.code,name:item.name,document_quantity:'1',expected_quantity:'0',rejected_quantity:'0',reason:''});
@@ -135,9 +150,19 @@ export default function StockOperations(){
      </div><div className={styles.tableBox}><table><thead><tr><th>Employee</th><th>Branch</th><th>Stock duty</th><th>Status</th></tr></thead><tbody>{(data.assignments||[]).map(a=><tr key={`${a.email}-${a.branch_name}`}><td>{a.email}</td><td>{a.branch_name}</td><td>{a.duty}</td><td>{a.active?'Active':'Disabled'}</td></tr>)}</tbody></table></div></>}
    {detail&&<div className={styles.modalBackdrop} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setDetail(null);}}><section className={styles.modal} role="dialog" aria-modal="true" aria-label="Stock document detail"><header className={styles.modalHead}><div><span>DOCUMENT RECORD</span><h2>{detail.document_number}</h2><p>{typeOf(detail.kind)} · {detail.branch_name} {detail.destination_branch?`→ ${detail.destination_branch}`:''}</p></div><button aria-label="Close" onClick={()=>setDetail(null)}>×</button></header>
      <StockPrintSheet document={detail} typeTitle={typeOf(detail.kind)} />
-     <div className={styles.modalBody}><div className={styles.detailGrid}><div><small>Status</small><strong className={styles.status}>{detail.status}</strong></div><div><small>Created by</small><strong>{detail.created_by}</strong></div><div><small>Created</small><strong>{date(detail.created_at)}</strong></div><div><small>Supplier / reference</small><strong>{detail.supplier||detail.external_reference||'—'}</strong></div></div>
-     <table className={styles.detailTable}><thead><tr><th>Code</th><th>Product</th><th>Actual / requested</th><th>Expected</th><th>Rejected</th></tr></thead><tbody>{(detail.lines||[]).map((l,i)=><tr key={i}><td>{String(l.product_code)}</td><td>{String(l.product_name)}</td><td>{moneyCount(Number(l.document_quantity))}</td><td>{moneyCount(Number(l.expected_quantity))}</td><td>{moneyCount(Number(l.rejected_quantity))}</td></tr>)}</tbody></table>
-     <div className={styles.paperEvidence}><p><b>Document note:</b> {detail.notes||'—'}</p><p><b>Supplier / carrier:</b> {detail.supplier||'—'} · <b>Driver:</b> {String((detail as Doc & {driver_name?:string}).driver_name||'—')}</p><p><b>Time in / out:</b> {String((detail as Doc & {time_in?:string}).time_in||'—')} / {String((detail as Doc & {time_out?:string}).time_out||'—')} · <b>Labelled:</b> {String((detail as Doc & {labelled?:string}).labelled||'—')}</p><div className={styles.signature}>Receiving manager signature: ____________________ &nbsp;&nbsp; Driver signature: ____________________</div></div><h3>Approval history</h3><div className={styles.audit}>{(detail.audit||[]).map((e,i)=><div key={i}><b>{String(e.action)}</b> — {String(e.actor_email)} <small>{String(e.created_at)}</small></div>)}</div>
+     <div className={styles.modalBody}><div className={styles.detailGrid}>
+      <div><small>Status</small><strong className={styles.status}>{detail.status}</strong></div>
+      <div><small>Created by</small><strong>{detail.created_by}</strong></div>
+      <div><small>Created</small><strong>{date(detail.created_at)}</strong></div>
+      {detail.kind==='GRV'||detail.kind==='SUPPLIER_RETURN'
+       ?<div><small>Supplier / reference</small><strong>{detail.supplier||detail.external_reference||'—'}</strong></div>
+       :detail.kind==='TRANSFER'
+        ?<div><small>Destination branch</small><strong>{detail.destination_branch||'—'}</strong></div>
+        :<div><small>Control type</small><strong>{typeOf(detail.kind)}</strong></div>}
+     </div>
+     <StockDocumentLines document={detail}/>
+     <StockDocumentEvidence document={detail}/>
+     <h3>Approval history</h3><div className={styles.audit}>{(detail.audit||[]).map((e,i)=><div key={i}><b>{String(e.action)}</b> — {String(e.actor_email)} <small>{String(e.created_at)}</small></div>)}</div>
      <label className={styles.review}>Review or receipt note<textarea rows={2} value={reviewNote} onChange={e=>setReviewNote(e.target.value)} placeholder="Reason for rejection or received quantities/discrepancies"/></label>
      </div><footer className={styles.modalFooter}><button className={styles.ghost} onClick={()=>window.print()}>Print register copy · PowerBuild A4</button>
      {detail.status==='Draft'&&detail.created_by===data.me.email&&<button className={styles.primary} disabled={busy} onClick={()=>void act('submit')}>Submit for approval</button>}
@@ -149,45 +174,78 @@ export default function StockOperations(){
 }
 function Register({docs,onOpen}:{docs:Doc[];onOpen:(d:Doc)=>Promise<void>}){return <div className={styles.tableBox}><div className={styles.tableHeading}><h3>Documents & approvals</h3><small>{docs.length} records shown</small></div><div className={styles.tableScroll}><table><thead><tr><th>Reference</th><th>Type</th><th>Branch</th><th>Status</th><th>Created</th><th>Action</th></tr></thead><tbody>{docs.map(d=><tr key={d.id}><td><strong>{d.document_number}</strong></td><td>{d.kind.replace('_',' ')}</td><td>{d.branch_name}</td><td><span className={`${styles.pill} ${d.status==='Rejected'?styles.rejected:d.status==='Approved'||d.status==='Received'?styles.approved:''}`}>{d.status}</span></td><td>{date(d.created_at)}</td><td><button className={styles.open} onClick={()=>void onOpen(d)}>Open →</button></td></tr>)}</tbody></table></div>{!docs.length&&<div className={styles.empty}>No stock documents for this branch yet.</div>}</div>;}
 
-/** Dedicated printable document; the editing and approval dialog is deliberately not printed. */
-function StockPrintSheet({document:d,typeTitle}:{document:Doc;typeTitle:string}){
+/** The live detail view must never show GRV-only fields on other document types. */
+function StockDocumentLines({document:d}:{document:Doc}){
+ const labels=STOCK_DOCUMENT_LAYOUT[d.kind];
+ return <table className={styles.detailTable} aria-label={`${labels.title} product lines`}><thead><tr>
+  <th>Code</th><th>Product</th><th>{labels.quantity}</th><th>{labels.expected}</th>
+  {labels.finalColumn&&<th>{labels.finalColumn}</th>}
+ </tr></thead><tbody>{(d.lines||[]).map((line,i)=><tr key={i}>
+  <td>{String(line.product_code||'—')}</td><td>{String(line.product_name||'—')}</td>
+  <td>{moneyCount(Number(line.document_quantity||0))}</td><td>{moneyCount(Number(line.expected_quantity||0))}</td>
+  {labels.finalColumn==='Rejected'&&<td>{moneyCount(Number(line.rejected_quantity||0))}</td>}
+  {labels.finalColumn==='Variance'&&<td>{stockVariance(line)}</td>}
+ </tr>)}</tbody></table>;
+}
+function StockDocumentEvidence({document:d}:{document:Doc}){
+ const labels=STOCK_DOCUMENT_LAYOUT[d.kind];
+ return <div className={styles.paperEvidence}>
+  <p><b>{labels.notes}:</b> {d.notes||'—'}</p>
+  {d.kind==='GRV'&&<>
+   <p><b>Supplier / carrier:</b> {d.supplier||'—'} · <b>Driver:</b> {d.driver_name||'—'}</p>
+   <p><b>Time in / out:</b> {d.time_in||'—'} / {d.time_out||'—'} · <b>Labelled:</b> {d.labelled||'—'} · <b>Labelled by:</b> {d.labelled_by||'—'}</p>
+  </>}
+  {d.kind==='TRANSFER'&&<p><b>Transfer route:</b> {d.branch_name} → {d.destination_branch||'—'}</p>}
+  {d.kind==='SUPPLIER_RETURN'&&<p><b>Supplier / return reference:</b> {d.supplier||'—'} / {d.external_reference||'—'}</p>}
+  <div className={styles.signature}>
+   {labels.signatures.map(label=><span key={label}>{label}: ____________________</span>)}
+  </div>
+ </div>;
+}
+
+/** Dedicated A4 printable document; on-screen edit/approval controls are not printed. */
+function StockPrintSheet({document:d,typeTitle:_typeTitle}:{document:Doc;typeTitle:string}){
+ const labels=STOCK_DOCUMENT_LAYOUT[d.kind];
  const grv=d.kind==='GRV';
- const title=grv?'Goods Received Voucher':typeTitle;
  const formatted=(n:unknown)=>moneyCount(Number(n||0));
  const details=[
   {label:'Document number',value:d.document_number},
   {label:'Branch / location',value:d.branch_name},
   {label:'Prepared by',value:d.created_by},
   {label:'Prepared on',value:date(d.created_at)},
-  {label:grv?'Supplier':'Supplier / reference',value:d.supplier||d.external_reference||'—'},
-  {label:grv?'Delivery note / reference':'External reference',value:d.external_reference||'—'},
+  ...(grv||d.kind==='SUPPLIER_RETURN'?[{label:'Supplier',value:d.supplier||'—'},{label:grv?'Delivery note / reference':'Return reference',value:d.external_reference||'—'}]:[]),
+  ...(d.kind==='TRANSFER'?[{label:'Destination branch',value:d.destination_branch||'—'},{label:'Transfer reference',value:d.external_reference||'—'}]:[]),
  ];
- return <article className={styles.printSheet} aria-label={`${title} printable document`}>
+ return <article className={styles.printSheet} aria-label={`${labels.title} printable document`}>
   <div className={styles.printAccent}/>
   <header className={styles.printHeader}>
    <div className={styles.printIdentity}>
     {/* eslint-disable-next-line @next/next/no-img-element */}
     <img src="/stock-operations/powerbuild-logo.png" alt="PowerBuild logo" className={styles.printLogo}/>
     <div><span className={styles.printBrandOverline}>POWERBUILD · MALIKS GROUP HUB</span>
-      <h1>{title}</h1><p>Stock operations / document control</p></div>
+     <h1>{labels.title}</h1><p>Stock operations / document control</p></div>
    </div>
    <div className={styles.printDocumentId}><span>DOCUMENT REFERENCE</span><strong>{d.document_number}</strong>
     <span className={styles.printStatus}>{d.status.toUpperCase()}</span></div>
   </header>
   <section className={styles.printMeta} aria-label="Document details">
    {details.map(x=><div key={x.label}><span>{x.label}</span><strong>{x.value}</strong></div>)}
-   {d.destination_branch&&<div><span>Destination branch</span><strong>{d.destination_branch}</strong></div>}
-   {d.supplier_invoice&&<div><span>Supplier invoice</span><strong>{d.supplier_invoice}</strong></div>}
+   {d.supplier_invoice&&(grv||d.kind==='SUPPLIER_RETURN')&&<div><span>Supplier invoice</span><strong>{d.supplier_invoice}</strong></div>}
   </section>
-  <section className={styles.printItems}>
+  <section className={`${styles.printItems} ${!labels.finalColumn?styles.printItemsFour:''}`}>
    <div className={styles.printSectionHeading}><h2>Product & quantity record</h2><span>{(d.lines||[]).length} line item{(d.lines||[]).length===1?'':'s'}</span></div>
-   <table><colgroup><col className={styles.printColCode}/><col/><col className={styles.printColQty}/><col className={styles.printColQty}/><col className={styles.printColQty}/></colgroup>
-    <thead><tr><th>Product code</th><th>Product description</th><th>{grv?'Received':'Actual / req.'}</th><th>Expected</th><th>Rejected</th></tr></thead>
-    <tbody>{(d.lines||[]).map((line,i)=><tr key={i}><td>{String(line.product_code||'—')}</td><td>{String(line.product_name||'—')}</td><td>{formatted(line.document_quantity)}</td><td>{formatted(line.expected_quantity)}</td><td>{formatted(line.rejected_quantity)}</td></tr>)}</tbody>
+   <table><colgroup><col className={styles.printColCode}/><col/><col className={styles.printColQty}/><col className={styles.printColQty}/>{labels.finalColumn&&<col className={styles.printColQty}/>}</colgroup>
+    <thead><tr><th>Product code</th><th>Product description</th><th>{labels.quantity}</th><th>{labels.expected}</th>{labels.finalColumn&&<th>{labels.finalColumn}</th>}</tr></thead>
+    <tbody>{(d.lines||[]).map((line,i)=><tr key={i}>
+     <td>{String(line.product_code||'—')}</td><td>{String(line.product_name||'—')}</td>
+     <td>{formatted(line.document_quantity)}</td><td>{formatted(line.expected_quantity)}</td>
+     {labels.finalColumn==='Rejected'&&<td>{formatted(line.rejected_quantity)}</td>}
+     {labels.finalColumn==='Variance'&&<td>{stockVariance(line)}</td>}
+    </tr>)}</tbody>
    </table>
   </section>
   <section className={styles.printReceiving}>
-   <h2>{grv?'Receiving & delivery controls':'Document information'}</h2>
+   <h2>{labels.information}</h2>
    {grv&&<div className={styles.printReceivingGrid}>
     <div><span>Supplier / carrier</span><b>{d.supplier||'—'}</b></div>
     <div><span>Driver name</span><b>{d.driver_name||'—'}</b></div>
@@ -196,19 +254,27 @@ function StockPrintSheet({document:d,typeTitle}:{document:Doc;typeTitle:string})
     <div><span>Items labelled</span><b>{d.labelled||'—'}</b></div>
     <div><span>Labelled by</span><b>{d.labelled_by||'—'}</b></div>
    </div>}
-   <div className={styles.printNotes}><span>Notes / discrepancy reason</span><p>{d.notes||'—'}</p></div>
+   {d.kind==='TRANSFER'&&<div className={styles.printReceivingGrid}>
+    <div><span>Sending branch</span><b>{d.branch_name}</b></div>
+    <div><span>Receiving branch</span><b>{d.destination_branch||'—'}</b></div>
+    <div><span>Transfer reference</span><b>{d.external_reference||'—'}</b></div>
+   </div>}
+   {d.kind==='SUPPLIER_RETURN'&&<div className={styles.printReceivingGrid}>
+    <div><span>Supplier</span><b>{d.supplier||'—'}</b></div>
+    <div><span>Return reference</span><b>{d.external_reference||'—'}</b></div>
+   </div>}
+   <div className={styles.printNotes}><span>{labels.notes}</span><p>{d.notes||'—'}</p></div>
   </section>
   <section className={styles.printApprovals}>
    <div><h2>Signatures</h2><div className={styles.printSignGrid}>
-    <div><span></span><small>Receiving manager · Signature / date</small></div>
-    <div><span></span><small>Driver / representative · Signature / date</small></div>
+    {labels.signatures.map(label=><div key={label}><span></span><small>{label} · Signature / date</small></div>)}
    </div></div>
    <div className={styles.printAudit}><h2>Approval history</h2>
     {d.audit?.length?d.audit.map((event,i)=><p key={i}><b>{String(event.action||'Action')}</b> · {String(event.actor_email||'—')}<small>{date(String(event.created_at||''))}</small></p>):<p>No approval events recorded.</p>}
    </div>
   </section>
   <footer className={styles.printFooter}>
-   <span>POWERBUILD · STOCK OPERATIONS CONTROL COPY</span>
+   <span>POWERBUILD · {d.kind.replace('_',' ')} CONTROL COPY</span>
    <span>Document record only · Live inventory posting not connected</span>
   </footer>
  </article>;
