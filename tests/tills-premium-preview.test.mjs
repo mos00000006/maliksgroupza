@@ -26,7 +26,7 @@ test('quantity and deposit are bounded',()=>{
 test('sales posting is disabled and all calls use read-only catalogue endpoint',()=>{
  const ui=read('app/tills/till-checkout.tsx');
  assert.match(ui,/NO LIVE SALES/);
- assert.match(ui,/Complete sale — not enabled/);
+ assert.match(ui,/No cash, card, EFT, invoice or stock-release action is available on the Sales screen/);
  assert.match(ui,/\/api\/tills\/catalogue/);
  assert.doesNotMatch(ui,/fetch\(\s*["']\/api\/(?:sales|tills\/sales)/);
 });

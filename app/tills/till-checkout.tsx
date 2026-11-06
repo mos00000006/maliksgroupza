@@ -107,6 +107,9 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
   const [sentQuote,setSentQuote]=useState<CashQuote|null>(null);
   const [cashQuotes,setCashQuotes]=useState<CashQuote[]>([]);
   const [cashQuoteSearch,setCashQuoteSearch]=useState("");
+  const [cashOfficeTender,setCashOfficeTender]=useState<"Cash"|"Card">("Cash");
+  const [cashOfficeCash,setCashOfficeCash]=useState("");
+  const [cashOfficeCardReference,setCashOfficeCardReference]=useState("");
   const [cashQueueBusy,setCashQueueBusy]=useState(false);
   const [cashQueueError,setCashQueueError]=useState("");
   const [selectedCashQuote,setSelectedCashQuote]=useState<string|null>(null);
@@ -229,6 +232,32 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
     }catch(err){setError(err instanceof Error?err.message:"Unable to send quotation. Retry without closing this form.");}
     finally{setSendingQuote(false);}
   };
+  const printNumberedQuotation=()=>{
+    if(!sentQuote)return;
+    const popup=window.open("","_blank","width=810,height=850");
+    if(!popup){setNotice("Allow pop-ups to print the numbered quotation.");return;}
+    const doc=popup.document;
+    doc.title=`Quotation ${sentQuote.number}`;
+    const style=doc.createElement("style");
+    style.textContent="body{font:15px Arial,sans-serif;margin:28px;color:#17324b}h1{font-size:28px;margin-bottom:6px}.muted{color:#607b8f}table{width:100%;border-collapse:collapse;margin:24px 0}td,th{border-bottom:1px solid #dce5eb;padding:10px;text-align:left}td:last-child,th:last-child{text-align:right}.total{font-size:22px;font-weight:700;text-align:right}.warning{padding:12px;background:#fff5e5;border-left:4px solid #ca921b}button{padding:10px 20px}@media print{button{display:none}}";
+    doc.head.appendChild(style);
+    const el=(tag:string,value:string,parent:HTMLElement,cl?:string)=>{const child=doc.createElement(tag);child.textContent=value;if(cl)child.className=cl;parent.appendChild(child);return child;};
+    const root=doc.createElement("main");doc.body.appendChild(root);
+    el("h1",`QUOTATION ${sentQuote.number}`,root);
+    el("p",`MALIKS RETAILOS · ${sentQuote.branch}`,root,"muted");
+    el("p",`Customer: ${sentQuote.customer_name}`,root);
+    if(sentQuote.customer_contact)el("p",`Contact: ${sentQuote.customer_contact}`,root);
+    el("p",`Issued: ${new Date(sentQuote.created_at).toLocaleString("en-ZA")}`,root);
+    const table=doc.createElement("table");root.appendChild(table);
+    const header=doc.createElement("tr");table.appendChild(header);
+    for(const text of ["Item","Qty","Amount"]){el("th",text,header);}
+    for(const line of sentQuote.lines){const tr=doc.createElement("tr");table.appendChild(tr);el("td",`${line.name} (${line.code})`,tr);el("td",String(line.quantity),tr);el("td",money(line.line_total_cents),tr);}
+    el("p",`VAT included: ${money(sentQuote.vat_cents)}`,root,"total");
+    el("p",`TOTAL: ${money(sentQuote.total_cents)}`,root,"total");
+    el("p","UNPAID QUOTATION — PRESENT THIS NUMBER AT CASH OFFICE. NOT AN INVOICE OR RECEIPT.",root,"warning");
+    const button=el("button","Print quotation",root);button.onclick=()=>popup.print();
+    popup.focus();
+  };
   const fetchCashQueue=useCallback(async(branchName:string,q:string)=>{
     setCashQueueBusy(true);setCashQueueError("");
     try{
@@ -264,7 +293,7 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
       if(event.key==="F2"){event.preventDefault();setSection("checkout");window.setTimeout(()=>focus.current?.focus(),0);}
       if(event.key==="F4"){event.preventDefault();setSection("documents");}
       if(event.key==="F6"){event.preventDefault();setDocumentLines(activeSaleLinesRef.current.map(line=>({...line})));setPickerSearch("");setPickerCategory("");setModal("quote");}
-      if(event.key==="F8"){event.preventDefault();setModal("tender");}
+      if(event.key==="F8"){event.preventDefault();setNotice("Payment is handled exclusively by Cash Office after a quotation is issued.");}
       if(event.key==="Escape")setModal(null);
     };
     window.addEventListener("keydown",keyboard);
@@ -397,7 +426,7 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
       <div className={styles.logo}><div className={styles.logoMark}><span className={styles.logoMonogram}>M</span><span className={styles.logoSpark}>✦</span></div><div><strong>MALIKS</strong><span>RETAIL OS <i>PRO</i></span></div></div>
       <div className={styles.sideLabel}>YOUR WORKSPACE</div>
       <nav className={styles.nav}>
-        {menus.filter(menu=>!isTillOnly||!["cashoffice","reports","settings"].includes(menu.id)).map(menu=><button type="button" key={menu.id} className={`${styles.navButton} ${section===menu.id?styles.navSelected:""}`} title={menu.name} aria-label={menu.name} onClick={()=>{setSection(menu.id);setError("");}}>
+        {menus.filter(menu=>!isTillOnly||["checkout","documents","inventory"].includes(menu.id)).map(menu=><button type="button" key={menu.id} className={`${styles.navButton} ${section===menu.id?styles.navSelected:""}`} title={menu.name} aria-label={menu.name} onClick={()=>{setSection(menu.id);setError("");}}>
           <span className={styles.navIcon} aria-hidden><PosGlyph kind={menu.icon}/></span><span><strong>{menu.name}</strong><small>{menu.subtitle}</small></span>
         </button>)}
       </nav>
@@ -418,7 +447,7 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
           <section className={styles.salesStage} aria-label="Active counter overview">
             <div className={styles.salesStageHeading}>
               <div className={styles.salesStageIcon}><PosGlyph kind="checkout"/></div>
-              <div><span className={styles.salesStageEyebrow}>ACTIVE COUNTER · {branch}</span><h2>New customer sale</h2><p>Scan items, prepare documents and review the amount due.</p></div>
+              <div><span className={styles.salesStageEyebrow}>ACTIVE COUNTER · {branch}</span><h2>{isTillOnly?"New customer quotation":"New customer sale"}</h2><p>Scan items, prepare documents and review the amount due.</p></div>
             </div>
             <div className={styles.saleMetrics} aria-label="Current draft summary">
               <div className={styles.saleMetric}><span>PRODUCTS</span><strong>{totals.items}</strong><small>{Number(totals.units.toFixed(3))} units</small></div>
@@ -437,28 +466,39 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
                 {!!products.length&&<div className={styles.searchResults}>{products.map(p=><button type="button" key={p.id} onClick={()=>add(p)}><span className={styles.productTile}>{p.category.slice(0,2).toUpperCase()}</span><span className={styles.productName}><strong>{p.name}</strong><small>{p.code} · {p.category}</small></span><b>{money(p.price_cents)}</b><span className={styles.addGlyph}>＋</span></button>)}</div>}
               </section>
               <section className={styles.quickActionPanel} aria-label="Fast sale actions">
-                <div className={styles.quickActionTitle}><div><span className={styles.eyebrow}>FAST ACTIONS</span><h2>What would you like to do?</h2></div><span>F4 Drafts · F6 Quote · F8 Tender</span></div>
+                <div className={styles.quickActionTitle}><div><span className={styles.eyebrow}>FAST ACTIONS</span><h2>What would you like to do?</h2></div><span>F4 Drafts · F6 Quotation · Payment at Cash Office</span></div>
                 <div className={styles.actionRow}>
                   <button type="button" onClick={park}><span><PosGlyph kind="park"/></span><strong>Park sale</strong><small>Save current basket</small></button>
                   <button type="button" onClick={()=>setSection("documents")}><span><PosGlyph kind="retrieve"/></span><strong>Retrieve</strong><small>{selectedDocs.length} drafts</small></button>
                   <button type="button" onClick={()=>open("quote")}><span><PosGlyph kind="quote"/></span><strong>Quotation</strong><small>Send to Cash Office</small></button>
-                  <button type="button" onClick={()=>open("order")}><span><PosGlyph kind="order"/></span><strong>Sales order</strong><small>Create draft</small></button>
-                  <button type="button" onClick={()=>open("layby")}><span><PosGlyph kind="layby"/></span><strong>Lay-by</strong><small>Deposit estimator</small></button>
-                  <button type="button" onClick={()=>open("return")}><span><PosGlyph kind="return"/></span><strong>Refund / return</strong><small>Supervisor control</small></button>
+                  {!isTillOnly&&<button type="button" onClick={()=>open("order")}><span><PosGlyph kind="order"/></span><strong>Sales order</strong><small>Create draft</small></button>}
+                  {!isTillOnly&&<button type="button" onClick={()=>open("layby")}><span><PosGlyph kind="layby"/></span><strong>Lay-by</strong><small>Deposit estimator</small></button>}
+                  {!isTillOnly&&<button type="button" onClick={()=>open("return")}><span><PosGlyph kind="return"/></span><strong>Refund / return</strong><small>Supervisor control</small></button>}
                 </div>
               </section>
               <section className={styles.panel}>
                 <div className={styles.panelHead}><div><span className={styles.eyebrow}>02 / ITEMS SELECTED</span><h2>Current basket <span className={styles.itemCount}>{lines.length} lines</span></h2></div><div className={styles.inlineActions}><button type="button" onClick={()=>open("discount")}>% Discounts</button><button type="button" onClick={clear} disabled={!lines.length}>Clear all</button></div></div>
-                <div className={styles.customerRow}><div className={styles.customerAvatar}>♙</div><div><b>Walk-in customer</b><small>Cash sale · Trade account lookup not yet connected</small></div><button type="button" onClick={()=>setSection("customers")}>Customer options ↗</button></div>
-                {lines.length===0?<div className={styles.emptyBasket}><div className={styles.bagIcon}><PosGlyph kind="basket"/></div><strong>Ready for the first scan</strong><p>Start by scanning a barcode or searching the product catalogue above.</p><span>F2 Search · F6 Quote · F8 Tender</span></div>:<div className={styles.basketScroll}><table className={styles.cartTable}><thead><tr><th>PRODUCT</th><th>QTY</th><th>UNIT PRICE</th><th>TOTAL</th><th aria-label="Remove"/></tr></thead><tbody>{lines.map((line)=>
+                <div className={styles.customerRow}><div className={styles.customerAvatar}>♙</div><div><b>Walk-in customer</b><small>Cash sale · Trade account lookup not yet connected</small></div>{!isTillOnly&&<button type="button" onClick={()=>setSection("customers")}>Customer options ↗</button>}</div>
+                {lines.length===0?<div className={styles.emptyBasket}><div className={styles.bagIcon}><PosGlyph kind="basket"/></div><strong>Ready for the first scan</strong><p>Start by scanning a barcode or searching the product catalogue above.</p><span>F2 Search · F6 Quote · F8 Payment at Cash Office</span></div>:<div className={styles.basketScroll}><table className={styles.cartTable}><thead><tr><th>PRODUCT</th><th>QTY</th><th>UNIT PRICE</th><th>TOTAL</th><th aria-label="Remove"/></tr></thead><tbody>{lines.map((line)=>
                   <tr key={line.product.id}><td><strong>{line.product.name}</strong><small>{line.product.code} · {line.product.unit||"each"}</small></td><td><div className={styles.qtyBox}><button aria-label={`Reduce quantity of ${line.product.name}`} type="button" onClick={()=>changeQty(line.product.id,Math.max(0.001,line.quantity-1))}>−</button><input aria-label={`Quantity of ${line.product.name}`} type="number" min="0.001" max="9999" step="any" value={line.quantity} onChange={e=>changeQty(line.product.id,e.target.value)} /><button aria-label={`Increase quantity of ${line.product.name}`} type="button" onClick={()=>changeQty(line.product.id,line.quantity+1)}>+</button></div></td><td>{money(line.product.price_cents)}</td><td className={styles.lineAmount}>{money(Math.round(line.product.price_cents*line.quantity))}</td><td><button className={styles.removeItem} type="button" aria-label={`Remove ${line.product.name}`} onClick={()=>setLines(prev=>prev.filter(x=>x.product.id!==line.product.id))}>×</button></td></tr>
                 )}</tbody></table></div>}
                 <footer className={styles.cartFoot}><span>Item prices include VAT, subject to branch catalogue publishing.</span><button type="button" onClick={()=>open("delivery")}>↗ Add delivery / collection details</button></footer>
               </section>
             </div>
             <aside className={styles.summaryCol}>
-              <section className={`${styles.panel} ${styles.totalsPanel}`}><div className={styles.panelHead}><div><span className={styles.eyebrow}>03 / PAYMENT & TOTALS</span><h2>Order summary</h2></div><span className={styles.draftTag}>UNPOSTED</span></div><div className={styles.totalsLines}><div><span>Sub-total (excl. VAT)</span><strong>{money(totals.net)}</strong></div><div><span>VAT 15% (included)</span><strong>{money(totals.vat)}</strong></div><div><span>Line items</span><strong>{totals.items}</strong></div></div><div className={styles.grand}><span>TOTAL DUE <small>VAT inclusive</small></span><strong>{money(totals.gross)}</strong></div><div className={styles.paymentOptions}><span>PAYMENT METHODS</span><div><button type="button" onClick={()=>open("tender")}>▣ Cash</button><button type="button" onClick={()=>open("tender")}>▰ Card</button><button type="button" onClick={()=>open("tender")}>↗ EFT</button></div></div><label className={styles.fieldLabel} htmlFor="quickCash">Cash received · calculator</label><div className={styles.moneyEntry}><span>R</span><input id="quickCash" inputMode="decimal" value={cash} onChange={e=>setCash(e.target.value)} placeholder="0.00" aria-label="Cash amount received preview"/></div><div className={styles.changeLine}><span>{tender.paid>=totals.gross?"Change due":"Outstanding"}</span><strong>{money(tender.paid>=totals.gross?tender.change:tender.due)}</strong></div><button className={styles.payPrimary} type="button" disabled aria-label="Complete sale — not enabled"><PosGlyph kind="lock"/> Activate checkout to complete sale</button><button className={styles.secondaryWide} type="button" onClick={()=>open("tender")}>Open payment calculator <span aria-hidden>↗</span></button><div className={styles.safeNote}><PosGlyph kind="lock"/> Sales posting is disabled. No money is taken, no official receipt is issued, and stock remains unchanged.</div></section>
-              <section className={styles.panel}><div className={styles.panelHead}><div><span className={styles.eyebrow}>QUICK TOOLS</span><h2>Sale assistance</h2></div></div><div className={styles.sideTools}><button type="button" onClick={receipt}>▤ <span>Print basket summary</span> ↗</button><button type="button" onClick={()=>open("drawer")}>▣ <span>Open cash drawer</span> ↗</button><button type="button" onClick={()=>setSection("inventory")}>▦ <span>Price / stock enquiry</span> ↗</button>{cashOfficeAccess&&<button type="button" onClick={()=>setSection("cashoffice")}>◷ <span>Cash Office quotation queue</span> ↗</button>}</div></section>
+              <section className={`${styles.panel} ${styles.totalsPanel}`} aria-label="Quotation totals — no payment collection">
+                <div className={styles.panelHead}><div><span className={styles.eyebrow}>03 / SALES QUOTATION</span><h2>Quotation summary</h2></div><span className={styles.draftTag}>UNPAID</span></div>
+                <div className={styles.totalsLines}>
+                  <div><span>Subtotal (excl. VAT)</span><strong>{money(totals.net)}</strong></div>
+                  <div><span>VAT 15% (included)</span><strong>{money(totals.vat)}</strong></div>
+                  <div><span>Products</span><strong>{totals.items}</strong></div>
+                </div>
+                <div className={styles.grand}><span>QUOTE TOTAL <small>VAT inclusive</small></span><strong>{money(totals.gross)}</strong></div>
+                <div className={styles.handoverNotice}><strong>Sales does not take payment.</strong><p>Build the quotation, send it to Cash Office and print the numbered quotation for the customer. The cashier collects and confirms payment separately.</p></div>
+                <button className={styles.payPrimary} type="button" onClick={()=>open("quote")}><PosGlyph kind="quote"/> Create quotation for Cash Office</button>
+                <div className={styles.safeNote}><PosGlyph kind="lock"/> No cash, card, EFT, invoice or stock-release action is available on the Sales screen.</div>
+              </section>
+              <section className={styles.panel}><div className={styles.panelHead}><div><span className={styles.eyebrow}>QUICK TOOLS</span><h2>Sale assistance</h2></div></div><div className={styles.sideTools}><button type="button" onClick={receipt}>▤ <span>Print basket summary</span> ↗</button><button type="button" onClick={()=>setSection("inventory")}>▦ <span>Price / stock enquiry</span> ↗</button>{cashOfficeAccess&&<button type="button" onClick={()=>setSection("cashoffice")}>◷ <span>Cash Office quotation queue</span> ↗</button>}</div></section>
             </aside>
           </div>
         </>}
@@ -476,17 +516,30 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
             {selectedCashQuote===item.number&&<div className={styles.cashQueueDetails}><div><b>Customer:</b> {item.customer_name}{item.customer_contact?` · ${item.customer_contact}`:""}</div>{item.notes&&<div><b>Notes:</b> {item.notes}</div>}
               <div className={styles.cashQueueItems}>{item.lines.map(line=><div key={line.product_id}><span>{line.quantity} × {line.name}<small>{line.code}</small></span><b>{money(line.line_total_cents)}</b></div>)}</div>
               <div className={styles.cashQueueTotal}><span>VAT included {money(item.vat_cents)}</span><strong>Total: {money(item.total_cents)}</strong></div>
+              <div className={styles.paymentCapture} aria-label="Cash Office payment method">
+                <span className={styles.eyebrow}>02 / CASH OFFICE TENDER</span>
+                <div className={styles.paymentSelector}>
+                  <button type="button" aria-pressed={cashOfficeTender==="Cash"} onClick={()=>setCashOfficeTender("Cash")}>Cash</button>
+                  <button type="button" aria-pressed={cashOfficeTender==="Card"} onClick={()=>setCashOfficeTender("Card")}>Card</button>
+                </div>
+                {cashOfficeTender==="Cash"?<label>Cash handed over (R)<input inputMode="decimal" placeholder="Amount received" value={cashOfficeCash} onChange={event=>setCashOfficeCash(event.target.value)} /></label>:
+                  <label>Approved terminal reference<input placeholder="Bank/terminal approval reference" value={cashOfficeCardReference} onChange={event=>setCashOfficeCardReference(event.target.value)}/></label>}
+                {cashOfficeTender==="Cash"&&parseZarCents(cashOfficeCash)!==null&&<p>Change calculation: {money(Math.max(0,(parseZarCents(cashOfficeCash)??0)-item.total_cents))}</p>}
+                <div className={styles.handoverNotice}><strong>Finalise payment / issue invoice</strong><p>Requires authenticated cashier shift, payment verification, invoice numbering and accounting posting. This button remains disabled until those services are connected. No PAID invoice is issued from this preview.</p></div>
+                <button type="button" disabled className={styles.modalDisabled}>Confirm payment and print paid invoice — setup required</button>
+              </div>
               <div className={styles.cashQueueActions}>{item.status==="AWAITING_CASH_OFFICE"?<button type="button" disabled={reviewBusy} onClick={()=>void reviewCashQuote(item.number)}>Mark received / reviewed</button>:<span>Received by Cash Office · No payment processed</span>}</div>
             </div>}
           </article>)}</div>
         </section>}
+        {section==="dispatch"&&<section className={styles.panel} aria-label="Dispatch paid invoice queue"><div className={styles.panelHead}><div><span className={styles.eyebrow}>DISPATCH / PICKING</span><h2>Paid invoices ready for picking</h2></div></div><p className={styles.sectionIntro}>Only posted and payment-verified invoices may appear here. A quotation, a Cash Office review, or a pending card transaction must never release stock.</p><div className={styles.handoverNotice}><strong>Awaiting invoice posting integration</strong><p>The verified invoice feed, printing of picking slips, picking and checking signatures, and stock movements are not connected. No unpaid quotation is shown as ready for dispatch.</p></div></section>}
         {section==="cashoffice"&&<section className={styles.panel}><div className={styles.panelHead}><div><span className={styles.eyebrow}>CASH COUNT CALCULATOR</span><h2>Cash count preview</h2></div></div><label className={styles.fieldLabel} htmlFor="drawerCount">Physical cash amount (ZAR)</label><div className={styles.moneyEntry}><span>R</span><input id="drawerCount" value={drawerCount} onChange={e=>setDrawerCount(e.target.value)} placeholder="0.00" inputMode="decimal"/></div><p className={styles.sectionIntro}>Entered: {money(parseZarCents(drawerCount)??0)}. This is not recorded as a shift or cash-up declaration. No expected amount is exposed.</p></section>}</>}
         <footer className={styles.bottom}><span><b>Maliks RetailOS</b> · Sales & tills workstation</span><span>Published Hub catalogue · Transaction service inactive · {documentNo} local document action(s)</span></footer>
       </div>
     </div>
     {modal&&createPortal(<div className={`${styles.scrim} ${isBuster?styles.buster:styles.power}`} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setModal(null);}}><section className={`${styles.dialog} ${pickerMode?styles.catalogueDialog:""}`} role="dialog" aria-modal="true" aria-label={documentTitle}><div className={styles.dialogHeader}><div><span className={styles.eyebrow}>MALIKS RETAILOS · CONTROLLED WORKFLOW</span><h2>{documentTitle}</h2></div><button type="button" aria-label="Close dialog" onClick={()=>setModal(null)}>×</button></div><div className={styles.dialogBody}>
       {pickerMode&&<div className={styles.pickerWorkflow} aria-label="Document workflow"><span className={styles.pickerWorkflowCurrent}><b>01</b> Select items</span><span><b>02</b> Customer & details</span><span><b>03</b> {modal==="quote"?"Send to Cash Office":"Save draft"}</span></div>}
-      {modal==="tender"&&<><p className={styles.dialogLead}>Calculate split tender amounts. This calculator does not charge or record payments while checkout activation is pending.</p><div className={styles.tenderFields}>{([['Cash',cash,setCash],['Card',card,setCard],['EFT',eft,setEft]] as const).map(([name,val,set])=><label key={name}>{name} received (R)<input value={val} onChange={e=>set(e.target.value)} inputMode="decimal" placeholder="0.00"/></label>)}</div>{invalidTender&&<p className={styles.warningText}>Use whole rand or two decimal places. Negative values are not allowed.</p>}<div className={styles.modalSummary}><div><span>Amount due</span><b>{money(totals.gross)}</b></div><div><span>Entered tender</span><b>{money(tender.paid)}</b></div><div><span>{tender.due?"Still due":"Change"}</span><b>{money(tender.due||tender.change)}</b></div></div><button type="button" className={styles.modalDisabled} disabled aria-label="Complete sale — not enabled">Checkout activation required</button></>}
+      
       {(modal==="quote"||modal==="order")&&<><p className={styles.pickerIntro}>{modal==="quote"?"Select products from your branch catalogue, then add the customer details and send the quotation to Cash Office.":"Choose the products and quantities for the sales-order draft."}</p>{cataloguePicker()}{modal==="quote"&&<div className={styles.quoteCustomerGrid}>
         <label>Customer name<input maxLength={120} value={customerName} onChange={event=>setCustomerName(event.target.value)} placeholder="Customer / company name" /></label>
         <label>Contact number / reference<input maxLength={80} value={customerContact} onChange={event=>setCustomerContact(event.target.value)} placeholder="Optional contact number" /></label>
@@ -497,7 +550,7 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
         <button type="button" className={styles.ghostBtn} disabled={sendingQuote||!documentLines.length} onClick={()=>saveDocument("Quotation")}>Save local draft</button>
       </>:<button type="button" disabled={!documentLines.length} onClick={()=>saveDocument("Sales order")}>Save sales order draft</button>}
       <button type="button" className={styles.ghostBtn} onClick={()=>{setReceiptMode("Quote");setModal("receipt");}} disabled={!documentLines.length}>Print unissued summary</button></div></>}
-      {modal==="quoteSuccess"&&sentQuote&&<div className={styles.quoteSuccess}><div className={styles.quoteSuccessIcon}>✓</div><span>Sent to {sentQuote.branch} Cash Office</span><strong>{sentQuote.number}</strong><p>Customer: {sentQuote.customer_name} · {money(sentQuote.total_cents)} incl. VAT</p><p>Cash Office can retrieve this number and review the product list. No money or stock has moved.</p><div><button type="button" onClick={()=>{setSentQuote(null);setDocumentLines([]);setCustomerName("Walk-in customer");setCustomerContact("");setQuoteNotes("");open("quote");}}>Create another quotation</button>{cashOfficeAccess&&<button type="button" onClick={()=>{setModal(null);setSection("cashoffice");}}>Open Cash Office queue</button>}<button type="button" className={styles.ghostBtn} onClick={()=>{setModal(null);setSection("documents");}}>Done</button></div></div>}
+      {modal==="quoteSuccess"&&sentQuote&&<div className={styles.quoteSuccess}><div className={styles.quoteSuccessIcon}>✓</div><span>Sent to {sentQuote.branch} Cash Office</span><strong>{sentQuote.number}</strong><p>Customer: {sentQuote.customer_name} · {money(sentQuote.total_cents)} incl. VAT</p><p>Cash Office can retrieve this number and review the product list. No money or stock has moved.</p><div><button type="button" onClick={()=>{setSentQuote(null);setDocumentLines([]);setCustomerName("Walk-in customer");setCustomerContact("");setQuoteNotes("");open("quote");}}>Create another quotation</button>{cashOfficeAccess&&<button type="button" onClick={()=>{setModal(null);setSection("cashoffice");}}>Open Cash Office queue</button>}<button type="button" onClick={printNumberedQuotation}>Print numbered quotation</button><button type="button" className={styles.ghostBtn} onClick={()=>{setModal(null);setSection("documents");}}>Done</button></div></div>}
       {modal==="layby"&&<><p className={styles.pickerIntro}>Choose the lay-by products first, then calculate a deposit. No payment or stock reservation is created.</p>{cataloguePicker()}<div className={styles.pickerLayby}><label className={styles.fieldLabel} htmlFor="deposit">Deposit percentage <select id="deposit" className={styles.selectFull} value={depositPercent} onChange={e=>setDepositPercent(e.target.value)}><option value="10">10%</option><option value="20">20%</option><option value="25">25%</option><option value="30">30%</option><option value="50">50%</option></select></label><div><span>Estimated deposit</span><strong>{money(deposit?.deposit??0)}</strong></div><div><span>Remaining balance</span><strong>{money(deposit?.balance??0)}</strong></div></div><button type="button" className={styles.modalDisabled} disabled>Create lay-by — account service not connected</button></>}
       {modal==="delivery"&&<><p className={styles.dialogLead}>Choose a fulfilment preference. Dispatch notes, routes, addresses and proof of delivery require the connected back-office service.</p><div className={styles.choiceRow}><button type="button" className={deliveryMethod==="Collection"?styles.activeChoice:""} onClick={()=>setDeliveryMethod("Collection")}>◉ Customer collection</button><button type="button" className={deliveryMethod==="Delivery"?styles.activeChoice:""} onClick={()=>setDeliveryMethod("Delivery")}>↗ Branch delivery</button></div><p className={styles.sectionIntro}>Selected: {deliveryMethod}. This does not create a dispatch note or a delivery commitment.</p><button type="button" className={styles.modalButtonsSingle} onClick={()=>{setNotice(`${deliveryMethod} preference saved to this basket.`);setModal(null);}}>Save preference</button></>}
       {modal==="return"&&<><p className={styles.dialogLead}>A return requires an original invoice, cashier identity, supervisor approval and controlled stock and VAT reversal.</p><div className={styles.lockedFeature}>▣ Locate original transaction — not connected</div><div className={styles.lockedFeature}>✓ Supervisor authorisation — not connected</div><div className={styles.lockedFeature}>↶ Refund / credit note posting — disabled</div></>}

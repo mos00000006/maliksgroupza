@@ -18,6 +18,6 @@ test('summary stays in the right column and does not cover item search',()=>{
 test('quotations, Hub switch and locked sale posting stay untouched',()=>{
   assert.match(jsx,/Send quotation to Cash Office/);
   assert.match(jsx,/<Link href="\/">Switch back to Hub<\/Link>/);
-  assert.match(jsx,/className=\{styles\.payPrimary\} type="button" disabled/);
+  assert.match(jsx,/className=\{styles\.payPrimary\} type="button" onClick=\{\(\)=>open\("quote"\)\}/);
   assert.match(jsx,/aria-label=\{menu\.name\}/);
 });

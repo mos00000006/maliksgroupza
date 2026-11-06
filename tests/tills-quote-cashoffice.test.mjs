@@ -67,5 +67,5 @@ test('checkout sends a real quotation reference, cashier cannot open cash office
   assert.match(checkout,/Send quotation to Cash Office/);
   assert.match(checkout,/setSentQuote\(data.quotation/);
   assert.match(checkout,/Q-00000001/);
-  assert.match(checkout,/!isTillOnly\|\|!\["cashoffice","reports","settings"\]/);
+  assert.match(checkout,/!isTillOnly\|\|\["checkout","documents","inventory"\]\.includes\(menu\.id\)/);
 });

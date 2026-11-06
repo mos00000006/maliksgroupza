@@ -18,7 +18,7 @@ test('checkout has separate right-hand sticky and scrollable summary panel',()=>
 test('existing quotation, branch and payment restrictions preserved',()=>{
   assert.match(jsx,/Send quotation to Cash Office/);
   assert.match(jsx,/fetch\("\/api\/tills\/quotes"/);
-  assert.match(jsx,/className=\{styles\.payPrimary\} type="button" disabled/);
+  assert.match(jsx,/className=\{styles\.payPrimary\} type="button" onClick=\{\(\)=>open\("quote"\)\}/);
   assert.match(jsx,/<Link href="\/">Switch back to Hub<\/Link>/);
   assert.match(jsx,/value=\{branch\} onChange=\{e=>changeBranch/);
 });

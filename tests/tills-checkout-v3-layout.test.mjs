@@ -16,7 +16,7 @@ test('active sale and scan are visible before quick actions, with summary in adj
 test('compact status is still clear and never enables sale posting',()=>{
   assert.match(ui,/Checkout connection pending/);
   assert.match(ui,/Transactions LOCKED|TRANSACTIONS LOCKED/);
-  assert.match(ui,/className=\{styles\.payPrimary\} type="button" disabled/);
+  assert.match(ui,/className=\{styles\.payPrimary\} type="button" onClick=\{\(\)=>open\("quote"\)\}/);
   assert.match(ui,/Send quotation to Cash Office/);
   assert.match(ui,/<Link href="\/">/);
   assert.match(ui,/if\(!lines\.length\)\{setError\("Add products before parking a draft\."\)/);

@@ -17,8 +17,8 @@ test('full-access Hub switch remains available; till-only staff cannot use it',(
   assert.match(ui,/Sales \/ Tills/);
 });
 test('the premium design never unlocks a money or inventory posting route',()=>{
-  assert.match(ui,/Complete sale — not enabled/);
-  assert.match(ui,/className=\{styles\.payPrimary\} type="button" disabled/);
+  assert.match(ui,/No cash, card, EFT, invoice or stock-release action is available on the Sales screen/);
+  assert.match(ui,/className=\{styles\.payPrimary\} type="button" onClick=\{\(\)=>open\("quote"\)\}/);
   assert.match(ui,/Transaction service not yet activated/);
   assert.doesNotMatch(ui,/method:\s*["']POST["'][\s\S]*?\/api\/(sales|tills\/sales|stock\/adjust)/);
   assert.match(ui,/\/api\/tills\/catalogue/);

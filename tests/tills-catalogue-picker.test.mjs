@@ -39,7 +39,7 @@ test('API blocks unauthorised staff and unrelated branches before catalogue quer
   assert.doesNotMatch(api,/\b(INSERT|UPDATE|DELETE)\s+(INTO|FROM|catalogue_products)/i);
 });
 test('POS remains unposted and full-access Hub navigation remains available',()=>{
-  assert.match(ui,/Complete sale — not enabled/);
+  assert.match(ui,/No cash, card, EFT, invoice or stock-release action is available on the Sales screen/);
   assert.match(ui,/role!=="Sales \/ Tills"&&<Link href="\/">Switch back to Hub<\/Link>/);
   assert.match(ui,/Transaction service not yet activated/);
   assert.doesNotMatch(ui,/fetch\(\s*["']\/api\/(?:sales|tills\/sales)/);
