@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import styles from "./tills.module.css";
 import { basketTotals, parseZarCents, quoteDeposit, safeQty, tenderPreview } from "./pos-preview-domain.mjs";
 
@@ -167,6 +168,12 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
     }catch{setPickerCategories([]);}
   },[]);
   const pickerMode=modal==="quote"||modal==="order"||modal==="layby";
+  useEffect(()=>{
+    if(!modal)return;
+    const previous=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    return()=>{document.body.style.overflow=previous;};
+  },[modal]);
   useEffect(()=>{
     if(!pickerMode)return;
     // Schedule network work after opening; never update React state synchronously in an effect.
@@ -344,7 +351,7 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
       <div className={styles.pickerTools}>
         <div className={styles.pickerSearchControl}>
           <label htmlFor="quote-product-search">Find products</label>
-          <input id="quote-product-search" autoComplete="off" value={pickerSearch} onChange={event=>pickerSearchChange(event.target.value)} placeholder="Search product name, code or size…" maxLength={100}/>
+          <input id="quote-product-search" autoComplete="off" value={pickerSearch} onChange={event=>pickerSearchChange(event.target.value)} placeholder="Search name, barcode, SKU or size…" maxLength={100}/>
         </div>
         <div className={styles.pickerCategoryControl}>
           <label htmlFor="quote-product-category">Department</label>
@@ -372,7 +379,7 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
       </div>
       <div className={styles.pickerFooter}><span>Active items are listed across pages. Unpriced products must be published before quoting.</span><div><button type="button" disabled={pickerBusy||pickerPage===1} onClick={()=>pickerGoto(pickerPage-1)}>← Previous</button><b>{pickerPage}</b><button type="button" disabled={pickerBusy||!pickerHasMore} onClick={()=>pickerGoto(pickerPage+1)}>Next →</button></div></div>
     </section>
-    <aside className={styles.pickerSelection} aria-label="Selected products for document">
+    <section className={styles.pickerSelection} aria-label="Selected products for document">
       <div className={styles.pickerSelectionHead}><span>SELECTED ITEMS</span><strong>{documentLines.length} products</strong></div>
       {documentLines.length===0?<div className={styles.pickerSelectionEmpty}><PosGlyph kind="basket"/><b>Your document is empty</b><p>Press Add beside a product to build your {modal==="quote"?"quotation":modal==="order"?"sales order":"lay-by"}.</p></div>:
         <div className={styles.pickerSelectionRows}>{documentLines.map(line=><div className={styles.pickerSelected} key={line.product.id}>
@@ -380,7 +387,7 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
           <div className={styles.pickerSelectedBottom}><div className={styles.pickerStepper}><button aria-label={`Subtract ${line.product.name}`} type="button" onClick={()=>pickerChangeQty(line.product.id,Math.max(0.001,line.quantity-1))}>−</button><input aria-label={`Document quantity of ${line.product.name}`} type="number" min="0.001" max="9999" step="any" value={line.quantity} onChange={e=>pickerChangeQty(line.product.id,e.target.value)}/><button aria-label={`Add another ${line.product.name}`} type="button" onClick={()=>pickerChangeQty(line.product.id,line.quantity+1)}>+</button></div><strong>{money(Math.round(line.product.price_cents*line.quantity))}</strong><button type="button" aria-label={`Remove ${line.product.name} from document`} className={styles.pickerRemove} onClick={()=>setDocumentLines(previous=>previous.filter(item=>item.product.id!==line.product.id))}>×</button></div>
         </div>)}</div>}
       <div className={styles.pickerSelectionTotals}><div><span>Subtotal excl. VAT</span><strong>{money(documentTotals.net)}</strong></div><div><span>VAT included (15%)</span><strong>{money(documentTotals.vat)}</strong></div><div className={styles.pickerSelectionGrand}><span>Total incl. VAT</span><strong>{money(documentTotals.gross)}</strong></div></div>
-    </aside>
+    </section>
   </div>;
 
   return <main className={`${styles.shell} ${isBuster?styles.buster:styles.power}`}>
@@ -423,7 +430,7 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
           <div className={styles.checkoutGrid}>
             <div className={styles.workCol}>
               <section className={styles.panel}>
-                <div className={styles.panelHead}><div><span className={styles.eyebrow}>01 / PRODUCT ENTRY</span><h2>Scan or search products</h2></div>{pill("Branch catalogue")}</div>
+                <div className={styles.panelHead}><div><span className={styles.eyebrow}>01 / PRODUCT ENTRY</span><h2>Scan or search products</h2></div>{pill("All catalogue items")}</div>
                 <form className={styles.searchForm} onSubmit={e=>{e.preventDefault();void searchProducts();}}>
                   <span className={styles.scanGlyph}><PosGlyph kind="scan"/></span><input ref={focus} autoFocus placeholder="Scan barcode / enter product code / search name…" value={search} onChange={e=>setSearch(e.target.value)} aria-label="Product code or product name" autoComplete="off" maxLength={100}/><kbd>F2</kbd><button type="submit" disabled={busy||!search.trim()}>{busy?"Searching…":"Find item"}</button>
                 </form>
@@ -467,9 +474,10 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
         <footer className={styles.bottom}><span><b>Maliks RetailOS</b> · Sales & tills workstation</span><span>Published Hub catalogue · Transaction service inactive · {documentNo} local document action(s)</span></footer>
       </div>
     </div>
-    {modal&&<div className={styles.scrim} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setModal(null);}}><section className={`${styles.dialog} ${pickerMode?styles.catalogueDialog:""}`} role="dialog" aria-modal="true" aria-label={documentTitle}><div className={styles.dialogHeader}><div><span className={styles.eyebrow}>MALIKS RETAILOS · CONTROLLED WORKFLOW</span><h2>{documentTitle}</h2></div><button type="button" aria-label="Close dialog" onClick={()=>setModal(null)}>×</button></div><div className={styles.dialogBody}>
+    {modal&&createPortal(<div className={`${styles.scrim} ${isBuster?styles.buster:styles.power}`} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setModal(null);}}><section className={`${styles.dialog} ${pickerMode?styles.catalogueDialog:""}`} role="dialog" aria-modal="true" aria-label={documentTitle}><div className={styles.dialogHeader}><div><span className={styles.eyebrow}>MALIKS RETAILOS · CONTROLLED WORKFLOW</span><h2>{documentTitle}</h2></div><button type="button" aria-label="Close dialog" onClick={()=>setModal(null)}>×</button></div><div className={styles.dialogBody}>
+      {pickerMode&&<div className={styles.pickerWorkflow} aria-label="Document workflow"><span className={styles.pickerWorkflowCurrent}><b>01</b> Select items</span><span><b>02</b> Customer & details</span><span><b>03</b> {modal==="quote"?"Send to Cash Office":"Save draft"}</span></div>}
       {modal==="tender"&&<><p className={styles.dialogLead}>Calculate split tender amounts. This calculator does not charge or record payments while checkout activation is pending.</p><div className={styles.tenderFields}>{([['Cash',cash,setCash],['Card',card,setCard],['EFT',eft,setEft]] as const).map(([name,val,set])=><label key={name}>{name} received (R)<input value={val} onChange={e=>set(e.target.value)} inputMode="decimal" placeholder="0.00"/></label>)}</div>{invalidTender&&<p className={styles.warningText}>Use whole rand or two decimal places. Negative values are not allowed.</p>}<div className={styles.modalSummary}><div><span>Amount due</span><b>{money(totals.gross)}</b></div><div><span>Entered tender</span><b>{money(tender.paid)}</b></div><div><span>{tender.due?"Still due":"Change"}</span><b>{money(tender.due||tender.change)}</b></div></div><button type="button" className={styles.modalDisabled} disabled aria-label="Complete sale — not enabled">Checkout activation required</button></>}
-      {(modal==="quote"||modal==="order")&&<><p className={styles.pickerIntro}>{modal==="quote"?"Select products, add customer details, then send the quotation directly to the Cash Office queue. A permanent quotation number will be issued. No payment, invoice or stock movement occurs.":"Browse the branch catalogue and prepare a local sales-order draft. No order has been posted."}</p>{cataloguePicker()}{modal==="quote"&&<div className={styles.quoteCustomerGrid}>
+      {(modal==="quote"||modal==="order")&&<><p className={styles.pickerIntro}>{modal==="quote"?"Select products from your branch catalogue, then add the customer details and send the quotation to Cash Office.":"Choose the products and quantities for the sales-order draft."}</p>{cataloguePicker()}{modal==="quote"&&<div className={styles.quoteCustomerGrid}>
         <label>Customer name<input maxLength={120} value={customerName} onChange={event=>setCustomerName(event.target.value)} placeholder="Customer / company name" /></label>
         <label>Contact number / reference<input maxLength={80} value={customerContact} onChange={event=>setCustomerContact(event.target.value)} placeholder="Optional contact number" /></label>
         <label className={styles.quoteNotes}>Notes for Cash Office<textarea maxLength={400} rows={2} value={quoteNotes} onChange={event=>setQuoteNotes(event.target.value)} placeholder="Collection / delivery note (optional)"/></label>
@@ -486,6 +494,6 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
       {modal==="discount"&&<><p className={styles.dialogLead}>Price changes, line discounts and trade terms must be authorised server-side. Only published retail prices are available here; manual price changes are not authorised.</p><div className={styles.lockedFeature}>% Request manager-approved discount — not connected</div><div className={styles.lockedFeature}>▧ Assign account-specific price list — not connected</div></>}
       {modal==="drawer"&&<><p className={styles.dialogLead}>The Epson cash drawer can be opened only by an authorised station after a valid event is audited. Browser access to your printer/drawer has not been configured.</p><div className={styles.lockedFeature}>🔒 Hardware device not commissioned</div><button type="button" className={styles.modalDisabled} disabled>Send drawer pulse — disabled</button></>}
       {isDocumentPrint&&<><p className={styles.dialogLead}>This is an <b>unissued {receiptMode.toLowerCase()} summary</b>, not a tax invoice, cash slip, authorised quote or proof of payment.</p><div className={styles.printSheet} id="maliks-print-sheet"><div className={styles.printHeader}><strong>MALIKS GROUP</strong><span>{branch}</span><small>UNISSUED DOCUMENT — NOT VALID FOR TRADING</small></div><h3>{receiptMode==="Quote"?"QUOTATION DRAFT":"BASKET SUMMARY"}</h3>{previewLines.map(line=><div key={line.product.id} className={styles.printLine}><span>{line.quantity} × {line.product.name}</span><b>{money(Math.round(line.quantity*line.product.price_cents))}</b></div>)}<div className={styles.printTotal}><span>VAT included {money(previewTotals.vat)}</span><strong>{money(previewTotals.gross)}</strong></div><small>UNISSUED / NOT AN INVOICE OR PROOF OF PAYMENT.</small></div><button type="button" className={styles.modalButtonsSingle} onClick={()=>window.print()}>Print unissued summary</button></>}
-    </div><div className={styles.dialogFoot}>No transaction posted · Controlled workstation <button type="button" onClick={()=>setModal(null)}>Close</button></div></section></div>}
+    </div><div className={styles.dialogFoot}>No transaction posted · Controlled workstation <button type="button" onClick={()=>setModal(null)}>Close</button></div></section></div>,document.body)}
   </main>;
 }

@@ -1,73 +1,50 @@
-MALIKS GROUP HUB — QUOTATION NUMBER -> CASH OFFICE HANDOVER
-Direct-paste patch for the installed Signature POS + Full Catalogue Quotation Picker.
+MALIKS GROUP HUB — QUOTATION WORKSPACE V3 — LAYOUT REPAIR
 06 November 2026
 
-PURPOSE
-Sales employee opens Quotation, selects products, enters customer details, then clicks:
-  Send quotation to Cash Office
-The Hub D1 database stores a frozen quotation and assigns a unique number like Q-00000001.
-The reference immediately appears in the assigned branch's Cash Office quotation queue.
-Cash Office can search by quotation number or customer, inspect line items and mark REVIEWED.
-No payment, receipt, invoice, reserved stock, ledger entry or dispatch note is created.
+WHAT THIS FIXES
+The quotation product list and selected items were overlapping/partly off-screen.
+This patch makes the quotation window an independent centred dialog above the Hub.
+The catalogue is on the LEFT and document summary on the RIGHT on desktop;
+on smaller screens they stack vertically. Customer details and the Send to Cash
+Office button remain. The patch does NOT grant additional permissions or
+activate payments/stock posting.
 
-INSTALL — NO SCRIPT OR GIT CLI REQUIRED FOR FILE COPY
-1. Back up the current maliksgroupza folder (without sharing .env or customer data).
-2. Extract this ZIP separately.
-3. Copy the contents (app, drizzle, tests) directly into the existing 'maliksgroupza' project root
-   — the directory containing package.json. Select Merge and Replace for matching files.
-4. Do NOT create a new-files folder; do NOT replace the entire project with an older ZIP.
-5. Commit/upload the changed files to GitHub so the hosted Hub receives the update.
-6. Allow GitHub Actions (npm run check) and deployment to complete before using this feature.
+INSTALL — DIRECT FILE COPY, NO GIT SCRIPT REQUIRED
+1. Back up your current maliksgroupza project folder.
+2. Unzip this file into a DIFFERENT temporary folder.
+3. Copy the "app" folder into your existing maliksgroupza root (beside package.json).
+4. Select Merge/Replace for the following TWO existing files:
+   app/tills/till-checkout.tsx
+   app/tills/tills.module.css
+5. Optionally copy the "tests" folder (it adds ONE new regression test).
+6. Do NOT copy a "new-files" folder or reinstall older Sales/Tills patches.
+7. Commit/upload these exact updates to your GitHub repository. Copying the
+   files into a local folder alone does not update the live GitHub/Cloudflare site.
+8. Let your normal GitHub Actions build and tests run before deployment.
 
-REPLACED FILES
-  app/tills/till-checkout.tsx       — quotation handover, customer entry, Cash Office queue
-  app/tills/tills.module.css        — UI styling (retains existing POS theme)
-  app/tills/page.tsx                — passes access scope for executive permission rules
-  app/lib/tills-route-policy.ts     — permits POST /api/tills/quotes for till-only staff,
-                                     leaves unrelated writes blocked
+IMPORTANT BASELINE
+These two replacement files include the quotation-to-Cash-Office handover from
+"Maliks_Hub_Quotation_To_Cash_Office_Direct_Paste_Patch.zip". They should only
+be applied to a Hub already using that version, with its API and D1 migration.
+Do not overwrite newer source edits without reviewing the differences.
 
-NEW FILES
-  app/api/tills/quotes/route.ts            — authenticated, branch-scoped D1 API
-  app/api/tills/quotes/quote-domain.mjs    — quotation IDs, validation, cent-accurate VAT
-  app/api/tills/quotes/quote-domain.d.mts  — TypeScript declarations
-  drizzle/0055_tills_quotation_cashoffice.sql  — reference database schema
-  tests/tills-quote-cashoffice.test.mjs    — automated safeguards
-
-DATABASE
-This patch is written for the current Cloudflare D1 Hub. The API uses CREATE TABLE IF NOT EXISTS
-on first authenticated access so the basic queue works on a Hub database with existing
-catalogue and team tables. The supplied 0055 migration additionally creates an index;
-operators may apply it through the existing managed D1 migration process.
-This does not install PostgreSQL RetailOS or write to its accounting database.
-
-WHO CAN DO WHAT
-* Sales / Tills: create/send quotations from their assigned active retail store.
-  A cashier does NOT get the Cash Office quotation queue or unrelated Hub access.
-* Owner / Admin, Developer / Technical Admin, Store Manager, Regional Manager,
-  Executive / EXCO with Full company access: can view/review quotations for their
-  authorised active branches in the Cash Office section.
-* Dedicated Cash Office employee accounts are not yet part of the Hub's role
-  assignment dropdown. Those permissions require a separate, explicit role update.
-  Do not grant an overpowered managerial role to a staff member merely for access.
-
-FLOW
-Sales -> Create quotation -> Select catalogue items -> Enter customer details ->
-Send quotation -> Q-000000xx -> Cash Office queue for this branch -> Review.
-If the network fails, keep the quote window open and retry; the same request ID prevents duplicates.
-If the published branch price changed since selection, refresh the quote's item prices before resubmitting.
-The queue is persistent across browser sessions and computers using the same Cloudflare D1 DB.
-
-SAFETY
-* The server re-checks every item's published price; no manual price overrides.
-* Price/name snapshots in the quotation are stored for audit and future review.
-* Submission is idempotent by unique request ID; no duplicate issue on retry.
-* Both branch permission and cash-office review rights are enforced server-side.
-* Mark Reviewed does NOT charge a customer, convert to an invoice, move stock or approve credit.
-* No cash, card, EFT, lay-by deposits or tax invoices are enabled by this patch.
-* Test on a non-production branch/database before staff issue real customer quotations.
+WHY SOME ITEMS SAY PRICE UNAVAILABLE
+The current catalogue endpoint lists all active products, but only a positively
+priced, published product tag for the selected brand/branch can be added to a
+quotation. If a product has no published price, the UI keeps it unavailable
+instead of creating an invoice/quotation at a made-up amount. This patch is a
+layout fix; it does not create, publish or silently override prices.
 
 VERIFICATION
-22 targeted POS + quote workflow checks passed in a combined test workspace.
-TypeScript syntax and isolated strict API typecheck passed. CSS parsed successfully.
-SQLite schema/duplicate/review checks passed. Real Cloudflare D1 integration and full
-GitHub/Vite build must still pass in your repository after applying this patch.
+- 22 existing targeted POS/quotation tests passed in an isolated combined source.
+- New layout regression tests pass; TSX syntax and CSS parser checks pass.
+- Browser layout preview measured at 1650x900, 1280x800 and 760x900. At desktop
+  widths the catalogue and selection panels do not overlap or escape the dialog.
+- The visual preview shows SAMPLE products/prices, not your actual branch data.
+- A full project build and live deployment were NOT run in this environment.
+
+SAFETY
+Quotations remain a separate document workflow and can be sent to the Cash Office
+D1 queue with a unique reference by authorised staff. Sending does NOT process
+payment, issue a tax invoice or deduct stock. Keep live sales locked until the
+RetailOS transaction backend has been verified.

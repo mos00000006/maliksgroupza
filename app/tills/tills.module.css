@@ -394,3 +394,261 @@
 .cashQueueActions{display:flex;justify-content:flex-end}
 .cashQueueActions span{color:#467557;font-weight:750}
 @media(max-width:700px){.quoteCustomerGrid{grid-template-columns:1fr}.cashQueueRow{align-items:flex-start;flex-wrap:wrap}.cashQueueRow b{margin-left:auto}.cashQueueRow em{order:3}}
+
+/* QUOTATION WORKSPACE V3 — deliberately isolated from the Hub page shell.
+ * The dialog is portalled to document.body and the summary uses <section>, not
+ * <aside>, to avoid inherited sidebar positioning and clipping. */
+.scrim {
+  --accent:#e7bc43;
+  --accentInk:#1b2734;
+  --secondary:#215c88;
+  position:fixed;
+  inset:0;
+  z-index:2147483000;
+  padding:16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(7,21,35,.78);
+  backdrop-filter:blur(5px);
+  overscroll-behavior:contain;
+  font-family:Inter,Arial,Helvetica,sans-serif;
+  font-size:14px;
+  color:#183449;
+  line-height:1.45;
+}
+.scrim.buster{--accent:#f69d35;--accentInk:#281909;--secondary:#b76724}
+.scrim *,.scrim *::before,.scrim *::after{box-sizing:border-box}
+.scrim button,.scrim input,.scrim select,.scrim textarea{font:inherit}
+.scrim button{cursor:pointer}
+.scrim button:disabled{cursor:not-allowed}
+.scrim :is(button,input,select,textarea):focus-visible{outline:3px solid #dbab3470;outline-offset:2px}
+.catalogueDialog {
+  display:flex;
+  flex-direction:column;
+  position:relative;
+  margin:0;
+  padding:0;
+  width:min(1480px,calc(100vw - 32px));
+  height:min(890px,calc(100dvh - 32px));
+  max-height:calc(100dvh - 32px);
+  min-width:0;
+  overflow:hidden;
+  background:#f6f8fa;
+  border:1px solid #e3eaf0;
+  border-radius:20px;
+  box-shadow:0 34px 100px #051425a8;
+}
+.catalogueDialog .dialogHeader {
+  position:relative;
+  z-index:2;
+  flex:none;
+  min-height:83px;
+  background:linear-gradient(112deg,#102e46,#1c4d68);
+  border-bottom:3px solid var(--accent);
+  padding:18px 27px 17px;
+}
+.catalogueDialog .dialogHeader h2{
+  color:#fff;
+  font-size:clamp(21px,1.9vw,29px);
+  letter-spacing:-.75px;
+  line-height:1.2;
+  margin:4px 0 0;
+}
+.catalogueDialog .dialogHeader .eyebrow{color:var(--accent);font-size:10px;letter-spacing:1.6px}
+.catalogueDialog .dialogHeader button{
+  display:grid;
+  place-items:center;
+  flex:none;
+  width:42px;
+  height:42px;
+  font-size:24px;
+  color:#fff;
+  background:#ffffff1b;
+  border:1px solid #ffffff2b;
+  border-radius:11px;
+}
+.catalogueDialog .dialogHeader button:hover{background:#ffffff32}
+.catalogueDialog .dialogBody{
+  display:block;
+  flex:1 1 auto;
+  min-height:0;
+  min-width:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:20px 25px 22px;
+  background:#f6f8fa;
+  scrollbar-width:thin;
+  overscroll-behavior:contain;
+}
+.catalogueDialog .dialogFoot{
+  flex:none;
+  background:#fff;
+  border-top:1px solid #e3eaf0;
+  padding:11px 26px;
+  font-size:11px;
+  color:#7b91a1;
+}
+.catalogueDialog .dialogFoot button{color:#1e567c;font-size:12px}
+.pickerWorkflow{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:7px;
+  margin:0 0 15px;
+}
+.pickerWorkflow span{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  border:1px solid #dfe8ee;
+  border-radius:999px;
+  background:#fff;
+  color:#70899a;
+  padding:7px 13px 7px 8px;
+  font-size:11px;
+  font-weight:750;
+}
+.pickerWorkflow b{
+  display:grid;
+  place-items:center;
+  height:23px;
+  min-width:23px;
+  border-radius:50%;
+  color:#7a91a2;
+  background:#edf2f6;
+  font-size:10px;
+}
+.pickerWorkflow .pickerWorkflowCurrent{color:#113b58;border-color:#d4e3ec;box-shadow:0 3px 9px #18384d0a}
+.pickerWorkflowCurrent b{background:var(--accent);color:var(--accentInk)}
+.pickerIntro{margin:0 0 14px;color:#647e90;font-size:12px;line-height:1.5}
+.pickerLayout{
+  display:grid;
+  grid-template-columns:minmax(0,1.65fr) minmax(315px,.9fr);
+  gap:16px;
+  align-items:stretch;
+  width:100%;
+  height:clamp(360px,46vh,510px);
+  min-height:0;
+  overflow:visible;
+}
+.pickerLayout > .pickerLibrary,.pickerLayout > .pickerSelection{
+  position:relative;
+  inset:auto;
+  float:none;
+  width:auto;
+  min-width:0;
+  max-width:none;
+  height:100%;
+  min-height:0;
+  margin:0;
+  overflow:hidden;
+  border-radius:14px;
+  box-shadow:0 7px 22px #0b2f4d0b;
+}
+.pickerLayout > .pickerLibrary{grid-column:1;grid-row:1;display:flex;flex-direction:column;background:white;border:1px solid #dce6ed}
+.pickerLayout > .pickerSelection{grid-column:2;grid-row:1;display:flex;flex-direction:column;background:white;color:#183e58;border:1px solid #dce6ed}
+.pickerTools{grid-template-columns:minmax(0,1.45fr) minmax(180px,.75fr);padding:16px;gap:12px;background:#fff;border-bottom:1px solid #e4ebf0}
+.pickerTools label{font-size:10px;letter-spacing:.9px;color:#668196}
+.pickerTools input,.pickerTools select{min-height:46px;font-size:13px;border-radius:9px;border:1px solid #cbdbe6;background:#f9fbfc;color:#173d59}
+.pickerTools input:focus,.pickerTools select:focus{background:#fff;border-color:#518bac}
+.pickerResultsHeader{flex:none;padding:10px 17px;background:#f6f9fb;color:#708798;border-bottom:1px solid #e4ecf2;font-size:10px}
+.pickerResultsHeader strong{font-size:12px;color:#14394f}
+.pickerResultsHeader span{text-align:right;line-height:1.5}
+.pickerResults{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;background:#fff}
+.pickerProduct{grid-template-columns:42px minmax(0,1fr) minmax(110px,130px) 84px;gap:12px;min-height:76px;padding:10px 15px;border-bottom:1px solid #eaf0f4}
+.pickerProduct:hover{background:#f7fafc}
+.pickerProductMark{width:40px;height:40px;border-radius:10px;color:#285d7b;background:#eef5f8}
+.pickerProductInfo strong{font-size:12px;color:#18374d;font-weight:800;line-height:1.4}
+.pickerProductInfo span{color:#8294a0;font-size:10px}
+.pickerProductPrice strong{font-size:13px;color:#143b53}
+.pickerNoPrice{font-size:10px;color:#a66a25;font-weight:800;line-height:1.25}
+.pickerProductPrice small{color:#889aa6;font-size:9px}
+.pickerAdd{padding:10px 8px!important;min-width:80px;border-radius:9px;background:#e7f2f8!important;border:1px solid #d1e2ec!important;color:#1d5678!important;font-size:11px!important}
+.pickerAdd:disabled{background:#f5f7f9!important;color:#a7b2bc!important}
+.pickerFooter{flex:none;min-height:48px;padding:8px 14px;gap:10px;background:#fff;border-top:1px solid #e5edf2}
+.pickerFooter>span{font-size:10px;color:#8294a1}
+.pickerFooter button{padding:7px 11px;font-size:10px}
+.pickerFooter b{font-size:12px}
+.pickerSelectionHead{flex:none;background:#163a56;color:#fff;border:0;padding:17px 20px;min-height:62px}
+.pickerSelectionHead span{font-size:11px;color:#dcebf3;letter-spacing:1px}
+.pickerSelectionHead strong{font-size:11px;color:#fff;background:#ffffff20;border-radius:999px;padding:5px 10px}
+.pickerSelectionEmpty{min-height:0;flex:1;padding:24px;text-align:center;color:#71889a}
+.pickerSelectionEmpty svg{color:#d3a536}
+.pickerSelectionEmpty b{color:#1d4058;font-size:15px}
+.pickerSelectionEmpty p{color:#7b91a1;max-width:220px;font-size:11px}
+.pickerSelectionRows{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto;padding:8px 16px;background:#fff;scrollbar-width:thin}
+.pickerSelected{border-color:#e4ebef;padding:11px 2px}
+.pickerSelected>div:first-child strong{color:#234357;font-size:12px}
+.pickerSelected small{color:#8196a6;font-size:10px}
+.pickerSelectedBottom>strong{color:#12394f;font-size:12px}
+.pickerStepper{border:1px solid #cfdae3}
+.pickerStepper button{background:#eef4f7;color:#264f69}
+.pickerStepper input{background:#fff;color:#18374d}
+.pickerRemove{background:#fff1ed;color:#b44738}
+.pickerSelectionTotals{flex:none;background:#f7fafc;border-top:1px solid #e0e9ee;margin-top:auto;padding:13px 18px;gap:8px}
+.pickerSelectionTotals > div{font-size:11px;color:#60798c}
+.pickerSelectionTotals strong{color:#163b55}
+.pickerSelectionTotals .pickerSelectionGrand{margin:5px -18px -13px;padding:16px 18px;background:var(--accent);color:var(--accentInk);font-size:12px}
+.pickerSelectionGrand strong{color:var(--accentInk)!important;font-size:23px}
+.quoteCustomerGrid{margin:15px 0 14px;padding:16px 18px;gap:13px;border:1px solid #dce6ed;border-radius:14px;background:#fff}
+.quoteCustomerGrid label{color:#3c5d73;font-size:11px}
+.quoteCustomerGrid input,.quoteCustomerGrid textarea{min-height:43px;border-radius:9px;font-size:13px;border:1px solid #d2e0e8}
+.pickerActions{
+  position:sticky;
+  bottom:-23px;
+  z-index:2;
+  margin:16px -25px -22px;
+  padding:14px 25px;
+  border-top:1px solid #dbe5ed;
+  background:#fffffff2;
+  backdrop-filter:blur(12px);
+  box-shadow:0 -8px 18px #15354c08;
+  gap:10px;
+}
+.pickerActions>span{font-size:12px;color:#466579}
+.pickerActions button{background:#194d72;border:1px solid #194d72;padding:12px 16px;border-radius:9px;font-size:12px}
+.pickerActions button:not(:disabled):hover{background:#256d98}
+.pickerActions button.ghostBtn{background:#fff;border-color:#cedce5;color:#235878}
+.pickerActions button:disabled{background:#e6edf2;color:#91a3b0;border-color:#e0e9ee}
+@media(max-width:1050px){
+  .catalogueDialog{height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);width:calc(100vw - 24px)}
+  .pickerLayout{grid-template-columns:minmax(0,1fr) minmax(300px,.72fr);gap:12px;height:clamp(360px,53vh,520px)}
+  .pickerTools{grid-template-columns:1fr;gap:10px;padding:11px}
+  .pickerProduct{grid-template-columns:32px minmax(0,1fr) 90px;gap:7px}
+  .pickerProductMark{width:30px;height:30px}
+  .pickerProductPrice{grid-column:2;grid-row:2;align-items:flex-start}
+  .pickerAdd{grid-column:3;grid-row:1/3}
+}
+@media(max-width:790px){
+  .scrim{padding:8px}
+  .catalogueDialog{width:calc(100vw - 16px);height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);border-radius:14px}
+  .catalogueDialog .dialogHeader{padding:14px 16px;min-height:70px}
+  .catalogueDialog .dialogHeader h2{font-size:20px}
+  .catalogueDialog .dialogBody{padding:14px}
+  .catalogueDialog .dialogFoot{padding:9px 14px}
+  .pickerWorkflow{gap:5px}
+  .pickerWorkflow span{font-size:10px;padding:6px 9px 6px 6px}
+  .pickerLayout{display:flex;flex-direction:column;height:auto;gap:12px}
+  .pickerLayout>.pickerLibrary{height:420px;min-height:420px;flex:none}
+  .pickerLayout>.pickerSelection{height:auto;min-height:235px;flex:none}
+  .pickerSelectionRows{max-height:260px}
+  .pickerActions{margin:14px -14px -14px;padding:12px 14px;bottom:-14px}
+  .pickerFooter{flex-wrap:wrap}
+}
+@media(max-width:480px){
+  .catalogueDialog .dialogHeader h2{font-size:19px}
+  .pickerWorkflow span{font-size:0;gap:4px;padding:5px}
+  .pickerWorkflow b{font-size:10px}
+  .pickerLayout>.pickerLibrary{height:390px;min-height:390px}
+  .pickerProduct{padding:9px 8px}
+  .pickerTools{padding:10px}
+  .pickerFooter>span{font-size:9px}
+  .quoteCustomerGrid{grid-template-columns:1fr}
+  .pickerActions>span{flex:1 0 100%;margin:0}
+  .pickerActions button{flex:1 0 100%}
+}
+@media print{
+  .scrim{position:static;display:block;padding:0;background:#fff;backdrop-filter:none}
+  .catalogueDialog{width:100%;height:auto;max-height:none;border:0;box-shadow:none}
+}
