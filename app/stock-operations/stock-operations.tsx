@@ -2,6 +2,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import Link from 'next/link';
 import styles from './stock-operations.module.css';
+import InventoryLedger from './inventory-ledger';
 
 type Kind='GRV'|'ADJUSTMENT'|'COUNT'|'SUPPLIER_RETURN'|'TRANSFER';
 type Duty='Receiving / GRV'|'Stock Controller'|'DC / Transfers'|'Stock Manager';
@@ -30,7 +31,7 @@ const STOCK_DOCUMENT_LAYOUT:Record<Kind,{
  SUPPLIER_RETURN:{title:'Supplier Return Note',quantity:'Return quantity',expected:'Reference quantity',information:'Supplier return information',notes:'Return reason / references',signatures:['Return prepared by','Authorised by · Stock Manager']},
  TRANSFER:{title:'Stock Transfer Note',quantity:'Transfer quantity',expected:'Reference quantity',information:'Transfer information',notes:'Transfer / discrepancy notes',signatures:['Issued by · Sending branch','Received by · Destination branch']},
 };
-/** This is a document variance, not a live inventory adjustment. */
+/** Variance is displayed for both control-only and live inventory document records. */
 const stockVariance=(line:Record<string,unknown>)=>moneyCount(Number(line.document_quantity||0)-Number(line.expected_quantity||0));
 
 const moneyCount=(value:number)=>new Intl.NumberFormat('en-ZA',{maximumFractionDigits:3}).format(value);
@@ -39,7 +40,7 @@ const blankLine=(item:Item):Line=>({catalogue_product_id:item.id,code:item.code,
 function failure(j:API,status:number){return j.error||`Request failed (${status})`;}
 export default function StockOperations(){
  const [data,setData]=useState<API>({}); const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [message,setMessage]=useState('');
- const [section,setSection]=useState<Kind|'REGISTER'|'DASHBOARD'|'ACCESS'>('DASHBOARD');
+ const [section,setSection]=useState<Kind|'REGISTER'|'DASHBOARD'|'ACCESS'|'INVENTORY'>('DASHBOARD');
  const [branch,setBranch]=useState('');const [search,setSearch]=useState('');const [page,setPage]=useState(1);
  const [items,setItems]=useState<Item[]>([]);const [productTotal,setProductTotal]=useState(0);
  const [selected,setSelected]=useState<Line[]>([]);const [editing,setEditing]=useState(false);const [detail,setDetail]=useState<Doc|null>(null);
@@ -79,7 +80,14 @@ export default function StockOperations(){
  const transferDestOptions=locations.filter(v=>v.name!==branch);
  function switchTo(next:typeof section){setSection(next);setEditing(false);setSelected([]);setError('');setMessage('');requestId.current=crypto.randomUUID();}
  function newDocument(k:Kind){switchTo(k);setExternalRef('');setSupplier('');setInvoice('');setDriver('');setTimeIn('');setTimeOut('');setLabelled('No');setLabelledBy('');setDest('');setNotes('');setEditing(true);}
- function add(item:Item){setSelected(prev=>prev.some(l=>l.catalogue_product_id===item.id)?prev:[...prev,blankLine(item)]);}
+ function add(item:Item){setSelected(prev=>prev.some(l=>l.catalogue_product_id===item.id)?prev:[...prev,blankLine(item)]);
+  if(branch&&(section==='COUNT'||section==='ADJUSTMENT')){
+   void fetch(`/api/stock-operations/inventory?branch=${encodeURIComponent(branch)}&q=${encodeURIComponent(item.code)}`,{cache:'no-store'})
+    .then(async r=>{if(!r.ok)return;const d:{products?:{id:number;qty_milli:number|null}[]}=await r.json();const value=d.products?.find(p=>p.id===item.id)?.qty_milli;
+     if(value!==null&&value!==undefined)setSelected(old=>old.map(l=>l.catalogue_product_id===item.id?{...l,expected_quantity:String(value/1000)}:l));})
+    .catch(()=>{});
+  }
+ }
  function changeLine(id:number,key:keyof Line,value:string){setSelected(lines=>lines.map(l=>l.catalogue_product_id===id?{...l,[key]:value}:l));}
  async function send(body:Record<string,unknown>,after?:()=>void){setBusy(true);setError('');setMessage('');try{
   const r=await fetch('/api/stock-operations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -103,6 +111,7 @@ export default function StockOperations(){
    <button className={section==='DASHBOARD'?styles.active:''} onClick={()=>switchTo('DASHBOARD')}><span>◫</span>Overview</button>
    {KINDS.map(k=><button key={k.kind} className={section===k.kind?styles.active:''} onClick={()=>switchTo(k.kind)}><span>{k.icon}</span>{k.title}</button>)}
    <button className={section==='REGISTER'?styles.active:''} onClick={()=>switchTo('REGISTER')}><span>≡</span>Movement register</button>
+   <button className={section==='INVENTORY'?styles.active:''} onClick={()=>switchTo('INVENTORY')}><span>▥</span>Live inventory ledger</button>
    {data.me.can_assign&&<button className={section==='ACCESS'?styles.active:''} onClick={()=>switchTo('ACCESS')}><span>⚙</span>Staff permissions</button>}
    <div className={styles.sideFooter}><p>{data.me.name||data.me.email}</p><small>{data.me.role}</small><Link href="/">← Back to Maliks Hub</Link><Link href="/tills">Sales / Tills</Link></div>
   </aside>
@@ -110,7 +119,7 @@ export default function StockOperations(){
    <header className={styles.header}><div><span className={styles.eyebrow}>MALIKS GROUP HUB / RETAILOS</span><h1>Stock Control & GRVs</h1><p>Receiving, inventory controls and stock movement documentation</p></div>
     <div className={styles.selectBlock}><label htmlFor="stock-branch">ACTIVE BRANCH</label><select id="stock-branch" value={branch} onChange={e=>{setBranch(e.target.value);setDetail(null);setEditing(false);setPage(1);void load('',e.target.value);}}><option value="">All authorised branches</option>{locations.map(x=><option value={x.name} key={x.name}>{x.name}</option>)}</select></div>
    </header>
-   <div className={styles.notice}><span>CONTROL REGISTER</span> Documents and approvals are saved in the Hub. Live stock balances, purchase accounting and financial posting are not connected.</div>
+   <div className={styles.notice}><span>INVENTORY CONTROLS</span> Approved stock documents post automatically only for branches with verified opening stock and live ledger activation. Sales, supplier accounting and general ledger remain separate until connected. Open the Live inventory ledger for branch balances.</div>
    {(error||message)&&<div className={`${styles.flash} ${error?styles.bad:styles.good}`} role="status">{error||message}<button onClick={()=>{setError('');setMessage('');}}>×</button></div>}
    {section==='DASHBOARD'&&<>
     <div className={styles.kpiGrid}><div><small>Pending manager review</small><strong>{count(pending)}</strong><span>Submitted documents</span></div><div><small>GRVs in register</small><strong>{count(docs.filter(d=>d.kind==='GRV'))}</strong><span>Supplier deliveries</span></div><div><small>Counts & adjustments</small><strong>{count(docs.filter(d=>['COUNT','ADJUSTMENT'].includes(d.kind)))}</strong><span>Control records</span></div><div><small>Transfers</small><strong>{count(docs.filter(d=>d.kind==='TRANSFER'))}</strong><span>Branch / DC</span></div></div>
@@ -139,9 +148,10 @@ export default function StockOperations(){
        {!selected.length&&<p className={styles.empty}>Add products from the catalogue to start.</p>}
        {selected.map(l=><div key={l.catalogue_product_id} className={styles.lineRow}><div className={styles.lineName}><b>{l.name}</b><small>{l.code}</small></div><label>{kind==='TRANSFER'?'Transfer qty':kind==='SUPPLIER_RETURN'?'Return qty':kind==='COUNT'?'Counted qty':kind==='ADJUSTMENT'?'Physical qty':'Received qty'}<input type="number" min="0" step="0.001" value={l.document_quantity} onChange={e=>changeLine(l.catalogue_product_id,'document_quantity',e.target.value)}/></label><label>{kind==='TRANSFER'||kind==='SUPPLIER_RETURN'?'Reference qty':kind==='COUNT'||kind==='ADJUSTMENT'?'System qty':'Expected qty'}<input type="number" min="0" step="0.001" value={l.expected_quantity} onChange={e=>changeLine(l.catalogue_product_id,'expected_quantity',e.target.value)}/></label>{kind==='GRV'&&<label>Rejected qty<input type="number" min="0" step="0.001" value={l.rejected_quantity} onChange={e=>changeLine(l.catalogue_product_id,'rejected_quantity',e.target.value)}/></label>}{kind==='GRV'&&<label>Damage / rejection reason<input value={l.reason} onChange={e=>changeLine(l.catalogue_product_id,'reason',e.target.value)} placeholder="If rejected" maxLength={200}/></label>}<button className={styles.remove} onClick={()=>setSelected(s=>s.filter(x=>x.catalogue_product_id!==l.catalogue_product_id))} aria-label="Remove product">×</button></div>)}
      </div>
-     <div className={styles.footer}><span>No stock or financial balance changes when saving.</span><button className={styles.primary} disabled={busy||!ready} onClick={()=>void create()}>{busy?'Saving…':'Save numbered draft'}</button></div>
+     <div className={styles.footer}><span>No stock or financial balance changes when saving. In an activated branch, manager approval posts the authorised change.</span><button className={styles.primary} disabled={busy||!ready} onClick={()=>void create()}>{busy?'Saving…':'Save numbered draft'}</button></div>
     </div>:<Register docs={tableRecords} onOpen={openDoc}/>}
    </>}
+   {section==='INVENTORY'&&<InventoryLedger branch={branch}/>}
    {section==='REGISTER'&&<><div className={styles.sectionTitle}><div><span>AUDIT TRAIL</span><h2>Stock movement register</h2></div><small>Submitted and approved documents remain searchable by branch</small></div><Register docs={tableRecords} onOpen={openDoc}/></>}
    {section==='ACCESS'&&data.me.can_assign&&<><div className={styles.sectionTitle}><div><span>ADMINISTRATION</span><h2>Assign stock duties</h2></div></div>
      <div className={styles.compose}><p className={styles.hint}>Employees must already be active Hub team members. These assignments grant access only to Stock Operations at the selected branch. They do not change the employee’s Hub-wide role.</p>

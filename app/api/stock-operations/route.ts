@@ -66,10 +66,10 @@ export async function GET(req:Request){
   const docs=await (where?documentsQuery.bind(...branchFilter,...branchFilter):documentsQuery).all<Row>();
   const visible=docs.results.filter(d=>accessibleDocument(ctx,d)&&(!branch||(String(d.branch_name)===branch||String(d.destination_branch)===branch))&&(!kind||String(d.kind)===kind))
     .map(d=>({...d,can_approve:permission(ctx,String(d.branch_name)).manager&&String(d.created_by)!==ctx.member.email,
-      can_receive:permission(ctx,String(d.destination_branch)).exists&&String(d.created_by)!==ctx.member.email&&String(d.reviewed_by)!==ctx.member.email}));
+      can_receive:(permission(ctx,String(d.destination_branch)).exists&&(permission(ctx,String(d.destination_branch)).manager||['Receiving / GRV','DC / Transfers'].includes(permission(ctx,String(d.destination_branch)).duty)))&&String(d.created_by)!==ctx.member.email&&String(d.reviewed_by)!==ctx.member.email}));
   const selected=id?visible.find(d=>d.id===id):undefined;
   const assignments=canManageAccess(ctx.member)?await env.DB.prepare('SELECT email,branch_name,duty,active FROM stock_ops_assignments ORDER BY branch_name,email').all<Assignment>():{results:[] as Assignment[]};
-  return out({me:{email:ctx.member.email,name:ctx.member.name,role:ctx.member.role,full:ctx.full,manager:ctx.manager,can_assign:canManageAccess(ctx.member)},locations:ctx.locations.map(w=>({name:w.name,type:w.type})),assignments:assignments.results,my_assignments:ctx.assignments,documents:visible,document:selected?await documentWithLines(selected):null,notice:'CONTROL REGISTER ONLY — NO LIVE STOCK OR ACCOUNTING POSTING'});
+  return out({me:{email:ctx.member.email,name:ctx.member.name,role:ctx.member.role,full:ctx.full,manager:ctx.manager,can_assign:canManageAccess(ctx.member)},locations:ctx.locations.map(w=>({name:w.name,type:w.type})),assignments:assignments.results,my_assignments:ctx.assignments,documents:visible,document:selected?await documentWithLines(selected):null,notice:'Stock posting activates only after verified opening stock by branch. No accounting or sales integration is enabled.'});
  }catch(e){return err('Stock Operations could not load. Confirm migration 0056 was applied.',503);}
 }
 
@@ -131,7 +131,8 @@ export async function POST(req:Request){
    if(!canTransition(String(doc.status),action,kind,creator,actor,reviewer))return err('Action not permitted for this document status or employee.',409);
    if(action==='submit'&&creator!==actor)return err('Only the author submits the draft.',403);
    if((action==='approve'||action==='reject')&&!permission(ctx,branch).manager)return err('An authorised branch manager must review.',403);
-   if(action==='receive'&&!permission(ctx,dest).exists)return err('Only authorised destination staff can acknowledge this transfer.',403);
+   if(action==='receive'){const destRights=permission(ctx,dest);
+    if(!destRights.exists||!(destRights.manager||['Receiving / GRV','DC / Transfers'].includes(destRights.duty)))return err('Only authorised destination receiving or transfer staff can acknowledge this transfer.',403);}
    const status=action==='submit'?'Submitted':action==='approve'?'Approved':action==='reject'?'Rejected':'Received';
    const now=new Date().toISOString(),note=clean(body.note,600);
    if((action==='reject'||action==='receive')&&!note)return err('Enter a rejection reason or receipt acknowledgement.');
@@ -150,6 +151,7 @@ export async function POST(req:Request){
   const message=e instanceof Error?e.message:'Unexpected error';
   if(message.includes('UNIQUE constraint')||message.includes('unique constraint'))return err('Duplicate submission detected. Refresh the register.',409);
   if(message.includes('Invalid stock document transition'))return err('The document changed or requires a different approver.',409);
+  if(['Both transfer branches must be activated','Cannot post a stock document','Missing verified opening balance','Destination SKU has no opening balance','Stock changed since counted','Insufficient available stock','Cannot receive old transfer','Missing destination opening balances'].some(s=>message.includes(s)))return err(message,409);
   if(message.includes('Stock operations')||message.includes('Quantit')||message.includes('document type')||message.includes('catalogue')||message.includes('Rejected')||message.includes('Give a reason')||message.includes('Select 1'))return err(message);
   return err('Stock document was not saved. Check migration and branch access.',500);
  }
