@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import ts from '/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js';
+// Use the project's declared TypeScript devDependency. Never hardcode a Node/npm installation path.
+import ts from 'typescript';
 
 const root=new URL('../',import.meta.url);
 const source=readFileSync(new URL('app/stock-operations/stock-operations.tsx',root),'utf8');
