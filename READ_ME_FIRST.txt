@@ -1,81 +1,59 @@
-MALIKS GROUP HUB — STOCK OPERATIONS V1 (CONTROL REGISTER)
-============================================================
+MALIKS GROUP HUB — INTEGRATED STORE OPERATIONS / STOCK CONTROLS (V2)
+==================================================================
 
-This is a new module inside the existing Maliks Group Hub. The package does not
-replace your live Sales / Tills source, catalogue, app/page.tsx, or worker/index.ts.
+IMPORTANT: Your existing "Store Operations" in Maliks Group Hub is NOT removed
+or replaced. This update adds one "Stock Control & GRVs" entry INSIDE it.
+Do not add a second "Stock Operations" item to your main Hub sidebar.
 
-1. BACK UP your current maliksgroupza repository and existing Cloudflare D1 database.
-2. Extract this ZIP into a separate folder.
-3. Copy the contents of its app/, drizzle/, tests/ and docs/ folders into the
-   corresponding folders in the root of your existing maliksgroupza repository.
-   Choose MERGE FOLDERS; these are NEW paths and should not overwrite your
-   existing Sales / Tills files. Do not paste a wrapping folder or new-files/.
-4. Inspect drizzle/0056_stock_operations_control_register.sql and confirm the
-   filename doesn't clash with a migration already added to your repository.
-5. On a disposable LOCAL D1 database apply migrations and run:
-      npm run db:migrate:local
-      npm run check
-      npm run build
-   Correct any errors BEFORE deploying.
-6. After the local tests and a D1 backup, and only with permission to modify
-   the hosted database, use your existing migration/deployment workflow:
-      npm run db:migrate:production
-   Deployment is a separate operation; copying files locally does not update
-   GitHub or the live Cloudflare Worker.
-7. Open /stock-operations on your Hub domain AFTER deployment.
-8. Owner / Admin opens STAFF PERMISSIONS on that page; select an already invited
-   employee's exact email, a branch and one of:
-      Receiving / GRV; Stock Controller; DC / Transfers; Stock Manager
-9. For manager approval use a different staff account, or a Store/Regional
-   Manager with access to the originating branch. The creator may not approve
-   their own document. A TRANSFER receipt needs another authorised destination
-   employee, different from creator and approving manager.
+INSTALL — DIRECT PASTE WITH ONE SAFE NAVIGATION COMMAND
+-------------------------------------------------------
+1. Make a backup of your existing maliksgroupza project and D1 database.
+2. Extract this ZIP. Copy the app, drizzle, tests, docs, and scripts folders into
+   the corresponding folders in your existing maliksgroupza project (merge).
+   This adds NEW files and does NOT overwrite app/operational-view.tsx,
+   app/page.tsx, Sales/Tills, or any of your existing Store Operations tasks.
+3. In VS Code terminal opened at the ROOT of maliksgroupza, run:
+       node scripts/integrate-stock-into-store-operations.mjs
+   The script inserts one Stock Control card inside your EXISTING Store Operations.
+   Running it again does nothing. If your Store Operations source has changed,
+   the script refuses to overwrite it; inspect before attempting manual changes.
+4. Apply the new 0056 migration to a disposable local D1 test database FIRST:
+       npm run db:migrate:local
+   Verify the repository's actual package.json scripts before running production
+   migrations. Do not apply any migration number that is already in production.
+5. Check the project:
+       npm run check
+       npm run build
+6. Back up remote D1, review the SQL, migrate it using your existing verified
+   production workflow, then commit and deploy.
 
-FUNCTIONS IN THIS V1 RELEASE
-----------------------------
-- Separate professional navy/gold Stock Operations workstation, same Hub login
-- GRVs: supplier, DN/ref, received/rejected qty, driver, times, labelled Y/N,
-  labelled by, receiving-manager and driver signatures on printed control copy
-- Physical counts: expected stock / counted stock and variance register
-- Adjustments: count mismatch and reason documented for review
-- Supplier returns: supplier and reference, quantities, manager approval
-- Transfers: source/destination, approval, independent receipt acknowledgment
-- D1 saved numbered documents, status and append-only audit, print control copies
-- Product selection from the existing active Hub catalogue (40/page)
-- Branch-restricted staff duties; full-access management review
+OPEN IT
+-------
+Existing Hub -> Store Operations -> "Open Stock Control".
+Direct URL after deployment: /store-operations/stock
 
-IMPORTANT — NOT YET LIVE STOCK POSTING
--------------------------------------
-These are CONTROL DOCUMENTS, not GRVs/stock movements posted to your existing
-inventory and General Ledger. A posted/approved label here means that the
-DOCUMENT was approved for follow-up; it does NOT update catalogue stock,
-create supplier creditors, reserve inventory, or authorize dispatch.
-The current Hub catalogue contains products/prices, not a verified opening stock
-ledger across all branches. Connecting ledger balances, weighted-average costs,
-GRV/stock adjustment accounting, PO matching, and live stock deduction needs a
-separate reconciled backend phase and integrated PostgreSQL/D1 strategy.
+Owner/Admin must assign existing employees stock duties per branch inside
+Stock Control -> Staff permissions before non-manager staff can use them.
 
-No one should use this patch to replace existing TOUCH365 stock records.
-Do not submit real posting claims, supplier invoices or release inventory based
-only on an approved Stock Operations document.
+FUNCTIONS
+---------
+Receipts/GRVs, stock adjustments, counts, returns to suppliers, transfers,
+numbered control documents, review/approval, print copies and an audit register.
+Original Store Operations task boards, store checklists and workspaces remain.
 
-HUB NAVIGATION
---------------
-The new URL is /stock-operations. There is no overwrite of the main Hub app/page.tsx
-or its menu, to avoid destroying your recent Sales / Tills changes. You can add
-this URL to a bookmark, or add a navigation link in the Hub once you confirm the
-current, latest source. Staff invitations still use your EXISTING Team Members.
-Stock Operations duties are assigned inside the new STOCK OPERATIONS module.
-Other existing Hub-wide access rules are unchanged; this patch does NOT create
-a universal department-only login guard for every old Hub module.
+CRITICAL LIMITATION
+-------------------
+These are DOCUMENT CONTROL and APPROVAL workflows, not a live stock ledger.
+Approved GRVs and adjustments DO NOT yet increase/decrease actual stock, post
+supplier invoices or accounting entries, or authorize dispatch. Keep TOUCH365
+as the operational stock record until proper inventory integration is completed.
+Do not use this as a live GRV-posting replacement yet.
 
-SAFETY
-------
-- D1 SQL protects immutable document lines, event audit, illegal status changes.
-- Never edit source GRVs after submission; create a new control document.
-- Approval or receipt never changes the live stock ledger.
-- No author self-approval; no approval from outside the authorised branch.
-- No catalogue product name/code can be spoofed in a document.
-- Duplicate client transaction IDs do not create duplicate documents.
-- Run tests with: node --test tests/stock-operations-*.test.mjs
-- The remote Cloudflare migration and full Hub build were not executed here.
+Files expected to overlap with previous Stock Operations V1 (if installed):
+app/api/stock-operations/*; app/stock-operations/*;
+drizzle/0056_stock_operations_control_register.sql;
+tests/stock-operations-*.test.mjs
+These should have the same backend migration and document controls as V1.
+The V2 navigation adds only the new child route and safe integration script.
+The old /stock-operations URL may remain if V1 was previously deployed, but
+staff should use Store Operations -> Stock Control & GRVs instead.

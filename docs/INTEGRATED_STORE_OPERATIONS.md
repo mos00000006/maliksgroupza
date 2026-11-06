@@ -1,0 +1,1 @@
+Existing Store Operations is the parent module. Keep its task boards and workspace controls unchanged. Stock Control & GRVs is its child workspace at /store-operations/stock. D1 control register; no live ledger posting.

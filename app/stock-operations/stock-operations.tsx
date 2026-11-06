@@ -79,11 +79,11 @@ export default function StockOperations(){
  async function act(action:'submit'|'approve'|'reject'|'receive'){if(!detail)return;const j=await send({action,id:detail.id,note:reviewNote});if(j?.ok)setReviewNote('');}
  async function openDoc(d:Doc){setDetail(d);setReviewNote('');await load(d.id);}
  const tableRecords=useMemo(()=>filtered.slice(0,150),[filtered]);
- if(loading)return <div className={styles.loading}>Opening Stock Operations…</div>;
- if(!data.me)return <main className={styles.denied}><h1>Stock Operations access required</h1><p>{error||'Ask a Hub administrator to assign your branch and stock duties.'}</p><Link href="/">Return to Hub</Link></main>;
+ if(loading)return <div className={styles.loading}>Opening stock controls…</div>;
+ if(!data.me)return <main className={styles.denied}><h1>Stock control access required</h1><p>{error||'Ask a Hub administrator to assign your branch and stock duties.'}</p><Link href="/">Return to Hub</Link></main>;
  return <main className={styles.shell}>
   <aside className={styles.sidebar}>
-   <div className={styles.brand}><span className={styles.brandBadge}>M</span><div><b>MALIKS</b><small>STOCK OPERATIONS</small></div></div>
+   <div className={styles.brand}><span className={styles.brandBadge}>M</span><div><b>MALIKS</b><small>STORE OPERATIONS</small></div></div>
    <div className={styles.sideLabel}>WORKSPACES</div>
    <button className={section==='DASHBOARD'?styles.active:''} onClick={()=>switchTo('DASHBOARD')}><span>◫</span>Overview</button>
    {KINDS.map(k=><button key={k.kind} className={section===k.kind?styles.active:''} onClick={()=>switchTo(k.kind)}><span>{k.icon}</span>{k.title}</button>)}
@@ -92,7 +92,7 @@ export default function StockOperations(){
    <div className={styles.sideFooter}><p>{data.me.name||data.me.email}</p><small>{data.me.role}</small><Link href="/">← Back to Maliks Hub</Link><Link href="/tills">Sales / Tills</Link></div>
   </aside>
   <section className={styles.main}>
-   <header className={styles.header}><div><span className={styles.eyebrow}>MALIKS GROUP HUB / RETAILOS</span><h1>Stock Operations</h1><p>Receiving, inventory controls and stock movement documentation</p></div>
+   <header className={styles.header}><div><span className={styles.eyebrow}>MALIKS GROUP HUB / RETAILOS</span><h1>Stock Control & GRVs</h1><p>Receiving, inventory controls and stock movement documentation</p></div>
     <div className={styles.selectBlock}><label htmlFor="stock-branch">ACTIVE BRANCH</label><select id="stock-branch" value={branch} onChange={e=>{setBranch(e.target.value);setDetail(null);setEditing(false);setPage(1);void load('',e.target.value);}}><option value="">All authorised branches</option>{locations.map(x=><option value={x.name} key={x.name}>{x.name}</option>)}</select></div>
    </header>
    <div className={styles.notice}><span>CONTROL REGISTER</span> Documents and approvals are saved in the Hub. Live stock balances, purchase accounting and financial posting are not connected.</div>
