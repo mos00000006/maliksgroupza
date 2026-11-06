@@ -1,0 +1,20 @@
+
+.page{min-height:100vh;background:#edf2f6;color:#172d42;font-family:Arial,Helvetica,sans-serif;padding:0 18px 40px}
+.shell{max-width:1210px;margin:0 auto}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 0;gap:14px}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:#152b40}
+.brand span{display:flex;flex-direction:column;gap:3px}.brand strong{font-size:14px;letter-spacing:1.2px}.brand small{color:#7890a4;letter-spacing:.8px;font-size:10px}
+.back{color:#1b4d79;background:white;padding:10px 16px;border:1px solid #d8e2ea;border-radius:9px;text-decoration:none;font-size:13px;font-weight:700}
+.hero{display:flex;justify-content:space-between;align-items:center;gap:35px;padding:38px 46px 38px;background:linear-gradient(120deg,#0f2943 0%,#15548b 70%,#1f70b3 100%);color:white;border-radius:22px;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;width:380px;height:380px;right:0;top:-175px;border:60px solid #ffffff0b;border-radius:50%}
+.hero>div,.heroLogo{z-index:1;position:relative}.hero h1{font-size:clamp(32px,4vw,52px);margin:12px 0 9px;letter-spacing:-1.6px;color:white}.hero p{max-width:650px;color:#d4e4f2;line-height:1.6;font-size:14px}
+.eyebrow{letter-spacing:2px;font-size:10px;font-weight:900;color:#ffcd52}.heroLogo{object-fit:contain;flex-shrink:0;filter:drop-shadow(0 14px 24px #061b2b60)}
+.actions{display:flex;flex-wrap:wrap;gap:11px;margin-top:22px}.download,.outline{text-decoration:none;border-radius:10px;padding:12px 18px;font-weight:800;font-size:13px}.download{background:#f5c746;color:#16324b}.outline{border:1px solid #91b7d5;color:white}
+.notice{background:#fff7e3;border:1px solid #efce83;border-left:5px solid #e6ac20;border-radius:11px;margin:20px 0;padding:16px 20px}.notice strong{font-size:13px;color:#855700}.notice p{margin:6px 0 0;font-size:12px;line-height:1.65;color:#725a33}
+.mainGrid{display:grid;grid-template-columns:minmax(0,1fr) 295px;gap:20px;align-items:start}.paper,.sideCard{background:#fff;border:1px solid #e0e7ed;border-radius:16px;box-shadow:0 5px 25px #17365309}
+.paper{padding:30px 34px}.paper h2{font-size:23px;letter-spacing:-.7px;margin:9px 0 17px;color:#132d44}.paper p{color:#4c6276;font-size:13px;line-height:1.85;margin:12px 0}.paper hr{border:0;border-top:1px solid #e7edf2;margin:29px 0}.paper a,.sideCard a{color:#1163a5;font-weight:700}.kicker{color:#a47414;font-size:10px;font-weight:900;letter-spacing:1.3px}.people{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.people>div{padding:16px;border-radius:11px;background:#f3f7fa;border:1px solid #e4ecf1}.people strong,.people span{display:block}.people strong{font-size:14px;color:#152c42}.people span{margin-top:5px;font-size:12px;color:#6a8194}.categories,.steps{padding-left:22px;margin-top:9px}.categories li,.steps li{margin:0 0 12px;color:#475b6e;line-height:1.65;font-size:13px}
+.side{display:grid;gap:16px}.sideCard{padding:23px}.sideCard h3{font-size:18px;margin:10px 0 15px}.sideCard p{font-size:12.5px;line-height:1.7;color:#577084}.sideCard dl{display:grid;grid-template-columns:1fr;gap:4px;margin:0}.sideCard dt{font-size:10px;color:#6c8296;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:9px}.sideCard dd{font-size:13px;color:#203d55;margin:0;padding-bottom:8px;border-bottom:1px solid #edf2f5}.sideCard a{font-size:12px}
+.footer{padding:30px 5px;display:flex;justify-content:space-between;color:#7890a3;font-size:11px;gap:10px}
+@media(max-width:800px){.mainGrid{grid-template-columns:1fr}.hero{padding:30px 25px}.heroLogo{width:110px;height:110px}.paper{padding:25px}}
+@media(max-width:570px){.page{padding:0 10px 25px}.heroLogo{display:none}.people{grid-template-columns:1fr}.footer{flex-direction:column}.paper{padding:21px}.back{padding:9px}}
+@media print{.page{background:white;padding:0}.shell{max-width:none}.topbar,.actions,.back,.side{display:none!important}.hero{border-radius:0;background:#12344f;print-color-adjust:exact;-webkit-print-color-adjust:exact;padding:24px}.mainGrid{display:block}.paper{border:none;box-shadow:none;padding:20px}.notice{margin:10px 0}.footer{padding:10px}}
