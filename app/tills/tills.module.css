@@ -755,3 +755,138 @@
   .shell .quickActionPanel .actionRow button>span{grid-row:auto}
   .shell .searchForm>button{min-width:72px;padding:12px}
 }
+
+
+/* ====================================================================
+   MALIKS RETAILOS · FULL VIEW CHECKOUT V4
+   Checkout is an immersive desktop workspace by default. Main checkout
+   actions remain on the left; total and payment tools remain on the right.
+   This changes layout only — no transaction service is activated.
+   ==================================================================== */
+.shell.fullView {
+  grid-template-columns:76px minmax(0,1fr);
+  height:100dvh;
+  min-height:0;
+  overflow:hidden;
+}
+.shell.fullView > .side {
+  position:relative;
+  height:100dvh;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:15px 8px 10px;
+}
+.shell.fullView .logo {
+  justify-content:center;
+  padding:0 0 18px;
+  margin:0 0 11px;
+  border-bottom:1px solid #355064;
+}
+.shell.fullView .logo > div:last-child,
+.shell.fullView .sideLabel,
+.shell.fullView .navButton > span:last-child,
+.shell.fullView .sideFooter .sidePerson,
+.shell.fullView .sideFooter .sideStatus {display:none}
+.shell.fullView .logoMark {height:43px;width:43px}
+.shell.fullView .nav {display:flex;flex-direction:column;gap:8px;overflow:visible}
+.shell.fullView .navButton {justify-content:center;padding:9px 5px;min-height:54px;border-radius:11px}
+.shell.fullView .navIcon {width:38px;height:38px;flex:none}
+.shell.fullView .sideFooter {justify-content:center;padding:12px 0 2px}
+.shell.fullView .avatar {width:37px;height:37px;flex:none}
+.shell.fullView > .main {height:100dvh;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.shell.fullView .topbar {flex:none;height:58px;min-height:58px;padding:0 clamp(12px,2vw,26px)}
+.shell.fullView .pageBody {
+  flex:1;
+  min-height:0;
+  width:100%;
+  max-width:none;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  padding:13px clamp(13px,1.6vw,26px) 18px;
+}
+.shell .viewToggle {
+  display:inline-flex;align-items:center;justify-content:center;
+  gap:6px;min-height:34px;white-space:nowrap;
+  background:#eef4f8;color:#1b4f70;border:1px solid #d7e4ed;
+  border-radius:9px;padding:7px 12px;font-size:11px;font-weight:850;
+}
+.shell .viewToggle:hover {background:#dfeef7;border-color:#b9d3e4}
+.shell.fullView .titleBar {
+  min-height:0;display:flex;align-items:center;gap:12px;
+  padding:10px 17px;margin:0 0 10px;border-radius:13px;
+}
+.shell.fullView .titleBar h1 {font-size:clamp(20px,1.8vw,27px);margin:3px 0}
+.shell.fullView .titleBar p,.shell.fullView .heroTags {display:none}
+.shell.fullView .titleBar .eyebrow {font-size:9px}
+.shell.fullView .branchWidget {min-width:230px;max-width:min(360px,43%);padding:8px 12px}
+.shell.fullView .branchWidget span {font-size:9px}
+.shell.fullView .alert {padding:9px 12px;margin-bottom:11px;min-height:0;align-items:center}
+.shell.fullView .alert p {font-size:11px}
+.shell.fullView .alertState {white-space:nowrap}
+/* The same numbers are already in the right-hand checkout panel. */
+.shell.fullView .salesStage {display:none}
+.shell.fullView .checkoutGrid {
+  grid-template-columns:minmax(0,1fr) clamp(355px,30vw,465px);
+  gap:15px;
+  align-items:start;
+  width:100%;
+}
+.shell.fullView .workCol {min-width:0;gap:12px}
+.shell.fullView .summaryCol {
+  display:flex;flex-direction:column;gap:12px;
+  min-width:0;align-self:start;
+  position:sticky;top:0;
+  max-height:calc(100dvh - 186px);
+  overflow-y:auto;overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:#9fb4c4 transparent;
+  padding:0 3px 6px 0;
+}
+.shell.fullView .summaryCol .totalsPanel {min-width:0;position:relative;top:auto}
+.shell.fullView .summaryCol .grand strong {font-size:clamp(23px,2.6vw,35px);white-space:nowrap}
+.shell.fullView .summaryCol .paymentOptions button {min-width:0}
+.shell.fullView .quickActionPanel .actionRow {grid-template-columns:repeat(3,minmax(0,1fr))}
+.shell.fullView .searchForm {min-height:61px}
+.shell.fullView .searchForm input {font-size:15px}
+.shell.fullView .bottom {padding:13px 0 3px}
+/* Preserve the readable two-column layout on typical laptop screens. */
+@media(max-width:1150px) and (min-width:901px) {
+  .shell.fullView .checkoutGrid {grid-template-columns:minmax(0,1fr) 340px;gap:12px}
+  .shell.fullView .quickActionPanel .actionRow {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .shell.fullView .topbar .clock {display:none}
+  .shell.fullView .topbar {padding:0 12px}
+  .shell.fullView .topActions {gap:7px}
+}
+/* Small screens stack checkout in the normal reading order; never clip totals. */
+@media(max-width:900px) {
+  .shell.fullView {height:auto;min-height:100dvh;overflow:visible;grid-template-columns:72px minmax(0,1fr)}
+  .shell.fullView > .side {height:100dvh;position:sticky;top:0}
+  .shell.fullView > .main {height:auto;min-height:100dvh;overflow:visible}
+  .shell.fullView .pageBody {height:auto;overflow:visible}
+  .shell.fullView .checkoutGrid {grid-template-columns:minmax(0,1fr)}
+  .shell.fullView .summaryCol {position:static;max-height:none;overflow:visible;padding:0}
+  .shell.fullView .quickActionPanel .actionRow {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .shell.fullView .alertState {display:none}
+  .shell.fullView .topActions .clock {display:none}
+}
+@media(max-width:620px) {
+  .shell.fullView {display:block;width:100%;min-width:0}
+  .shell.fullView > .side {height:auto;position:static;width:100%;padding:7px 10px}
+  .shell.fullView .logo {display:none}
+  .shell.fullView .nav {display:flex;flex-direction:row;gap:6px;overflow-x:auto}
+  .shell.fullView .navButton {flex:none;min-height:40px;padding:5px 8px}
+  .shell.fullView .navIcon {height:28px;width:28px}
+  .shell.fullView .sideFooter {display:none}
+  .shell.fullView .topbar {height:auto;min-height:55px;flex-wrap:wrap;padding:7px 10px}
+  .shell.fullView .topActions {gap:5px}
+  .shell.fullView .topActions .previewTag {display:none}
+  .shell.fullView .topActions .returnHub a {padding:6px}
+  .shell.fullView .pageBody {padding:10px 8px}
+  .shell.fullView .titleBar {display:block;padding:12px}
+  .shell.fullView .branchWidget {max-width:100%;width:100%;margin-top:10px}
+  .shell.fullView .checkoutGrid {grid-template-columns:minmax(0,1fr)}
+  .shell.fullView .searchForm input {font-size:12px}
+}

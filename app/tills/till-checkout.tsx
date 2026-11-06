@@ -82,6 +82,8 @@ function PosGlyph({kind}:{kind:string}) {
 export default function TillCheckout({username,role,stores,accessScope=""}:{username:string;role:string;stores:string[];accessScope?:string}) {
   const [branch,setBranch]=useState(stores[0]??"");
   const [section,setSection]=useState<Section>("checkout");
+  // Checkout defaults to full-view mode; staff can expand navigation at any time.
+  const [fullView,setFullView]=useState(true);
   const [search,setSearch]=useState("");
   const [products,setProducts]=useState<Product[]>([]);
   const [lines,setLines]=useState<Line[]>([]);
@@ -390,12 +392,12 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
     </section>
   </div>;
 
-  return <main className={`${styles.shell} ${isBuster?styles.buster:styles.power}`}>
+  return <main className={`${styles.shell} ${isBuster?styles.buster:styles.power} ${section==="checkout"&&fullView?styles.fullView:""}`}>
     <aside className={styles.side} aria-label="POS navigation">
       <div className={styles.logo}><div className={styles.logoMark}><span className={styles.logoMonogram}>M</span><span className={styles.logoSpark}>✦</span></div><div><strong>MALIKS</strong><span>RETAIL OS <i>PRO</i></span></div></div>
       <div className={styles.sideLabel}>YOUR WORKSPACE</div>
       <nav className={styles.nav}>
-        {menus.filter(menu=>!isTillOnly||!["cashoffice","reports","settings"].includes(menu.id)).map(menu=><button type="button" key={menu.id} className={`${styles.navButton} ${section===menu.id?styles.navSelected:""}`} onClick={()=>{setSection(menu.id);setError("");}}>
+        {menus.filter(menu=>!isTillOnly||!["cashoffice","reports","settings"].includes(menu.id)).map(menu=><button type="button" key={menu.id} className={`${styles.navButton} ${section===menu.id?styles.navSelected:""}`} title={menu.name} aria-label={menu.name} onClick={()=>{setSection(menu.id);setError("");}}>
           <span className={styles.navIcon} aria-hidden><PosGlyph kind={menu.icon}/></span><span><strong>{menu.name}</strong><small>{menu.subtitle}</small></span>
         </button>)}
       </nav>
@@ -405,7 +407,7 @@ export default function TillCheckout({username,role,stores,accessScope=""}:{user
     <div className={styles.main}>
       <header className={styles.topbar}>
         <div className={styles.crumb}><span className={styles.crumbMark}>M</span><span>Maliks Group Hub</span><span className={styles.slash}>/</span><strong>Point of Sale</strong></div>
-        <div className={styles.topActions}><span className={styles.previewTag} title="NO LIVE SALES — Transaction service not yet activated. Transaction posting has not been activated"><span className={styles.statusDot}/> Checkout setup required</span><span className={styles.clock}>{clock||"Local workstation"}</span>{!isTillOnly&&<span className={styles.returnHub}>{role!=="Sales / Tills"&&<Link href="/">Switch back to Hub</Link>}</span>}<a className={styles.logout} href="/cdn-cgi/access/logout">Sign out</a></div>
+        <div className={styles.topActions}>{section==="checkout"&&<button type="button" className={styles.viewToggle} aria-pressed={fullView} aria-label={fullView?"Expand navigation and exit full-screen checkout":"Enter full-screen checkout"} title={fullView?"Show full navigation":"Use full-screen checkout"} onClick={()=>setFullView(value=>!value)}>{fullView?"☷ Expand menu":"⤢ Full view"}</button>}<span className={styles.previewTag} title="NO LIVE SALES — Transaction service not yet activated. Transaction posting has not been activated"><span className={styles.statusDot}/> Checkout setup required</span><span className={styles.clock}>{clock||"Local workstation"}</span>{!isTillOnly&&<span className={styles.returnHub}>{role!=="Sales / Tills"&&<Link href="/">Switch back to Hub</Link>}</span>}<a className={styles.logout} href="/cdn-cgi/access/logout">Sign out</a></div>
       </header>
       <div className={styles.pageBody}>
         <div className={styles.titleBar}><div><div className={styles.eyebrow}>MALIKS RETAILOS <span className={styles.eyebrowLine}/> {isBuster?"BUSTER BUILD":"POWERBUILD"}</div><h1>{menus.find(x=>x.id===section)?.name}</h1><p>A faster, smarter counter for hardware, trade and everyday retail.</p><div className={styles.heroTags}><span><PosGlyph kind="scan"/> Barcode-ready workspace</span><span><PosGlyph kind="customers"/> Branch-aware pricing</span></div></div><div className={styles.branchWidget}><label htmlFor="branch">ACTIVE BRANCH</label><select id="branch" value={branch} onChange={e=>changeBranch(e.target.value)}>{stores.map(s=><option key={s} value={s}>{s}</option>)}</select><span>Operator: {username} <span className={styles.branchSeparator}>•</span> Shift not opened</span></div></div>
