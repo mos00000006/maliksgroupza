@@ -1,52 +1,35 @@
-MALIKS GROUP HUB  |  SIGNATURE POS WORKSTATION STYLE UPGRADE
-Version: 2026-11-06
+MALIKS GROUP HUB — FIX FOR FAILED TEST #150
+===========================================
 
-WHAT THIS CHANGES
-- Premium navy/gold PowerBuild theme and orange-accent Buster Build theme.
-- Clear, compact navigation, quick actions, barcode/product entry, basket and totals.
-- Consistent SVG icons without adding npm packages.
-- More polished branch and staff identity, checkout summary and responsive layout.
-- The large 'demo/preview/no live sales' warning has been replaced by a compact,
-  truthful 'Checkout setup required' status.
-- No permissions, database migrations, APIs, price files, or real sale logic are changed.
+This is a direct-paste update for the current Signature Professional Sales / Tills design.
+It fixes the single remaining failed test:
+  tests/tills-full-access.test.mjs
+  "server checks role and scope; Hub has sidebar link and till provides return link"
 
-THIS IS A STYLE + COPY PATCH ONLY.
-The secure RetailOS transaction service is NOT connected by this patch.
-Payment processing, stock deduction, tax invoices, live refunds, settlement,
-and till cash-ups are NOT enabled. The final sale button remains disabled.
+WHY IT FAILS
+The existing test checks for the exact JSX text:
+  role!=="Sales / Tills"&&<Link href="/">Switch back to Hub</Link>
+The latest design prepended a left arrow to the link label. The permission logic was not the cause.
 
-INSTALL BY COPYING FILES (NO TERMINAL OR GIT REQUIRED TO PASTE)
-1. Close or back up your existing Maliks Hub project and keep a copy of:
-     app/tills/till-checkout.tsx
-     app/tills/tills.module.css
-2. Download this ZIP, right-click it and select 'Extract All'.
-3. Copy the 'app' folder from this package into the ROOT of your current
-   maliksgroupza folder (where package.json is located).
-4. Windows: 'Merge folders' > 'Replace files in destination'.
-   Exactly these two working POS files are replaced:
-     app/tills/till-checkout.tsx
-     app/tills/tills.module.css
-5. Copy the 'tests' folder as well if you want the optional safety tests.
-6. IMPORTANT: Do not copy a 'new-files' folder. This ZIP has none.
-7. The file app/tills/pos-preview-domain.mjs from your existing working POS
-   installation is still required; do not delete it or its type declaration.
-8. Reload /tills in your local Hub after the code is built and/or deployed.
+FILES INCLUDED
+  app/tills/till-checkout.tsx   — only replacement file
 
-GITHUB
-Copying into a local folder does not update the online website. The changed
-files must be committed to your repository and GitHub Actions must pass.
-You can use the GitHub web editor/upload for the two paths above if Git is not
-installed in your VS Code. Back up your original files first.
+INSTALL (NO COMMANDS NEEDED TO COPY)
+1. Extract this ZIP in Downloads, outside your Hub project.
+2. In the current working maliksgroupza folder, copy the extracted app folder
+   and merge with the existing app folder; replace only
+   app/tills/till-checkout.tsx.
+3. Check the Sales / Tills page still shows "Switch back to Hub" for full-access users.
+4. Commit the changed file to GitHub using GitHub web file editor (or Git via VS Code
+   once installed). Copying files on your PC alone does not update GitHub Actions.
+5. The GitHub workflow can then run npm run check again.
 
-TESTING PERFORMED ON THE PATCH
-- JSX/TypeScript syntax via the TypeScript transpiler
-- PostCSS style sheet parsing
-- Node pure POS arithmetic tests + signature theme safety tests
-- Responsive layout inspected in Chromium at desktop and mobile widths
+SAFEGUARDS
+- No worker, API, role model, catalogue, payment, stock or CSS files are changed.
+- Transaction posting stays disabled pending RetailOS backend integration.
+- Don't copy a new-files staging folder: none is included.
 
-NOT PERFORMED
-- Full Maliks Hub build, GitHub Actions, live deploy, payment terminal,
-  live store transaction flow, or real stock/accounting reconciliation.
-
-The screenshot is only an example of the intended design. The patch itself
-uses your authorised branch, user name and published Hub price catalogue.
+VERIFICATION
+- The exact legacy test assertion and the new theme checks passed against this file.
+- TypeScript TSX syntax parsed with no diagnostics.
+- Complete remote GitHub workflow has not been rerun.
