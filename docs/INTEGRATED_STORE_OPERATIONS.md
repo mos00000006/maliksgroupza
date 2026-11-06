@@ -1,1 +1,1 @@
-Existing Store Operations is the parent module. Keep its task boards and workspace controls unchanged. Stock Control & GRVs is its child workspace at /store-operations/stock. D1 control register; no live ledger posting.
+Existing Store Operations remains the parent dashboard. V3 places a visible Stock Control & GRVs link in app/operational-view.tsx after the Store Network banner. No separate dashboard module. Stock controls at /store-operations/stock use D1 control register only, not live stock postings.

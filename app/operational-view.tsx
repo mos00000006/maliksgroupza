@@ -940,6 +940,64 @@ export default function OperationalView({
           </span>
           <button onClick={() => openWorkspaces()}>Open store boards →</button>
         </div>
+        {/* Stock Control lives inside the existing Store Operations module. */}
+        <section
+          data-maliks-store-stock="integrated-v2"
+          aria-label="Stock Control and GRVs"
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 18,
+            margin: "16px 0 18px",
+            padding: "21px 25px",
+            borderRadius: 15,
+            border: "1px solid #2a608c",
+            borderLeft: "5px solid #e3b743",
+            background: "linear-gradient(110deg, #102b4a, #175083)",
+            color: "#f7fbff",
+            boxShadow: "0 8px 20px rgba(16, 44, 76, 0.10)",
+          }}
+        >
+          <div style={{ flex: "1 1 300px" }}>
+            <small
+              style={{
+                color: "#f3c85d",
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: 1.8,
+              }}
+            >
+              RECEIVING &amp; STOCK CONTROL
+            </small>
+            <h3 style={{ color: "#fff", fontSize: 21, margin: "7px 0 5px" }}>
+              Stock Control &amp; GRVs
+            </h3>
+            <p style={{ color: "#dceaf8", margin: 0, lineHeight: 1.5, fontSize: 13 }}>
+              Receiving, stock adjustments, physical counts, supplier returns, transfers and approvals.
+            </p>
+          </div>
+          <a
+            href="/store-operations/stock"
+            style={{
+              display: "inline-flex",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: 44,
+              background: "#f2cb64",
+              color: "#102b4a",
+              borderRadius: 10,
+              padding: "11px 18px",
+              textDecoration: "none",
+              fontSize: 13,
+              fontWeight: 800,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Open Stock Control →
+          </a>
+        </section>
         <Kpis
           tasks={shown}
           labels={[

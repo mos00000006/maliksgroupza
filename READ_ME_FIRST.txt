@@ -1,59 +1,47 @@
-MALIKS GROUP HUB — INTEGRATED STORE OPERATIONS / STOCK CONTROLS (V2)
-==================================================================
+MALIKS GROUP HUB - STORE OPERATIONS STOCK CONTROL V3 (VISIBLE BUTTON)
+===================================================================
 
-IMPORTANT: Your existing "Store Operations" in Maliks Group Hub is NOT removed
-or replaced. This update adds one "Stock Control & GRVs" entry INSIDE it.
-Do not add a second "Stock Operations" item to your main Hub sidebar.
+WHY THIS PATCH
+The V2 Stock Control files installed, but the Store Operations dashboard
+button required running a separate Node command. The screenshot shows that
+the old dashboard still appears, without the new entry.
 
-INSTALL — DIRECT PASTE WITH ONE SAFE NAVIGATION COMMAND
--------------------------------------------------------
-1. Make a backup of your existing maliksgroupza project and D1 database.
-2. Extract this ZIP. Copy the app, drizzle, tests, docs, and scripts folders into
-   the corresponding folders in your existing maliksgroupza project (merge).
-   This adds NEW files and does NOT overwrite app/operational-view.tsx,
-   app/page.tsx, Sales/Tills, or any of your existing Store Operations tasks.
-3. In VS Code terminal opened at the ROOT of maliksgroupza, run:
-       node scripts/integrate-stock-into-store-operations.mjs
-   The script inserts one Stock Control card inside your EXISTING Store Operations.
-   Running it again does nothing. If your Store Operations source has changed,
-   the script refuses to overwrite it; inspect before attempting manual changes.
-4. Apply the new 0056 migration to a disposable local D1 test database FIRST:
-       npm run db:migrate:local
-   Verify the repository's actual package.json scripts before running production
-   migrations. Do not apply any migration number that is already in production.
-5. Check the project:
-       npm run check
-       npm run build
-6. Back up remote D1, review the SQL, migrate it using your existing verified
-   production workflow, then commit and deploy.
+THIS V3 ZIP NEEDS NO EXTRA NAVIGATION SCRIPT.
+It includes the finished dashboard file with the link already inserted.
 
-OPEN IT
--------
-Existing Hub -> Store Operations -> "Open Stock Control".
-Direct URL after deployment: /store-operations/stock
+INSTALLATION
+1. BACK UP your existing app/operational-view.tsx and D1 database.
+2. Open the extracted ZIP. Copy the app, drizzle, tests, docs, and scripts
+   folders into your existing maliksgroupza project root.
+3. Allow folder merges and file replacement. The main UI file that gets
+   replaced is app/operational-view.tsx. This file was built from the last
+   repository copy you supplied; if you have made your own newer changes
+   to THIS FILE since then, do not overwrite it blindly; use the optional
+   safe integration script from V2 on your current copy instead.
+4. Check that VS Code shows the following Git change:
+      modified: app/operational-view.tsx
+   And check the file contains: Open Stock Control
+5. Commit your changes to GitHub (including the modified UI file).
+6. After checks and deployment, reopen the PowerBuild Hub, press Ctrl+F5,
+   then go to Store Operations. The button is immediately below the large
+   blue 'Store Network' banner and above the four KPI tiles.
 
-Owner/Admin must assign existing employees stock duties per branch inside
-Stock Control -> Staff permissions before non-manager staff can use them.
+STOCK FUNCTIONS PATH
+   Store Operations > Open Stock Control
+   Direct route: /store-operations/stock
 
-FUNCTIONS
----------
-Receipts/GRVs, stock adjustments, counts, returns to suppliers, transfers,
-numbered control documents, review/approval, print copies and an audit register.
-Original Store Operations task boards, store checklists and workspaces remain.
+DATABASE
+The first install also requires migration:
+   drizzle/0056_stock_operations_control_register.sql
+Test on a disposable local DB first (npm run db:migrate:local); back up the
+remote D1 DB and use only your existing verified production migrations.
+If 0056 was already applied successfully, DO NOT re-apply it manually.
 
-CRITICAL LIMITATION
--------------------
-These are DOCUMENT CONTROL and APPROVAL workflows, not a live stock ledger.
-Approved GRVs and adjustments DO NOT yet increase/decrease actual stock, post
-supplier invoices or accounting entries, or authorize dispatch. Keep TOUCH365
-as the operational stock record until proper inventory integration is completed.
-Do not use this as a live GRV-posting replacement yet.
+IMPORTANT
+This is a controlled DOCUMENT / APPROVAL register. It does not yet change
+real branch stock balances or financial ledgers. Keep TOUCH365 as the live
+stock system until a fully reconciled ledger is implemented.
 
-Files expected to overlap with previous Stock Operations V1 (if installed):
-app/api/stock-operations/*; app/stock-operations/*;
-drizzle/0056_stock_operations_control_register.sql;
-tests/stock-operations-*.test.mjs
-These should have the same backend migration and document controls as V1.
-The V2 navigation adds only the new child route and safe integration script.
-The old /stock-operations URL may remain if V1 was previously deployed, but
-staff should use Store Operations -> Stock Control & GRVs instead.
+The previous V2 integration command is not necessary for this ZIP. The
+integration signature is retained so running that old script won't create
+a second card.
