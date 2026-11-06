@@ -652,3 +652,106 @@
   .scrim{position:static;display:block;padding:0;background:#fff;backdrop-filter:none}
   .catalogueDialog{width:100%;height:auto;max-height:none;border:0;box-shadow:none}
 }
+
+
+/* ==============================================================
+   MALIKS RETAILOS | SIGNATURE CHECKOUT V3
+   Prominent sale entry + right order summary; consistent document
+   and modal tokens inherited from the existing shared style system.
+   ============================================================= */
+.shell {--checkout-radius:15px;--checkout-shadow:0 8px 24px rgba(16,49,73,.055);background:#f2f5f8}
+.shell .pageBody{max-width:none;padding:20px clamp(16px,2vw,34px) 22px}
+.shell .titleBar{min-height:128px;border-radius:16px;padding:23px 28px;margin-bottom:12px}
+.shell .titleBar h1{font-size:clamp(25px,2.1vw,33px);margin-top:5px}
+.shell .titleBar p{font-size:12px;max-width:560px}
+.shell .heroTags{margin-top:11px}
+.shell .branchWidget{min-width:280px;max-width:360px}
+.shell .alert{margin-bottom:14px;border-radius:10px;padding:10px 14px;background:#fffaf0;box-shadow:none;border:1px solid #eadfc7;border-left:3px solid var(--accent)}
+.shell .alert p{font-size:11px;line-height:1.45}
+.shell .alertIcon{width:29px;height:29px}
+.shell .alertState{font-size:9px;border-radius:7px}
+.shell .salesStage{background:linear-gradient(105deg,#fff 0%,#fdfefe 74%,#f7fbfe 100%);border:1px solid #dbe6ed;border-radius:var(--checkout-radius);box-shadow:var(--checkout-shadow);display:grid;grid-template-columns:minmax(250px,1fr) minmax(0,1.2fr);gap:20px;padding:14px 18px;margin:0 0 15px;align-items:center}
+.shell .salesStageHeading{display:flex;align-items:center;gap:14px;min-width:0}
+.shell .salesStageIcon{height:49px;width:49px;display:grid;place-items:center;flex:none;background:#fff4cc;color:#86600c;border:1px solid #f6df95;border-radius:13px}
+.buster .salesStageIcon{background:#fff0df;border-color:#f8d4aa;color:#b25e23}
+.shell .salesStageIcon svg{height:25px;width:25px}
+.shell .salesStageEyebrow{display:block;font-size:9px;letter-spacing:1.2px;font-weight:850;color:#9c7a2f;margin-bottom:4px;line-height:1.5;white-space:normal}
+.shell .salesStage h2{font-size:18px;font-weight:900;color:#123852;line-height:1.2;letter-spacing:-.3px}
+.shell .salesStage p{font-size:11px;line-height:1.5;color:#748c9d;margin-top:5px}
+.shell .saleMetrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;align-items:center;min-width:0;background:#f7fafc;border:1px solid #e7eef3;border-radius:11px;padding:9px 0}
+.shell .saleMetric{display:flex;flex-direction:column;gap:3px;min-width:0;padding:5px 14px;border-left:1px solid #e0e9ef}
+.shell .saleMetric:first-child{border-left:0}
+.shell .saleMetric>span{font-size:9px;letter-spacing:1px;color:#7890a2;font-weight:850;white-space:nowrap}
+.shell .saleMetric>strong{font-size:20px;line-height:1.1;font-weight:950;letter-spacing:-.5px;color:#173b56;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.shell .saleMetric>small{font-size:10px;color:#8599a7}
+.shell .checkoutGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,365px);gap:16px;align-items:start}
+.shell .workCol{display:flex;flex-direction:column;gap:14px;min-width:0}
+.shell .summaryCol{min-width:0;display:flex;flex-direction:column;gap:13px;position:sticky;top:84px}
+.shell .panel{border:1px solid #dfe8ef;border-radius:var(--checkout-radius);box-shadow:var(--checkout-shadow);padding:19px 21px;background:#fff;min-width:0}
+.shell .panelHead{margin-bottom:13px;align-items:center;gap:10px}
+.shell .panelHead h2{font-size:17px;letter-spacing:-.4px}
+.shell .searchForm{min-height:60px;background:#fbfdff;border-color:#c9dae7;border-radius:12px}
+.shell .searchForm input{font-size:14px}
+.shell .searchForm>button{min-width:115px;border-radius:0 11px 11px 0;font-size:12px;font-weight:850}
+.shell .catalogueInfo{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 15px}
+.shell .quickActionPanel{border:1px solid #dfe8ef;background:#fff;border-radius:var(--checkout-radius);padding:17px 19px;box-shadow:var(--checkout-shadow)}
+.shell .quickActionTitle{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.shell .quickActionTitle h2{font-size:15px;letter-spacing:-.25px;font-weight:900;color:#123c56;margin-top:3px}
+.shell .quickActionTitle>span{font-size:10px;color:#869aab;white-space:nowrap}
+.shell .quickActionPanel .actionRow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:0}
+.shell .quickActionPanel .actionRow button{min-height:76px;display:grid;grid-template-columns:35px minmax(0,1fr);grid-template-rows:repeat(2,min-content);align-items:center;justify-content:start;column-gap:9px;row-gap:2px;text-align:left;padding:12px 11px;border:1px solid #dfe8ee;border-radius:11px;box-shadow:none;background:#f9fbfd;transition:background .15s,border-color .15s,transform .15s}
+.shell .quickActionPanel .actionRow button:hover{background:#fff9ed;border-color:var(--accent);transform:translateY(-2px)}
+.shell .quickActionPanel .actionRow button>span{grid-row:1/3;width:35px;height:35px;border-radius:9px;display:grid;place-items:center}
+.shell .quickActionPanel .actionRow button>strong{font-size:11px;font-weight:850;color:#173c57;align-self:end}
+.shell .quickActionPanel .actionRow button>small{font-size:9.5px;color:#8597a7;align-self:start}
+.shell .quickActionPanel .actionRow button:nth-child(3){background:#fff8e9;border-color:#f1deac}
+.shell .quickActionPanel .actionRow button:nth-child(3):hover{background:#fff0cc}
+.shell .customerRow{border-radius:10px;padding:11px 12px}
+.shell .emptyBasket{min-height:130px;padding:16px 12px;gap:6px}
+.shell .cartTable{width:100%}
+.shell .cartTable th{text-align:left}
+.shell .totalsPanel{position:relative;top:auto;margin:0;padding:20px 18px 17px;background:linear-gradient(154deg,#143c56 0%,#0c293f 100%);border-color:#214963;border-top:4px solid var(--accent);border-radius:15px;box-shadow:0 18px 35px rgba(11,40,61,.16)}
+.shell .totalsPanel .panelHead h2{color:#fff}
+.shell .totalsPanel .grand{margin-top:14px}
+.shell .totalsPanel .payPrimary{min-height:48px}
+.shell .summaryCol>.panel:not(.totalsPanel){padding:16px}
+.shell .summaryCol>.panel:not(.totalsPanel) .panelHead h2{font-size:15px}
+.shell .sideTools button{font-size:11px}
+.shell .bottom{margin-top:16px}
+@media(max-width:1320px){
+  .shell .salesStage{grid-template-columns:minmax(210px,1fr) minmax(0,1fr);gap:12px}
+  .shell .checkoutGrid{grid-template-columns:minmax(0,1fr) minmax(315px,340px);gap:12px}
+  .shell .quickActionPanel .actionRow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .shell .saleMetric{padding:5px 9px}
+}
+@media(max-width:1120px){
+  .shell .salesStage{grid-template-columns:1fr}
+  .shell .saleMetrics{margin-left:0}
+  .shell .checkoutGrid{grid-template-columns:minmax(0,1fr) 310px}
+  .shell .pageBody{padding:16px}
+}
+@media(max-width:940px){
+  .shell .checkoutGrid{grid-template-columns:minmax(0,1fr)}
+  .shell .summaryCol{position:static}
+  .shell .quickActionPanel .actionRow{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:700px){
+  .shell .salesStage{padding:13px}
+  .shell .saleMetrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .shell .saleMetric>strong{font-size:16px}
+  .shell .salesStage h2{font-size:16px}
+  .shell .quickActionPanel .actionRow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .shell .quickActionTitle{align-items:start;flex-wrap:wrap}
+  .shell .alertState{display:none}
+  .shell .panel{padding:16px}
+}
+@media(max-width:480px){
+  .shell .salesStageHeading{align-items:start}
+  .shell .saleMetrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .shell .saleMetric:nth-child(3){grid-column:1/-1;border-left:0;border-top:1px solid #e0e9ef;padding-top:12px}
+  .shell .quickActionPanel{padding:13px}
+  .shell .quickActionPanel .actionRow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .shell .quickActionPanel .actionRow button{grid-template-columns:1fr;grid-template-rows:35px auto auto;gap:4px}
+  .shell .quickActionPanel .actionRow button>span{grid-row:auto}
+  .shell .searchForm>button{min-width:72px;padding:12px}
+}
