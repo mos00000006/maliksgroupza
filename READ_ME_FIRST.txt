@@ -1,35 +1,64 @@
-MALIKS GROUP HUB — FIX FOR FAILED TEST #150
-===========================================
+MALIKS GROUP HUB — SALES / TILLS PRODUCT PICKER PATCH
+Version: 6 November 2026
 
-This is a direct-paste update for the current Signature Professional Sales / Tills design.
-It fixes the single remaining failed test:
-  tests/tills-full-access.test.mjs
-  "server checks role and scope; Hub has sidebar link and till provides return link"
+PURPOSE
+When a cashier clicks QUOTATION, SALES ORDER or LAY-BY, open a searchable,
+paginated list of the active products in the Maliks Group Hub catalogue.
+The selected branch determines the published price. The right-hand pane
+shows chosen items, editable quantity, VAT and the draft total.
 
-WHY IT FAILS
-The existing test checks for the exact JSX text:
-  role!=="Sales / Tills"&&<Link href="/">Switch back to Hub</Link>
-The latest design prepended a left arrow to the link label. The permission logic was not the cause.
+WHAT IS INCLUDED
+app/tills/till-checkout.tsx              — premium POS UI plus product picker
+app/tills/tills.module.css               — responsive large product picker styles
+app/api/tills/catalogue/route.ts         — secured, paginated browse endpoint
+tests/tills-catalogue-picker.test.mjs    — regression checks
 
-FILES INCLUDED
-  app/tills/till-checkout.tsx   — only replacement file
+INSTALL — NO INSTALLER SCRIPT
+1. Make a backup of the CURRENT GitHub-connected Maliks Hub folder.
+2. Download and extract this ZIP on your computer.
+3. Open the extracted patch, select the "app" and "tests" folders and COPY.
+4. PASTE into the REAL maliks-group-hub / maliksgroupza project root,
+   the same folder that contains package.json.
+5. Let Windows MERGE matching folders and REPLACE matching files.
+6. Do NOT copy the old "new-files" staging folder from earlier patches.
+7. Upload/commit these changes to your GitHub repository. Just copying
+   files to your PC does not update the GitHub Actions build or online Hub.
+8. GitHub Actions should run "npm run check". Do not deploy if it fails.
 
-INSTALL (NO COMMANDS NEEDED TO COPY)
-1. Extract this ZIP in Downloads, outside your Hub project.
-2. In the current working maliksgroupza folder, copy the extracted app folder
-   and merge with the existing app folder; replace only
-   app/tills/till-checkout.tsx.
-3. Check the Sales / Tills page still shows "Switch back to Hub" for full-access users.
-4. Commit the changed file to GitHub using GitHub web file editor (or Git via VS Code
-   once installed). Copying files on your PC alone does not update GitHub Actions.
-5. The GitHub workflow can then run npm run check again.
+HOW STAFF WILL USE IT
+1. Sign into the Hub as an assigned Sales / Tills user, or as a full-access user.
+2. Open Sales / Tills and select the authorised branch.
+3. Click QUOTATION, SALES ORDER or LAY-BY.
+4. The product list opens automatically, starting with ALL active items.
+5. Use the search box or department filter, and Next/Previous to see more.
+6. Click Add; choose quantity in the right-hand draft panel.
+7. For a quotation/order, click Save draft to retain it during the session.
 
-SAFEGUARDS
-- No worker, API, role model, catalogue, payment, stock or CSS files are changed.
-- Transaction posting stays disabled pending RetailOS backend integration.
-- Don't copy a new-files staging folder: none is included.
+DETAILS & PROTECTION
+* 36 products per page (prevents downloading thousands of items to each till).
+* All active products are visible. Products without a published, positive
+  brand/branch price are labelled 'Price not published' and cannot be added.
+* Branch assignments and roles are checked BEFORE any database query.
+* Quote/order/lay-by product selection uses a SEPARATE document basket,
+  preventing it from accidentally altering the current checkout basket.
+* The existing barcode search and full-access 'Switch back to Hub' control
+  remain available.
+* No new database migrations or dependencies are required.
+* Refunds are NOT enabled from an arbitrary product list; an original sale
+  and authorised reversal service are required for that feature.
+
+SAFETY
+These remain LOCAL, UNISSUED drafts. The patch DOES NOT enable real payments,
+final quotations, invoice posting, cash drawer control, stock deductions or
+customer accounts. Connecting RetailOS securely and testing end-to-end are
+still prerequisites for a live till.
 
 VERIFICATION
-- The exact legacy test assertion and the new theme checks passed against this file.
-- TypeScript TSX syntax parsed with no diagnostics.
-- Complete remote GitHub workflow has not been rerun.
+- 14 targeted POS and product-picker checks passed (including legacy tests).
+- TypeScript/TSX parser: no syntax errors.
+- CSS parser: no syntax errors.
+- Paginated SQLite query: tested for branch override, unpriced items,
+  category filtering, and exact code lookup on a synthetic catalogue.
+- Full GitHub / Cloudflare build: not run here. Must pass in your repository.
+
+COPY ONLY THESE PATCH FILES. DO NOT REPLACE YOUR ENTIRE HUB SOURCE ZIP.

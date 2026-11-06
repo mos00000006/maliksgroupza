@@ -285,3 +285,77 @@
   .shell .nav{min-width:0;max-width:100%;overflow-x:auto}
   .shell>.main{min-width:0;max-width:100vw;overflow:hidden}
 }
+
+
+/* PHASE: FAST PRODUCT PICKER — quote/order/lay-by workflows (catalogue read-only). */
+.catalogueDialog{width:min(1360px,96vw);max-height:95vh;display:flex;flex-direction:column;overflow:hidden}
+.catalogueDialog .dialogHeader{flex:none;padding:19px 27px 16px}
+.catalogueDialog .dialogBody{overflow-y:auto;padding:18px 24px 24px;min-height:0;flex:1}
+.catalogueDialog .dialogFoot{flex:none}
+.pickerIntro{margin:0 0 15px;color:#667e90;font-size:12px;line-height:1.6}
+.pickerLayout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(295px,.82fr);gap:15px;align-items:stretch}
+.pickerLibrary{min-width:0;background:#fff;border:1px solid #dde7ee;border-radius:13px;overflow:hidden;display:flex;flex-direction:column}
+.pickerTools{padding:15px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(180px,.75fr);gap:10px;background:#f7fafc;border-bottom:1px solid #e5ecf1}
+.pickerTools label{display:block;margin-bottom:6px;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:1px;color:#6d8294}
+.pickerTools input,.pickerTools select{width:100%;border:1px solid #cfdde7;border-radius:9px;min-height:43px;padding:10px 12px;background:#fff;color:#193c54;min-width:0;box-shadow:0 2px 6px #16364c09;font-size:12px}
+.pickerTools input:focus,.pickerTools select:focus{border-color:#266c9d;outline:3px solid #a3cde947;outline-offset:0}
+.pickerResultsHeader{padding:11px 16px;border-bottom:1px solid #e7eef2;display:flex;justify-content:space-between;align-items:center;gap:10px;color:#8394a1;font-size:10px}
+.pickerResultsHeader strong{color:#24445b;font-weight:900;font-size:12px}
+.pickerResults{max-height:340px;overflow-y:auto;overscroll-behavior:contain;min-height:200px}
+.pickerProduct{display:grid;grid-template-columns:42px minmax(0,1fr) minmax(100px,125px) auto;gap:10px;align-items:center;min-height:78px;padding:11px 13px;border-bottom:1px solid #edf1f4}
+.pickerProduct:hover{background:#f8fbfd}
+.pickerProductMark{width:39px;height:39px;border-radius:11px;background:#eef5f9;display:grid;place-items:center;color:#367196}
+.pickerProductInfo{min-width:0;display:grid;gap:5px}
+.pickerProductInfo strong{font-size:12px;color:#193b52;line-height:1.35;overflow-wrap:anywhere}
+.pickerProductInfo span{font-size:10px;color:#7c91a0;line-height:1.5;overflow-wrap:anywhere}
+.pickerProductPrice{display:flex;align-items:flex-end;flex-direction:column;gap:5px}
+.pickerProductPrice strong{font-size:13px;color:#173a51;white-space:nowrap}
+.pickerProductPrice small{font-size:9px;color:#9aabb5}
+.pickerNoPrice{font-size:10px;color:#af6d24;text-align:right;font-weight:800}
+.pickerAdd{min-width:74px;border:1px solid #c8dbec!important;background:#eaf3fa!important;color:#1c628d!important;font-size:11px!important;font-weight:900!important;border-radius:8px;padding:10px 9px!important;white-space:nowrap}
+.pickerAdd:not(:disabled):hover{background:#1d679c!important;color:#fff!important}
+.pickerAdd:disabled{background:#f0f2f4!important;color:#9ba9b3!important}
+.pickerFooter{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 14px;background:#f8fafb;border-top:1px solid #e8eff4;color:#7c8f9d;font-size:10px}
+.pickerFooter>span{flex:1;line-height:1.4}
+.pickerFooter>div{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.pickerFooter b{font-size:12px;color:#21435a}
+.pickerFooter button{border:1px solid #d9e3eb;background:#fff;border-radius:8px;padding:8px;font-size:10px;font-weight:800;color:#295b7b}
+.pickerFooter button:hover:not(:disabled){background:#e9f4fa}
+.pickerSelection{min-width:0;min-height:440px;background:#122f46;color:#edf6fb;border:1px solid #163d59;border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
+.pickerSelectionHead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:17px;border-bottom:1px solid #ffffff20}
+.pickerSelectionHead span{font-size:10px;color:#b5cbda;letter-spacing:1.2px;font-weight:900}
+.pickerSelectionHead strong{font-size:11px;color:#fff}
+.pickerSelectionEmpty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:25px;text-align:center;color:#c4d3de}
+.pickerSelectionEmpty svg{width:34px;height:34px;color:var(--accent)}
+.pickerSelectionEmpty b{font-size:14px;color:#fff}
+.pickerSelectionEmpty p{font-size:11px;line-height:1.65;margin:0}
+.pickerSelectionRows{flex:1;overflow-y:auto;max-height:370px;min-height:130px;padding:5px 12px}
+.pickerSelected{padding:13px 5px;border-bottom:1px solid #ffffff1c}
+.pickerSelected>div:first-child{display:grid;gap:4px}
+.pickerSelected>div:first-child strong{font-size:11px;line-height:1.45;color:#f3f8fc}
+.pickerSelected small{font-size:9px;color:#8fb1c8}
+.pickerSelectedBottom{display:flex;align-items:center;gap:9px;justify-content:space-between;margin-top:10px}
+.pickerSelectedBottom>strong{font-size:12px;color:#fff;white-space:nowrap}
+.pickerStepper{display:flex;align-items:center;overflow:hidden;border:1px solid #607f94;border-radius:8px}
+.pickerStepper button{background:#2d4b60;border:0;color:#fff;padding:6px 9px;font-size:15px}
+.pickerStepper input{width:58px;min-width:0;border:0;padding:7px 1px;color:#1b3d56;background:#fff;text-align:center;font-size:11px}
+.pickerRemove{border:0;background:#ffffff14;color:#fae1d7;border-radius:6px;font-size:18px;padding:2px 8px}
+.pickerSelectionTotals{padding:16px;background:#0b2438;display:grid;gap:12px;margin-top:auto}
+.pickerSelectionTotals>div{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#b9cbd7;gap:12px}
+.pickerSelectionTotals strong{color:#fff;font-weight:850}
+.pickerSelectionTotals .pickerSelectionGrand{margin:5px -16px -16px;padding:17px;background:var(--accent);color:#1e2b35;font-weight:900}
+.pickerSelectionGrand strong{font-size:20px;color:#182b39!important}
+.pickerActions{display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:10px;margin-top:17px}
+.pickerActions>span{margin-right:auto;font-size:12px;font-weight:800;color:#486677}
+.pickerActions button{padding:12px 17px;border-radius:9px;border:1px solid #d4e3ec;background:#20618e;color:#fff;font-size:11px;font-weight:900}
+.pickerActions button.ghostBtn{background:#eff5f9;color:#28668d}
+.pickerActions button:disabled{background:#e2e9ee;color:#9aadb9}
+.pickerLayby{display:flex;gap:15px;justify-content:space-between;align-items:end;padding:14px 0;margin-top:12px;flex-wrap:wrap}
+.pickerLayby>div{display:grid;gap:5px;font-size:11px;color:#698193}
+.pickerLayby strong{font-size:18px;color:#21445e}
+.pickerLayby .selectFull{margin-top:5px}
+.pickerError{margin:14px;background:#fff3ef;border:1px solid #ffc9ba;padding:12px;border-radius:9px;font-size:11px;color:#9b4326}
+.pickerError button{margin-left:12px;border:0;background:#b74e28;color:#fff;border-radius:6px;padding:6px 10px}
+.pickerEmpty{padding:36px 18px;display:grid;place-items:center;color:#8398a6;font-size:12px;text-align:center}
+@media(max-width:930px){.pickerLayout{grid-template-columns:1fr}.pickerSelection{min-height:250px}.pickerSelectionRows{max-height:210px}.catalogueDialog{max-height:96vh}}
+@media(max-width:620px){.catalogueDialog{width:100%;max-height:98vh}.catalogueDialog .dialogHeader{padding:13px}.catalogueDialog .dialogBody{padding:13px}.pickerTools{grid-template-columns:1fr;padding:12px}.pickerProduct{grid-template-columns:33px minmax(0,1fr) auto;gap:6px;padding:10px}.pickerProductMark{width:29px;height:29px}.pickerProductPrice{grid-column:2;grid-row:2;align-items:flex-start}.pickerAdd{grid-column:3;grid-row:1/3}.pickerFooter{flex-wrap:wrap}.pickerActions button{flex:1 1 160px}}

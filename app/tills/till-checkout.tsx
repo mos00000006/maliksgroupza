@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import styles from "./tills.module.css";
 import { basketTotals, parseZarCents, quoteDeposit, safeQty, tenderPreview } from "./pos-preview-domain.mjs";
@@ -83,6 +83,8 @@ export default function TillCheckout({username,role,stores}:{username:string;rol
   const [search,setSearch]=useState("");
   const [products,setProducts]=useState<Product[]>([]);
   const [lines,setLines]=useState<Line[]>([]);
+  // Quotes, sales orders and lay-by calculations must not alter the active checkout basket.
+  const [documentLines,setDocumentLines]=useState<Line[]>([]);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
@@ -99,29 +101,105 @@ export default function TillCheckout({username,role,stores}:{username:string;rol
   const [receiptMode,setReceiptMode]=useState<"Quote"|"Basket">("Basket");
   const [stockTerm,setStockTerm]=useState("");
   const [stockResults,setStockResults]=useState<Product[]>([]);
+  // Scoped, paginated product browser for quotation/order/lay-by drafts.
+  const [pickerSearch,setPickerSearch]=useState("");
+  const [pickerCategory,setPickerCategory]=useState("");
+  const [pickerCategories,setPickerCategories]=useState<string[]>([]);
+  const [pickerProducts,setPickerProducts]=useState<Product[]>([]);
+  const [pickerPage,setPickerPage]=useState(1);
+  const [pickerHasMore,setPickerHasMore]=useState(false);
+  const [pickerBusy,setPickerBusy]=useState(false);
+  const [pickerError,setPickerError]=useState("");
+  const pickerRequest=useRef<AbortController|null>(null);
+  const pickerTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const activeSaleLinesRef=useRef<Line[]>([]);
   const focus=useRef<HTMLInputElement>(null);
   const activeRequest=useRef<AbortController|null>(null);
   const nextId=useRef(1);
   const totals=useMemo(()=>basketTotals(lines),[lines]);
+  const documentTotals=useMemo(()=>basketTotals(documentLines),[documentLines]);
   const tender=useMemo(()=>tenderPreview(totals.gross,{cash,card,eft}),[totals.gross,cash,card,eft]);
-  const deposit=quoteDeposit(totals.gross,Number(depositPercent));
+  const deposit=quoteDeposit(documentTotals.gross,Number(depositPercent));
   const isTillOnly=role==="Sales / Tills";
   const isBuster=/buster\s*build/i.test(branch);
   const selectedDocs=drafts.filter(d=>d.branch===branch);
   const invalidTender=[cash,card,eft].some(value=>value.trim()!==""&&parseZarCents(value)===null);
 
+  const fetchPicker=useCallback(async(branchName:string,term:string,category:string,page:number)=>{
+    pickerRequest.current?.abort();
+    const controller=new AbortController();
+    pickerRequest.current=controller;
+    setPickerBusy(true);setPickerError("");
+    try {
+      const params=new URLSearchParams({mode:"browse",branch:branchName,q:term.trim(),category,page:String(page)});
+      const res=await fetch(`/api/tills/catalogue?${params.toString()}`,{cache:"no-store",signal:controller.signal});
+      const payload=await res.json();
+      if(controller.signal.aborted)return;
+      if(!res.ok)throw new Error(payload.error??"Unable to open the product catalogue.");
+      setPickerProducts(Array.isArray(payload.products)?payload.products:[]);
+      setPickerHasMore(payload.hasMore===true);
+      setPickerPage(page);
+    }catch(err){
+      if(!controller.signal.aborted){setPickerError(err instanceof Error?err.message:"Product list unavailable.");setPickerProducts([]);setPickerHasMore(false);}
+    }finally{if(!controller.signal.aborted)setPickerBusy(false);}
+  },[]);
+  const fetchCategories=useCallback(async(branchName:string)=>{
+    try {
+      const params=new URLSearchParams({mode:"categories",branch:branchName});
+      const res=await fetch(`/api/tills/catalogue?${params.toString()}`,{cache:"no-store"});
+      if(!res.ok)return;
+      const payload=await res.json();
+      setPickerCategories(Array.isArray(payload.categories)?payload.categories.filter((c:unknown):c is string=>typeof c==="string"):[]);
+    }catch{setPickerCategories([]);}
+  },[]);
+  const pickerMode=modal==="quote"||modal==="order"||modal==="layby";
+  useEffect(()=>{
+    if(!pickerMode)return;
+    // Schedule network work after opening; never update React state synchronously in an effect.
+    const kickoff=window.setTimeout(()=>{void fetchPicker(branch,"","",1);void fetchCategories(branch);},0);
+    return()=>window.clearTimeout(kickoff);
+  },[pickerMode,branch,fetchPicker,fetchCategories]);
+  const pickerSearchChange=(value:string)=>{
+    setPickerSearch(value);setPickerPage(1);setPickerProducts([]);
+    pickerRequest.current?.abort();
+    if(pickerTimer.current)window.clearTimeout(pickerTimer.current);
+    pickerTimer.current=window.setTimeout(()=>{void fetchPicker(branch,value,pickerCategory,1);},280);
+  };
+  const pickerCategoryChange=(value:string)=>{
+    if(pickerTimer.current)window.clearTimeout(pickerTimer.current);
+    setPickerCategory(value);setPickerPage(1);
+    void fetchPicker(branch,pickerSearch,value,1);
+  };
+  const pickerGoto=(page:number)=>{
+    if(page<1||pickerBusy)return;
+    if(pickerTimer.current)window.clearTimeout(pickerTimer.current);
+    void fetchPicker(branch,pickerSearch,pickerCategory,page);
+  };
+  const pickerChangeQty=(id:number,value:unknown)=>{
+    const next=safeQty(value);
+    if(next!==null)setDocumentLines(previous=>previous.map(line=>line.product.id===id?{...line,quantity:next}:line));
+  };
+  const pickerAdd=(product:Product)=>{
+    if(!Number.isSafeInteger(product.price_cents)||product.price_cents<=0)return;
+    setDocumentLines(previous=>{
+      const existing=previous.find(line=>line.product.id===product.id);
+      return existing?previous.map(line=>line.product.id===product.id?{...line,quantity:Math.min(9999,Math.round((line.quantity+1)*1000)/1000)}:line):[...previous,{product,quantity:1}];
+    });
+  };
+
+  useEffect(()=>{activeSaleLinesRef.current=lines;},[lines]);
   useEffect(()=>{
     const updateClock=()=>setClock(when());
     const timer=window.setInterval(updateClock,30000);
     const keyboard=(event:KeyboardEvent)=>{
       if(event.key==="F2"){event.preventDefault();setSection("checkout");window.setTimeout(()=>focus.current?.focus(),0);}
       if(event.key==="F4"){event.preventDefault();setSection("documents");}
-      if(event.key==="F6"){event.preventDefault();setModal("quote");}
+      if(event.key==="F6"){event.preventDefault();setDocumentLines(activeSaleLinesRef.current.map(line=>({...line})));setPickerSearch("");setPickerCategory("");setModal("quote");}
       if(event.key==="F8"){event.preventDefault();setModal("tender");}
       if(event.key==="Escape")setModal(null);
     };
     window.addEventListener("keydown",keyboard);
-    return ()=>{window.clearInterval(timer);window.removeEventListener("keydown",keyboard);activeRequest.current?.abort();};
+    return ()=>{window.clearInterval(timer);window.removeEventListener("keydown",keyboard);activeRequest.current?.abort();pickerRequest.current?.abort();if(pickerTimer.current)window.clearTimeout(pickerTimer.current);};
   },[]);
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
@@ -135,8 +213,8 @@ export default function TillCheckout({username,role,stores}:{username:string;rol
   const changeBranch=(value:string)=>{
     if(value===branch)return;
     if(lines.length&&!window.confirm("Switching stores clears your current basket. Continue?"))return;
-    activeRequest.current?.abort(); activeRequest.current=null;
-    setBranch(value);setLines([]);setProducts([]);setStockResults([]);setSearch("");setCash("");setCard("");setEft("");setError("");setNotice("");setModal(null);
+    activeRequest.current?.abort(); activeRequest.current=null;pickerRequest.current?.abort();if(pickerTimer.current)window.clearTimeout(pickerTimer.current);
+    setBranch(value);setLines([]);setDocumentLines([]);setProducts([]);setStockResults([]);setPickerProducts([]);setPickerCategories([]);setPickerSearch("");setPickerCategory("");setSearch("");setCash("");setCard("");setEft("");setError("");setNotice("");setModal(null);
   };
   const add=(product:Product)=>{
     setLines(previous=>{
@@ -171,9 +249,9 @@ export default function TillCheckout({username,role,stores}:{username:string;rol
     setLines([]);setCash("");setCard("");setEft("");setNotice(`Basket ${id} parked for this session only. No stock reserved.`);
   };
   const saveDocument=(kind:"Quotation"|"Sales order")=>{
-    if(!lines.length){setNotice("Add products before creating a document draft.");setModal(null);return;}
+    if(!documentLines.length){setNotice("Add products before creating a document draft.");setModal(null);return;}
     const id=`DRAFT-${String(nextId.current++).padStart(3,"0")}`;
-    setDrafts(previous=>[{id,kind,branch,created:when(),lines:lines.map(l=>({...l}))},...previous]);
+    setDrafts(previous=>[{id,kind,branch,created:when(),lines:documentLines.map(l=>({...l}))},...previous]);
     setDocumentNo(n=>n+1);setModal(null);setNotice(`${kind} ${id} saved locally for this browser session. It has not been issued or posted.`);
   };
   const restore=(draft:Draft)=>{
@@ -182,7 +260,7 @@ export default function TillCheckout({username,role,stores}:{username:string;rol
     setNotice(`${draft.kind} ${draft.id} loaded into the basket.`);focus.current?.focus();
     if(draft.kind==="Parked sale")setDrafts(previous=>previous.filter(x=>x.id!==draft.id));
   };
-  const open=(name:Dialog)=>{setModal(name);setError("");};
+  const open=(name:Dialog)=>{if(name==="quote"||name==="order"||name==="layby"){setDocumentLines(lines.map(line=>({...line})));setPickerSearch("");setPickerCategory("");setPickerProducts([]);setPickerPage(1);setPickerHasMore(false);}setModal(name);setError("");};
   const renderFeatureCard=(feature:{title:string;description:string;icon:string})=><div className={styles.featureCard} key={feature.title}>
     <div className={styles.featureIcon}>{feature.icon}</div><div><h3>{feature.title}</h3><p>{feature.description}</p><span className={styles.pending}>Backend integration required</span></div>
   </div>;
@@ -195,9 +273,55 @@ export default function TillCheckout({username,role,stores}:{username:string;rol
     setLines([]);setCash("");setCard("");setEft("");setNotice("Basket cleared. No transaction was created.");
   };
   const pill=(text:string)=> <span className={styles.smallPill}>{text}</span>;
-  const documentTitle=modal==="quote"?"Create quotation draft":modal==="order"?"Create sales order draft":modal==="layby"?"Lay-by calculator":modal==="delivery"?"Delivery / collection":modal==="return"?"Refund and return request":modal==="discount"?"Discount / price override":modal==="drawer"?"Cash drawer control":modal==="receipt"?"Basket summary":"Payment calculator";
-  const previewLines=lines.map(line=>({product:line.product,quantity:line.quantity}));
+  const documentTitle=modal==="quote"?"Create quotation · Select products":modal==="order"?"Sales order · Select products":modal==="layby"?"Lay-by · Select products":modal==="delivery"?"Delivery / collection":modal==="return"?"Refund and return request":modal==="discount"?"Discount / price override":modal==="drawer"?"Cash drawer control":modal==="receipt"?"Basket summary":"Payment calculator";
+  const previewLines=(receiptMode==="Quote"?documentLines:lines).map(line=>({product:line.product,quantity:line.quantity}));
+  const previewTotals=basketTotals(previewLines);
   const isDocumentPrint=modal==="receipt";
+
+  const cataloguePicker=()=> <div className={styles.pickerLayout}>
+    <section className={styles.pickerLibrary} aria-label="Branch product catalogue">
+      <div className={styles.pickerTools}>
+        <div className={styles.pickerSearchControl}>
+          <label htmlFor="quote-product-search">Find products</label>
+          <input id="quote-product-search" autoComplete="off" value={pickerSearch} onChange={event=>pickerSearchChange(event.target.value)} placeholder="Search product name, code or size…" maxLength={100}/>
+        </div>
+        <div className={styles.pickerCategoryControl}>
+          <label htmlFor="quote-product-category">Department</label>
+          <select id="quote-product-category" value={pickerCategory} onChange={event=>pickerCategoryChange(event.target.value)}>
+            <option value="">All departments</option>
+            {pickerCategories.map(category=><option value={category} key={category}>{category}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className={styles.pickerResultsHeader}><strong>{pickerSearch.trim()?"Search results":"All catalogue items"}</strong><span>{pickerBusy?"Loading products…":`${pickerProducts.length} on page ${pickerPage}`} · {branch}</span></div>
+      {pickerError&&<div className={styles.pickerError} role="alert">{pickerError} <button type="button" onClick={()=>void fetchPicker(branch,pickerSearch,pickerCategory,pickerPage)}>Retry</button></div>}
+      <div className={styles.pickerResults} aria-live="polite">
+        {!pickerBusy&&!pickerError&&!pickerProducts.length&&<div className={styles.pickerEmpty}>No matching items. Try another search or choose All departments.</div>}
+        {pickerBusy&&<div className={styles.pickerEmpty}>Loading the branch product list…</div>}
+        {!pickerBusy&&pickerProducts.map(product=>{
+          const count=documentLines.find(line=>line.product.id===product.id)?.quantity??0;
+          const priced=Number.isSafeInteger(product.price_cents)&&product.price_cents>0;
+          return <article className={styles.pickerProduct} key={product.id}>
+            <div className={styles.pickerProductMark}><PosGlyph kind="inventory"/></div>
+            <div className={styles.pickerProductInfo}><strong>{product.name}</strong><span>{product.code} · {product.category||"Uncategorised"} · {product.unit||"each"}</span></div>
+            <div className={styles.pickerProductPrice}>{priced?<strong>{money(product.price_cents)}</strong>:<span className={styles.pickerNoPrice}>Price not published</span>}<small>VAT inclusive</small></div>
+            <button className={styles.pickerAdd} type="button" onClick={()=>pickerAdd(product)} disabled={!priced} aria-label={`Add ${product.name} to document`}>{count?`+ Add (${count})`:'＋ Add'}</button>
+          </article>;
+        })}
+      </div>
+      <div className={styles.pickerFooter}><span>Active items are listed across pages. Unpriced products must be published before quoting.</span><div><button type="button" disabled={pickerBusy||pickerPage===1} onClick={()=>pickerGoto(pickerPage-1)}>← Previous</button><b>{pickerPage}</b><button type="button" disabled={pickerBusy||!pickerHasMore} onClick={()=>pickerGoto(pickerPage+1)}>Next →</button></div></div>
+    </section>
+    <aside className={styles.pickerSelection} aria-label="Selected products for document">
+      <div className={styles.pickerSelectionHead}><span>SELECTED ITEMS</span><strong>{documentLines.length} products</strong></div>
+      {documentLines.length===0?<div className={styles.pickerSelectionEmpty}><PosGlyph kind="basket"/><b>Your document is empty</b><p>Press Add beside a product to build your {modal==="quote"?"quotation":modal==="order"?"sales order":"lay-by"}.</p></div>:
+        <div className={styles.pickerSelectionRows}>{documentLines.map(line=><div className={styles.pickerSelected} key={line.product.id}>
+          <div><strong>{line.product.name}</strong><small>{line.product.code}</small></div>
+          <div className={styles.pickerSelectedBottom}><div className={styles.pickerStepper}><button aria-label={`Subtract ${line.product.name}`} type="button" onClick={()=>pickerChangeQty(line.product.id,Math.max(0.001,line.quantity-1))}>−</button><input aria-label={`Document quantity of ${line.product.name}`} type="number" min="0.001" max="9999" step="any" value={line.quantity} onChange={e=>pickerChangeQty(line.product.id,e.target.value)}/><button aria-label={`Add another ${line.product.name}`} type="button" onClick={()=>pickerChangeQty(line.product.id,line.quantity+1)}>+</button></div><strong>{money(Math.round(line.product.price_cents*line.quantity))}</strong><button type="button" aria-label={`Remove ${line.product.name} from document`} className={styles.pickerRemove} onClick={()=>setDocumentLines(previous=>previous.filter(item=>item.product.id!==line.product.id))}>×</button></div>
+        </div>)}</div>}
+      <div className={styles.pickerSelectionTotals}><div><span>Subtotal excl. VAT</span><strong>{money(documentTotals.net)}</strong></div><div><span>VAT included (15%)</span><strong>{money(documentTotals.vat)}</strong></div><div className={styles.pickerSelectionGrand}><span>Total incl. VAT</span><strong>{money(documentTotals.gross)}</strong></div></div>
+    </aside>
+  </div>;
+
   return <main className={`${styles.shell} ${isBuster?styles.buster:styles.power}`}>
     <aside className={styles.side} aria-label="POS navigation">
       <div className={styles.logo}><div className={styles.logoMark}><span className={styles.logoMonogram}>M</span><span className={styles.logoSpark}>✦</span></div><div><strong>MALIKS</strong><span>RETAIL OS <i>PRO</i></span></div></div>
@@ -266,15 +390,15 @@ export default function TillCheckout({username,role,stores}:{username:string;rol
         <footer className={styles.bottom}><span><b>Maliks RetailOS</b> · Sales & tills workstation</span><span>Published Hub catalogue · Transaction service inactive · {documentNo} local document action(s)</span></footer>
       </div>
     </div>
-    {modal&&<div className={styles.scrim} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setModal(null);}}><section className={styles.dialog} role="dialog" aria-modal="true" aria-label={documentTitle}><div className={styles.dialogHeader}><div><span className={styles.eyebrow}>MALIKS RETAILOS · CONTROLLED WORKFLOW</span><h2>{documentTitle}</h2></div><button type="button" aria-label="Close dialog" onClick={()=>setModal(null)}>×</button></div><div className={styles.dialogBody}>
+    {modal&&<div className={styles.scrim} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setModal(null);}}><section className={`${styles.dialog} ${pickerMode?styles.catalogueDialog:""}`} role="dialog" aria-modal="true" aria-label={documentTitle}><div className={styles.dialogHeader}><div><span className={styles.eyebrow}>MALIKS RETAILOS · CONTROLLED WORKFLOW</span><h2>{documentTitle}</h2></div><button type="button" aria-label="Close dialog" onClick={()=>setModal(null)}>×</button></div><div className={styles.dialogBody}>
       {modal==="tender"&&<><p className={styles.dialogLead}>Calculate split tender amounts. This calculator does not charge or record payments while checkout activation is pending.</p><div className={styles.tenderFields}>{([['Cash',cash,setCash],['Card',card,setCard],['EFT',eft,setEft]] as const).map(([name,val,set])=><label key={name}>{name} received (R)<input value={val} onChange={e=>set(e.target.value)} inputMode="decimal" placeholder="0.00"/></label>)}</div>{invalidTender&&<p className={styles.warningText}>Use whole rand or two decimal places. Negative values are not allowed.</p>}<div className={styles.modalSummary}><div><span>Amount due</span><b>{money(totals.gross)}</b></div><div><span>Entered tender</span><b>{money(tender.paid)}</b></div><div><span>{tender.due?"Still due":"Change"}</span><b>{money(tender.due||tender.change)}</b></div></div><button type="button" className={styles.modalDisabled} disabled aria-label="Complete sale — not enabled">Checkout activation required</button></>}
-      {(modal==="quote"||modal==="order")&&<><p className={styles.dialogLead}>Generate a temporary <b>{modal==="quote"?"quotation":"sales order"}</b> draft for this browser session. It cannot be sent, approved, invoiced or converted into a real sale.</p><div className={styles.miniSummary}><span>{lines.length} products</span><b>{money(totals.gross)}</b><small>15% VAT included · Walk-in customer</small></div><div className={styles.modalButtons}><button type="button" onClick={()=>saveDocument(modal==="quote"?"Quotation":"Sales order")} disabled={!lines.length}>Save local draft</button><button className={styles.ghostBtn} type="button" onClick={()=>{setReceiptMode("Quote");setModal("receipt");}} disabled={!lines.length}>Print preview</button></div></>}
-      {modal==="layby"&&<><p className={styles.dialogLead}>Estimate a lay-by deposit and balance. A live lay-by requires a customer, stock reservation, payment schedule, deposit receipt and account ledger.</p><label className={styles.fieldLabel} htmlFor="deposit">Deposit percentage</label><select id="deposit" className={styles.selectFull} value={depositPercent} onChange={e=>setDepositPercent(e.target.value)}><option value="10">10%</option><option value="20">20%</option><option value="25">25%</option><option value="30">30%</option><option value="50">50%</option></select><div className={styles.modalSummary}><div><span>Sale value</span><b>{money(totals.gross)}</b></div><div><span>Estimated deposit</span><b>{money(deposit?.deposit??0)}</b></div><div><span>Remaining balance</span><b>{money(deposit?.balance??0)}</b></div></div><button type="button" className={styles.modalDisabled} disabled>Create lay-by — requires account service</button></>}
+      {(modal==="quote"||modal==="order")&&<><p className={styles.pickerIntro}>Browse your branch catalogue and add products below. Quantities and the VAT-inclusive total update instantly. This document is a local unissued draft, not an invoice or authorised quotation.</p>{cataloguePicker()}<div className={styles.pickerActions}><span>{documentLines.length?`${documentLines.length} products selected · ${money(documentTotals.gross)}`:"Select products to begin"}</span><button type="button" onClick={()=>saveDocument(modal==="quote"?"Quotation":"Sales order")} disabled={!documentLines.length}>Save {modal==="quote"?"quotation":"sales order"} draft</button><button type="button" className={styles.ghostBtn} onClick={()=>{setReceiptMode("Quote");setModal("receipt");}} disabled={!documentLines.length}>Print unissued summary</button></div></>}
+      {modal==="layby"&&<><p className={styles.pickerIntro}>Choose the lay-by products first, then calculate a deposit. No payment or stock reservation is created.</p>{cataloguePicker()}<div className={styles.pickerLayby}><label className={styles.fieldLabel} htmlFor="deposit">Deposit percentage <select id="deposit" className={styles.selectFull} value={depositPercent} onChange={e=>setDepositPercent(e.target.value)}><option value="10">10%</option><option value="20">20%</option><option value="25">25%</option><option value="30">30%</option><option value="50">50%</option></select></label><div><span>Estimated deposit</span><strong>{money(deposit?.deposit??0)}</strong></div><div><span>Remaining balance</span><strong>{money(deposit?.balance??0)}</strong></div></div><button type="button" className={styles.modalDisabled} disabled>Create lay-by — account service not connected</button></>}
       {modal==="delivery"&&<><p className={styles.dialogLead}>Choose a fulfilment preference. Dispatch notes, routes, addresses and proof of delivery require the connected back-office service.</p><div className={styles.choiceRow}><button type="button" className={deliveryMethod==="Collection"?styles.activeChoice:""} onClick={()=>setDeliveryMethod("Collection")}>◉ Customer collection</button><button type="button" className={deliveryMethod==="Delivery"?styles.activeChoice:""} onClick={()=>setDeliveryMethod("Delivery")}>↗ Branch delivery</button></div><p className={styles.sectionIntro}>Selected: {deliveryMethod}. This does not create a dispatch note or a delivery commitment.</p><button type="button" className={styles.modalButtonsSingle} onClick={()=>{setNotice(`${deliveryMethod} preference saved to this basket.`);setModal(null);}}>Save preference</button></>}
       {modal==="return"&&<><p className={styles.dialogLead}>A return requires an original invoice, cashier identity, supervisor approval and controlled stock and VAT reversal.</p><div className={styles.lockedFeature}>▣ Locate original transaction — not connected</div><div className={styles.lockedFeature}>✓ Supervisor authorisation — not connected</div><div className={styles.lockedFeature}>↶ Refund / credit note posting — disabled</div></>}
       {modal==="discount"&&<><p className={styles.dialogLead}>Price changes, line discounts and trade terms must be authorised server-side. Only published retail prices are available here; manual price changes are not authorised.</p><div className={styles.lockedFeature}>% Request manager-approved discount — not connected</div><div className={styles.lockedFeature}>▧ Assign account-specific price list — not connected</div></>}
       {modal==="drawer"&&<><p className={styles.dialogLead}>The Epson cash drawer can be opened only by an authorised station after a valid event is audited. Browser access to your printer/drawer has not been configured.</p><div className={styles.lockedFeature}>🔒 Hardware device not commissioned</div><button type="button" className={styles.modalDisabled} disabled>Send drawer pulse — disabled</button></>}
-      {isDocumentPrint&&<><p className={styles.dialogLead}>This is an <b>unissued {receiptMode.toLowerCase()} summary</b>, not a tax invoice, cash slip, authorised quote or proof of payment.</p><div className={styles.printSheet} id="maliks-print-sheet"><div className={styles.printHeader}><strong>MALIKS GROUP</strong><span>{branch}</span><small>UNISSUED DOCUMENT — NOT VALID FOR TRADING</small></div><h3>{receiptMode==="Quote"?"QUOTATION DRAFT":"BASKET SUMMARY"}</h3>{previewLines.map(line=><div key={line.product.id} className={styles.printLine}><span>{line.quantity} × {line.product.name}</span><b>{money(Math.round(line.quantity*line.product.price_cents))}</b></div>)}<div className={styles.printTotal}><span>VAT included {money(totals.vat)}</span><strong>{money(totals.gross)}</strong></div><small>UNISSUED / NOT AN INVOICE OR PROOF OF PAYMENT.</small></div><button type="button" className={styles.modalButtonsSingle} onClick={()=>window.print()}>Print unissued summary</button></>}
+      {isDocumentPrint&&<><p className={styles.dialogLead}>This is an <b>unissued {receiptMode.toLowerCase()} summary</b>, not a tax invoice, cash slip, authorised quote or proof of payment.</p><div className={styles.printSheet} id="maliks-print-sheet"><div className={styles.printHeader}><strong>MALIKS GROUP</strong><span>{branch}</span><small>UNISSUED DOCUMENT — NOT VALID FOR TRADING</small></div><h3>{receiptMode==="Quote"?"QUOTATION DRAFT":"BASKET SUMMARY"}</h3>{previewLines.map(line=><div key={line.product.id} className={styles.printLine}><span>{line.quantity} × {line.product.name}</span><b>{money(Math.round(line.quantity*line.product.price_cents))}</b></div>)}<div className={styles.printTotal}><span>VAT included {money(previewTotals.vat)}</span><strong>{money(previewTotals.gross)}</strong></div><small>UNISSUED / NOT AN INVOICE OR PROOF OF PAYMENT.</small></div><button type="button" className={styles.modalButtonsSingle} onClick={()=>window.print()}>Print unissued summary</button></>}
     </div><div className={styles.dialogFoot}>No transaction posted · Controlled workstation <button type="button" onClick={()=>setModal(null)}>Close</button></div></section></div>}
   </main>;
 }
