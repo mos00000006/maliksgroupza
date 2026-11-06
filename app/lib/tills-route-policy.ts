@@ -8,6 +8,8 @@ export function cashierPathPolicy(pathname: string, method: string): "redirect" 
   if (pathname === "/") return method === "GET" || method === "HEAD" ? "redirect" : "deny";
   if ((pathname === "/tills" || pathname === "/tills/") && (method === "GET" || method === "HEAD")) return "allow";
   if ((pathname === "/api/tills" || pathname.startsWith("/api/tills/")) && (method === "GET" || method === "HEAD")) return "allow";
+  // Allow exactly the quotation-submission write; the API validates identity, store, prices and CSRF.
+  if (pathname === "/api/tills/quotes" && method === "POST") return "allow";
   // Invitation acceptance is authenticated and checks the email + invitation token.
   if (pathname === "/api/team/accept" && method === "POST") return "allow";
   return "deny";

@@ -1,0 +1,9 @@
+export function quoteNumber(id:number):string;
+export function quoteId(value:unknown):number|null;
+export type QuoteInputLine={product_id:number;quantity:number;expected_price_cents:number};
+export type QuotePricedLine={product_id:number;quantity:number;price_cents:number;code:string;name:string;unit:string;category:string};
+export type QuoteComputedLine=QuotePricedLine&{line_total_cents:number};
+export function validateQuoteLines(value:unknown):QuoteInputLine[];
+export function calculateQuote(lines:QuotePricedLine[]):{lines:QuoteComputedLine[];total_cents:number;vat_cents:number;net_cents:number};
+export function canReviewCashOffice(role:string,scope:string):boolean;
+export function canonicalQuotePayload(branch:string,customerName:string,customerContact:string,notes:string,lines:QuoteInputLine[]):string;

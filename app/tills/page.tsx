@@ -16,5 +16,5 @@ export default async function TillPage() {
   }
   const stores = await tillBranches(member);
   if (!stores.length) return <main style={{padding:40,fontFamily:"Arial, sans-serif"}}><h1>No store assigned</h1><p>Ask your Hub administrator to assign an active retail branch.</p></main>;
-  return <TillCheckout username={member.name} role={member.role} stores={stores}/>;
+  return <TillCheckout username={member.name} role={member.role} stores={stores} accessScope={member.access_scope}/>;
 }

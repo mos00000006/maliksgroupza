@@ -359,3 +359,38 @@
 .pickerEmpty{padding:36px 18px;display:grid;place-items:center;color:#8398a6;font-size:12px;text-align:center}
 @media(max-width:930px){.pickerLayout{grid-template-columns:1fr}.pickerSelection{min-height:250px}.pickerSelectionRows{max-height:210px}.catalogueDialog{max-height:96vh}}
 @media(max-width:620px){.catalogueDialog{width:100%;max-height:98vh}.catalogueDialog .dialogHeader{padding:13px}.catalogueDialog .dialogBody{padding:13px}.pickerTools{grid-template-columns:1fr;padding:12px}.pickerProduct{grid-template-columns:33px minmax(0,1fr) auto;gap:6px;padding:10px}.pickerProductMark{width:29px;height:29px}.pickerProductPrice{grid-column:2;grid-row:2;align-items:flex-start}.pickerAdd{grid-column:3;grid-row:1/3}.pickerFooter{flex-wrap:wrap}.pickerActions button{flex:1 1 160px}}
+
+/* Quotation -> Cash Office handover */
+.quoteCustomerGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0 12px;padding:16px;border:1px solid #dce7ed;border-radius:15px;background:#f8fafc}
+.quoteCustomerGrid label{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:750;letter-spacing:.02em;color:#28506b}
+.quoteCustomerGrid input,.quoteCustomerGrid textarea{width:100%;min-width:0;border:1px solid #d1dfe8;border-radius:10px;padding:11px 12px;font:inherit;line-height:1.3;color:#18344b;background:#fff}
+.quoteCustomerGrid input:focus,.quoteCustomerGrid textarea:focus{outline:2px solid #a8c9e6;outline-offset:1px}
+.quoteNotes{grid-column:1/-1}
+.quoteSuccess{text-align:center;padding:30px 16px 18px;max-width:660px;margin:0 auto;color:#173950}
+.quoteSuccessIcon{display:grid;place-items:center;border-radius:50%;height:64px;width:64px;margin:0 auto 12px;background:#e6f6ec;color:#146c37;font-size:32px;font-weight:800}
+.quoteSuccess>span{display:block;color:#54758a;font-size:13px;font-weight:750;text-transform:uppercase;letter-spacing:.09em}
+.quoteSuccess>strong{display:block;margin:12px 0;font-size:clamp(29px,5vw,48px);color:#0e2e45;letter-spacing:.025em;font-variant-numeric:tabular-nums}
+.quoteSuccess p{color:#526f81;font-size:14px;line-height:1.6}
+.quoteSuccess>div:last-child{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin-top:23px}
+.quoteSuccess button,.cashQueueSearch button,.cashQueueActions button{padding:11px 16px;background:#123e5f;color:white;border:none;border-radius:10px;font-weight:750;cursor:pointer}
+.quoteSuccess button:disabled,.cashQueueActions button:disabled{opacity:.5;cursor:not-allowed}
+.cashQueueSearch{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0}
+.cashQueueSearch input{min-width:180px;flex:1 1 260px;border:1px solid #d9e5ed;padding:12px;border-radius:10px;font:inherit}
+.cashQueueList{display:flex;flex-direction:column;gap:10px}
+.cashQueueCard{background:#fff;border:1px solid #dbe5ed;border-radius:13px;overflow:hidden}
+.cashQueueRow{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;padding:17px;border:0;text-align:left;background:transparent;color:#17354b;cursor:pointer}
+.cashQueueRow:hover{background:#f6f9fc}
+.cashQueueRow span{display:flex;flex-direction:column;min-width:0;gap:4px}
+.cashQueueRow strong{font-size:17px;font-weight:850;font-variant-numeric:tabular-nums}
+.cashQueueRow small{font-size:12px;color:#627d91;white-space:normal}
+.cashQueueRow b{font-size:16px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.cashQueueRow em{font-size:11px;font-style:normal;font-weight:800;padding:7px 10px;color:#8b5612;background:#fff4d8;border-radius:20px;white-space:nowrap}
+.cashQueueDetails{border-top:1px solid #edf0f5;background:#f8fafc;padding:16px;display:grid;gap:10px;color:#344e60;font-size:13px}
+.cashQueueItems{display:grid;gap:8px;padding:10px 0;border-top:1px solid #e2eaf1;border-bottom:1px solid #e2eaf1}
+.cashQueueItems>div{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.cashQueueItems span{display:grid;gap:3px}
+.cashQueueItems small{color:#658094}
+.cashQueueTotal{display:flex;justify-content:space-between;gap:10px}
+.cashQueueActions{display:flex;justify-content:flex-end}
+.cashQueueActions span{color:#467557;font-weight:750}
+@media(max-width:700px){.quoteCustomerGrid{grid-template-columns:1fr}.cashQueueRow{align-items:flex-start;flex-wrap:wrap}.cashQueueRow b{margin-left:auto}.cashQueueRow em{order:3}}
