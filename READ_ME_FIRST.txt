@@ -1,35 +1,52 @@
-MALIKS GROUP HUB — PROFESSIONAL POS LINT HOTFIX (2 ERRORS)
-=========================================================
+MALIKS GROUP HUB  |  SIGNATURE POS WORKSTATION STYLE UPGRADE
+Version: 2026-11-06
 
-WHAT THIS FIXES
-GitHub Actions > npm run check > ESLint reported exactly two
-react/no-unescaped-entities errors in app/tills/till-checkout.tsx,
-line 239 and line 240. The fix changes only two JSX text apostrophes:
-   branch's  ->  branch&apos;s
-   Hub's     ->  Hub&apos;s
-No POS logic, prices, permissions, transactions, or styling changed.
+WHAT THIS CHANGES
+- Premium navy/gold PowerBuild theme and orange-accent Buster Build theme.
+- Clear, compact navigation, quick actions, barcode/product entry, basket and totals.
+- Consistent SVG icons without adding npm packages.
+- More polished branch and staff identity, checkout summary and responsive layout.
+- The large 'demo/preview/no live sales' warning has been replaced by a compact,
+  truthful 'Checkout setup required' status.
+- No permissions, database migrations, APIs, price files, or real sale logic are changed.
 
-DIRECT PASTE INSTALLATION (NO SCRIPT)
-1) Unzip this patch somewhere OUTSIDE the Maliks Hub project.
-2) In Windows File Explorer, open the extracted ZIP.
-3) Copy the 'app' folder (it contains tills/till-checkout.tsx).
-4) Paste 'app' into the ROOT of your existing 'maliksgroupza'
-   folder (same folder as package.json). Merge the folder and
-   REPLACE the existing 'app/tills/till-checkout.tsx' file.
-5) Do not paste a 'new-files' folder; this patch has none.
-6) To affect GitHub Actions, the change must be COMMITTED to GitHub.
-   File copying alone does not update files in the GitHub repository.
-   If you have no Git installed, open your GitHub repository in a
-   browser, edit app/tills/till-checkout.tsx with the pencil icon,
-   change only the two apostrophes shown above, and commit the edit.
+THIS IS A STYLE + COPY PATCH ONLY.
+The secure RetailOS transaction service is NOT connected by this patch.
+Payment processing, stock deduction, tax invoices, live refunds, settlement,
+and till cash-ups are NOT enabled. The final sale button remains disabled.
 
-VALIDATE
-In the Hub folder: npm run check
-NOTE: 101 existing lint warnings are not the two blocking errors.
-The test stage did not execute in the supplied log because lint failed.
+INSTALL BY COPYING FILES (NO TERMINAL OR GIT REQUIRED TO PASTE)
+1. Close or back up your existing Maliks Hub project and keep a copy of:
+     app/tills/till-checkout.tsx
+     app/tills/tills.module.css
+2. Download this ZIP, right-click it and select 'Extract All'.
+3. Copy the 'app' folder from this package into the ROOT of your current
+   maliksgroupza folder (where package.json is located).
+4. Windows: 'Merge folders' > 'Replace files in destination'.
+   Exactly these two working POS files are replaced:
+     app/tills/till-checkout.tsx
+     app/tills/tills.module.css
+5. Copy the 'tests' folder as well if you want the optional safety tests.
+6. IMPORTANT: Do not copy a 'new-files' folder. This ZIP has none.
+7. The file app/tills/pos-preview-domain.mjs from your existing working POS
+   installation is still required; do not delete it or its type declaration.
+8. Reload /tills in your local Hub after the code is built and/or deployed.
 
-SOURCE COMPATIBILITY
-This one-file patch is derived from the Professional Touch365-style
-POS upgrade previously provided in this chat. If you edited this TSX
-file since installing that upgrade, DO NOT replace it wholesale;
-use the two precise text substitutions instead to preserve edits.
+GITHUB
+Copying into a local folder does not update the online website. The changed
+files must be committed to your repository and GitHub Actions must pass.
+You can use the GitHub web editor/upload for the two paths above if Git is not
+installed in your VS Code. Back up your original files first.
+
+TESTING PERFORMED ON THE PATCH
+- JSX/TypeScript syntax via the TypeScript transpiler
+- PostCSS style sheet parsing
+- Node pure POS arithmetic tests + signature theme safety tests
+- Responsive layout inspected in Chromium at desktop and mobile widths
+
+NOT PERFORMED
+- Full Maliks Hub build, GitHub Actions, live deploy, payment terminal,
+  live store transaction flow, or real stock/accounting reconciliation.
+
+The screenshot is only an example of the intended design. The patch itself
+uses your authorised branch, user name and published Hub price catalogue.
