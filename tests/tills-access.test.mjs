@@ -38,11 +38,28 @@ test('edge, server and admin assignment all enforce till role and branch', () =>
   assert.match(source('app/page.tsx'), /window\.location\.assign\("\/tills"\)/);
 });
 
-test('till screen never submits payments, sales or writes stock', () => {
+test('Sales cannot take payment, create a paid invoice or release stock', () => {
   const ui = source('app/tills/till-checkout.tsx');
+
+  // Sales sends an unpaid quotation to Cash Office. It does not post a sale.
   assert.match(ui, /NO LIVE SALES/);
-  assert.match(ui, /Complete sale — not enabled/);
-  assert.doesNotMatch(ui, /fetch\("\/api\/sales"/);
-  assert.doesNotMatch(ui, /fetch\("\/api\/tills\/sales"/);
+  assert.match(ui, /aria-label="Quotation totals — no payment collection"/);
+  assert.match(ui, /Sales does not take payment/);
+  assert.match(ui, /Create quotation for Cash Office/);
+  assert.match(ui, /UNPAID QUOTATION/);
+  assert.match(ui, /NOT AN INVOICE OR RECEIPT/);
+
+  // Cash/Card is shown only in Cash Office, and paid invoice posting is disabled.
+  assert.match(ui, /aria-label="Cash Office payment method"/);
+  assert.match(ui, /disabled className=\{styles\.modalDisabled\}>Confirm payment and print paid invoice/);
+
+  // Unpaid quotes cannot become pickable Dispatch documents.
+  assert.match(ui, /No unpaid quotation is shown as ready for dispatch/);
+  assert.match(ui, /\["checkout","documents","inventory"\]\.includes\(menu\.id\)/);
+
+  // There are no active sale/payment write endpoints in this till preview.
+  assert.doesNotMatch(ui, /fetch\("\/api\/sales/);
+  assert.doesNotMatch(ui, /fetch\("\/api\/tills\/sales/);
+  assert.doesNotMatch(ui, /fetch\("\/api\/tills\/payments/);
   assert.doesNotMatch(source('app/api/tills/catalogue/route.ts'), /export async function POST/);
 });

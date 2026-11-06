@@ -1,30 +1,25 @@
-MALIKS HUB — SALES → CASH OFFICE → DISPATCH ROLE HANDOVER (UI CORRECTION)
-=======================================================================
+MALIKS HUB -- GITHUB TEST 144 FIX
 
-This patch corrects the user-interface workflow WITHOUT turning on real financial posting.
+The GitHub build and lint stages succeeded, and 197/198 tests passed.
+The sole failure is an outdated test in tests/tills-access.test.mjs that
+expects a disabled 'Complete sale — not enabled' button in Sales. That
+button was intentionally removed when Sales became quotation-only.
 
-Correct process:
-  1. Sales creates a branch-priced quotation and sends it to Cash Office.
-  2. Sales prints the numbered UNPAID quotation. Sales cannot accept cash/card.
-  3. Customer presents quote Q-XXXXXXXX to Cash Office.
-  4. Cash Office searches and checks the quote; chooses Cash or Card and enters the appropriate amount/reference.
-  5. After a future verified payment + accounting/invoice service is connected, the cashier can finalise and print a PAID invoice.
-  6. Dispatch must only receive PAID invoices, print picking slips and check/release items; it must not see or pick unpaid quotations.
+THIS ZIP REPLACES ONE TEST FILE ONLY. No live POS code, catalogue, worker,
+roles, database, or payment logic is changed.
 
-HOW TO INSTALL (DIRECT PASTE; NO SCRIPT):
-1. Download and extract this zip OUTSIDE the Hub project.
-2. Copy only the patch's `app` folder into your existing maliksgroupza directory.
-3. Allow Windows to merge folders and REPLACE exactly:
-       app/tills/till-checkout.tsx
-       app/tills/tills.module.css
-4. Optionally copy `tests` and run `npm run check`.
-5. Commit / upload both changed app/tills files to your GitHub repository.
+INSTALL WITHOUT A TERMINAL:
+1. Extract this ZIP.
+2. Copy the included 'tests' folder into the root of your current
+   maliksgroupza project (the folder with package.json).
+3. Merge folders and replace tests/tills-access.test.mjs.
+4. Commit or upload the changed test file to GitHub (replacing the existing
+   repository copy), and let GitHub Actions rerun npm run check.
 
-IMPORTANT LIMITATIONS:
-- In your current Hub, Cash Office payment posting, fiscal invoice numbering, cashier shift authentication, accounting journals, card terminal verification, and stock-ledger dispatch release ARE NOT INTEGRATED.
-- Thus the Cash Office payment form is a disabled workflow preview, not a live payment processor. It never marks anything PAID.
-- The existing Cash Office quotation GET/PATCH remains restricted to management/full-access users; a dedicated Cash Office employee role still requires a separate Hub assignment/authentication integration.
-- A dedicated Dispatch employee role and real paid-invoice feed also require backend integration. No stock is deducted by this patch.
-- This patch intentionally leaves the existing V5 styling and quotation API unchanged.
-- Sales can print a numbered quotation only AFTER a successful server submission.
-- The print function inserts customer/product text using textContent to avoid HTML injection.
+The new test checks the actual safe business rules:
+- Sales can issue UNPAID quotations and send them to Cash Office.
+- Sales cannot process payments or release stock.
+- Cash Office payment capture is restricted and final paid posting is disabled.
+- Dispatch does not receive unpaid quotations as pickable orders.
+
+NOTE: This test-only patch does not enable live payments or dispatch.
