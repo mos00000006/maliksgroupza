@@ -6,13 +6,17 @@ type Product={id:number;code:string;name:string;qty_milli:number|null};
 type Movement={id:number;phase:string;branch_name:string;catalogue_product_id:number;code:string;name:string;delta_milli:number;balance_after_milli:number;actor_email:string;posted_at:string;reference:string};
 type Inventory={error?:string;branch?:string;active?:boolean;can_open?:boolean;activated_at?:string;activation_reference?:string;initialized_skus?:number;total_units_milli?:number;in_transit?:number;products?:Product[];movements?:Movement[];notice?:string;ok?:boolean};
 const qty=(n:number)=>new Intl.NumberFormat('en-ZA',{maximumFractionDigits:3}).format(n/1000);
+// Key the working area to the branch. Switching branches remounts the form,
+// discarding previous-branch drafts and pending search results without an effect.
 export default function InventoryLedger({branch}:{branch:string}){
+ return <InventoryLedgerForBranch key={branch} branch={branch}/>;
+}
+function InventoryLedgerForBranch({branch}:{branch:string}){
  const [search,setSearch]=useState('');const [current,setCurrent]=useState<Inventory>({});const [loading,setLoading]=useState(false);
  const [error,setError]=useState('');const [success,setSuccess]=useState('');const [busy,setBusy]=useState(false);
  const [selected,setSelected]=useState<number|null>(null);const [quantity,setQuantity]=useState('0');const [source,setSource]=useState('');
  const [confirm,setConfirm]=useState('');const [key,setKey]=useState(0);const [bulkText,setBulkText]=useState('');
- useEffect(()=>{setSelected(null);setSource('');setBulkText('');setConfirm('');setSuccess('');},[branch]);
- useEffect(()=>{if(!branch){setCurrent({});return;}const controller=new AbortController();const timer=setTimeout(()=>{
+ useEffect(()=>{if(!branch)return;const controller=new AbortController();const timer=setTimeout(()=>{
   setLoading(true);void fetch(`/api/stock-operations/inventory?branch=${encodeURIComponent(branch)}&q=${encodeURIComponent(search)}`,{cache:'no-store',signal:controller.signal})
    .then(async r=>{const v:Inventory=await r.json();if(!r.ok)throw Error(v.error||'Inventory lookup failed');setCurrent(v);setError('');})
    .catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:String(e));})

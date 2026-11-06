@@ -1,0 +1,98 @@
+TAP version 13
+# (node:7575) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: no auto-posting while inventory branch is not activated; activation never replays old approvals
+ok 1 - no auto-posting while inventory branch is not activated; activation never replays old approvals
+  ---
+  duration_ms: 24.35052
+  type: 'test'
+  ...
+# Subtest: GRV posts accepted quantities only and is impossible to post twice
+ok 2 - GRV posts accepted quantities only and is impossible to post twice
+  ---
+  duration_ms: 15.584905
+  type: 'test'
+  ...
+# Subtest: stock count reconcile is atomic, and stale count or adjustment is rejected
+ok 3 - stock count reconcile is atomic, and stale count or adjustment is rejected
+  ---
+  duration_ms: 14.536606
+  type: 'test'
+  ...
+# Subtest: supplier return cannot make stock negative and approval remains Submitted
+ok 4 - supplier return cannot make stock negative and approval remains Submitted
+  ---
+  duration_ms: 6.660325
+  type: 'test'
+  ...
+# Subtest: transfer debits source at approval and credits destination at independent receipt
+ok 5 - transfer debits source at approval and credits destination at independent receipt
+  ---
+  duration_ms: 9.711346
+  type: 'test'
+  ...
+# Subtest: transfer blocks when only one branch is activated and when destination lacks baseline
+ok 6 - transfer blocks when only one branch is activated and when destination lacks baseline
+  ---
+  duration_ms: 11.629834
+  type: 'test'
+  ...
+# Subtest: uninitialized SKU fails closed; cannot approve a zero-line GRV
+ok 7 - uninitialized SKU fails closed; cannot approve a zero-line GRV
+  ---
+  duration_ms: 8.608428
+  type: 'test'
+  ...
+# Subtest: opening stock is audited and cannot be edited, deleted or activated with no baseline
+ok 8 - opening stock is audited and cannot be edited, deleted or activated with no baseline
+  ---
+  duration_ms: 4.173109
+  type: 'test'
+  ...
+# Subtest: multiple document lines post atomically or none if one SKU is short
+ok 9 - multiple document lines post atomically or none if one SKU is short
+  ---
+  duration_ms: 5.024431
+  type: 'test'
+  ...
+# Subtest: cannot credit an old transfer on receipt when source was not posted
+ok 10 - cannot credit an old transfer on receipt when source was not posted
+  ---
+  duration_ms: 5.25192
+  type: 'test'
+  ...
+# Subtest: bulk opening parser accepts 100 SKU quantities and three decimal precision
+ok 11 - bulk opening parser accepts 100 SKU quantities and three decimal precision
+  ---
+  duration_ms: 4.222471
+  type: 'test'
+  ...
+# Subtest: opening import fails for duplicate, missing and invalid quantities
+ok 12 - opening import fails for duplicate, missing and invalid quantities
+  ---
+  duration_ms: 7.917806
+  type: 'test'
+  ...
+# (node:7577) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: SQLite atomic statuses, immutable lines and append-only audit
+ok 13 - SQLite atomic statuses, immutable lines and append-only audit
+  ---
+  duration_ms: 21.149003
+  type: 'test'
+  ...
+# Subtest: SQL enforces three-person transfer acknowledgement
+ok 14 - SQL enforces three-person transfer acknowledgement
+  ---
+  duration_ms: 4.28904
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 526.741024
