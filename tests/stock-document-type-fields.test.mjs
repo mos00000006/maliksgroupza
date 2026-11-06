@@ -60,7 +60,7 @@ test('supplier return uses return-appropriate sign-off without driver informatio
 test('previous one-page A4 and last-column safety fix are preserved',()=>{
  assert.match(css,/@page\{size:A4 portrait;margin:11mm\}/);
  assert.match(css,/col:nth-child\(5\)\{width:14%!important\}/);
- assert.match(css,/\.printItemsFour colgroup col:nth-child\(4\)\{width:16%!important\}/);
+ assert.match(css,/\.printItemsFour colgroup col:nth-child\(4\)\{width:22%!important\}/);
  assert.match(css,/width:calc\(100% - 2mm\)!important/);
  assert.match(source,/Print register copy · PowerBuild A4/);
 });

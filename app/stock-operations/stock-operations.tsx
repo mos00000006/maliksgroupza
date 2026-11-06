@@ -137,7 +137,7 @@ export default function StockOperations(){
      </div>
      <div className={styles.lineBlock}><div className={styles.sectionTitle}><h3>Document lines</h3><span>{selected.length} selected products</span></div>
        {!selected.length&&<p className={styles.empty}>Add products from the catalogue to start.</p>}
-       {selected.map(l=><div key={l.catalogue_product_id} className={styles.lineRow}><div className={styles.lineName}><b>{l.name}</b><small>{l.code}</small></div><label>{kind==='COUNT'||kind==='ADJUSTMENT'?'Physical qty':'Delivered / requested qty'}<input type="number" min="0" step="0.001" value={l.document_quantity} onChange={e=>changeLine(l.catalogue_product_id,'document_quantity',e.target.value)}/></label><label>{kind==='COUNT'||kind==='ADJUSTMENT'?'System qty (reference)':'Expected qty'}<input type="number" min="0" step="0.001" value={l.expected_quantity} onChange={e=>changeLine(l.catalogue_product_id,'expected_quantity',e.target.value)}/></label>{kind==='GRV'&&<label>Rejected qty<input type="number" min="0" step="0.001" value={l.rejected_quantity} onChange={e=>changeLine(l.catalogue_product_id,'rejected_quantity',e.target.value)}/></label>}{kind==='GRV'&&<label>Damage / rejection reason<input value={l.reason} onChange={e=>changeLine(l.catalogue_product_id,'reason',e.target.value)} placeholder="If rejected" maxLength={200}/></label>}<button className={styles.remove} onClick={()=>setSelected(s=>s.filter(x=>x.catalogue_product_id!==l.catalogue_product_id))} aria-label="Remove product">×</button></div>)}
+       {selected.map(l=><div key={l.catalogue_product_id} className={styles.lineRow}><div className={styles.lineName}><b>{l.name}</b><small>{l.code}</small></div><label>{kind==='TRANSFER'?'Transfer qty':kind==='SUPPLIER_RETURN'?'Return qty':kind==='COUNT'?'Counted qty':kind==='ADJUSTMENT'?'Physical qty':'Received qty'}<input type="number" min="0" step="0.001" value={l.document_quantity} onChange={e=>changeLine(l.catalogue_product_id,'document_quantity',e.target.value)}/></label><label>{kind==='TRANSFER'||kind==='SUPPLIER_RETURN'?'Reference qty':kind==='COUNT'||kind==='ADJUSTMENT'?'System qty':'Expected qty'}<input type="number" min="0" step="0.001" value={l.expected_quantity} onChange={e=>changeLine(l.catalogue_product_id,'expected_quantity',e.target.value)}/></label>{kind==='GRV'&&<label>Rejected qty<input type="number" min="0" step="0.001" value={l.rejected_quantity} onChange={e=>changeLine(l.catalogue_product_id,'rejected_quantity',e.target.value)}/></label>}{kind==='GRV'&&<label>Damage / rejection reason<input value={l.reason} onChange={e=>changeLine(l.catalogue_product_id,'reason',e.target.value)} placeholder="If rejected" maxLength={200}/></label>}<button className={styles.remove} onClick={()=>setSelected(s=>s.filter(x=>x.catalogue_product_id!==l.catalogue_product_id))} aria-label="Remove product">×</button></div>)}
      </div>
      <div className={styles.footer}><span>No stock or financial balance changes when saving.</span><button className={styles.primary} disabled={busy||!ready} onClick={()=>void create()}>{busy?'Saving…':'Save numbered draft'}</button></div>
     </div>:<Register docs={tableRecords} onOpen={openDoc}/>}
@@ -241,7 +241,9 @@ function StockPrintSheet({document:d,typeTitle:_typeTitle}:{document:Doc;typeTit
      <td>{formatted(line.document_quantity)}</td><td>{formatted(line.expected_quantity)}</td>
      {labels.finalColumn==='Rejected'&&<td>{formatted(line.rejected_quantity)}</td>}
      {labels.finalColumn==='Variance'&&<td>{stockVariance(line)}</td>}
-    </tr>)}</tbody>
+    </tr>)}
+    {!(d.lines||[]).length&&<tr><td colSpan={labels.finalColumn?5:4} className={styles.printEmptyCell}>No product lines are attached to this document. Check the saved stock record before submitting or authorising it.</td></tr>}
+    </tbody>
    </table>
   </section>
   <section className={styles.printReceiving}>

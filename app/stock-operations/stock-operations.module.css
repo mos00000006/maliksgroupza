@@ -68,6 +68,7 @@
  .printItems td{font-size:8.3pt;border-bottom:1px solid #dfebf1;padding:2.7mm 1mm;vertical-align:top;overflow-wrap:anywhere}
  .printItems tbody tr:nth-child(even){background:#f5f8fb}
  .printItems tbody tr{break-inside:avoid}
+ .printItems .printEmptyCell{font-size:8pt;font-weight:600;color:#72591b;text-align:left!important;white-space:normal!important;background:#fff8e6;border:1px solid #f3e0a0;padding:3mm!important}
  .printItems th:nth-child(n+3),.printItems td:nth-child(n+3){text-align:center!important;font-variant-numeric:tabular-nums}
  .printItems th:last-child,.printItems td:last-child{padding-left:1mm!important;padding-right:2mm!important;white-space:nowrap!important}
  .printReceiving{border:1px solid #dbe6ee;border-radius:2.5mm;padding:3.7mm;margin:0 0 4mm;break-inside:avoid}
@@ -87,10 +88,15 @@
 
 /* Four-column supplier-return and transfer documents: keep the right edge inside A4. */
 @media print{
- .printItemsFour colgroup col:nth-child(1){width:18%!important}
- .printItemsFour colgroup col:nth-child(2){width:50%!important}
- .printItemsFour colgroup col:nth-child(3){width:16%!important}
- .printItemsFour colgroup col:nth-child(4){width:16%!important}
+ /* Four-column stock transfers/returns need a wider reference quantity column. */
+ .printItemsFour colgroup col:nth-child(1){width:17%!important}
+ .printItemsFour colgroup col:nth-child(2){width:43%!important}
+ .printItemsFour colgroup col:nth-child(3){width:18%!important}
+ .printItemsFour colgroup col:nth-child(4){width:22%!important}
+ /* The shared five-column rule prohibits wrapping in the final column. Override it here. */
+ .printItemsFour th:last-child{white-space:normal!important;overflow-wrap:normal!important;word-break:normal!important;text-align:center!important;padding:2.5mm 1.7mm!important}
+ .printItemsFour td:last-child{white-space:normal!important;text-align:center!important;padding:2.5mm 1.7mm!important}
+ .printItemsFour .printEmptyCell{font-size:8pt;font-weight:600;color:#72591b;text-align:left!important;white-space:normal!important;background:#fff8e6;border:1px solid #f3e0a0;padding:3mm!important}
 }
 /* Signature names in the live detail screen reflect document type. */
 .paperEvidence .signature{display:flex;flex-wrap:wrap;gap:9px 24px}
