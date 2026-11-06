@@ -1,63 +1,42 @@
-MALIKS RETAILOS - FULL VIEW SALES / CHECKOUT V4
-=================================================
+MALIKS RETAILOS | RESTORE THE APPROVED SALES / CHECKOUT STYLE (V5)
+================================================================
 
-THIS IS A DIRECT-PASTE UI PATCH FOR YOUR EXISTING MALIKS GROUP HUB.
+This corrects the Full View V4 layout shown in the 11:05 screenshot:
+- replaces the over-wide blank icon rail with the original labelled navy-and-gold menu
+- prevents the menu from covering or clipping the title and product search
+- keeps barcode/product entry on the LEFT and the larger order/payment panel on the RIGHT
+- fixes widths at 1650px, 1280px and smaller desktop widths
+- preserves quotation numbering and Cash Office handover
+- does not enable any live tender, invoice, stock deduction or dispatch release
 
-What changes
-------------
-- Checkout opens in full-view workstation mode by default.
-- Collapses the left navigation to an icon rail to give products and basket more room.
-- Adds an "Expand menu" button to switch back to the full navigation layout.
-- Makes the right-hand payment/checkout panel wider and independently scrollable.
-- Keeps product search, quotations, sales orders, lay-bys, parked sales and basket on the left.
-- Removes the redundant large summary strip in full-view mode.
-- Keeps the right checkout in its own non-overlapping column on desktops/laptops.
-- Automatically stacks panels on narrower screens so totals never cover products.
-- All branch selections, access rules and the quotation-to-Cash-Office workflow remain.
+NO SCRIPT, NO TERMINAL, NO MIGRATION REQUIRED
 
-FILES TO COPY
--------------
-  app/tills/till-checkout.tsx
-  app/tills/tills.module.css
+1. Extract this zip outside your Hub repository.
+2. Copy the 'app' folder from this zip into the root of your existing
+   maliksgroupza project, beside package.json.
+3. Choose Merge and Replace destination files when prompted.
+4. Only these two files are replaced:
+   app/tills/till-checkout.tsx
+   app/tills/tills.module.css
+5. Optionally copy the new 'tests' folder to add the V5 regression test.
+6. Commit BOTH changed app/tills files to GitHub. Local paste alone does NOT
+   update the deployed Hub; GitHub must have those changes committed and pushed.
+7. Run npm run check (or wait for GitHub Actions) to verify your actual project.
 
-HOW TO INSTALL
---------------
-1. Make a backup or create a new GitHub branch first.
-2. Download and extract this ZIP into a separate folder.
-3. Copy the included app folder into your existing maliksgroupza folder.
-4. In Windows, choose Merge folders and Replace existing files. Only the two
-   files listed above should be replaced. Do not copy an extra nested app folder.
-5. If you want to add the tests, copy the tests folder as well (optional).
-6. To update the online Hub, commit and push these changed files to GitHub.
-7. Run npm run check / your normal GitHub Actions workflow. Preview the deployed
-   page on a test branch before using it in the live staff workspace.
+VISUAL CHECK
+The supplied PNG is a browser screenshot of a layout fixture using the
+actual V5 CSS and representative checkout structure. It is not a screenshot
+of your live Hub account or data.
 
-HOW TO USE
-----------
-- Sales / Checkout opens in Full View by default.
-- At the top-right click "Expand menu" to show the whole sidebar.
-- Click "Full view" to collapse navigation again.
-- Hover over left-rail icons to read the module name.
-- The right-hand Order Summary stays visible when the product list scrolls.
-  It has its own scrollbar if its contents exceed the available screen height.
+IMPORTANT
+- This overlay assumes you already installed the quotation / Cash Office patch.
+- Do not copy any old 'new-files' folder into your project.
+- Financial posting remains disabled on purpose until transactions are verified.
+- If you have made newer custom edits to app/tills files, back them up before
+  replacing; the package is based on the immediately preceding V4 version.
 
-SAFETY AND SCOPE
-----------------
-This patch is LAYOUT ONLY. It does not activate live payments, invoicing,
-stock updates, receipts, refunds, drawer operations or accounting posting.
-The existing checkout setup required warning and locked sale button remain.
-Do not remove those controls until a secured backend has passed production tests.
-
-VERIFICATION
-------------
-- TypeScript syntax: 0 diagnostics.
-- CSS syntax: 0 parsing errors.
-- 31 focused POS / quotation / access tests passed in a combined local fixture.
-- Browser layout tested at 1650, 1280, 1024, 800 and 600 CSS pixel widths;
-  zero horizontal overflow, right summary column verified at desktop widths.
-- The full Hub build, D1 deployment and actual POS peripherals have NOT been tested.
-
-PREVIEW
--------
-FULL-VIEW-PREVIEW-1650.png and FULL-VIEW-PREVIEW-1280.png are browser-rendered
-layout mockups using the patched CSS, not screenshots of a live deployed till.
+VALIDATION
+- 9 source/regression tests passed against the V5 checkout and CSS.
+- Headless browser checks measured layout at 1650/1280/1120/900/760 px;
+  no horizontal page overflow. Desktop summary stayed to the right.
+- The full Hub build/CI and live browser deployment have not been run here.
