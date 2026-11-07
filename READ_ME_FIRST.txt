@@ -1,25 +1,33 @@
-MALIKS GROUP HUB — PAIA NAVIGATION GITHUB ESLINT FIX
-================================================
+Maliks Group Hub — PAIA Manual sidebar button V4
+=================================================
 
-FIXES ONLY:
-app/paia/page.tsx
+Why this patch:
+The earlier PAIA update created /paia but did not add a Hub sidebar button.
 
-GitHub lint errors at lines 19 and 23:
-@next/next/no-html-link-for-pages
+What this patch does:
+- Adds a visible "PAIA Manual" menu button near the TOP of the main Hub sidebar.
+- Clicking it opens /paia.
+- The button uses the existing PowerBuild sidebar style.
+- Does NOT replace app/page.tsx, keeping your current Sales / Tills, Stock Control, and other integrations intact.
+- Does NOT change stock records, permissions or databases.
 
-CHANGES:
-- Import Link from next/link.
-- Replace the PAIA logo/homepage <a href="/"> with <Link href="/">.
-- Replace the Back to Hub <a href="/"> with <Link href="/">.
+How to install (Windows):
+1. Extract the ZIP.
+2. Copy its scripts folder and INSTALL_PAIA_BUTTON.bat into your EXISTING maliksgroupza folder.
+3. Double-click INSTALL_PAIA_BUTTON.bat in that main folder. (Node.js must be installed.)
+   Or run: node scripts/add-paia-sidebar-button.mjs
+4. Commit the changed app/page.tsx plus the script to GitHub and deploy.
+5. Restart/reload PowerBuild Hub. The PAIA Manual button will be near the top of the left menu.
 
-INSTALLATION:
-1. Extract this ZIP.
-2. Copy its app folder into your current maliksgroupza folder.
-3. Merge folders and replace app/paia/page.tsx only.
-4. Run npm run check.
-5. Commit and push to GitHub if checks pass.
+Important:
+- The PAIA route/page and PDF must already be installed. If you get a 404 at /paia,
+  first install the previous PAIA page patch.
+- The PAIA manual is a draft until company registration details, Information Officer
+  appointment and legal approval are confirmed.
+- This installer is idempotent; running it twice does not duplicate the button.
+- If the Hub's navigation code changes significantly, the installer will fail safely
+  without overwriting your existing page.
 
-NO CHANGES TO: PAIA manual, PDF/Word, logo, branding, stock operations, database, access policy or public routes.
-
-Validation: Both offending links removed; all other page source content unchanged.
-Full GitHub workflow has not been run in this environment. The 106 unrelated warnings in your log may remain.
+Verification:
+- Installer tested against the original Hub app/page.tsx and a second time for idempotency.
+- Does not require any SQL migration.
