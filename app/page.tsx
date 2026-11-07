@@ -1641,6 +1641,28 @@ export default function Home() {
               <i className="sidebarNavIcon"><SidebarIcon name="Company Workspaces" /></i>Company Workspaces
             </button>
           )}
+          {/* PAIA_MANUAL_SIDEBAR_BUTTON_V4: Built-in direct sidebar entry, no installer required. */}
+          <button
+            type="button"
+            aria-label="Open PAIA Manual"
+            title="View the PowerBuild PAIA Manual"
+            onClick={() => {
+              setMobileNavOpen(false);
+              window.location.assign("/paia");
+            }}
+          >
+            <i className="sidebarNavIcon">
+              <svg
+                width="19" height="19" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
+                strokeLinejoin="round" aria-hidden="true"
+              >
+                <path d="M6 3h9l4 4v14H6z" />
+                <path d="M15 3v5h4M9 12h7M9 16h7" />
+              </svg>
+            </i>
+            PAIA Manual
+          </button>
           {sidebarNavigation.map((n) => {
             return (
             <button
