@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import styles from "./paia.module.css";
 
 export const metadata: Metadata = {
@@ -16,11 +17,11 @@ export default function PaiaManualPage() {
     <main className={styles.page}>
       <div className={styles.shell}>
         <header className={styles.topbar}>
-          <a className={styles.brand} href="/" aria-label="Back to Maliks Group Hub">
+          <Link className={styles.brand} href="/" aria-label="Back to Maliks Group Hub">
             <Image src="/legal/powerbuild-logo.png" alt="PowerBuild" width={52} height={52} priority />
             <span><strong>MALIKS GROUP HUB</strong><small>Governance & compliance</small></span>
-          </a>
-          <a className={styles.back} href="/">Back to Hub</a>
+          </Link>
+          <Link className={styles.back} href="/">Back to Hub</Link>
         </header>
         <section className={styles.hero}>
           <div>

@@ -1,17 +1,25 @@
-MALIKS GROUP HUB — PAIA MANUAL V1.1 (DRAFT)
-===========================================
-This supersedes the previous PAIA V1 draft.
-Includes HEAD OFFICE ONLY: 26 Jacobs Road, Chamdor, Krugersdorp, Gauteng, South Africa.
-Trading identity: Maliks Paint & Hardware (trading as PowerBuild).
-Published general telephone: 011 762 8051. Site: https://maliks.co.za.
-No branch address is disclosed in this manual or page.
+MALIKS GROUP HUB — PAIA NAVIGATION GITHUB ESLINT FIX
+================================================
 
-INSTALL:
-1. Extract ZIP and merge its app, public and docs folders into maliksgroupza.
-2. Run npm run check and your normal GitHub deployment.
-3. Open /paia on the deployed Hub; verify that the new V1.1 PDF opens.
-4. The page is intentionally marked DRAFT. Do not present the manual as approved until compliance sign-off.
-5. If the site uses Cloudflare Access, configure a narrow public access rule for /paia and its PDF after approval; avoid broad bypasses.
+FIXES ONLY:
+app/paia/page.tsx
 
-STILL TO CONFIRM: CIPC legal entity and registration, official PAIA email, Head Office postal details, Information Officer, data-processing disclosures and sign-off.
-No database migration is required. Existing Hub features are unchanged.
+GitHub lint errors at lines 19 and 23:
+@next/next/no-html-link-for-pages
+
+CHANGES:
+- Import Link from next/link.
+- Replace the PAIA logo/homepage <a href="/"> with <Link href="/">.
+- Replace the Back to Hub <a href="/"> with <Link href="/">.
+
+INSTALLATION:
+1. Extract this ZIP.
+2. Copy its app folder into your current maliksgroupza folder.
+3. Merge folders and replace app/paia/page.tsx only.
+4. Run npm run check.
+5. Commit and push to GitHub if checks pass.
+
+NO CHANGES TO: PAIA manual, PDF/Word, logo, branding, stock operations, database, access policy or public routes.
+
+Validation: Both offending links removed; all other page source content unchanged.
+Full GitHub workflow has not been run in this environment. The 106 unrelated warnings in your log may remain.
