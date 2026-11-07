@@ -123,14 +123,14 @@ export default function PaiaManualPage() {
               <div className={styles.timeline}>
                 {steps.map((item, i) => <div className={styles.timelineItem} key={item.title}><span className={styles.stepNumber}>{String(i+1).padStart(2, "0")}</span><div><strong>{item.title}</strong><p>{item.description}</p></div></div>)}
               </div>
-              <a className={styles.inlineLink} href={guide} target="_blank" rel="noopener noreferrer">Get the Information Regulator's forms <span aria-hidden="true">↗</span></a>
+              <a className={styles.inlineLink} href={guide} target="_blank" rel="noopener noreferrer">Get the Information Regulator&apos;s forms <span aria-hidden="true">↗</span></a>
             </section>
 
             <section className={styles.panel} id="privacy">
               <div className={styles.panelHeader}><span className={styles.sectionIndex}>04</span><div><span className={styles.kicker}>PRIVACY &amp; FEES</span><h2>Personal information &amp; fees</h2></div></div>
               <div className={styles.twoCol}>
                 <div><h3>POPIA-related disclosures</h3><p>Depending on enabled features, the Hub may process employee, candidate, customer, supplier, driver and system-user information for administration, verification, operations and security. Production processing disclosures and recipients must be verified before approval.</p></div>
-                <div><h3>Access request fees</h3><p>The applicable prescribed fees and exemptions are determined by PAIA and the Information Regulator's current fee schedule. Requesters should only pay fees following the appropriate official notice.</p><a className={styles.inlineLink} href={fees} target="_blank" rel="noopener noreferrer">View official fee schedule <span aria-hidden="true">↗</span></a></div>
+                <div><h3>Access request fees</h3><p>The applicable prescribed fees and exemptions are determined by PAIA and the Information Regulator&apos;s current fee schedule. Requesters should only pay fees following the appropriate official notice.</p><a className={styles.inlineLink} href={fees} target="_blank" rel="noopener noreferrer">View official fee schedule <span aria-hidden="true">↗</span></a></div>
               </div>
             </section>
           </div>
@@ -149,7 +149,7 @@ export default function PaiaManualPage() {
             <div className={styles.helpCard}>
               <span className={styles.kicker}>OFFICIAL RESOURCES</span>
               <h3>Need a record?</h3>
-              <p>Use the Information Regulator's prescribed forms. This Hub page does not accept or lodge statutory requests.</p>
+              <p>Use the Information Regulator&apos;s prescribed forms. This Hub page does not accept or lodge statutory requests.</p>
               <a href={guide} target="_blank" rel="noopener noreferrer">PAIA guide &amp; forms <span aria-hidden="true">↗</span></a>
             </div>
             <div className={styles.approvalCard}>
