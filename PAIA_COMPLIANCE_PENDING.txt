@@ -1,1 +1,14 @@
-BEFORE PUBLICATION: confirm (1) registered legal entity / company registration; (2) registered physical/postal address; (3) business telephone and dedicated PAIA email; (4) statutory Information Officer name and registration; (5) actual hosted systems, recipients, cross-border and security controls; (6) formal approval; (7) current fee schedule. Owners and developer roles are Hub access roles, not automatically statutory Information Officer appointments.
+HEAD OFFICE DETAILS ADDED — V1.1 (06 NOVEMBER 2026)
+Trading identity: Maliks Paint & Hardware, trading as PowerBuild.
+Head Office: 26 Jacobs Road, Chamdor, Krugersdorp, Gauteng, South Africa.
+General office telephone: 011 762 8051.
+Website: https://maliks.co.za.
+The street designation 'Road' and telephone number are as published on the business website. User confirmed that 26 Jacobs is Head Office. No branch addresses are included.
+STILL REQUIRED BEFORE FINAL PUBLICATION:
+1. Exact current CIPC registered legal entity and registration number, including responsible private-body determination.
+2. Registered postal address (if different) and official dedicated PAIA email.
+3. Identity, business contact and registration/appointment status of statutory Information Officer, plus any deputies.
+4. Confirm real operational processing, recipients, security, retention and cross-border statements.
+5. Executive / Information Officer approval and final review of fees and regulator forms.
+6. Public access to approved manual without Cloudflare Access sign-in.
+Platform owner/admin permissions do not automatically make a user a statutory Information Officer.

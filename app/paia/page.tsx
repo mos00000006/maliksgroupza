@@ -4,12 +4,12 @@ import styles from "./paia.module.css";
 
 export const metadata: Metadata = {
   title: "PAIA Manual | Maliks Group Hub",
-  description: "Section 51 PAIA manual for Maliks Group Hub — draft awaiting legal entity particulars and approval.",
+  description: "Section 51 PAIA manual for Maliks Paint & Hardware trading as PowerBuild — draft pending Information Officer and legal approval.",
 };
 
 const guide = "https://inforegulator.org.za/paia/";
 const fees = "https://inforegulator.org.za/paia-fees-structure-2/";
-const download = "/legal/Maliks_Group_Hub_PAIA_Manual_DRAFT.pdf";
+const download = "/legal/Maliks_Paint_Hardware_PowerBuild_PAIA_Manual_V1_1_DRAFT.pdf";
 
 export default function PaiaManualPage() {
   return (
@@ -26,7 +26,7 @@ export default function PaiaManualPage() {
           <div>
             <span className={styles.eyebrow}>PROMOTION OF ACCESS TO INFORMATION</span>
             <h1>PAIA Manual</h1>
-            <p>Prepared under section 51 of the Promotion of Access to Information Act 2 of 2000, as amended, for the legal private body operating Maliks Group Hub.</p>
+            <p>Prepared under section 51 of the Promotion of Access to Information Act 2 of 2000, as amended, for Maliks Paint & Hardware, trading as PowerBuild, and its Maliks Group Hub platform.</p>
             <div className={styles.actions}>
               <a className={styles.download} href={download} target="_blank" rel="noopener noreferrer">View PAIA Manual (PDF)</a>
               <a className={styles.outline} href={guide} target="_blank" rel="noopener noreferrer">PAIA Guide & forms</a>
@@ -36,7 +36,7 @@ export default function PaiaManualPage() {
         </section>
         <section className={styles.notice} aria-label="Publication status">
           <strong>Draft — legal details and approval pending</strong>
-          <p>This is a preparation copy, not a final statutory publication. The registered entity, physical/postal address, telephone, dedicated PAIA email, Information Officer, and final processing details must be verified and approved before release.</p>
+          <p>This is a preparation copy, not a final statutory publication. The Head Office address and general telephone are provided below. The exact registered legal entity and number, postal address, dedicated PAIA email, statutory Information Officer, processing disclosures and final approval are still outstanding.</p>
         </section>
         <div className={styles.mainGrid}>
           <article className={styles.paper}>
@@ -49,6 +49,12 @@ export default function PaiaManualPage() {
               <div><strong>Information Officer</strong><span>Formal appointment and contact pending confirmation</span></div>
             </div>
             <p>Hub administrator roles are not statutory Information Officer appointments. Only an appropriately authorised person should decide whether records may be disclosed under PAIA.</p>
+            <hr />
+            <span className={styles.kicker}>HEAD OFFICE / GENERAL CONTACT</span>
+            <h2>Maliks Paint &amp; Hardware · PowerBuild</h2>
+            <p><strong>Head Office:</strong> 26 Jacobs Road, Chamdor, Krugersdorp, Gauteng, South Africa.</p>
+            <p><strong>Telephone:</strong> <a href="tel:+27117628051">011 762 8051</a> · <strong>Website:</strong> <a href="https://maliks.co.za" target="_blank" rel="noopener noreferrer">maliks.co.za</a></p>
+            <p>This manual lists the Head Office only. The official PAIA email address and statutory Information Officer details are still to be confirmed.</p>
             <hr />
             <span className={styles.kicker}>02 / WHAT RECORDS ARE HELD</span>
             <h2>Categories of records</h2>
@@ -85,13 +91,13 @@ export default function PaiaManualPage() {
           <aside className={styles.side}>
             <div className={styles.sideCard}>
               <span className={styles.kicker}>DOCUMENT CONTROL</span>
-              <h3>PAIA Manual • V1.0</h3>
+              <h3>PAIA Manual • V1.1</h3>
               <dl>
                 <dt>Issue date</dt><dd>06 November 2026</dd>
                 <dt>Status</dt><dd>Draft — not approved</dd>
-                <dt>Legal entity</dt><dd>To be confirmed</dd>
+                <dt>Trading identity</dt><dd>Maliks Paint &amp; Hardware (t/a PowerBuild)</dd><dt>Registered legal entity</dt><dd>CIPC verification pending</dd><dt>Head Office</dt><dd>26 Jacobs Road, Chamdor, Krugersdorp</dd><dt>General telephone</dt><dd>011 762 8051</dd><dt>Website</dt><dd>maliks.co.za</dd>
                 <dt>Information Officer</dt><dd>To be confirmed</dd>
-                <dt>Contact details</dt><dd>To be completed</dd>
+                <dt>PAIA contact</dt><dd>Dedicated email and postal details pending</dd>
               </dl>
             </div>
             <div className={styles.sideCard}>
@@ -103,13 +109,13 @@ export default function PaiaManualPage() {
             <div className={styles.sideCard}>
               <span className={styles.kicker}>CONTACT / APPOINTMENT</span>
               <h3>Publication checklist</h3>
-              <p>Confirm the legal entity, address, dedicated PAIA email, telephone, formal Information Officer and final sign-off before publishing this as an approved policy.</p>
+              <p>Confirm the legal entity and CIPC number, Head Office postal address, dedicated PAIA email, statutory Information Officer, processing disclosures and final sign-off before publishing this as an approved policy.</p>
             </div>
           </aside>
         </div>
         <footer className={styles.footer}>
           <span>Maliks Group Hub · PowerBuild branded compliance draft</span>
-          <span>Section 51 PAIA · V1.0 · 06 November 2026</span>
+          <span>Section 51 PAIA · V1.1 · 06 November 2026</span>
         </footer>
       </div>
     </main>
