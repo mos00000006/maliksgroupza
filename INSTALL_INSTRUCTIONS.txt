@@ -1,0 +1,13 @@
+MALIKS GROUP HUB — SAMHOO LOCK ADDITION (10 SKUS)
+
+1. Copy the drizzle/0059_samhoo_insulated_padlocks.sql file to the Hub repository drizzle/ folder.
+2. Copy public/wholesale-products/samhoo-locks/ into the same path inside the repository public/ folder.
+3. Commit/push to your existing GitHub deployment branch.
+4. Apply D1 migrations using the same Wrangler configuration you already use for Maliks Group Hub (first test, then remote).
+5. Redeploy the Hub and search the catalogue for SAMHOO or product code T016-T025.
+
+IMPORTANT: This package does NOT change a live website/database by itself.
+Category: Locks. Photos are one product pack per SKU, cleaned out of the source showroom photo.
+Codes T016–T025 and sticker references 300027 etc are transcribed from the supplied photos.
+Shelf prices were deliberately not imported. Existing stock and prices are not overwritten.
+If the database already uses any of these short T-series codes for a DIFFERENT brand, those conflicts will NOT be overwritten; resolve that collision before deployment.
