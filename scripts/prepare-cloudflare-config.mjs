@@ -50,16 +50,47 @@ function makeDeployConfig(source) {
     throw new Error("The Hub build does not contain D1 bindings.");
   }
 
+  // The generated Worker can contain two DB bindings from different build
+  // environments, each with a different (often local/placeholder) ID. GitHub's
+  // MALIKS_GROUP_D1_DATABASE_ID is the production source of truth. We only
+  // reconcile entries that explicitly target this Hub database by name.
+  // All other D1 bindings retain their IDs, and conflicting duplicates fail.
   const seen = new Map();
   const databases = [];
   let removed = 0;
+  let hubFound = false;
+
   for (const item of config.d1_databases) {
-    if (!item || typeof item !== "object" || !item.binding || !item.database_id) {
-      throw new Error("A generated D1 binding is missing its name or database ID.");
+    if (!item || typeof item !== "object" || typeof item.binding !== "string" || !item.binding.trim()) {
+      throw new Error("A generated D1 binding is missing a valid name.");
+    }
+    if (item.binding === "DB") {
+      if (item.database_name !== databaseName) {
+        throw new Error(`D1 binding DB targets ${JSON.stringify(item.database_name)} instead of ${databaseName}. Refusing deployment.`);
+      }
+      if (hubFound) {
+        removed++;
+        continue;
+      }
+      hubFound = true;
+      // Keep only the essential production fields. Build-only paths, local
+      // preview IDs and injected environment metadata must not leak into deploy.
+      const productionDB = {
+        binding: "DB",
+        database_name: databaseName,
+        database_id: databaseId,
+      };
+      seen.set("DB", productionDB);
+      databases.push(productionDB);
+      continue;
+    }
+
+    if (typeof item.database_id !== "string" || !item.database_id.trim()) {
+      throw new Error(`D1 binding ${item.binding} is missing its database ID.`);
     }
     const existing = seen.get(item.binding);
     if (existing) {
-      if (existing.database_id !== item.database_id || existing.database_name !== item.database_name) {
+      if (JSON.stringify(existing) !== JSON.stringify(item)) {
         throw new Error(`D1 binding ${item.binding} is declared for conflicting databases. Refusing deployment.`);
       }
       removed++;
@@ -68,10 +99,8 @@ function makeDeployConfig(source) {
     seen.set(item.binding, item);
     databases.push(item);
   }
-
-  const hubDb = seen.get("DB");
-  if (!hubDb || hubDb.database_name !== databaseName || hubDb.database_id !== databaseId) {
-    throw new Error("Production D1 binding DB does not match the configured Maliks Group Hub database. Refusing deployment.");
+  if (!hubFound) {
+    throw new Error(`Required production D1 binding DB for ${databaseName} is missing. Refusing deployment.`);
   }
   config.d1_databases = databases;
 
@@ -94,7 +123,18 @@ function makeDeployConfig(source) {
 await mkdir(".deploy", { recursive: true });
 
 const migrationSource = await readFile("infrastructure/wrangler.jsonc", "utf8");
-await writeFile(".deploy/wrangler.jsonc", configure(migrationSource));
+const configuredMigrationSource = configure(migrationSource);
+// Separate migration config is authoritative too. Do not silently change its
+// database target or allow another conflicting DB binding there.
+const migrationConfig = JSON.parse(configuredMigrationSource);
+const migrationDbs = migrationConfig.d1_databases;
+if (!Array.isArray(migrationDbs) ||
+    migrationDbs.filter((item) => item?.binding === "DB").length !== 1 ||
+    migrationDbs.some((item) => item?.binding === "DB" &&
+      (item.database_name !== databaseName || item.database_id !== databaseId))) {
+  throw new Error("Migration configuration must declare exactly one DB binding for the configured Maliks Hub database.");
+}
+await writeFile(".deploy/wrangler.jsonc", configuredMigrationSource);
 
 const builtConfigPath = path.join("dist", "server", "wrangler.json");
 // A missing build is a deployment error, not a reason to skip validation.

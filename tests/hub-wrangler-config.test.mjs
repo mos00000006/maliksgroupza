@@ -72,15 +72,54 @@ test("rejects different databases with the same binding name", () => {
   const run = runConfig({ d1_databases: [hub, { ...hub, database_name: "wrong-db" }] });
   try {
     assert.notEqual(run.result.status, 0);
-    assert.match(run.result.stderr, /conflicting databases/);
+    assert.match(run.result.stderr, /instead of maliks-group-hub-db/);
   } finally { run.cleanup(); }
 });
 
-test("rejects DB binding pointed at an unexpected database", () => {
+test("normalizes stale generated DB ID to the authorized production D1 secret", () => {
   const run = runConfig({ d1_databases: [{ ...hub, database_id: "bbbbbbbb-1234-4abc-8123-1234567890ab" }] });
   try {
+    assert.equal(run.result.status, 0, run.result.stderr);
+    const d = run.read("dist/server/wrangler.json").d1_databases;
+    assert.deepEqual(d, [{ binding: "DB", database_name: "maliks-group-hub-db", database_id: secret }]);
+  } finally { run.cleanup(); }
+});
+
+test("reconciles two generated DB entries with conflicting IDs but the same authorized DB name", () => {
+  const run = runConfig({
+    access: { dev: { aud: "local-only" } },
+    d1_databases: [
+      { binding: "DB", database_name: "maliks-group-hub-db", database_id: "aaaaaaaa-1234-4abc-8123-1234567890ab", migrations_dir: "../../../drizzle" },
+      { binding: "DB", database_name: "maliks-group-hub-db", database_id: "bbbbbbbb-1234-4abc-8123-1234567890ab", preview_database_id: "local" },
+    ],
+  });
+  try {
+    assert.equal(run.result.status, 0, run.result.stderr);
+    assert.deepEqual(run.read("dist/server/wrangler.json").d1_databases, [
+      { binding: "DB", database_name: "maliks-group-hub-db", database_id: secret },
+    ]);
+    assert.match(run.result.stdout, /1 duplicate/);
+  } finally { run.cleanup(); }
+});
+
+test("rejects any DB declaration targeting a different database even when one correct declaration exists", () => {
+  const run = runConfig({ d1_databases: [hub, {
+    binding: "DB", database_name: "unrelated-company-db", database_id: secret,
+  }] });
+  try {
     assert.notEqual(run.result.status, 0);
-    assert.match(run.result.stderr, /does not match/);
+    assert.match(run.result.stderr, /instead of maliks-group-hub-db/);
+  } finally { run.cleanup(); }
+});
+
+test("rejects a duplicate non-DB name with conflicting targets", () => {
+  const run = runConfig({ d1_databases: [hub,
+    { binding: "REPORTING", database_name: "reports-a", database_id: secret },
+    { binding: "REPORTING", database_name: "reports-b", database_id: secret },
+  ] });
+  try {
+    assert.notEqual(run.result.status, 0);
+    assert.match(run.result.stderr, /conflicting databases/);
   } finally { run.cleanup(); }
 });
 
@@ -88,7 +127,7 @@ test("rejects missing database binding", () => {
   const run = runConfig({ d1_databases: [] });
   try {
     assert.notEqual(run.result.status, 0);
-    assert.match(run.result.stderr, /does not match/);
+    assert.match(run.result.stderr, /is missing/);
   } finally { run.cleanup(); }
 });
 
