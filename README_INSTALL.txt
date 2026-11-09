@@ -1,21 +1,20 @@
-MALIKS GROUP HUB — SEMI-CIRCLE T001–T012 FRONT VIEW IMAGE CORRECTION
+MALIKS GROUP HUB — TOMMY FIX PACKAGING PHOTOS V4
 
-This is an incremental patch, intended to be applied AFTER the earlier locks patch.
+Purpose
+- Replace existing catalogue thumbnails (not a PDF or brochure).
+- Nail-In Anchors: 5/10/15 pieces show one Tommy Fix pouch; 50/100 pieces show one Tommy Fix tub.
+- All Tommy Fix pack-shot labels are brand-only, white beneath the Tommy Fix banner. Product codes remain in the Hub's code/description fields, not printed on photo stickers.
+- 164 existing supplier-verified codes; also updates legacy Nail-In Anchor image references without reactivating old records.
+- No changes to names, descriptions, selling prices, stock, or active status.
 
-CONTENTS
-- 11 clean, front-facing, individual catalogue product images (white background; single lock on each brand card).
-- A new image-only Cloudflare D1 migration drizzle/0063_semi_circle_front_view_v2.sql.
-- Exact SKU-to-image map.
-
-IMPORTANT: T005 is not in the verified uploaded Hub catalogue data and has not been fabricated. No other records or prices are modified.
-
-INSTALL
-1. Extract and copy public/ and drizzle/ folders into the repository root, merging (not replacing) folders.
-2. Commit and push to GitHub.
-3. Apply D1 migrations to the intended production database using your verified Cloudflare configuration, e.g.:
+Installation
+1. Extract ZIP into the ROOT of your Maliks Group Hub GitHub repository, keeping 'public/' and 'drizzle/' folders.
+2. Make sure earlier catalogue migrations (including 0058) have been applied before this file.
+3. Commit and deploy the site so Cloudflare serves the new public images.
+4. Apply remote D1 migration from the repository ROOT:
    npx wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc
-4. Redeploy the Hub. Verify Locks catalogue T001–T004 and T006–T012.
+5. Test TF-NA535-5 (pouch) and TF-NA535-50 (tub) in the Hub catalogue. Check other Tommy Fix codes too.
+6. Do NOT rename the files: database paths are versioned and point to these exact names.
 
-NOTE
-The photos are AI-assisted, clean product representations based on supplied SKU photographs. They are not authenticated manufacturer photos and may differ in small styling/packaging details.
-The migration updates only existing matching product IMAGE fields (never names, stock, prices, or other SKUs).
+NOTE: Product photographs are catalogue-style edited representations. Confirm packaging with the actual supplier.
+The patch was locally SQL-tested; no live production deployment has occurred.
