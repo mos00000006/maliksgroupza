@@ -138,3 +138,55 @@ test("rejects missing required deployment secret", () => {
     assert.match(run.result.stderr, /Set MALIKS_GROUP_D1_DATABASE_ID/);
   } finally { run.cleanup(); }
 });
+
+// Wrangler API error 10021: compatibility flag specified multiple times.
+test("removes duplicate nodejs_compat while preserving other flags and compatibility date", () => {
+  const run = runConfig({
+    compatibility_date: "2026-05-22",
+    compatibility_flags: ["nodejs_compat", "streams_enable_constructors", "nodejs_compat", "nodejs_compat"],
+    d1_databases: [hub, { ...hub, database_id: "bbbbbbbb-1234-4abc-8123-1234567890ab" }],
+    r2_buckets: [{ binding: "BUCKET", bucket_name: "maliks-group-hub-files" }],
+  });
+  try {
+    assert.equal(run.result.status, 0, run.result.stderr);
+    const config = run.read("dist/server/wrangler.json");
+    assert.deepEqual(config.compatibility_flags, ["nodejs_compat", "streams_enable_constructors"]);
+    assert.equal(config.compatibility_date, "2026-05-22");
+    assert.equal(config.d1_databases.length, 1);
+    assert.match(run.result.stdout, /removed 2 repeated compatibility flag/);
+  } finally { run.cleanup(); }
+});
+
+test("keeps a single nodejs_compat and no flags case unchanged", () => {
+  for (const flags of [["nodejs_compat"], undefined]) {
+    const run = runConfig({ d1_databases: [hub], ...(flags && { compatibility_flags: flags }) });
+    try {
+      assert.equal(run.result.status, 0, run.result.stderr);
+      assert.deepEqual(run.read("dist/server/wrangler.json").compatibility_flags, flags);
+    } finally { run.cleanup(); }
+  }
+});
+
+test("deduplicates environment compatibility flags without overriding root settings", () => {
+  const run = runConfig({
+    compatibility_flags: ["nodejs_compat"],
+    env: { production: { compatibility_flags: ["nodejs_compat", "nodejs_compat", "streams_enable_constructors"] } },
+    d1_databases: [hub],
+  });
+  try {
+    assert.equal(run.result.status, 0, run.result.stderr);
+    const config = run.read("dist/server/wrangler.json");
+    assert.deepEqual(config.compatibility_flags, ["nodejs_compat"]);
+    assert.deepEqual(config.env.production.compatibility_flags, ["nodejs_compat", "streams_enable_constructors"]);
+  } finally { run.cleanup(); }
+});
+
+test("rejects malformed compatibility flag configuration before deployment", () => {
+  for (const flags of ["nodejs_compat", ["nodejs_compat", null], ["nodejs_compat", ""]]) {
+    const run = runConfig({ compatibility_flags: flags, d1_databases: [hub] });
+    try {
+      assert.notEqual(run.result.status, 0);
+      assert.match(run.result.stderr, /compatibility_flags/);
+    } finally { run.cleanup(); }
+  }
+});

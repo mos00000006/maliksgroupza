@@ -41,6 +41,44 @@ function makeDeployConfig(source) {
   // production configuration (Wrangler 4.92 rejects this field).
   delete config.access;
 
+  // Some Cloudflare/Vite builds repeat compatibility flags when composing the
+  // generated Wrangler config. The Workers API rejects duplicated flags,
+  // including `nodejs_compat` (error 10021). Deduplicate without removing a
+  // required flag, changing the compatibility date or changing any bindings.
+  // All flags are passed through unchanged, in their original order.
+  function deduplicateCompatibilityFlags(target, location) {
+    if (target.compatibility_flags === undefined) return;
+    if (!Array.isArray(target.compatibility_flags)) {
+      throw new Error(`${location}.compatibility_flags must be an array.`);
+    }
+    const seenFlags = new Set();
+    const normalized = [];
+    for (const flag of target.compatibility_flags) {
+      if (typeof flag !== "string" || !flag.trim() || flag !== flag.trim()) {
+        throw new Error(`${location}.compatibility_flags contains an invalid flag.`);
+      }
+      if (seenFlags.has(flag)) continue;
+      seenFlags.add(flag);
+      normalized.push(flag);
+    }
+    if (normalized.length !== target.compatibility_flags.length) {
+      console.log(`${location}: removed ${target.compatibility_flags.length - normalized.length} repeated compatibility flag(s).`);
+    }
+    target.compatibility_flags = normalized;
+  }
+  deduplicateCompatibilityFlags(config, "Worker");
+  if (config.env !== undefined) {
+    if (!config.env || typeof config.env !== "object" || Array.isArray(config.env)) {
+      throw new Error("Generated Wrangler env configuration must be an object.");
+    }
+    for (const [envName, envConfig] of Object.entries(config.env)) {
+      if (!envConfig || typeof envConfig !== "object" || Array.isArray(envConfig)) {
+        throw new Error(`Generated Wrangler env.${envName} must be an object.`);
+      }
+      deduplicateCompatibilityFlags(envConfig, `Worker env.${envName}`);
+    }
+  }
+
   // Never ship the localhost-only authentication shortcut into production.
   if (config.vars && typeof config.vars === "object") {
     delete config.vars.LOCAL_DEV_AUTH;

@@ -1,53 +1,53 @@
-MALIKS GROUP HUB — D1 CONFLICT CONFIG PATCH V2
-==============================================
-Repository: maliksgroupza (original Maliks Group Hub ONLY)
-Do NOT install in maliks-pos.
+MALIKS GROUP HUB — CLOUDFLARE NODEJS_COMPAT DUPLICATE-FLAG FIX V3
+================================================================
+Repository: maliksgroupza (the existing Hub; NOT maliks-pos)
+Deployment issue: Cloudflare API error 10021:
+  "Compatibility flag specified multiple times: nodejs_compat"
 
-FIXES
-- Failing command: npm run config:production
-- Error: D1 binding DB is declared for conflicting databases.
-- Generated dist/server/wrangler.json may contain two DB entries for the SAME
-  maliks-group-hub-db, but with differing generated/local/placeholder IDs.
-- This patch consolidates those DB entries into exactly one binding. The
-  database UUID is always taken from the existing GitHub Actions secret
-  MALIKS_GROUP_D1_DATABASE_ID (not from generated development IDs).
-- It REFUSES to proceed if any DB entry names a different database.
-- It preserves other unique D1 bindings, Worker assets, R2 and triggers.
-- It removes the unsupported production "access" field and LOCAL_DEV_AUTH.
-- The migration config .deploy/wrangler.jsonc stays separate from the
-  generated Worker config and is independently checked for the intended DB.
+What this patch changes
+- Adds compatibility_flags normalization to the PRODUCTION config preparation step.
+- Each compatibility flag occurs once per generated Wrangler config scope.
+- Preserves the first occurrence and original order of all valid flags.
+- Retains the required nodejs_compat flag on the existing 2026-05-22
+  compatibility date; it does NOT disable Node.js APIs or change the date.
+- Preserves the existing V2 D1 conflict fix, R2, assets and security checks.
+- Refuses malformed flag arrays before reaching the Cloudflare API.
+- No database migration or data change.
 
-FILES
-  scripts/prepare-cloudflare-config.mjs  (REPLACE existing file)
-  tests/hub-wrangler-config.test.mjs     (REPLACE old test or create new)
+Files
+  scripts/prepare-cloudflare-config.mjs (REPLACE the existing file)
+  tests/hub-wrangler-config.test.mjs (REPLACE the existing V2 test file)
 
-INSTALL
-1. Open GitHub repo maliksgroupza on the SAME branch used by your existing
-   "Deploy Maliks Group Hub" GitHub Actions workflow.
-2. Extract the ZIP; copy both paths into the repository, preserving the
-   scripts/ and tests/ folders; REPLACE previous V1 patch files.
-3. Commit to the branch used for deployment (normally main).
-4. In GitHub Actions, re-run "Deploy Maliks Group Hub" or trigger a new commit.
+Install
+1. Open GitHub repository "maliksgroupza", deployment branch (usually main).
+2. Extract this ZIP, then copy both files into the repository, preserving paths.
+3. Commit both files. Do not upload this patch to "maliks-pos".
+4. GitHub Actions > Deploy Maliks Group Hub > re-run or trigger new push.
 
-VERIFY
+Verify
   node --test tests/hub-wrangler-config.test.mjs
   npm run build
   npm run config:production
 
-The production preparation should log a line similar to:
-  Production D1 bindings validated: 1 unique; 1 duplicate(s) removed.
+To check generated flags (after the build and config:production):
+  node -e "const c=require('./dist/server/wrangler.json'); console.log(c.compatibility_flags); if(new Set(c.compatibility_flags||[]).size!==(c.compatibility_flags||[]).length)process.exit(1)"
 
-The deploy workflow then continues with existing migrations and:
+Existing deploy command remains unchanged:
   npx wrangler deploy --config dist/server/wrangler.json
 
-NOTES
-- The build must complete before npm run config:production.
-- This patch does NOT change or delete any live database records, and does
-  not require a new SQL migration.
-- It does NOT change or create GitHub secrets or Cloudflare Access policies.
-- Do not paste your real database UUID, API token, or secrets into chat.
-- If the new error says "DB targets ... instead of maliks-group-hub-db", the
-  generated config references another project; STOP and inspect the source.
-- Do not confuse duplicate D1 *names* with separate reporting databases:
-  distinct binding names (e.g. REPORTING) are intentionally preserved.
-- The live Worker has not been deployed by this local patch.
+Local test summary: 13/13 passed, plus Node.js syntax verification.
+This does NOT guarantee remote deployment success; test in GitHub Actions.
+If error 10021 persists, inspect the exact generated configuration and
+verify the workflow is using --config dist/server/wrangler.json, without
+separately passing --compatibility-flags on the CLI.
+
+SECURITY
+- The production DB binding is still validated against the existing
+  MALIKS_GROUP_D1_DATABASE_ID secret and maliks-group-hub-db.
+- The script still strips the development-only access and LOCAL_DEV_AUTH data.
+- No credentials are bundled. Do not paste tokens or UUIDs in chat.
+
+A separate observation from the user log: the Hub Worker still shows POS_APP_NAME
+and POS_VAT_RATE variables. They are not needed for this correction. Confirm
+your MaliksPOS deploy has its own Worker and GitHub repository; do not change
+those variables as part of the compatibility fix without reviewing the app.
