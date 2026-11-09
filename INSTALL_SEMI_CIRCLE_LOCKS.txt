@@ -1,0 +1,12 @@
+MALIKS GROUP HUB — SEMI-CIRCLE LOCKS (9 NEW SKUS)
+
+1. Copy drizzle/0060_semi_circle_padlocks.sql into the Hub drizzle/ directory.
+2. Copy public/wholesale-products/semi-circle-locks/ into the matching Hub public/ directory.
+3. Commit and push to GitHub, run the D1 database migration using your existing Wrangler config, and redeploy.
+4. Search product code T001 / SEMI-CIRCLE in the catalogue.
+
+This ZIP does not update the live website until deployed.
+Shelf prices in photos were not imported; stock values are not changed.
+NOTE: The SAMHOO 60mm conventional-shackle padlock in IMG_5475.jpeg has an unreadable stock code and is deliberately excluded.
+Existing other-brand code conflicts remain untouched and should be reviewed.
+Photos are cropped from supplied shelf photos (not supplier-white-background studio images).
