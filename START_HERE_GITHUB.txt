@@ -1,0 +1,31 @@
+MALIKSPOS — SEPARATE DEPLOY — START HERE
+==========================================
+
+This is an independent installable POS Sales/Quotation app, not a full payment-taking POS yet.
+DO NOT unzip over the existing Maliks Group Hub project.
+
+1. Create a NEW GitHub repository called maliks-pos.
+2. Upload all files from this ZIP into the new repository root.
+3. In wrangler.jsonc, edit the three REPLACE / YOUR-TEAM fields:
+   - d1_databases[0].database_id: COPY from existing Maliks Hub wrangler binding.
+   - CF_ACCESS_TEAM_DOMAIN: your Cloudflare Zero Trust team URL.
+   - CF_ACCESS_AUD: audience of a newly created Access self-hosted app for MaliksPOS.
+4. In GitHub Repository > Settings > Secrets and variables > Actions, add:
+   - CLOUDFLARE_API_TOKEN
+   - CLOUDFLARE_ACCOUNT_ID
+5. Commit changes to main. GitHub Actions automatically runs the tests and deploys
+   the NEW Worker named maliks-pos. Existing Hub deployment is untouched.
+6. Cloudflare Workers > maliks-pos > Custom Domains: add your own POS domain
+   (for example pos.maliks.co.za), and ensure Cloudflare Access protects that hostname.
+7. Sign in with a Maliks Hub team member who has Sales / Tills or Manager access.
+8. In Chrome/Edge choose Install app, and it appears separately as MaliksPOS.
+
+Required Hub D1 schema: migrations 0033, 0035, 0054, 0055; 0057 optional
+for verified stock-on-hand display. Full instructions are in README.md.
+
+Live now (after configuration/deploy): branch-constrained catalogue, quote entry,
+customer details, VAT inclusive amounts, server-checked prices, quote printing,
+quotation register, device-local offline draft saving.
+
+NOT LIVE: payments, invoices, cashups, debtor posting, stock decrement,
+dispatch release, full accounting. They require subsequent secure modules.

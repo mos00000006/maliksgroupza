@@ -1,0 +1,18 @@
+MaliksPOS standalone release — 2026-11-09
+
+Local source tests run:
+  node --test tests/*.test.mjs  -> 8 passed, 0 failed
+  node --check src/worker.mjs   -> passed
+  node --check public/assets/app.js -> passed
+  node --check public/sw.js    -> passed
+
+Limitations:
+  npm install could not access the npm registry in this authoring environment.
+  Therefore an actual Cloudflare Worker runtime deployment/integration test
+  and browser-backed acceptance test have NOT been performed.
+  GitHub Action will install dependencies and run the same source tests,
+  then require the operator's Cloudflare credentials/configuration.
+
+Tested business rules: role guards, branch restrictions, SKU/quantity
+validation, VAT-inclusive calculation, request hashing input canonicalisation,
+identifier formatting, SQL wildcard escaping and document serialisation.

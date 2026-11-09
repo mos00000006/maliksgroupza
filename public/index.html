@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en-ZA"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#121f30"><meta name="description" content="MaliksPOS — secure multi-branch retail sales and quotations">
+<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/svg+xml" href="/assets/icon.svg"><link rel="apple-touch-icon" href="/assets/icon-192.png">
+<link rel="stylesheet" href="/assets/style.css"><title>MaliksPOS | Sales Workspace</title></head>
+<body>
+<div id="app" class="app-shell">
+ <aside id="sidebar" class="sidebar" aria-label="Main navigation">
+  <div class="brand"><div class="brand-icon">M<span>•</span></div><div class="brand-copy"><strong>MALIKS<span>POS</span></strong><small>RETAIL OPERATIONS</small></div></div>
+  <div class="sidebar-section-label">WORKSPACE</div>
+  <nav class="nav-group" aria-label="Sales screens">
+   <button class="nav-link active" data-route="overview"><span class="nav-icon">▦</span><span>Overview</span></button>
+   <button class="nav-link" data-route="sales"><span class="nav-icon">▣</span><span>Sales quotation</span><span class="nav-hotkey">F2</span></button>
+   <button class="nav-link" data-route="quotes"><span class="nav-icon">▤</span><span>Quotations</span></button>
+   <button class="nav-link" data-route="catalogue"><span class="nav-icon">◫</span><span>Products & pricing</span></button>
+  </nav>
+  <div class="sidebar-section-label">OPERATIONS</div>
+  <nav class="nav-group" aria-label="Operations modules">
+   <button class="nav-link" data-route="modules"><span class="nav-icon">◈</span><span>Operations modules</span></button>
+  </nav>
+  <div class="sidebar-bottom"><div class="connected-box"><span id="side-status-dot" class="status-dot"></span><span><b id="side-connection">Checking connection</b><small>Independent Cloudflare app</small></span></div>
+   <div class="sidebar-footer">MaliksPOS <span>v1.0 • Phase 1</span></div></div>
+ </aside>
+ <div class="main-shell">
+  <header class="topbar"><div class="topbar-left"><button id="mobile-menu" class="icon-button mobile-only" aria-label="Open menu">☰</button><span class="crumb">MALIKS GROUP</span><span class="crumb-chevron">›</span><span id="top-screen" class="crumb-current">Overview</span></div>
+   <div class="topbar-right"><span id="online-banner" class="online-tag"><span class="status-dot"></span> Connected</span><label class="branch-field"><span>BRANCH</span><select id="branch-select" aria-label="Select branch"><option value="">Loading branches...</option></select></label><div id="user-badge" class="user-badge" title="Authenticated user">M</div></div>
+  </header>
+  <div class="notice-strip"><span class="strip-symbol">●</span><strong>SALES WORKSPACE</strong><span>Quotations only — no payments are processed here.</span><span id="offline-notice" class="offline-notice" hidden>Offline: save drafts; reconnect to submit.</span></div>
+  <main id="main" class="main" tabindex="-1">
+   <section id="view-overview" class="view"><div class="page-intro"><div><div class="eyebrow">MALIKS RETAIL SYSTEMS</div><h1>Good <span id="greeting">day</span>, <span id="welcome-name">team.</span></h1><p>One professional workspace for your branch sales and quotation flow.</p></div><button class="button button-primary" data-action="new-quote">+ New quotation</button></div>
+    <div class="hero-panel"><div><span class="hero-kicker">YOUR SALES WORKSPACE</span><h2>Every quote, controlled.<br>Every branch, connected.</h2><p>Find live products, check approved prices, build customer quotations and hand them straight to Cash Office review.</p><button class="button button-light" data-action="new-quote">Create a quotation <span>→</span></button></div><div class="hero-art"><div class="art-stats"><b>M<span>POS</span></b><span>SALE • STOCK • CONTROL</span></div><div class="art-bars"><i></i><i></i><i></i><i></i><i></i></div></div></div>
+    <div class="metric-grid"><article class="metric"><span>QUOTATIONS CREATED</span><strong id="metric-total">—</strong><small>In selected branch / permitted view</small></article><article class="metric"><span>AWAITING CASH OFFICE</span><strong id="metric-pending">—</strong><small>Pending review, not paid invoices</small></article><article class="metric"><span>TOTAL QUOTED VALUE</span><strong id="metric-value">—</strong><small>VAT included • not revenue</small></article><article class="metric"><span>APPLICATION</span><strong>POS <em>01</em></strong><small>Independent installation</small></article></div>
+    <div class="split-panels"><article class="content-panel"><div class="panel-title"><div><h3>Recently submitted quotations</h3><p>Current branch, newest first</p></div><button class="text-button" data-route="quotes">View all →</button></div><div id="overview-quotes" class="empty-row">Loading quotations...</div></article><article class="content-panel"><div class="panel-title"><div><h3>Store operations</h3><p>System controls and live readiness</p></div></div><div class="operating-lines"><div><span>Customer quotation</span><b class="pill positive">Active</b></div><div><span>Branch price-book validation</span><b class="pill positive">Active</b></div><div><span>Offline device drafts</span><b class="pill neutral">Local</b></div><div><span>Payment / invoice posting</span><b class="pill warning">Not activated</b></div><div><span>Dispatch release control</span><b class="pill warning">Not activated</b></div></div></article></div>
+   </section>
+   <section id="view-sales" class="view hidden"><div class="page-intro compact"><div><div class="eyebrow">SALES • DESK 01</div><h1>New quotation</h1><p>Approved selling prices are checked again when you submit.</p></div><div class="page-actions"><span class="shortcut-hint">F2 Product search</span><button class="button button-outline" id="save-draft">Save draft</button><button class="button button-ghost" id="clear-quote">Clear</button></div></div>
+    <div class="work-grid"><article class="content-panel product-search-panel"><div class="panel-title"><div><h3>Search products</h3><p>Enter product code or search by name</p></div><span class="pill neutral" id="product-count">—</span></div>
+     <div class="search-bar"><span class="search-icon">⌕</span><input id="product-search" type="search" placeholder="Search SKU or product name..." autocomplete="off" aria-label="Search products"><button id="product-search-go" class="button button-primary">Search</button></div>
+     <div class="filter-row"><label>Department<select id="category-select"><option value="">All departments</option></select></label><span id="search-note" class="faint">Search by code or name</span></div>
+     <div id="search-results" class="product-list"><div class="empty-state"><div class="empty-icon">⌕</div><h4>Ready to search</h4><p>Choose a department or search for a product to start your quotation.</p></div></div>
+     <div class="pagination"><button id="prev-page" disabled>← Previous</button><span id="page-label">Page 1</span><button id="next-page" disabled>Next →</button></div>
+    </article>
+    <article class="content-panel quote-panel"><div class="panel-title"><div><h3>Quotation basket</h3><p id="basket-caption">0 products in this quotation</p></div><span class="pill neutral">15% VAT</span></div>
+     <div class="customer-grid"><label><span>Customer name</span><input id="customer-name" maxlength="120" placeholder="Walk-in customer" autocomplete="off"></label><label><span>Phone / reference</span><input id="customer-contact" maxlength="80" placeholder="Optional" autocomplete="off"></label></div>
+     <div id="basket-lines" class="basket-lines"><div class="basket-empty"><span>▣</span><strong>Your basket is empty</strong><small>Select products to add them to the quotation.</small></div></div>
+     <label class="notes-field"><span>Quotation notes (optional)</span><textarea id="quote-notes" maxlength="400" rows="2" placeholder="Collection, delivery instructions or customer notes"></textarea></label>
+     <div class="totals-box"><div><span>Subtotal (excl. VAT)</span><strong id="net-value">R 0.00</strong></div><div><span>VAT included (15%)</span><strong id="vat-value">R 0.00</strong></div><div class="grand-total"><span>Quotation total</span><strong id="total-value">R 0.00</strong></div></div>
+     <div id="quote-warning" class="inline-warning">This is a quotation only. Payment and dispatch must be completed in their authorised desks.</div>
+     <button id="submit-quote" class="button button-primary submit-quote" disabled>Submit to Cash Office <span>→</span></button>
+     <button id="print-draft" class="button button-outline print-draft">Print draft</button>
+    </article></div>
+   </section>
+   <section id="view-quotes" class="view hidden"><div class="page-intro compact"><div><div class="eyebrow">DOCUMENT CENTRE</div><h1>Quotations</h1><p>Server-confirmed quotations, organised by branch.</p></div><button class="button button-primary" data-action="new-quote">+ New quotation</button></div>
+     <article class="content-panel"><div class="panel-title"><div><h3>Quotation register</h3><p>Not invoices, not payment confirmations</p></div><button class="button button-outline" id="refresh-quotes">Refresh</button></div>
+       <div class="search-bar"><span class="search-icon">⌕</span><input id="quote-search" type="search" placeholder="Search quote number or customer..." autocomplete="off"><button class="button button-primary" id="quote-search-go">Search</button></div>
+       <div class="table-wrap"><table class="data-table"><thead><tr><th>Quote no.</th><th>Customer</th><th>Date</th><th>Sales consultant</th><th>Status</th><th class="num">Total</th><th></th></tr></thead><tbody id="quotes-table"><tr><td colspan="7">Loading quotations...</td></tr></tbody></table></div>
+     </article>
+   </section>
+   <section id="view-catalogue" class="view hidden"><div class="page-intro compact"><div><div class="eyebrow">BRANCH PRICE BOOK</div><h1>Products & pricing</h1><p>Searchable active products and published prices for the selected store.</p></div><button class="button button-primary" data-route="sales">Build quotation</button></div>
+     <article class="content-panel"><div class="search-bar"><span class="search-icon">⌕</span><input id="catalogue-search" type="search" placeholder="Search products or SKU..." autocomplete="off"><button class="button button-primary" id="catalogue-search-go">Search</button></div><div id="catalogue-results" class="table-wrap"><div class="empty-state">Search a product or select a branch to see its catalogue.</div></div></article>
+   </section>
+   <section id="view-modules" class="view hidden"><div class="page-intro compact"><div><div class="eyebrow">ENTERPRISE ROADMAP</div><h1>Retail operations modules</h1><p>MaliksPOS is built for the full Touch-class retail workflow, introduced with secure controls module by module.</p></div></div><div id="module-grid" class="modules-grid"></div>
+    <div class="roadmap-note"><strong>No fake sales or financial posting.</strong><span>Modules shown as planned are intentionally unavailable until the linked database transactions, access permissions, audit logs, accounting entries and tests are finished.</span></div>
+   </section>
+  </main>
+ </div>
+</div>
+<div id="toast" role="status" aria-live="polite" class="toast hidden"></div>
+<div id="print-content" aria-hidden="true"></div>
+<script src="/assets/app.js" type="module"></script>
+</body></html>
