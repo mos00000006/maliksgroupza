@@ -141,6 +141,9 @@ class PdfWriter {
 
 const cleanText = (value: string) =>
   (value || "")
+    .replace(/×/g, "x")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[–—]/g, "-")
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
@@ -148,11 +151,12 @@ const cleanText = (value: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const safeCategory = (value: string) => cleanText(value || "General") || "General";
+const safeCategory = (value: string) => cleanText((value || "General").replace(/·/g, "-")) || "General";
 
 const CATEGORY_ORDER = [
   "Plumbing",
   "Underground (UG)",
+  "Plumbing Pipes",
   "Soil & Vent (SV)",
   "HDPE & Compression Fittings",
   "Copper & Brass Fittings",
@@ -173,10 +177,20 @@ const CATEGORY_ORDER = [
   "Windows",
   "Window Blinds & Treatments",
   "Fencing",
+  "Locks",
   "Locksets",
   "Fasteners",
   "Ironmongery",
   "Tools",
+  "Tork Craft",
+  "Hamiltons",
+  "Tiles & Flooring",
+  "Bathroom - Furniture",
+  "Bathroom - Taps",
+  "Bathroom - Showers",
+  "Bathroom - Basins",
+  "Bathroom - Toilets",
+  "Bathroom - Baths",
   "Garden",
   "Kitchens",
   "Homeware",

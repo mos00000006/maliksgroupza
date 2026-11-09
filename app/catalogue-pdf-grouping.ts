@@ -34,7 +34,8 @@ export function cataloguePdfCategory(p: CataloguePdfGroupingProduct): string {
   if (has(name, /\b(?:ELECTRICAL SOCKETS?|PLUG SOCKET|WALL SOCKET|LIGHT SWITCH|CONDUIT|CABLE|CIRCUIT BREAKER|LED LAMP|DOWNLIGHT)\b/)) return "Electrical & Lighting";
 
   // Named building families: do not swallow these into generic hardware.
-  if (has(name, /\b(?:LOCKSETS?|MORTICE LOCK|CYLINDER LOCK|PADLOCKS?)\b/)) return "Locksets";
+  if (cat === "LOCKS" || has(name, /\bPADLOCKS?\b/)) return "Locks";
+  if (has(name, /\b(?:LOCKSETS?|MORTICE LOCK|CYLINDER LOCK)\b/)) return "Locksets";
   if (has(name, /\b(?:HINGES?|DOOR HANDLES?|CABINET HANDLES?|PULL HANDLES?|BRACKETS?|DOOR STOPS?)\b/) &&
       !has(name, /\bPIPE\s+BRACKET\b/)) return "Ironmongery";
   if (has(name, /\b(?:GYPSUM BOARD|CEILING BOARD|BOARD CEILING GYPSUM|FASCIA BOARD|RHINOBOARD|CORNICE|PLASTERBOARD)\b/)) return "Boards & Ceilings";

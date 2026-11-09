@@ -14,14 +14,22 @@ export async function GET(req: Request) {
   const pageSize = Math.min(48, Math.max(6, requestedSize));
   const q = (url.searchParams.get("q") || "").trim().toLowerCase();
   const category = (url.searchParams.get("category") || "").trim();
-  const offset = (page - 1) * pageSize;
-  // Legacy blind stock is saved under Homeware (or other imported categories).
-  // Keep the stored category unchanged while making the catalogue filters accurate.
+  // Display true window blinds under their dedicated department without accidentally
+  // hiding blind rivets, flanges, plugs, caps, or nuts from their normal categories.
+  // All matching expressions are constants; the category remains a bound parameter.
+  const windowBlindsNameSql = [
+    "lower(name) LIKE '%blind%'",
+    "lower(name) NOT LIKE '%blind rivet%'",
+    "lower(name) NOT LIKE '%blind flange%'",
+    "lower(name) NOT LIKE '%blind cap%'",
+    "lower(name) NOT LIKE '%blind plug%'",
+    "lower(name) NOT LIKE '%blind nut%'",
+  ].join(" AND ");
   const blindsFilter = category === "Window Blinds & Treatments";
   const categorySql = blindsFilter
-    ? "(lower(category)=lower('Window Blinds & Treatments') OR (lower(name) LIKE '%blind%' AND lower(name) NOT LIKE '%blind flange%' AND lower(name) NOT LIKE '%blind cap%' AND lower(name) NOT LIKE '%blind rivet%' AND lower(name) NOT LIKE '%blind plug%' AND lower(name) NOT LIKE '%blind nut%'))"
-    : "(lower(category)=lower(?) AND NOT (lower(name) LIKE '%blind%' AND lower(name) NOT LIKE '%blind flange%' AND lower(name) NOT LIKE '%blind cap%' AND lower(name) NOT LIKE '%blind rivet%' AND lower(name) NOT LIKE '%blind plug%' AND lower(name) NOT LIKE '%blind nut%'))";
-  const filterBind = blindsFilter ? [] : [category];
+    ? `(lower(category)=lower(?) OR (${windowBlindsNameSql}))`
+    : `(lower(category)=lower(?) AND NOT (${windowBlindsNameSql}))`;
+  const filterBind = [category];
   const like = `%${q}%`;
 
   const count = q && category
@@ -50,6 +58,11 @@ export async function GET(req: Request) {
         "SELECT COUNT(*) AS total FROM catalogue_products WHERE active=1",
       ).first<{ total: number }>();
 
+  const total = Number(count?.total || 0);
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const effectivePage = Math.min(page, pages);
+  const offset = (effectivePage - 1) * pageSize;
+
   const query = q && category
     ? env.DB.prepare(
         `SELECT * FROM catalogue_products
@@ -75,12 +88,9 @@ export async function GET(req: Request) {
           ).bind(pageSize, offset);
 
   const { results } = await query.all<Record<string, unknown>>();
-  const total = Number(count?.total || 0);
-  const pages = Math.max(1, Math.ceil(total / pageSize));
-
   return Response.json({
     products: results.map(productResponse),
-    page: Math.min(page, pages),
+    page: effectivePage,
     page_size: pageSize,
     total,
     pages,
