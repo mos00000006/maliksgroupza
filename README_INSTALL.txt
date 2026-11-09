@@ -1,26 +1,21 @@
-MALIKS GROUP HUB — PAIA PREMIUM PAGE V8 LINT FIX
-=================================================
+MALIKS GROUP HUB — SEMI-CIRCLE T001–T012 FRONT VIEW IMAGE CORRECTION
 
-PURPOSE
-Fixes the three react/no-unescaped-entities ESLint errors reported by GitHub
-at app/paia/page.tsx lines 126, 133 and 152 in Premium PAIA V7.
+This is an incremental patch, intended to be applied AFTER the earlier locks patch.
 
-CHANGED FILE
-  app/paia/page.tsx
+CONTENTS
+- 11 clean, front-facing, individual catalogue product images (white background; single lock on each brand card).
+- A new image-only Cloudflare D1 migration drizzle/0063_semi_circle_front_view_v2.sql.
+- Exact SKU-to-image map.
 
-Only three text apostrophes are HTML-escaped (&apos;). No UI design, branding,
-PDF, stock, sales, database, or navigation changes are included.
+IMPORTANT: T005 is not in the verified uploaded Hub catalogue data and has not been fabricated. No other records or prices are modified.
 
 INSTALL
-1. Extract the ZIP.
-2. Copy its app folder into your existing maliksgroupza project folder.
-3. Merge folders and replace app/paia/page.tsx.
-4. Run npm run check in VS Code.
-5. If successful, commit and push to GitHub.
+1. Extract and copy public/ and drizzle/ folders into the repository root, merging (not replacing) folders.
+2. Commit and push to GitHub.
+3. Apply D1 migrations to the intended production database using your verified Cloudflare configuration, e.g.:
+   npx wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc
+4. Redeploy the Hub. Verify Locks catalogue T001–T004 and T006–T012.
 
-TESTED LOCALLY
-- TSX syntax parse: passed.
-- 3 reported apostrophes corrected.
-- 5 existing PAIA page layout regression tests: passed.
-
-The full GitHub workflow was not run in this environment and needs verification.
+NOTE
+The photos are AI-assisted, clean product representations based on supplied SKU photographs. They are not authenticated manufacturer photos and may differ in small styling/packaging details.
+The migration updates only existing matching product IMAGE fields (never names, stock, prices, or other SKUs).
