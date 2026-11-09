@@ -1,0 +1,26 @@
+MALIKS GROUP HUB — SEMI-CIRCLE PRODUCT VIEW IMAGE CORRECTION
+
+This is NOT a catalogue poster. It fixes the actual product images in your Hub.
+
+UPDATE CONTENTS
+- Nine new single-product catalogue photographs, edited onto consistent clean packaging views.
+- New static URLs under public/wholesale-products/semi-circle-locks/product-view/
+- D1 migration drizzle/0061_semi_circle_product_view_images.sql sets new image URLs.
+- No existing product codes, product descriptions, stock balances, or prices are modified.
+- The separate 0060_semi_circle_padlocks.sql migration is still required for first-time imports.
+
+INSTALL
+1. In your Maliks Group Hub GitHub repository, copy drizzle/0061_semi_circle_product_view_images.sql
+   into the existing drizzle folder.
+2. Copy public/wholesale-products/semi-circle-locks/product-view/ into your public folder.
+3. Commit and push the changes.
+4. Run: npm run db:migrate:production  (from the Hub project, with Cloudflare config set)
+5. Redeploy the Hub (existing deployment workflow, or npm run deploy).
+6. Search the Hub catalogue for SEMI-CIRCLE or T001 to verify the new view.
+
+IMPORTANT
+- This archive does not update your deployed website automatically.
+- T006 (38 mm long shackle) uses a photograph of the same product range as T007 (50 mm)
+  because the supplied T006 photo cut off the padlock body. The two Hub image files have
+  their own size labels and each product displays exactly one image.
+- Original shelf-photo assets can remain in place as unused legacy files.
