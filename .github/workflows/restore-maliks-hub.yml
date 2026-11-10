@@ -1,0 +1,157 @@
+
+name: Restore Maliks Group Hub
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore original Hub interface
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          import { execFileSync } from "node:child_process";
+
+          function git(...args) {
+            return execFileSync("git", args, {
+              encoding: "utf8"
+            }).trim();
+          }
+
+          function oldFile(commit, file) {
+            try {
+              return execFileSync("git", [
+                "show", `${commit}:${file}`
+              ], { stdio: ["ignore", "pipe", "ignore"] });
+            } catch {
+              return null;
+            }
+          }
+
+          const posPattern =
+            /maliks[\s_-]*pos|maliks-pos-standalone|POS_APP_NAME/i;
+
+          const commits = git(
+            "log", "--format=%H", "-n", "800"
+          ).split("\n");
+
+          const good = commits.find(commit => {
+            const pkg = oldFile(commit, "package.json");
+            const catalogue = oldFile(commit, "app/catalogue.tsx");
+            if (!pkg || !catalogue) return false;
+
+            try {
+              const name = JSON.parse(pkg.toString()).name || "";
+              if (!/maliks.*group.*hub/i.test(name)) return false;
+            } catch {
+              return false;
+            }
+
+            return [
+              "public/index.html",
+              "public/assets/app.js"
+            ].every(file => {
+              const content = oldFile(commit, file);
+              return !content ||
+                !posPattern.test(content.toString());
+            });
+          });
+
+          if (!good) {
+            throw new Error(
+              "No verified earlier Hub commit found. No files changed."
+            );
+          }
+
+          const entrypoints = [
+            "public/index.html",
+            "public/assets/app.js",
+            "public/manifest.webmanifest",
+            "public/manifest.json",
+            "app/page.tsx",
+            "package.json"
+          ];
+
+          const hasPosOverlay = entrypoints.some(file =>
+            fs.existsSync(file) &&
+            posPattern.test(fs.readFileSync(file, "utf8"))
+          );
+
+          if (!hasPosOverlay) {
+            console.log("No identifiable POS overlay found.");
+            process.exit(0);
+          }
+
+          const restoreFiles = [
+            "public/index.html",
+            "public/assets/app.js",
+            "public/assets/style.css",
+            "public/assets/icon.svg",
+            "public/assets/icon-192.png",
+            "public/assets/icon-512.png",
+            "public/manifest.webmanifest",
+            "public/manifest.json",
+            "public/sw.js",
+            "public/service-worker.js",
+            "src/worker.mjs",
+            "scripts/prepare-pos-config.mjs",
+            ".github/workflows/deploy-pos.yml",
+            ".github/workflows/deploy-maliks-pos.yml"
+          ];
+
+          for (const file of restoreFiles) {
+            const original = oldFile(good, file);
+            if (original) {
+              fs.mkdirSync(path.dirname(file), {
+                recursive: true
+              });
+              fs.writeFileSync(file, original);
+            } else if (fs.existsSync(file)) {
+              fs.rmSync(file);
+            }
+            console.log("Restored:", file);
+          }
+
+          for (const file of [
+            "package.json",
+            "package-lock.json",
+            "vite.config.ts",
+            "app/page.tsx",
+            "app/layout.tsx",
+            "wrangler.toml",
+            "wrangler.jsonc"
+          ]) {
+            if (!fs.existsSync(file)) continue;
+            const data = fs.readFileSync(file, "utf8");
+            if (!posPattern.test(data)) continue;
+
+            const original = oldFile(good, file);
+            if (original) fs.writeFileSync(file, original);
+          }
+
+          console.log("Hub interface recovery prepared.");
+          console.log("Preserved: catalogue, D1 migrations, stock data.");
+          NODE
+
+      - name: Commit recovery
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No recovery changes necessary."
+          else
+            git commit -m "Restore Maliks Group Hub interface"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
