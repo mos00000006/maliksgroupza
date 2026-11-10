@@ -1,19 +1,15 @@
-MALIKS GROUP HUB — QR PRODUCT SCAN LABEL FIX
+CATALOGUE PDF READABILITY PATCH
 
-Change:
-- The customer product page opened by QR scanning no longer shows
-  "PRICE FOR ALL BRANCHES" for normal, company-wide prices.
-- If a product has a specific branch price override, "PRICE FOR [BRANCH]"
-  still appears, so customers can identify branch-specific pricing.
-- Product details, prices, QR links, images and tile Smart Measure are unchanged.
-- Works for both PowerBuild and BusterBuild QR product pages.
+Target: Maliks Group Hub from maliksgroupza(7).zip
 
-Installation:
-1. Back up your project.
-2. Copy app/p/[token]/product-scan-page.tsx from this ZIP into your
-   project, replacing the existing file.
-3. Build and deploy the updated website using your normal process.
-4. Open an existing general-price QR link to verify the label has gone.
-   No QR reprint or database migration is required.
+Install:
+1. Back up app/catalogue-pdf.ts in your Hub project.
+2. Copy app/catalogue-pdf.ts from this patch into the same path in the project.
+3. Run npm run check from the project root, then review the PDF and interactive leaflet.
 
-The existing server and live website are not changed until you deploy.
+Changes:
+- Enlarges product names, descriptions, product codes, category headings, contents labels, and footer text.
+- Uses a 3-column by 4-row product grid (12 products per page) for more readable cards.
+- Keeps PDF and interactive leaflet page numbering in sync.
+
+This is a focused source patch, not a full Hub backup.

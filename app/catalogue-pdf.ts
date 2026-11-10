@@ -25,6 +25,9 @@ const PAGE_W = 595.28;
 const PAGE_H = 841.89;
 const CANVAS_W = 2480;
 const CANVAS_H = 3508;
+const PRODUCT_PAGE_COLUMNS = 3;
+const PRODUCT_PAGE_ROWS = 4;
+const PRODUCT_PAGE_CAPACITY = PRODUCT_PAGE_COLUMNS * PRODUCT_PAGE_ROWS;
 let renderScaleOverride: number | null = null;
 
 const pageRenderScale = () => {
@@ -371,15 +374,15 @@ const drawFooter = (
 
   ctx.textBaseline = "middle";
   ctx.fillStyle = WHITE;
-  ctx.font = `700 18px ${FONT_BOLD}`;
+  ctx.font = `700 20px ${FONT_BOLD}`;
   ctx.textAlign = "left";
   ctx.fillText("POWERBUILD WHOLESALE DIVISION", 54, CANVAS_H - 54);
 
-  ctx.font = `600 17px ${FONT_REGULAR}`;
+  ctx.font = `600 19px ${FONT_REGULAR}`;
   ctx.textAlign = "center";
   ctx.fillText("www.powerbuild.co.za  ·  For orders & enquiries, contact your PowerBuild representative", CANVAS_W / 2, CANVAS_H - 30);
 
-  ctx.font = `700 17px ${FONT_BOLD}`;
+  ctx.font = `700 19px ${FONT_BOLD}`;
   ctx.textAlign = "right";
   ctx.fillText(`${page} / ${totalPages}`, CANVAS_W - 54, CANVAS_H - 54);
 };
@@ -442,7 +445,7 @@ const drawContentsPage = async (
   ctx.font = `900 48px ${FONT_BOLD}`;
   ctx.fillText("CONTENTS", CANVAS_W - 66, 82);
   ctx.fillStyle = MUTED;
-  ctx.font = `600 21px ${FONT_REGULAR}`;
+  ctx.font = `600 24px ${FONT_REGULAR}`;
   ctx.fillText("Wholesale product categories", CANVAS_W - 66, 124);
 
   const startY = 216;
@@ -457,21 +460,21 @@ const drawContentsPage = async (
     ctx.fillStyle = WHITE;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = `900 20px ${FONT_BOLD}`;
+    ctx.font = `900 23px ${FONT_BOLD}`;
     ctx.fillText(String(index + 1).padStart(2, "0"), 103, y + 44);
 
     ctx.textAlign = "left";
     ctx.fillStyle = TEXT;
-    ctx.font = `900 25px ${FONT_BOLD}`;
+    ctx.font = `900 30px ${FONT_BOLD}`;
     ctx.fillText(plan.category.toUpperCase(), 154, y + 34);
     ctx.fillStyle = MUTED;
-    ctx.font = `600 18px ${FONT_REGULAR}`;
+    ctx.font = `600 21px ${FONT_REGULAR}`;
     ctx.fillText(`${plan.items.length} products`, 154, y + 62);
 
     drawRoundedRect(ctx, CANVAS_W - 260, y + 17, 176, 54, 16, SOFT_BLUE, "#c9dced", 1.5);
     ctx.textAlign = "center";
     ctx.fillStyle = BLUE;
-    ctx.font = `900 20px ${FONT_BOLD}`;
+    ctx.font = `900 23px ${FONT_BOLD}`;
     const pageText = plan.startPage === plan.endPage ? `PAGE ${plan.startPage}` : `PAGES ${plan.startPage}-${plan.endPage}`;
     ctx.fillText(pageText, CANVAS_W - 172, y + 44);
   });
@@ -508,51 +511,52 @@ const drawProductCard = (
     drawImageContain(ctx, image, imageFrameX + 10, imageFrameY + 10, imageFrameW - 20, imageFrameH - 20);
   } else {
     ctx.fillStyle = "#9aa8b7";
-    ctx.font = `900 17px ${FONT_BOLD}`;
+    ctx.font = `900 20px ${FONT_BOLD}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("PRODUCT IMAGE", x + width / 2, imageFrameY + imageFrameH / 2 - 10);
     ctx.fillStyle = MUTED;
-    ctx.font = `600 14px ${FONT_REGULAR}`;
+    ctx.font = `600 17px ${FONT_REGULAR}`;
     ctx.fillText("Upload in catalogue", x + width / 2, imageFrameY + imageFrameH / 2 + 20);
   }
 
   const name = cleanText(product.name || product.description || product.code);
-  ctx.font = `900 18px ${FONT_BOLD}`;
-  const nameLines = wrapCanvasText(ctx, name, width - 34, 2);
-  const nameTop = y + height - 118;
-  drawCenteredLines(ctx, nameLines, x + width / 2, nameTop, 22, TEXT);
+  ctx.font = `900 28px ${FONT_BOLD}`;
+  const nameLines = wrapCanvasText(ctx, name, width - 40, 2);
+  const nameTop = y + height - 154;
+  drawCenteredLines(ctx, nameLines, x + width / 2, nameTop, 32, TEXT);
 
   const subtitle = cleanText(product.description && product.description !== product.name ? product.description : "");
   if (subtitle && nameLines.length < 2) {
-    ctx.font = `600 13px ${FONT_REGULAR}`;
-    const subtitleLines = wrapCanvasText(ctx, subtitle, width - 38, 1);
-    drawCenteredLines(ctx, subtitleLines, x + width / 2, nameTop + 45, 16, MUTED);
+    ctx.font = `600 19px ${FONT_REGULAR}`;
+    const subtitleLines = wrapCanvasText(ctx, subtitle, width - 44, 1);
+    drawCenteredLines(ctx, subtitleLines, x + width / 2, nameTop + 64, 22, MUTED);
   }
 
   const assorted = isAssortedProduct(product);
   if (assorted) {
     const label = "ASSORTED";
-    ctx.font = `900 13px ${FONT_BOLD}`;
-    const badgeWidth = Math.min(width - 70, Math.max(118, ctx.measureText(label).width + 48));
+    ctx.font = `900 17px ${FONT_BOLD}`;
+    const badgeWidth = Math.min(width - 70, Math.max(142, ctx.measureText(label).width + 52));
     const badgeX = x + (width - badgeWidth) / 2;
     const badgeY = y + height - 46;
-    drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, 29, 15, YELLOW);
+    drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, 34, 17, YELLOW);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = NAVY;
-    ctx.fillText(label, x + width / 2, badgeY + 15);
+    ctx.fillText(label, x + width / 2, badgeY + 17);
   } else {
     const publicCode = `CODE: ${cleanText(product.code)}`;
-    const badgeWidth = Math.min(width - 42, Math.max(130, ctx.measureText(publicCode).width + 78));
+    ctx.font = `900 18px ${FONT_BOLD}`;
+    const badgeWidth = Math.min(width - 42, Math.max(150, ctx.measureText(publicCode).width + 56));
     const badgeX = x + (width - badgeWidth) / 2;
-    const badgeY = y + height - 48;
-    drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, 31, 15, YELLOW);
+    const badgeY = y + height - 51;
+    drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, 36, 18, YELLOW);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = NAVY;
-    ctx.font = `900 14px ${FONT_BOLD}`;
-    ctx.fillText(publicCode, x + width / 2, badgeY + 16);
+    ctx.font = `900 18px ${FONT_BOLD}`;
+    ctx.fillText(publicCode, x + width / 2, badgeY + 18);
   }
 };
 
@@ -576,20 +580,20 @@ const drawProductPage = async (
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = BLUE;
-  ctx.font = `900 25px ${FONT_BOLD}`;
+  ctx.font = `900 30px ${FONT_BOLD}`;
   ctx.fillText("WHOLESALE DIVISION", CANVAS_W / 2, 55);
   ctx.fillStyle = MUTED;
-  ctx.font = `600 15px ${FONT_REGULAR}`;
+  ctx.font = `600 19px ${FONT_REGULAR}`;
   ctx.fillText("PRODUCT CATALOGUE", CANVAS_W / 2, 80);
 
   drawRoundedRect(ctx, 54, 122, CANVAS_W - 108, 55, 18, NAVY);
   ctx.fillStyle = YELLOW;
   ctx.textAlign = "left";
-  ctx.font = `900 13px ${FONT_BOLD}`;
+  ctx.font = `900 17px ${FONT_BOLD}`;
   ctx.fillText(categoryPage === 1 ? "CATEGORY" : "CONTINUED", 78, 149);
   ctx.fillStyle = WHITE;
   ctx.textAlign = "center";
-  ctx.font = `900 23px ${FONT_BOLD}`;
+  ctx.font = `900 29px ${FONT_BOLD}`;
   const categoryLabel = categoryPages > 1 ? `${category.toUpperCase()}  ·  ${categoryPage} / ${categoryPages}` : category.toUpperCase();
   ctx.fillText(categoryLabel, CANVAS_W / 2 + 45, 149, CANVAS_W - 510);
   ctx.fillStyle = YELLOW;
@@ -597,8 +601,8 @@ const drawProductPage = async (
 
   const gridX = 44;
   const gridY = 224;
-  const cols = 4;
-  const rows = 4;
+  const cols = PRODUCT_PAGE_COLUMNS;
+  const rows = PRODUCT_PAGE_ROWS;
   const gapX = 18;
   const gapY = 18;
   const cardW = (CANVAS_W - gridX * 2 - gapX * (cols - 1)) / cols;
@@ -675,7 +679,7 @@ export async function buildWholesaleCataloguePdf(
     groups.get(category)!.push(product);
   }
 
-  const pageCapacity = 16;
+  const pageCapacity = PRODUCT_PAGE_CAPACITY;
   let nextPage = 3; // Page 1 cover, page 2 contents.
   const plans: CategoryPlan[] = Array.from(groups.entries()).map(([category, items]) => {
     const productPages = Math.ceil(items.length / pageCapacity);
@@ -806,7 +810,7 @@ export async function buildWholesaleLeafletPages(
     groups.get(category)!.push(product);
   }
 
-  const pageCapacity = 16;
+  const pageCapacity = PRODUCT_PAGE_CAPACITY;
   let nextPage = 3;
   const plans: CategoryPlan[] = Array.from(groups.entries()).map(([category, items]) => {
     const productPages = Math.ceil(items.length / pageCapacity);
