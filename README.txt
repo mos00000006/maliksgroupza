@@ -9,7 +9,9 @@ Install:
 
 Changes:
 - Enlarges product names, descriptions, product codes, category headings, contents labels, and footer text.
+- Keeps names below the product image frame with clear spacing.
 - Uses a 3-column by 4-row product grid (12 products per page) for more readable cards.
+- Enlarges the product code inside its yellow badge.
 - Keeps PDF and interactive leaflet page numbering in sync.
 
 This is a focused source patch, not a full Hub backup.

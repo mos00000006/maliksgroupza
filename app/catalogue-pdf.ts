@@ -504,7 +504,7 @@ const drawProductCard = (
   const imageFrameX = x + 18;
   const imageFrameY = y + 18;
   const imageFrameW = width - 36;
-  const imageFrameH = height - 150;
+  const imageFrameH = height - 235;
   drawRoundedRect(ctx, imageFrameX, imageFrameY, imageFrameW, imageFrameH, 16, LIGHT, MID, 1.4);
 
   if (image) {
@@ -523,7 +523,7 @@ const drawProductCard = (
   const name = cleanText(product.name || product.description || product.code);
   ctx.font = `900 28px ${FONT_BOLD}`;
   const nameLines = wrapCanvasText(ctx, name, width - 40, 2);
-  const nameTop = y + height - 154;
+  const nameTop = y + height - 195;
   drawCenteredLines(ctx, nameLines, x + width / 2, nameTop, 32, TEXT);
 
   const subtitle = cleanText(product.description && product.description !== product.name ? product.description : "");
@@ -547,16 +547,16 @@ const drawProductCard = (
     ctx.fillText(label, x + width / 2, badgeY + 17);
   } else {
     const publicCode = `CODE: ${cleanText(product.code)}`;
-    ctx.font = `900 18px ${FONT_BOLD}`;
-    const badgeWidth = Math.min(width - 42, Math.max(150, ctx.measureText(publicCode).width + 56));
+    ctx.font = `900 23px ${FONT_BOLD}`;
+    const badgeWidth = Math.min(width - 42, Math.max(170, ctx.measureText(publicCode).width + 64));
     const badgeX = x + (width - badgeWidth) / 2;
-    const badgeY = y + height - 51;
-    drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, 36, 18, YELLOW);
+    const badgeY = y + height - 55;
+    drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, 42, 21, YELLOW);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = NAVY;
-    ctx.font = `900 18px ${FONT_BOLD}`;
-    ctx.fillText(publicCode, x + width / 2, badgeY + 18);
+    ctx.font = `900 23px ${FONT_BOLD}`;
+    ctx.fillText(publicCode, x + width / 2, badgeY + 21);
   }
 };
 
