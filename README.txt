@@ -7,8 +7,8 @@ Files in this patch:
 Apply the patch:
 1. Extract this ZIP.
 2. Copy the included app/ and drizzle/ folders into the root of the existing Hub repository, merging folders and replacing app/catalogue-pdf.ts.
-3. Commit and push the changed files so the Hub deploys.
-4. From the repository, run: npm run db:migrate:production
-5. Refresh the catalogue and search for Pratley.
+3. Commit and push the changes to the main branch.
+4. In GitHub, open the repository's Actions tab and wait for the "Deploy Maliks Group Hub" workflow to finish successfully. That workflow prepares the production configuration, applies D1 migrations, and deploys the Hub using the repository's GitHub secrets.
+5. Refresh the Hub and search for Pratley or code 60211.
 
-Important: uploading the ZIP as a file does not install its contents. The import is a database migration and must be applied to the production D1 database. The SQL uses the catalogue table's required empty-string image fields, preserves existing codes with INSERT OR IGNORE, and does not set prices. New Pratley products will need images uploaded in the Hub.
+Do not run npm run db:migrate:production from a local PowerShell terminal unless you have configured the required Cloudflare and Hub secrets locally. The local command reads those values from environment variables; GitHub Actions receives them from repository secrets. The product import uses INSERT OR IGNORE, preserves existing catalogue records, and leaves prices and images unchanged. New Pratley products have blank images and prices for entry in the Hub.
