@@ -504,7 +504,7 @@ const drawProductCard = (
   const imageFrameX = x + 18;
   const imageFrameY = y + 18;
   const imageFrameW = width - 36;
-  const imageFrameH = height - 275;
+  const imageFrameH = height - 219;
   drawRoundedRect(ctx, imageFrameX, imageFrameY, imageFrameW, imageFrameH, 16, LIGHT, MID, 1.4);
 
   if (image) {
@@ -523,14 +523,14 @@ const drawProductCard = (
   const name = cleanText(product.name || product.description || product.code);
   ctx.font = `900 28px ${FONT_BOLD}`;
   const nameLines = wrapCanvasText(ctx, name, width - 40, 2);
-  const nameTop = y + height - 205;
+  const nameTop = y + height - 184;
   drawCenteredLines(ctx, nameLines, x + width / 2, nameTop, 32, TEXT);
 
   const subtitle = cleanText(product.description && product.description !== product.name ? product.description : "");
   if (subtitle && nameLines.length < 2) {
-    ctx.font = `600 19px ${FONT_REGULAR}`;
+    ctx.font = `600 20px ${FONT_REGULAR}`;
     const subtitleLines = wrapCanvasText(ctx, subtitle, width - 44, 1);
-    drawCenteredLines(ctx, subtitleLines, x + width / 2, nameTop + 64, 22, MUTED);
+    drawCenteredLines(ctx, subtitleLines, x + width / 2, nameTop + 68, 23, MUTED);
   }
 
   const assorted = isAssortedProduct(product);
@@ -547,16 +547,16 @@ const drawProductCard = (
     ctx.fillText(label, x + width / 2, badgeY + 17);
   } else {
     const publicCode = `CODE: ${cleanText(product.code)}`;
-    ctx.font = `900 26px ${FONT_BOLD}`;
-    const badgeWidth = Math.min(width - 42, Math.max(180, ctx.measureText(publicCode).width + 70));
+    ctx.font = `900 24px ${FONT_BOLD}`;
+    const badgeWidth = Math.min(width - 42, Math.max(180, ctx.measureText(publicCode).width + 60));
     const badgeX = x + (width - badgeWidth) / 2;
     const badgeY = y + height - 58;
-    drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, 46, 23, YELLOW);
+    drawRoundedRect(ctx, badgeX, badgeY, badgeWidth, 42, 21, YELLOW);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = NAVY;
-    ctx.font = `900 26px ${FONT_BOLD}`;
-    ctx.fillText(publicCode, x + width / 2, badgeY + 23);
+    ctx.font = `900 24px ${FONT_BOLD}`;
+    ctx.fillText(publicCode, x + width / 2, badgeY + 21);
   }
 };
 
