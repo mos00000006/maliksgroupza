@@ -1,12 +1,14 @@
-CATALOGUE PDF LAYOUT + PRATLEY IMPORT PATCH
+CATALOGUE PDF FIX + PRATLEY PRODUCT IMPORT PATCH
 
-This patch contains only two catalogue changes:
-1. Replace app/catalogue-pdf.ts to keep product names below the image and enlarge the yellow CODE label.
-2. Add drizzle/0068_pratley_adhesives_catalogue.sql to import 68 Pratley products using their manufacturer codes.
+Files in this patch:
+- app/catalogue-pdf.ts: reserves a clear text area below each product image and enlarges the yellow CODE badge.
+- drizzle/0068_pratley_adhesives_catalogue.sql: imports 68 Pratley products with manufacturer codes into Adhesives & Chemicals.
 
-Apply:
-- Copy the app/ and drizzle/ folders from this ZIP into the existing Maliks Group Hub repository, merging folders and replacing the matching catalogue-pdf.ts file.
-- Commit and push the changes through the normal GitHub workflow.
-- After the code deploy, apply the database migration through the Hub's normal D1 migration workflow (npm run db:migrate:production).
+Apply the patch:
+1. Extract this ZIP.
+2. Copy the included app/ and drizzle/ folders into the root of the existing Hub repository, merging folders and replacing app/catalogue-pdf.ts.
+3. Commit and push the changed files so the Hub deploys.
+4. From the repository, run: npm run db:migrate:production
+5. Refresh the catalogue and search for Pratley.
 
-The import uses INSERT OR IGNORE. Existing catalogue codes and records are retained; existing prices and images are not updated. New Pratley records have no price or image assigned, so prices can be entered and images uploaded in the Hub.
+Important: uploading the ZIP as a file does not install its contents. The import is a database migration and must be applied to the production D1 database. The SQL uses the catalogue table's required empty-string image fields, preserves existing codes with INSERT OR IGNORE, and does not set prices. New Pratley products will need images uploaded in the Hub.

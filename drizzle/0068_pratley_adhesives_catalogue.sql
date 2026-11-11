@@ -73,7 +73,7 @@ WITH products(code,name,description) AS (VALUES
 )
 INSERT OR IGNORE INTO catalogue_products
   (code,name,description,category,image_name,image_type,image_size,image_key,active,created_by,created_at,updated_by,updated_at)
-SELECT code,name,description,'Adhesives & Chemicals',NULL,NULL,0,NULL,1,
+SELECT code,name,description,'Adhesives & Chemicals','','',0,'',1,
        'system:pratley-catalogue-2026-11',datetime('now'),
        'system:pratley-catalogue-2026-11',datetime('now')
 FROM products;
