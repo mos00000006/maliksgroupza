@@ -26,21 +26,21 @@ test('cashier shift list never leaks another cashier shifts',()=>{
 });
 test('tills retains shift open/close controls and no payment submission',async()=>{
   const html=await page('tills');
-  for(const label of ['PHASE 6 — TENDER PREPARATION','My Till Shift Register','Opening float (R)','Closing cash count (R)',
-    'Open my till shift','Close my shift','NOT A LIVE PAYMENT SYSTEM','/api/till-shifts/open','/api/till-shifts/close',
+  for(const label of ['TILLS — PAYMENT WORKFLOW','My Till Shift Register','Opening float (R)','Closing cash count (R)',
+    'Open my till shift','Close my shift','Old tender-preparation training tools (not payment)','/api/till-shifts/open','/api/till-shifts/close',
     'Find quotation by exact number','Cash change calculator — TRAINING ONLY','(?:0|[1-9]\\d{0,7})'])assert.ok(html.includes(label),label);
   assert.doesNotMatch(html,/Issue tax invoice|Confirm payment and print paid invoice/);
 });
 test('Cash Office displays read-only shift register, not cashier write forms by app role',async()=>{
   const html=await page('cashoffice');
-  assert.match(html,/PHASE 8 — PAYMENT EVIDENCE CONTROL/);
+  assert.match(html,/CASH OFFICE — VERIFICATION/);
   assert.match(html,/Cash Office — Shift Review & Exceptions/);
   assert.match(html,/Cash Office view is read-only/);
   assert.match(html,/Open \/ close must be performed by the signed-in cashier/);
 });
 test('POS release unchanged and dispatch still isolated',async()=>{
   assert.match(await page('pos'),/PHASE 2 — QUOTATION RELEASE/);
-  assert.match(await page('dispatch'),/PHASE 1 — CONTROLLED RELEASE/);
+  assert.match(await page('dispatch'),/PAID INVOICE DISPATCH QUEUE/);
 });
 test('unauthenticated shift request rejected and cross-origin write denied',async()=>{
   const env={APP_TYPE:'tills',CORE:{fetch:()=>{throw Error('should not reach core');}}};

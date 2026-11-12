@@ -28,7 +28,8 @@ const out=path.resolve('.generated');await mkdir(out,{recursive:true});
 const core={...common,name:'maliks-core-api',main:'../src/core.mjs',workers_dev:false,
  vars:{CF_ACCESS_TEAM_DOMAIN:issuer,
   ACCESS_AUD_POS:process.env.CF_ACCESS_AUD_POS.trim(),ACCESS_AUD_TILLS:process.env.CF_ACCESS_AUD_TILLS.trim(),
-  ACCESS_AUD_CASHOFFICE:process.env.CF_ACCESS_AUD_CASHOFFICE.trim(),ACCESS_AUD_DISPATCH:process.env.CF_ACCESS_AUD_DISPATCH.trim()},
+  ACCESS_AUD_CASHOFFICE:process.env.CF_ACCESS_AUD_CASHOFFICE.trim(),ACCESS_AUD_DISPATCH:process.env.CF_ACCESS_AUD_DISPATCH.trim(),
+  P9_APPROVAL_ENABLED:process.env.MALIKS_P9_APPROVAL_ENABLED==='true'?'true':'false'},
  d1_databases:[{binding:'DB',database_name:'maliks-group-hub-db',database_id:uuid}]};
 await writeFile(path.join(out,'core.json'),JSON.stringify(core,null,2)+'\n',{mode:0o600});
 for(const app of Object.keys(apps)){

@@ -26,14 +26,14 @@ test('invalid quotation IDs and unauthorised department are denied',()=>{
   assert.throws(()=>quoteLookupStatement('dispatch','Buster Build','user@example.test','Q-1'),/Not authorised/);
   assert.throws(()=>quoteLookupStatement('tills','','user@example.test','Q-1'),/Not authorised/);
 });
-test('Tills and Cash Office screens offer exact quote lookup without payment posting',async()=>{
+test('Tills and Cash Office retain exact quote lookup and payment verification is separately controlled',async()=>{
   for(const app of ['tills','cashoffice']){
     const html=await site(app);
     assert.match(html,/Find quotation by exact number/);
     assert.match(html,/api\/quotes\/find\?branch=/);
     assert.match(html,/older quotations that are no longer in the recent-50 list/);
-    assert.match(html,/Quotation only\. No payment or dispatch authorisation/);
-    assert.doesNotMatch(html,/Send payment|Issue tax invoice|Mark as paid/);
+    assert.match(html,/Quotation details are not payment confirmation/);
+    assert.doesNotMatch(html,/Issue tax invoice|Mark as paid/);
   }
 });
 test('Tills includes a locally computed cash preview explicitly marked non-transacting',async()=>{

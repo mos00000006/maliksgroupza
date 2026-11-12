@@ -55,13 +55,13 @@ test('Evidence client rows cannot claim payment, settlement, invoices or dispatc
 });
 test('Cash Office new UI retains prior Phase 7 worksheet and review functionality',async()=>{
   const co=await render('cashoffice');
-  for(const marker of ['PHASE 8 — PAYMENT EVIDENCE CONTROL','Payment evidence & exceptions — NOT SETTLED',
+  for(const marker of ['CASH OFFICE — VERIFICATION','Payment evidence & exceptions — NOT SETTLED',
      'Provisional cash-up & exceptions — NOT RECONCILED','Cash Office — Shift Review & Exceptions',
      '/api/payment-evidence/history','NOT PAID','/api/cashup-preview','/api/till-reviews',
-     'Manual document checks are NOT payment settlement'])assert.ok(co.includes(marker),marker);
-  assert.match(await render('tills'),/PHASE 6 — TENDER PREPARATION/);
+     'MANUAL DOCUMENT REVIEW ONLY'])assert.ok(co.includes(marker),marker);
+  assert.match(await render('tills'),/TILLS — PAYMENT WORKFLOW/);
   assert.match(await render('pos'),/PHASE 2 — QUOTATION RELEASE/);
-  assert.match(await render('dispatch'),/PHASE 1 — CONTROLLED RELEASE/);
+  assert.match(await render('dispatch'),/PAID INVOICE DISPATCH QUEUE/);
 });
 test('Only Cash Office can read or post payment evidence',async()=>{
   for(const app of ['pos','tills','dispatch']){

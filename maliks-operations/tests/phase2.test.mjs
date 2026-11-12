@@ -24,16 +24,16 @@ test('Cash Office and Tills include read-only quotation details and search',asyn
   for(const app of ['cashoffice','tills']){
     const page=await front(app);
     assert.match(page,/Filter by quote number, customer or contact/);
-    assert.match(page,/Read-only handover/);
+    assert.match(page,/Quotation records alone/);
     assert.match(page,/quoteDetails\(row\)/);
     assert.doesNotMatch(page,/Confirm payment and print paid invoice/);
   }
 });
 
-test('Dispatch stays a non-transactional shell',async()=>{
+test('Dispatch queue accepts only confirmed payment invoices without stock posting',async()=>{
   const page=await front('dispatch');
-  assert.match(page,/production pick, check, stage, load/);
-  assert.match(page,/PHASE 1 — CONTROLLED RELEASE/);
+  assert.match(page,/Confirmed paid invoices appear in the dispatch queue/);
+  assert.match(page,/PAID INVOICE DISPATCH QUEUE/);
 });
 
 test('POS quotation history statement is scoped to branch AND current staff email',()=>{

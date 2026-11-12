@@ -47,11 +47,11 @@ test('Lists are scoped to assigned branch and cashier or Cash Office',()=>{
 });
 test('Browser marks preparation as NOT PAID, not a receipt or dispatch release',async()=>{
   const tills=await read('tills');
-  for(const text of ['PHASE 6 — TENDER PREPARATION','NOT A LIVE PAYMENT SYSTEM','Save preparation only — no payment',
-      'Card portion (R)','EFT portion (R)','/api/tender-preparations','No stock or dispatch release'])
+  for(const text of ['TILLS — PAYMENT WORKFLOW','Old tender-preparation training tools (not payment)','Save preparation only — no payment',
+      'Card portion (R)','EFT portion (R)','/api/tender-preparations','These are proposed cash/card/EFT splits'])
     assert.ok(tills.includes(text),text);
   const co=await read('cashoffice');
-  assert.match(co,/PHASE 8 — PAYMENT EVIDENCE CONTROL/);
+  assert.match(co,/CASH OFFICE — VERIFICATION/);
   assert.match(co,/Cash Office — Tender preparations \(read-only\)/);
 });
 test('POS and Dispatch cannot access tender preparations even with JWT header',async()=>{

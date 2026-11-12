@@ -34,14 +34,14 @@ test('Recent statuses and history queries are branch-scoped, parameterized and b
 });
 test('Cash Office retains phase 5 review and audit controls, and disclaims reconciliation',async()=>{
   const html=await page('cashoffice');
-  for(const text of ['PHASE 8 — PAYMENT EVIDENCE CONTROL','Shift Review & Exceptions','awaiting review','flagged for follow-up',
+  for(const text of ['CASH OFFICE — VERIFICATION','Shift Review & Exceptions','awaiting review','flagged for follow-up',
     'Declaration checked (not reconciled)','Record review (audit history)','Review history','/api/till-reviews','review_status',
     'This review does not confirm payments'])assert.ok(html.includes(text),text);
   assert.match(html,/No sales, deposits, invoices or stock balances are posted/);
 });
 test('Tills displays Phase 6 preparation but no financial payment submission',async()=>{
   const html=await page('tills');
-  assert.match(html,/PHASE 6 — TENDER PREPARATION/);
+  assert.match(html,/TILLS — PAYMENT WORKFLOW/);
   assert.match(html,/Cash change calculator — TRAINING ONLY/);
   assert.doesNotMatch(html,/Confirm payment and print receipt|Record payment/);
 });
