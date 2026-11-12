@@ -4,13 +4,13 @@ const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c =>
 
 const APPS={
   pos:{name:'Maliks POS',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
-  tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Find any quotation by number and preview cash change. This is TRAINING ONLY: no payment, invoice or cash drawer posting.'},
-  cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Review quotation details and print copies. Cash-up, approval and payment validation are not live.'},
+  tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Phase 4: record till opening float and shift closing cash count, and preview quotes. NOT A LIVE PAYMENT SYSTEM: no payment, tax invoice, cash-up reconciliation or stock movement.'},
+  cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Review quotations and branch till shift records (read-only). No payment posting, cash-up approval or invoice processing.'},
   dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',hint:'Dispatch is a separate secured application. Picking, checking, POD and stock posting will be connected in a later phase.'},
 };
 function page(app){
  const d=APPS[app];
- const releaseLabel=app==='dispatch'?'PHASE 1 — CONTROLLED RELEASE':app==='tills'?'PHASE 3 — TILLS TRAINING':'PHASE 2 — QUOTATION RELEASE';
+ const releaseLabel=app==='dispatch'?'PHASE 1 — CONTROLLED RELEASE':app==='tills'?'PHASE 4 — TILL SHIFTS':app==='cashoffice'?'PHASE 4 — SHIFT REVIEW':'PHASE 2 — QUOTATION RELEASE';
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
  <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="#102a4b"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
@@ -42,7 +42,7 @@ function page(app){
  .grand-total{font-size:20px;font-weight:800;border-bottom:0;color:#12395e;margin-bottom:12px}.training-warning{border:2px solid #b45309;background:#fffbeb;padding:12px;border-radius:9px;color:#92400e;font-weight:700;margin:12px 0}.lookup-output{margin-top:14px}.tender-preview{border:2px dashed #94a3b8;padding:16px;border-radius:9px;margin:12px 0;background:#f8fafc}.tender-preview .total{margin:2px 0;padding:4px 0}.tender-preview label{margin-top:10px}
  .row-actions{text-align:right;white-space:nowrap}.row-actions button+button{margin-left:6px}.quote-detail{background:#f7fafe;border:1px solid #e0e8f0;border-radius:8px;padding:14px}
  .quote-detail p{margin:7px 0}.detail-total{font-size:14px;font-weight:700;text-align:right}
- td input[type=number]{min-width:86px;width:95px;padding:8px}.print-sheet{display:none}
+ td input[type=number]{min-width:86px;width:95px;padding:8px}.shift-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px;align-items:end}.shift-form button{margin-bottom:1px}.shift-form .info{grid-column:1/-1}.print-sheet{display:none}
  @media print{body{background:#fff}.shell{display:none!important}.print-sheet{display:block!important;color:#111;font:12pt Arial,sans-serif;padding:10mm}
  .print-sheet .print-logo{width:110px;height:auto;object-fit:contain}.print-sheet h1{font-size:21pt}.print-sheet p{margin:6px 0}
  .print-sheet .print-warning{font-weight:bold;border:2px solid #000;padding:9px}.print-sheet .quote-detail{border:0;background:none;padding:0}
@@ -66,12 +66,12 @@ function page(app){
  const cell=(row,text,tag='td')=>row.append(h(tag,text));
  const showDate=value=>{if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?value:new Intl.DateTimeFormat('en-ZA',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Johannesburg'}).format(d);};
  const calcBasket=()=>{const total=basket.reduce((s,l)=>s+Math.round(l.product.price_cents*l.quantity),0);const vat=Math.round(total*15/115);return {total,vat,net:total-vat};};
- let branch='',basket=[],pendingQuote=null,recentQuotes=[],quoteRows=[];
+ let branch='',basket=[],pendingQuote=null,recentQuotes=[],quoteRows=[],pendingShiftAction=null;
  function selectBranch(){
    const incoming=E('branch').value;
    if(pendingQuote){E('branch').value=branch;err('Finish or release the pending quotation before changing branch.');return;}
    if(basket.length && !window.confirm('Changing branch will clear the quotation basket. Continue?')){E('branch').value=branch;return;}
-   branch=incoming;basket=[];recentQuotes=[];quoteRows=[];draw();
+   branch=incoming;basket=[];recentQuotes=[];quoteRows=[];pendingShiftAction=null;draw();
  }
  async function searchProducts(){
    err('');const q=E('search')?.value.trim();if(!q){err('Enter a product name or code.');return;}
@@ -262,8 +262,82 @@ function page(app){
      if(APP==='tills')output.append(tenderPreview(row));
    }catch(error){if(selected!==branch)return;output.replaceChildren(h('div',error.message,'error'));}
  }
+
+ const randToCents=(value,maximum=100000000)=>{
+   const text=String(value??'').trim();
+   if(!/^(?:0|[1-9]\\d{0,7})(?:\\.\\d{1,2})?$/.test(text))throw Error('Enter a valid cash amount in rand, e.g. 250.00.');
+   const parts=text.split('.');const n=Number(parts[0])*100+Number((parts[1]||'').padEnd(2,'0'));
+   if(!Number.isSafeInteger(n)||n>maximum)throw Error('Amount is outside the allowed range.');
+   return n;
+ };
+ const postShift=(endpoint,body)=>api(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+ function shiftRow(t){
+   const tr=h('tr');for(const val of ['#'+t.id,t.till_code,t.status,t.opened_by_name,showDate(t.opened_at),money(t.opening_float_cents),t.closed_at?money(t.counted_cash_cents):'—',showDate(t.closed_at)])cell(tr,val);
+   return tr;
+ }
+ async function loadShifts(){
+   const container=E('shift-history'),form=E('shift-current');if(!container||!form)return;
+   const selected=branch;container.textContent='Loading shifts…';form.replaceChildren();
+   try{
+     const data=await api('/api/till-shifts?branch='+encodeURIComponent(selected));
+     if(branch!==selected)return;
+     const rows=data.shifts||[];
+     const open=rows.find(s=>s.status==='OPEN');
+     if(APP==='tills'){
+       if(open){
+         form.append(h('p','Open shift #'+open.id+' · Till '+open.till_code+' · Opened '+showDate(open.opened_at)+' · Float '+money(open.opening_float_cents),'success'));
+         const inputs=h('div',undefined,'shift-form');const countWrap=h('div');const countLabel=h('label','Closing cash count (R)');countLabel.htmlFor='shift-count';
+         const count=h('input');count.id='shift-count';count.placeholder='Example: 500.00';count.inputMode='decimal';count.maxLength=12;countWrap.append(countLabel,count);
+         const noteWrap=h('div');const noteLabel=h('label','Closing notes');noteLabel.htmlFor='shift-note';const note=h('input');note.id='shift-note';note.maxLength=400;note.placeholder='Optional';noteWrap.append(noteLabel,note);
+         const btn=h('button','Close my shift');btn.addEventListener('click',async()=>{
+           err('');try{
+             const cash=randToCents(count.value,1000000000);const notes=note.value.trim();
+             if(pendingShiftAction&&pendingShiftAction.kind!=='close')throw Error('Finish your previous shift action first.');
+             if(pendingShiftAction&&(pendingShiftAction.body.counted_cash_cents!==cash||pendingShiftAction.body.close_notes!==notes))throw Error('A previous close attempt may have succeeded. Retry using the same amount and note.');
+             const body=pendingShiftAction?.body||{request_id:crypto.randomUUID(),branch:selected,shift_id:open.id,counted_cash_cents:cash,close_notes:notes};
+             pendingShiftAction={kind:'close',body};btn.disabled=true;
+             await postShift('/api/till-shifts/close',body);pendingShiftAction=null;await loadShifts();
+           }catch(e){err(e.message);btn.disabled=false;}
+         });
+         inputs.append(countWrap,noteWrap,btn);form.append(inputs);
+       }else{
+         form.append(h('p','No open shift for your account. Opening a shift records responsibility for this till, not a payment.','muted'));
+         const fields=h('div',undefined,'shift-form');const codeWrap=h('div');const codeLabel=h('label','Till number / code');codeLabel.htmlFor='till-code';
+         const code=h('input');code.id='till-code';code.placeholder='TILL-01';code.maxLength=20;codeWrap.append(codeLabel,code);
+         const floatWrap=h('div');const floatLabel=h('label','Opening float (R)');floatLabel.htmlFor='till-float';const amount=h('input');amount.id='till-float';amount.inputMode='decimal';amount.placeholder='Example: 250.00';amount.maxLength=12;floatWrap.append(floatLabel,amount);
+         const btn=h('button','Open my till shift');btn.addEventListener('click',async()=>{
+           err('');try{
+             const cash=randToCents(amount.value);const till=code.value.trim().toUpperCase();
+             if(!/^[A-Z0-9][A-Z0-9_-]{0,19}$/.test(till))throw Error('Enter a till code, e.g. TILL-01.');
+             if(pendingShiftAction&&pendingShiftAction.kind!=='open')throw Error('Finish your previous shift action first.');
+             if(pendingShiftAction&&(pendingShiftAction.body.opening_float_cents!==cash||pendingShiftAction.body.till_code!==till))throw Error('A previous open attempt may have succeeded. Retry using the same till and float.');
+             const body=pendingShiftAction?.body||{request_id:crypto.randomUUID(),branch:selected,till_code:till,opening_float_cents:cash};
+             pendingShiftAction={kind:'open',body};btn.disabled=true;
+             await postShift('/api/till-shifts/open',body);pendingShiftAction=null;await loadShifts();
+           }catch(e){err(e.message);btn.disabled=false;}
+         });
+         fields.append(codeWrap,floatWrap,btn);form.append(fields);
+       }
+     }else form.append(h('p','Cash Office view is read-only. Open / close must be performed by the signed-in cashier in Maliks Tills.','muted'));
+     container.replaceChildren();
+     if(!rows.length){container.append(h('div','No till shifts recorded for this branch.','empty'));return;}
+     const table=h('table');const head=h('thead');const tr=h('tr');for(const col of ['Shift','Till','Status','Opened by','Opened at','Opening float','Closing count','Closed at'])cell(tr,col,'th');head.append(tr);table.append(head);
+     const tb=h('tbody');for(const row of rows)tb.append(shiftRow(row));table.append(tb);const sc=h('div',undefined,'scroll');sc.append(table);container.append(sc);
+   }catch(error){if(branch!==selected)return;container.replaceChildren(h('p','Could not load shifts: '+error.message,'error'));}
+ }
+ function tillShiftView(){
+   const p=panel(APP==='tills'?'My Till Shift Register':'Till Shift Register — Cash Office Review');
+   p.append(h('p','OPEN/CLOSE REGISTER ONLY. Opening float and closing count are employee declarations, not reconciled takings. No sales, deposits, invoices or stock balances are posted.','training-warning'));
+   const current=h('div');current.id='shift-current';p.append(current);
+   const bar=h('div',undefined,'bar');const refresh=h('button','Refresh shift register','secondary');refresh.addEventListener('click',loadShifts);bar.append(refresh);p.append(bar);
+   const history=h('div','Loading shifts…');history.id='shift-history';p.append(history);
+   const note=h('p',APP==='tills'?'Only your own shifts for the selected branch are visible. One cashier and one till may each have only one open shift.':'The selected branch’s latest 75 shifts are shown for Cash Office review.','tiny');p.append(note);
+   return p;
+ }
+
  async function quoteView(){
    const root=E('app-content');
+   if(APP==='tills'||APP==='cashoffice'){root.append(tillShiftView());void loadShifts();}
    const lookup=panel('Find quotation by exact number');
    const lookupBar=h('div',undefined,'bar');const lookupField=h('div');
    const lookupLabel=h('label','Quotation number');lookupLabel.htmlFor='quote-number';
@@ -307,11 +381,12 @@ export default {
    const url=new URL(req.url);
    if(url.pathname==='/powerbuild-logo.png' && req.method==='GET')return new Response(POWERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
-   const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find'};
+   const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
+     '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && url.pathname!=='/api/quotes')return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // No public CORS. Require same-origin for all browser-initiated writes.
    if(req.method==='POST' && req.headers.get('origin')!==url.origin)return Response.json({error:'Invalid request origin.'},{status:403});
    const token=req.headers.get('cf-access-jwt-assertion');

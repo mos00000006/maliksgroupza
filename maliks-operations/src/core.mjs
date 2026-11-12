@@ -1,6 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { APPS, canUseApp, allowedBranches, matchingBranch, limitSearch } from './policy.mjs';
 import { validateQuoteLines, calculateQuote, canonicalQuotePayload, quoteNumber, quoteListStatement, quoteLookupStatement } from './quote-domain.mjs';
+import { validateRequestId, validateTillCode, validateMoneyCents, validateCloseNote, validateShiftId, shiftForClient, shiftListStatement } from './shift-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
@@ -159,6 +160,75 @@ async function createQuote(req,env,context){
   return result({quotation:quoteForClient(saved)});
 }
 
+
+// Department shift register. The schema is installed separately by the Phase 4 SQL.
+// No shift endpoint marks quotations paid, creates an invoice or alters inventory.
+async function readShiftBody(req){
+  const raw=await req.text();
+  if(raw.length>2500)throw Error('Shift request too large.');
+  let body;try{body=JSON.parse(raw);}catch{throw Error('Invalid shift request.');}
+  if(!body || typeof body!=='object' || Array.isArray(body))throw Error('Invalid shift request.');
+  return body;
+}
+async function listTillShifts(req,env,context){
+  if(!['tills','cashoffice'].includes(context.app))return denied('This application cannot review till shifts.');
+  const branch=matchingBranch(context.branches,new URL(req.url).searchParams.get('branch'));
+  if(!branch)return denied('Select an assigned branch.');
+  const statement=shiftListStatement(context.app,branch,context.member.email);
+  const {results}=await env.DB.prepare(statement.sql).bind(...statement.params).all();
+  return result({branch,shifts:results.map(shiftForClient),live_payments:false});
+}
+async function openTillShift(req,env,context){
+  if(context.app!=='tills')return denied('Only Tills can open a cashier shift.');
+  const origin=req.headers.get('origin');
+  if(!origin || origin!==req.headers.get('x-maliks-original-origin'))return denied('Invalid request origin.');
+  let body, requestId, tillCode, amount;
+  try{
+    body=await readShiftBody(req);
+    requestId=validateRequestId(body.request_id);
+    tillCode=validateTillCode(body.till_code);
+    amount=validateMoneyCents(body.opening_float_cents);
+  }catch(error){return denied(error.message,400);}
+  const branch=matchingBranch(context.branches,body.branch);
+  if(!branch)return denied('Branch access denied.');
+  const email=context.member.email.toLowerCase();
+  await env.DB.prepare(`INSERT OR IGNORE INTO maliks_till_shift_register
+    (open_request_id,branch,till_code,opened_by_email,opened_by_name,opening_float_cents,opened_at,status)
+    VALUES(?,?,?,?,?,?,?,'OPEN')`)
+    .bind(requestId,branch,tillCode,email,context.member.name,amount,new Date().toISOString()).run();
+  // Supports retry after lost response; SQL unique constraints protect both till and cashier.
+  const saved=await env.DB.prepare('SELECT * FROM maliks_till_shift_register WHERE open_request_id=?').bind(requestId).first();
+  if(!saved)return denied('This till or cashier already has an open shift.',409);
+  if(saved.opened_by_email.toLowerCase()!==email || saved.branch.toLowerCase()!==branch.toLowerCase()
+     || saved.till_code!==tillCode || saved.opening_float_cents!==amount)return denied('Request identifier already used.',409);
+  return result({shift:shiftForClient(saved),live_payments:false});
+}
+async function closeTillShift(req,env,context){
+  if(context.app!=='tills')return denied('Only Tills can close a cashier shift.');
+  const origin=req.headers.get('origin');
+  if(!origin || origin!==req.headers.get('x-maliks-original-origin'))return denied('Invalid request origin.');
+  let body, requestId, id, cashCount, note;
+  try{
+    body=await readShiftBody(req);
+    requestId=validateRequestId(body.request_id);
+    id=validateShiftId(body.shift_id);
+    cashCount=validateMoneyCents(body.counted_cash_cents,1_000_000_000);
+    note=validateCloseNote(body.close_notes||'');
+  }catch(error){return denied(error.message,400);}
+  const branch=matchingBranch(context.branches,body.branch);
+  if(!branch)return denied('Branch access denied.');
+  const email=context.member.email.toLowerCase();
+  await env.DB.prepare(`UPDATE maliks_till_shift_register SET status='CLOSED',
+    counted_cash_cents=?,close_notes=?,closed_by_email=?,closed_at=?,close_request_id=?
+    WHERE id=? AND lower(branch)=lower(?) AND lower(opened_by_email)=lower(?) AND status='OPEN'`)
+    .bind(cashCount,note,email,new Date().toISOString(),requestId,id,branch,email).run();
+  const saved=await env.DB.prepare(`SELECT * FROM maliks_till_shift_register
+    WHERE id=? AND lower(branch)=lower(?) AND lower(opened_by_email)=lower(?) LIMIT 1`).bind(id,branch,email).first();
+  if(!saved)return denied('Shift not found for your assigned branch.',404);
+  if(saved.status!=='CLOSED'||saved.close_request_id!==requestId||saved.counted_cash_cents!==cashCount||saved.close_notes!==note)
+    return denied('This shift was already closed or the request changed.',409);
+  return result({shift:shiftForClient(saved),live_payments:false});
+}
 export default {
   async fetch(req,env){
     const path=new URL(req.url).pathname;
@@ -172,12 +242,15 @@ export default {
       const context={...access,app:auth.app};
       if(path==='/v1/session'&&req.method==='GET')return result({
         app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
-        mode:'PHASE_1',live_payment:false,stock_posting:false,
+        mode:auth.app==='tills'?'PHASE_4':auth.app==='cashoffice'?'PHASE_4_REVIEW':'QUOTATIONS',live_payment:false,stock_posting:false,
       });
       if(path==='/v1/catalogue'&&req.method==='GET')return await catalogue(req,env,context);
       if(path==='/v1/quotes'&&req.method==='GET')return await listQuotes(req,env,context);
       if(path==='/v1/quotes/find'&&req.method==='GET')return await findQuote(req,env,context);
       if(path==='/v1/quotes'&&req.method==='POST')return await createQuote(req,env,context);
+      if(path==='/v1/till-shifts'&&req.method==='GET')return await listTillShifts(req,env,context);
+      if(path==='/v1/till-shifts/open'&&req.method==='POST')return await openTillShift(req,env,context);
+      if(path==='/v1/till-shifts/close'&&req.method==='POST')return await closeTillShift(req,env,context);
       return denied('Unknown operation.',404);
     }catch(error){
       console.error('Maliks Core request failed',error?.message||'Unknown error');

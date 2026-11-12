@@ -50,6 +50,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm test
       - run: npm run config
+      - name: Apply additive till-shift D1 schema (Phase 4)
+        run: npm run migrate:phase4
       - name: Deploy central API — private Worker
         run: npm run deploy:core
       - name: Deploy Sales POS
