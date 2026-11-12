@@ -2,10 +2,25 @@ import { mkdir,writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const uuid=process.env.MALIKS_GROUP_D1_DATABASE_ID?.trim();
-const issuer=process.env.CF_ACCESS_TEAM_DOMAIN?.trim().replace(/\/$/,'');
+// Accept either the bare Cloudflare team domain or its full HTTPS URL.
+// Never print the actual domain or GitHub secret to CI logs.
+const rawTeamDomain=process.env.CF_ACCESS_TEAM_DOMAIN?.trim() || '';
+if(!rawTeamDomain){
+  throw Error('CF_ACCESS_TEAM_DOMAIN is empty in this GitHub Actions run. Check Repository secrets and the workflow env mapping.');
+}
+const normalizedHost=rawTeamDomain.replace(/^https:\/\//i,'').replace(/\/+$/,'');
+if(!/^[a-z0-9-]+\.cloudflareaccess\.com$/i.test(normalizedHost)){
+  const hint=rawTeamDomain.includes('...') || rawTeamDomain.includes('…')
+    ? ' The value looks truncated: copy the complete Team domain from Cloudflare (not the shortened display).'
+    : rawTeamDomain.startsWith('http://')
+      ? ' Use an HTTPS domain rather than HTTP.'
+      : ' Copy the exact Team domain from Cloudflare; do not include an extra https://, path, spaces, or example text.';
+  throw Error('CF_ACCESS_TEAM_DOMAIN is present but is not a valid Cloudflare Access team domain.'+hint);
+}
+const issuer='https://'+normalizedHost;
+console.log('Cloudflare Access Team domain validated (value hidden).');
 const apps={pos:'CF_ACCESS_AUD_POS',tills:'CF_ACCESS_AUD_TILLS',cashoffice:'CF_ACCESS_AUD_CASHOFFICE',dispatch:'CF_ACCESS_AUD_DISPATCH'};
 if(!uuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid))throw Error('MALIKS_GROUP_D1_DATABASE_ID must be an existing D1 database UUID.');
-if(!issuer || !/^https:\/\/[a-z0-9-]+\.cloudflareaccess\.com$/i.test(issuer))throw Error('Set CF_ACCESS_TEAM_DOMAIN to your https://TEAM.cloudflareaccess.com domain.');
 for(const [app,key] of Object.entries(apps)){if(!process.env[key]?.trim())throw Error('Missing Cloudflare Access application AUD: '+key+' ('+app+')');}
 const date='2026-11-09';
 const common={compatibility_date:date,compatibility_flags:['nodejs_compat'],observability:{enabled:true}};

@@ -29,11 +29,21 @@ jobs:
       run:
         working-directory: maliks-operations
     steps:
+      # Checkout must run before any shell step using maliks-operations/.
+      - uses: actions/checkout@v6
       - name: Confirm this is a safe independent deployment
+        working-directory: .
         env:
           NAMES_CONFIRMED: ${{ inputs.confirmed_worker_names_checked }}
         run: test "$NAMES_CONFIRMED" = "true"
-      - uses: actions/checkout@v6
+      - name: Verify department application files exist
+        working-directory: .
+        run: |
+          if [ ! -f "maliks-operations/package.json" ]; then
+            echo "::error title=Missing maliks-operations folder::Upload the complete maliks-operations directory to the repository root. Do not upload only the workflow file."
+            exit 1
+          fi
+          echo "Found maliks-operations/package.json"
       - uses: actions/setup-node@v6
         with:
           node-version: 22

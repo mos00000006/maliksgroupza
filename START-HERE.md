@@ -1,19 +1,13 @@
-# Maliks Group Hub: split into independent department applications — Phase 1
+# Maliks Operations — Cloudflare Team Domain validation fix
 
-This package is an **add-on** to your current GitHub repository, not a replacement for the existing Hub.
+## What changed
+`maliks-operations/scripts/make-config.mjs` now accepts both:
+- `your-team.cloudflareaccess.com`
+- `https://your-team.cloudflareaccess.com`
 
-## Files to add
-- `maliks-operations/` — standalone Workers source, policy, common API, tests and comprehensive deployment README.
-- `.github/workflows/deploy-maliks-operations.yml` — **manual** GitHub Actions workflow to deploy the five Workers. Keep your existing `.github/workflows/deploy.yml` unchanged.
+It safely removes trailing `/`, rejects truncated or invalid values, and gives a diagnostic without printing the secret. No department logic, Workers or database configs were changed.
 
-## Quick start
-1. Read `maliks-operations/README.md`.
-2. Create four separate Cloudflare Zero Trust Access applications: POS, Tills, Cash Office, Dispatch.
-3. Add the four new `CF_ACCESS_AUD_*` secrets to the existing GitHub repository. Retain the previously configured Cloudflare account, API token, D1 ID and team domain secrets.
-4. Copy both folders into the root of your existing repo, commit and push.
-5. Run **Actions > Deploy Maliks Department Applications > Run workflow** only after checking that none of the five Worker names would replace an existing deployed service.
-6. Test the four new sites and their permissions; leave your existing Hub operational in the meantime.
+## GitHub
+Open `maliks-operations/scripts/make-config.mjs` in your repository, edit it, replace the content with the file included in this package, and commit to `main`. Verify the `CF_ACCESS_TEAM_DOMAIN` repository secret was copied from the actual Cloudflare Team domain; it must not contain `...`. Then start a **new** run of the department deployment workflow with the Worker-name checkbox selected.
 
-> Important: The new POS submits **quotations, not sales**. Tills and Cash Office are read-only. Dispatch is a secure starter screen. Payment, tax invoices, stock posting and actual dispatch must not be used until later phases are completed and verified. The existing Hub is not yet converted to management-only in this package.
-
-Cloudflare Access is a prerequisite. No passwords, secrets or real database IDs are included.
+If the error states `empty`, the workflow did not receive the secret. If it says `present but invalid`, the saved secret value must be corrected.
