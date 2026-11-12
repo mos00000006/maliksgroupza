@@ -1,6 +1,6 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { APPS, canUseApp, allowedBranches, matchingBranch, limitSearch } from './policy.mjs';
-import { validateQuoteLines, calculateQuote, canonicalQuotePayload, quoteNumber } from './quote-domain.mjs';
+import { validateQuoteLines, calculateQuote, canonicalQuotePayload, quoteNumber, quoteListStatement } from './quote-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
@@ -75,12 +75,12 @@ const quoteForClient=row=>({number:quoteNumber(row.id),branch:row.branch,custome
   lines:JSON.parse(row.lines_json)});
 
 async function listQuotes(req,env,context){
-  if(!['tills','cashoffice'].includes(context.app))return denied('This app cannot review quotations.');
+  if(!['pos','tills','cashoffice'].includes(context.app))return denied('This app cannot review quotations.');
   const branch=matchingBranch(context.branches,new URL(req.url).searchParams.get('branch'));
   if(!branch)return denied('Select an assigned branch.');
   await env.DB.prepare(createQuoteTable).run();
-  const {results}=await env.DB.prepare(`SELECT * FROM till_quotation_submissions
-    WHERE lower(branch)=lower(?) ORDER BY id DESC LIMIT 50`).bind(branch).all();
+  const listing=quoteListStatement(context.app,branch,context.member.email);
+  const {results}=await env.DB.prepare(listing.sql).bind(...listing.params).all();
   return result({branch,quotes:results.map(quoteForClient)});
 }
 

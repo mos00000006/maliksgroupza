@@ -44,3 +44,14 @@ export function canReviewCashOffice(role,scope) {
 export function canonicalQuotePayload(branch,customerName,customerContact,notes,lines) {
   return JSON.stringify({branch,customerName,customerContact,notes,lines});
 }
+
+/** Returns a branch-scoped read-only query; POS is additionally restricted to its own user. */
+export function quoteListStatement(app, branch, userEmail) {
+  if (typeof branch !== 'string' || !branch || !['pos','tills','cashoffice'].includes(app)) throw Error('Not authorised to list quotations.');
+  const sql='SELECT * FROM till_quotation_submissions WHERE lower(branch)=lower(?)';
+  if (app==='pos') {
+    if (typeof userEmail !== 'string' || !userEmail.trim()) throw Error('Current user required.');
+    return {sql:sql+' AND lower(submitted_by_email)=lower(?) ORDER BY id DESC LIMIT 50', params:[branch,userEmail]};
+  }
+  return {sql:sql+' ORDER BY id DESC LIMIT 50',params:[branch]};
+}

@@ -6,7 +6,7 @@ test('POS renders independent HTML page',async()=>{
  const res=await frontend.fetch(new Request('https://maliks-pos.example.test/'),env);
  assert.equal(res.status,200);
  const body=await res.text();
- assert.match(body,/Maliks POS/);assert.match(body,/Create quotation for Cash Office/);
+ assert.match(body,/Maliks POS/);assert.match(body,/Send quotation to Cash Office/);
  assert.doesNotMatch(body,/Confirm payment and print paid invoice/);
 });
 test('API denies missing Cloudflare Access token',async()=>{
