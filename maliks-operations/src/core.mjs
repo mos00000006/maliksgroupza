@@ -2,6 +2,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { APPS, canUseApp, allowedBranches, matchingBranch, limitSearch } from './policy.mjs';
 import { validateQuoteLines, calculateQuote, canonicalQuotePayload, quoteNumber, quoteListStatement, quoteLookupStatement } from './quote-domain.mjs';
 import { validateRequestId, validateTillCode, validateMoneyCents, validateCloseNote, validateShiftId, shiftForClient, shiftListStatement } from './shift-domain.mjs';
+import {validateReviewDecision,validateReviewNote,latestReviewsStatement,reviewHistoryStatement,reviewForClient} from './review-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
@@ -161,6 +162,61 @@ async function createQuote(req,env,context){
 }
 
 
+// Cash Office records immutable observations on CLOSED cashier declarations only.
+// This is not a cash-up, approved deposit, invoice, or verified expected takings.
+async function readReviewBody(req){
+  const raw=await req.text();
+  if(raw.length>1800)throw Error('Review request too large.');
+  let body;try{body=JSON.parse(raw);}catch{throw Error('Invalid review request.');}
+  if(!body||typeof body!=='object'||Array.isArray(body))throw Error('Invalid review request.');
+  return body;
+}
+async function reviewHistory(req,env,context){
+  if(context.app!=='cashoffice')return denied('Cash Office review access required.');
+  const query=new URL(req.url).searchParams;
+  const branch=matchingBranch(context.branches,query.get('branch'));
+  if(!branch)return denied('Branch access denied.');
+  let shiftId;
+  try{shiftId=validateShiftId(Number(query.get('shift_id')));}catch(error){return denied(error.message,400);}
+  const shift=await env.DB.prepare('SELECT id,status FROM maliks_till_shift_register WHERE id=? AND lower(branch)=lower(?)')
+    .bind(shiftId,branch).first();
+  if(!shift)return denied('Shift not found for this branch.',404);
+  const lookup=reviewHistoryStatement(branch,shiftId);
+  const {results}=await env.DB.prepare(lookup.sql).bind(...lookup.params).all();
+  return result({branch,shift_id:shiftId,shift_status:shift.status,reviews:results.map(reviewForClient),cash_reconciliation:false});
+}
+async function recordShiftReview(req,env,context){
+  if(context.app!=='cashoffice')return denied('Only Cash Office can record shift reviews.');
+  if(!req.headers.get('origin') || req.headers.get('origin')!==req.headers.get('x-maliks-original-origin'))
+    return denied('Invalid request origin.');
+  let body,id,requestId,decision,note;
+  try{
+    body=await readReviewBody(req);
+    id=validateShiftId(body.shift_id);
+    requestId=validateRequestId(body.request_id);
+    decision=validateReviewDecision(body.decision);
+    note=validateReviewNote(body.note,decision);
+  }catch(error){return denied(error.message,400);}
+  const branch=matchingBranch(context.branches,body.branch);
+  if(!branch)return denied('Branch access denied.');
+  const reviewer=context.member.email.toLowerCase();
+  // Atomic INSERT ... SELECT ensures the referenced shift is CLOSED, belongs
+  // to the assigned branch and was opened by someone other than the reviewer.
+  await env.DB.prepare(`INSERT OR IGNORE INTO maliks_till_shift_reviews
+    (request_id,shift_id,branch,decision,note,reviewed_by_email,reviewed_by_name,created_at)
+    SELECT ?,id,branch,?,?,?,?,? FROM maliks_till_shift_register
+    WHERE id=? AND lower(branch)=lower(?) AND status='CLOSED'
+      AND lower(opened_by_email)<>lower(?)`)
+    .bind(requestId,decision,note,reviewer,context.member.name,new Date().toISOString(),id,branch,reviewer).run();
+  const saved=await env.DB.prepare('SELECT * FROM maliks_till_shift_reviews WHERE request_id=?')
+    .bind(requestId).first();
+  if(!saved)return denied('Closed shift not available, or independent review is required.',409);
+  if(saved.shift_id!==id || saved.branch.toLowerCase()!==branch.toLowerCase() ||
+      saved.reviewed_by_email.toLowerCase()!==reviewer || saved.decision!==decision || saved.note!==note)
+    return denied('Review request identifier was already used.',409);
+  return result({review:reviewForClient(saved),cash_reconciliation:false});
+}
+
 // Department shift register. The schema is installed separately by the Phase 4 SQL.
 // No shift endpoint marks quotations paid, creates an invoice or alters inventory.
 async function readShiftBody(req){
@@ -176,7 +232,19 @@ async function listTillShifts(req,env,context){
   if(!branch)return denied('Select an assigned branch.');
   const statement=shiftListStatement(context.app,branch,context.member.email);
   const {results}=await env.DB.prepare(statement.sql).bind(...statement.params).all();
-  return result({branch,shifts:results.map(shiftForClient),live_payments:false});
+  const shifts=results.map(shiftForClient);
+  // Only Cash Office can view other cashiers' branch records and review flags.
+  if(context.app==='cashoffice' && shifts.length){
+    const reviewQuery=latestReviewsStatement(branch,shifts.map(s=>s.id));
+    const {results:reviews}=await env.DB.prepare(reviewQuery.sql).bind(...reviewQuery.params).all();
+    const latest=new Map(reviews.map(review=>[review.shift_id,reviewForClient(review)]));
+    for(const shift of shifts){
+      shift.latest_review=latest.get(shift.id)||null;
+      shift.review_status=shift.status==='OPEN'?'AWAITING_CLOSE':
+        shift.latest_review?shift.latest_review.decision:'PENDING_REVIEW';
+    }
+  }
+  return result({branch,shifts,live_payments:false,cash_reconciliation:false});
 }
 async function openTillShift(req,env,context){
   if(context.app!=='tills')return denied('Only Tills can open a cashier shift.');
@@ -242,7 +310,7 @@ export default {
       const context={...access,app:auth.app};
       if(path==='/v1/session'&&req.method==='GET')return result({
         app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
-        mode:auth.app==='tills'?'PHASE_4':auth.app==='cashoffice'?'PHASE_4_REVIEW':'QUOTATIONS',live_payment:false,stock_posting:false,
+        mode:auth.app==='tills'?'PHASE_4':auth.app==='cashoffice'?'PHASE_5_REVIEW':'QUOTATIONS',live_payment:false,stock_posting:false,
       });
       if(path==='/v1/catalogue'&&req.method==='GET')return await catalogue(req,env,context);
       if(path==='/v1/quotes'&&req.method==='GET')return await listQuotes(req,env,context);
@@ -251,6 +319,8 @@ export default {
       if(path==='/v1/till-shifts'&&req.method==='GET')return await listTillShifts(req,env,context);
       if(path==='/v1/till-shifts/open'&&req.method==='POST')return await openTillShift(req,env,context);
       if(path==='/v1/till-shifts/close'&&req.method==='POST')return await closeTillShift(req,env,context);
+      if(path==='/v1/till-reviews'&&req.method==='GET')return await reviewHistory(req,env,context);
+      if(path==='/v1/till-reviews'&&req.method==='POST')return await recordShiftReview(req,env,context);
       return denied('Unknown operation.',404);
     }catch(error){
       console.error('Maliks Core request failed',error?.message||'Unknown error');

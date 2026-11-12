@@ -5,12 +5,12 @@ const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c =>
 const APPS={
   pos:{name:'Maliks POS',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
   tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Phase 4: record till opening float and shift closing cash count, and preview quotes. NOT A LIVE PAYMENT SYSTEM: no payment, tax invoice, cash-up reconciliation or stock movement.'},
-  cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Review quotations and branch till shift records (read-only). No payment posting, cash-up approval or invoice processing.'},
+  cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Review closed cashier cash-count declarations, record checks or follow-up flags, and view the audit trail. No payment posting, balancing approval or invoice processing.'},
   dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',hint:'Dispatch is a separate secured application. Picking, checking, POD and stock posting will be connected in a later phase.'},
 };
 function page(app){
  const d=APPS[app];
- const releaseLabel=app==='dispatch'?'PHASE 1 — CONTROLLED RELEASE':app==='tills'?'PHASE 4 — TILL SHIFTS':app==='cashoffice'?'PHASE 4 — SHIFT REVIEW':'PHASE 2 — QUOTATION RELEASE';
+ const releaseLabel=app==='dispatch'?'PHASE 1 — CONTROLLED RELEASE':app==='tills'?'PHASE 4 — TILL SHIFTS':app==='cashoffice'?'PHASE 5 — CASH OFFICE REVIEWS':'PHASE 2 — QUOTATION RELEASE';
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
  <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="#102a4b"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
@@ -42,7 +42,7 @@ function page(app){
  .grand-total{font-size:20px;font-weight:800;border-bottom:0;color:#12395e;margin-bottom:12px}.training-warning{border:2px solid #b45309;background:#fffbeb;padding:12px;border-radius:9px;color:#92400e;font-weight:700;margin:12px 0}.lookup-output{margin-top:14px}.tender-preview{border:2px dashed #94a3b8;padding:16px;border-radius:9px;margin:12px 0;background:#f8fafc}.tender-preview .total{margin:2px 0;padding:4px 0}.tender-preview label{margin-top:10px}
  .row-actions{text-align:right;white-space:nowrap}.row-actions button+button{margin-left:6px}.quote-detail{background:#f7fafe;border:1px solid #e0e8f0;border-radius:8px;padding:14px}
  .quote-detail p{margin:7px 0}.detail-total{font-size:14px;font-weight:700;text-align:right}
- td input[type=number]{min-width:86px;width:95px;padding:8px}.shift-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px;align-items:end}.shift-form button{margin-bottom:1px}.shift-form .info{grid-column:1/-1}.print-sheet{display:none}
+ td input[type=number]{min-width:86px;width:95px;padding:8px}.shift-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px;align-items:end}.shift-form button{margin-bottom:1px}.shift-form .info{grid-column:1/-1}.review-flag{color:#991b1b;font-weight:700}.review-check{color:#166534;font-weight:700}.review-pending{color:#92400e;font-weight:700}.review-box{margin:18px 0;padding:17px;border:1px solid #b9cadc;border-radius:10px;background:#f8fafc}.review-box textarea{min-height:85px;resize:vertical}.review-stats{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.review-stats span{background:#e9eef6;border-radius:8px;padding:8px 12px;font-weight:700;font-size:13px}.print-sheet{display:none}
  @media print{body{background:#fff}.shell{display:none!important}.print-sheet{display:block!important;color:#111;font:12pt Arial,sans-serif;padding:10mm}
  .print-sheet .print-logo{width:110px;height:auto;object-fit:contain}.print-sheet h1{font-size:21pt}.print-sheet p{margin:6px 0}
  .print-sheet .print-warning{font-weight:bold;border:2px solid #000;padding:9px}.print-sheet .quote-detail{border:0;background:none;padding:0}
@@ -66,12 +66,13 @@ function page(app){
  const cell=(row,text,tag='td')=>row.append(h(tag,text));
  const showDate=value=>{if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?value:new Intl.DateTimeFormat('en-ZA',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Johannesburg'}).format(d);};
  const calcBasket=()=>{const total=basket.reduce((s,l)=>s+Math.round(l.product.price_cents*l.quantity),0);const vat=Math.round(total*15/115);return {total,vat,net:total-vat};};
- let branch='',basket=[],pendingQuote=null,recentQuotes=[],quoteRows=[],pendingShiftAction=null;
+ let branch='',basket=[],pendingQuote=null,recentQuotes=[],quoteRows=[],pendingShiftAction=null,pendingReviewAction=null;
  function selectBranch(){
    const incoming=E('branch').value;
    if(pendingQuote){E('branch').value=branch;err('Finish or release the pending quotation before changing branch.');return;}
+   if(pendingReviewAction){E('branch').value=branch;err('Retry or resolve the pending Cash Office review before changing branch.');return;}
    if(basket.length && !window.confirm('Changing branch will clear the quotation basket. Continue?')){E('branch').value=branch;return;}
-   branch=incoming;basket=[];recentQuotes=[];quoteRows=[];pendingShiftAction=null;draw();
+   branch=incoming;basket=[];recentQuotes=[];quoteRows=[];pendingShiftAction=null;pendingReviewAction=null;draw();
  }
  async function searchProducts(){
    err('');const q=E('search')?.value.trim();if(!q){err('Enter a product name or code.');return;}
@@ -273,7 +274,58 @@ function page(app){
  const postShift=(endpoint,body)=>api(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
  function shiftRow(t){
    const tr=h('tr');for(const val of ['#'+t.id,t.till_code,t.status,t.opened_by_name,showDate(t.opened_at),money(t.opening_float_cents),t.closed_at?money(t.counted_cash_cents):'—',showDate(t.closed_at)])cell(tr,val);
+   if(APP==='cashoffice'){
+     const review=h('td',t.review_status==='CHECKED_DECLARATION'?'Declaration checked':
+        t.review_status==='FLAGGED_FOR_FOLLOWUP'?'Flagged for follow-up':
+        t.review_status==='PENDING_REVIEW'?'Not reviewed':'Awaiting close',
+        t.review_status==='FLAGGED_FOR_FOLLOWUP'?'review-flag':t.review_status==='CHECKED_DECLARATION'?'review-check':'review-pending');tr.append(review);
+     const action=h('td');if(t.status==='CLOSED'){
+       const btn=h('button','Review','secondary small-btn');btn.type='button';btn.addEventListener('click',()=>void openReviewPanel(t));action.append(btn);
+     }else action.textContent='—';tr.append(action);
+   }
    return tr;
+ }
+ async function openReviewPanel(shift){
+   if(APP!=='cashoffice'||shift.status!=='CLOSED')return;
+   const target=E('shift-review-panel');if(!target)return;target.replaceChildren();
+   const section=h('section',undefined,'review-box');section.append(h('h3','Independent review — Shift #'+shift.id));
+   section.append(h('p','Till '+shift.till_code+' · Opened by '+shift.opened_by_name+' · Opening float '+money(shift.opening_float_cents)+' · Declared closing count '+money(shift.counted_cash_cents),'muted'));
+   section.append(h('p','These are declared cash amounts. This review does not confirm payments, sales, a balanced cash-up or a deposit.','training-warning'));
+   const decisionLabel=h('label','Review outcome');const decision=h('select');decision.id='review-decision';
+   for(const [value,label] of [['CHECKED_DECLARATION','Declaration checked (not reconciled)'],['FLAGGED_FOR_FOLLOWUP','Flag for follow-up']]){
+     const opt=h('option',label);opt.value=value;decision.append(opt);
+   }
+   decisionLabel.htmlFor='review-decision';section.append(decisionLabel,decision);
+   const noteLabel=h('label','Review note / follow-up reason');noteLabel.htmlFor='review-note';section.append(noteLabel);
+   const note=h('textarea');note.id='review-note';note.maxLength=400;note.placeholder='For a flag, explain the issue in at least 10 characters.';section.append(note);
+   const button=h('button','Record review (audit history)');button.type='button';section.append(button);
+   const feedback=h('div');feedback.setAttribute('aria-live','polite');section.append(feedback);
+   button.addEventListener('click',async()=>{
+     err('');feedback.replaceChildren();
+     const chosen=decision.value,reason=note.value.trim();
+     if(chosen==='FLAGGED_FOR_FOLLOWUP'&&reason.length<10){feedback.append(h('p','A follow-up flag requires at least 10 characters.','error'));return;}
+     if(pendingReviewAction && (pendingReviewAction.shift_id!==shift.id || pendingReviewAction.decision!==chosen || pendingReviewAction.note!==reason)){
+       feedback.append(h('p','An earlier review attempt may have succeeded. Retry with the same values before changing this form.','error'));return;
+     }
+     const body=pendingReviewAction||{request_id:crypto.randomUUID(),branch,shift_id:shift.id,decision:chosen,note:reason};
+     pendingReviewAction=body;button.disabled=true;
+     try{
+       await api('/api/till-reviews',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+       pendingReviewAction=null;await loadShifts();
+       const output=E('shift-review-panel');if(output)output.replaceChildren(h('p','Review recorded in immutable history. Reopen the shift to see its audit trail.','success'));
+     }catch(e){feedback.append(h('p',e.message,'error'));button.disabled=false;}
+   });
+   const history=h('div');history.append(h('h3','Review history'));history.append(h('p','Loading review history…','muted'));section.append(history);
+   target.append(section);
+   try{
+     const selected=branch;
+     const data=await api('/api/till-reviews?branch='+encodeURIComponent(selected)+'&shift_id='+shift.id);
+     if(branch!==selected||!target.contains(section))return;
+     history.replaceChildren(h('h3','Review history'));
+     if(!data.reviews?.length){history.append(h('p','No review records for this shift.','muted'));return;}
+     const table=h('table'),head=h('thead'),hr=h('tr');for(const text of ['Date','Review','Reviewer','Note'])cell(hr,text,'th');head.append(hr);table.append(head);
+     const rows=h('tbody');for(const item of data.reviews){const tr=h('tr');for(const text of [showDate(item.created_at),item.decision==='CHECKED_DECLARATION'?'Declaration checked':'Flagged for follow-up',item.reviewed_by_name,item.note||'—'])cell(tr,text);rows.append(tr);}table.append(rows);history.append(table);
+   }catch(error){if(target.contains(section))history.replaceChildren(h('p','Could not load review history: '+error.message,'error'));}
  }
  async function loadShifts(){
    const container=E('shift-history'),form=E('shift-current');if(!container||!form)return;
@@ -318,20 +370,26 @@ function page(app){
          });
          fields.append(codeWrap,floatWrap,btn);form.append(fields);
        }
-     }else form.append(h('p','Cash Office view is read-only. Open / close must be performed by the signed-in cashier in Maliks Tills.','muted'));
+     }else form.append(h('p','Cash Office view is read-only for cashier shifts. Open / close must be performed by the signed-in cashier in Maliks Tills. Closed shift declarations may be reviewed here without changing the count.','muted'));
      container.replaceChildren();
      if(!rows.length){container.append(h('div','No till shifts recorded for this branch.','empty'));return;}
-     const table=h('table');const head=h('thead');const tr=h('tr');for(const col of ['Shift','Till','Status','Opened by','Opened at','Opening float','Closing count','Closed at'])cell(tr,col,'th');head.append(tr);table.append(head);
+     if(APP==='cashoffice'){
+       const closed=rows.filter(row=>row.status==='CLOSED');const flags=closed.filter(row=>row.review_status==='FLAGGED_FOR_FOLLOWUP').length;
+       const pending=closed.filter(row=>row.review_status==='PENDING_REVIEW').length;
+       const stats=h('div',undefined,'review-stats');for(const summary of [closed.length+' closed shifts',pending+' awaiting review',flags+' flagged for follow-up'])stats.append(h('span',summary));container.append(stats);
+     }
+     const table=h('table');const head=h('thead');const tr=h('tr');for(const col of ['Shift','Till','Status','Opened by','Opened at','Opening float','Closing count','Closed at',...(APP==='cashoffice'?['Review status','Action']:[])])cell(tr,col,'th');head.append(tr);table.append(head);
      const tb=h('tbody');for(const row of rows)tb.append(shiftRow(row));table.append(tb);const sc=h('div',undefined,'scroll');sc.append(table);container.append(sc);
    }catch(error){if(branch!==selected)return;container.replaceChildren(h('p','Could not load shifts: '+error.message,'error'));}
  }
  function tillShiftView(){
-   const p=panel(APP==='tills'?'My Till Shift Register':'Till Shift Register — Cash Office Review');
+   const p=panel(APP==='tills'?'My Till Shift Register':'Cash Office — Shift Review & Exceptions');
    p.append(h('p','OPEN/CLOSE REGISTER ONLY. Opening float and closing count are employee declarations, not reconciled takings. No sales, deposits, invoices or stock balances are posted.','training-warning'));
    const current=h('div');current.id='shift-current';p.append(current);
    const bar=h('div',undefined,'bar');const refresh=h('button','Refresh shift register','secondary');refresh.addEventListener('click',loadShifts);bar.append(refresh);p.append(bar);
    const history=h('div','Loading shifts…');history.id='shift-history';p.append(history);
-   const note=h('p',APP==='tills'?'Only your own shifts for the selected branch are visible. One cashier and one till may each have only one open shift.':'The selected branch’s latest 75 shifts are shown for Cash Office review.','tiny');p.append(note);
+   if(APP==='cashoffice'){const panel=h('div');panel.id='shift-review-panel';p.append(panel);}
+   const note=h('p',APP==='tills'?'Only your own shifts for the selected branch are visible. One cashier and one till may each have only one open shift.':'The selected branch’s latest 75 shifts are shown. Reviews are append-only observations, never payment or cash-up approvals.','tiny');p.append(note);
    return p;
  }
 
@@ -382,11 +440,15 @@ export default {
    if(url.pathname==='/powerbuild-logo.png' && req.method==='GET')return new Response(POWERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
-     '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close'};
+     '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   // Department rules enforced here as an early deny and again by the private Core.
+   if((url.pathname==='/api/till-reviews' && kind!=='cashoffice') ||
+      (url.pathname.startsWith('/api/till-shifts') && req.method==='POST' && kind!=='tills'))
+      return Response.json({error:'Department access denied.'},{status:403});
    // No public CORS. Require same-origin for all browser-initiated writes.
    if(req.method==='POST' && req.headers.get('origin')!==url.origin)return Response.json({error:'Invalid request origin.'},{status:403});
    const token=req.headers.get('cf-access-jwt-assertion');

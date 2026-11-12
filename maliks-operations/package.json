@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.13.0" },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "config": "node scripts/make-config.mjs",
@@ -12,8 +14,13 @@
     "deploy:pos": "wrangler deploy --config .generated/pos.json",
     "deploy:tills": "wrangler deploy --config .generated/tills.json",
     "deploy:cashoffice": "wrangler deploy --config .generated/cashoffice.json",
-    "deploy:dispatch": "wrangler deploy --config .generated/dispatch.json"
+    "deploy:dispatch": "wrangler deploy --config .generated/dispatch.json",
+    "migrate:phase5": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase5_cash_office_reviews.sql --config .generated/core.json"
   },
-  "dependencies": { "jose": "^6.1.0" },
-  "devDependencies": { "wrangler": "^4.92.0" }
+  "dependencies": {
+    "jose": "^6.1.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.92.0"
+  }
 }

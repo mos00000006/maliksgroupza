@@ -52,6 +52,8 @@ jobs:
       - run: npm run config
       - name: Apply additive till-shift D1 schema (Phase 4)
         run: npm run migrate:phase4
+      - name: Apply additive cash office review D1 schema (Phase 5)
+        run: npm run migrate:phase5
       - name: Deploy central API — private Worker
         run: npm run deploy:core
       - name: Deploy Sales POS
