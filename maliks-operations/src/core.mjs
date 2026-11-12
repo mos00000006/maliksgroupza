@@ -1,6 +1,6 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { APPS, canUseApp, allowedBranches, matchingBranch, limitSearch } from './policy.mjs';
-import { validateQuoteLines, calculateQuote, canonicalQuotePayload, quoteNumber, quoteListStatement } from './quote-domain.mjs';
+import { validateQuoteLines, calculateQuote, canonicalQuotePayload, quoteNumber, quoteListStatement, quoteLookupStatement } from './quote-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
@@ -84,6 +84,21 @@ async function listQuotes(req,env,context){
   return result({branch,quotes:results.map(quoteForClient)});
 }
 
+/** Exact-number lookup is read-only and always constrained to the signed-in user's branch. */
+export async function findQuote(req,env,context){
+  if(!['pos','tills','cashoffice'].includes(context.app))return denied('This app cannot look up quotations.');
+  const query=new URL(req.url).searchParams;
+  const branch=matchingBranch(context.branches,query.get('branch'));
+  if(!branch)return denied('Select an assigned branch.');
+  let lookup;
+  try{lookup=quoteLookupStatement(context.app,branch,context.member.email,query.get('number'));}
+  catch(error){return denied(error.message,400);}
+  await env.DB.prepare(createQuoteTable).run();
+  const row=await env.DB.prepare(lookup.sql).bind(...lookup.params).first();
+  if(!row)return denied('Quotation not found for this branch.',404);
+  return result({branch,quotation:quoteForClient(row)});
+}
+
 async function createQuote(req,env,context){
   if(context.app!=='pos')return denied('Only the Sales POS can submit quotations.');
   const origin=req.headers.get('origin');
@@ -161,6 +176,7 @@ export default {
       });
       if(path==='/v1/catalogue'&&req.method==='GET')return await catalogue(req,env,context);
       if(path==='/v1/quotes'&&req.method==='GET')return await listQuotes(req,env,context);
+      if(path==='/v1/quotes/find'&&req.method==='GET')return await findQuote(req,env,context);
       if(path==='/v1/quotes'&&req.method==='POST')return await createQuote(req,env,context);
       return denied('Unknown operation.',404);
     }catch(error){

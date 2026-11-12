@@ -1,71 +1,45 @@
-# Maliks Department Applications — Phase 2 Quotation Update
+# Maliks Department Applications — Phase 3 (Tills checkout preparation)
 
-**For existing repository:** `mos00000006/maliksgroupza`  
-**This is an incremental patch, NOT a replacement of Maliks Group Hub.**
+Repository: `mos00000006/maliksgroupza`. This is **an incremental patch built on top of Phase 2**, not a replacement application.
 
-## What is new
+## Changes
 
-**Maliks POS**
-- Remove individual quotation lines or clear the basket with confirmation.
-- Change quantities within the backend's supported precision.
-- Display ex-VAT, included VAT (15%), and VAT-inclusive totals.
-- Submit a quotation with the same unique request ID if a network error makes the result uncertain. The pending request is locked until completed or deliberately released.
-- See **My recent quotations** for the selected branch (restricted on the server to the signed-in salesperson), open itemised details and print a quotation.
+- **Tills:** Retrieve an exact quotation number from the central API even when it is older than the 50 most recent quotations. View the original items, VAT-inclusive amounts and print the quotation.
+- **Tills:** Cash change/shortfall calculator labelled **TRAINING ONLY**. This is local browser arithmetic; no payment method, amount tendered, cashier shift, paid flag, invoice, receipt, cash drawer, or stock posting is saved.
+- **Cash Office:** Same exact-number lookup, with branch restrictions and quotation printing, but **no payment calculator**.
+- **POS:** No visual change; the server-side lookup also enforces the logged-in salesperson if used by POS later.
+- **Dispatch:** Unchanged and non-transactional.
+- **Security:** Exact lookup uses prepared SQL parameters, requires the Cloudflare Access JWT and an active assigned branch, rejects malformed numbers, and keeps each application in its own role.
 
-**Maliks Tills and Cash Office**
-- View up to 50 most recent quotations for the current authorised branch.
-- Filter those displayed rows by quote number, customer, contact or status.
-- Expand line-item details and print a quotation.
-- **Read-only**. There are still NO payment, invoicing, cash-up, stock deduction or dispatch posting actions.
+## Before installing
 
-**Maliks Dispatch**: remains separate and unchanged as a restricted, non-transactional starter application.
+The previous Phase 2 update must be committed and deployed first. If your last Phase 2 GitHub Actions run did not finish with a **green check**, fix that deployment before using this patch. GitHub Actions' previous `NAMES_CONFIRMED` error is a manual workflow checkbox, not an app-code issue.
 
-## Upload ALL five files to GitHub
+## Replace these four files in GitHub
 
-Use the directory structure **inside** the ZIP and preserve the existing files that are not listed below:
+1. `maliks-operations/src/frontend.mjs` **REPLACE**
+2. `maliks-operations/src/core.mjs` **REPLACE**
+3. `maliks-operations/src/quote-domain.mjs` **REPLACE**
+4. `maliks-operations/tests/phase3.test.mjs` **ADD**
 
-1. REPLACE `maliks-operations/src/frontend.mjs`
-2. REPLACE `maliks-operations/src/core.mjs`
-3. REPLACE `maliks-operations/src/quote-domain.mjs`
-4. REPLACE `maliks-operations/tests/frontend.test.mjs` (updates the test expectation for the new button caption)
-5. ADD `maliks-operations/tests/phase2.test.mjs`
+Do **not** overwrite the PowerBuild logo file, existing deployments/workflows, database files, main management Hub, or other tests. This package contains the full replacement contents for the three source files (not snippets). Commit all four together on a branch, then review and merge. The other Phase 2 test files should remain.
 
-**Do not delete or replace** `maliks-operations/src/powerbuild-logo.mjs`; your PowerBuild logo remains in use. Do not overwrite `.github/workflows`, Cloudflare secrets, `wrangler` configs, or the main Hub code.
+## Deploy
 
-The frontend and central API are one coordinated change. **Commit all five files before deploying.** For safety, edit them on a new GitHub branch and merge only after review, or commit them together using a local git client.
+1. In GitHub Actions select **Deploy Maliks Department Applications → Run workflow**.
+2. Select `main` after merging, verify names still target only the four departmental Workers plus `maliks-core-api`, tick the Worker-name safety confirmation and start a **new** workflow run.
+3. Check `npm test`, core deployment, and Tills and Cash Office deployments finish green.
+4. Force refresh Tills (`Ctrl+Shift+R`), and find the **Find quotation by exact number** section. Search for a known historical *quotation* number such as `Q-00000001` in the correct branch.
+5. In Tills, examine the quotation and try `Cash received (R)`; confirm that it calculates change or shortfall without any server submission or paid status. Verify Cash Office lookup works and Dispatch is unchanged.
+6. With a staff account assigned to another branch, confirm the quotation is not accessible. Use authorised test data only; do not operate a live till using preview arithmetic.
 
-## Deployment
+## Operational limits / safety
 
-1. Confirm all five files are present and the PowerBuild logo module still exists.
-2. Open **Actions → Deploy Maliks Department Applications → Run workflow**.
-3. Choose the correct branch and tick the existing safe-worker-name confirmation.
-4. Run once and inspect the tests and deployment steps.
-5. Visit the URLs below, sign in, and refresh the pages with **Ctrl+Shift+R**.
+- **Not a live till**: no real payment, invoicing, fiscal receipt, cash-up, reversal, EFT/card reconciliation, bank connection or stock movement.
+- This update requires **no database migrations or new secrets**. It does not alter production data when using quotation lookup and the calculator.
+- The business rule remains: Sales quotations go to a separate Cash Office queue; managers monitor in the separate Hub.
+- Before live sales, the next substantive phase must implement server-authoritative payment records, receipt/invoice numbering, transaction atomicity and idempotency, user permissions and shift controls, VAT/rounding, reversals, stock movements and signed dispatch authorisation with audits and tests.
 
-- POS: https://maliks-pos.moyanamoses006.workers.dev/
-- Tills: https://maliks-tills.moyanamoses006.workers.dev/
-- Cash Office: https://maliks-cash-office.moyanamoses006.workers.dev/
-- Dispatch: https://maliks-dispatch.moyanamoses006.workers.dev/
+## Verification performed
 
-## Post-deployment smoke test (test data only)
-
-1. Open POS on a test branch, search an existing product and add it to the basket.
-2. Increase its quantity, verify net/VAT/total, remove the line, then add it again.
-3. Set a TEST customer and submit one test quotation. Record the Q-number.
-4. Open **My recent quotations**, check the Q-number and print preview, which MUST say QUOTATION and NOT a tax invoice.
-5. Open Tills and Cash Office for the **same branch**; confirm that quote appears and that no payment or dispatch controls are offered.
-6. Try a different branch: the quotation should not appear in the other branch's queue. Check salesperson-only POS history with a second staff account if possible.
-
-**If the data is real, do not submit test quotations into the production database without your approval and an agreed test procedure.**
-
-## Operational restrictions
-
-- This code uses existing D1 tables; it creates **no migration** and uses no new secrets.
-- The management Hub and its user interface remain unchanged.
-- Payment processing, receipts/tax invoices, credit notes, cash-up and stock postings are NOT activated.
-- A failed POST can have succeeded on the server. Retry uses the same request ID within the current page session. **If you refresh the page, check history before creating a new quote**; the in-memory pending request is not persisted after reload.
-- The three client-side totals mirror the server's VAT-inclusive arithmetic. The server remains authoritative for price and amount checks.
-
-## Testing
-
-The supplied files passed `npm test` locally: **30 passed, 0 failed**. JavaScript syntax checks passed. This is not an end-to-end verification against the live Cloudflare D1 database or live authentication; carry out the smoke test after deployment.
+`npm test` and Node syntax checks run locally; generated browser `<script>` was also syntax-checked. **This does not prove the Cloudflare production deployment works**. Verify the actual deployed site with a test quote after the GitHub workflow passes.

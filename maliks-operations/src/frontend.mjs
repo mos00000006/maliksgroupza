@@ -4,13 +4,13 @@ const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c =>
 
 const APPS={
   pos:{name:'Maliks POS',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
-  tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Read-only quotation lookup and printing. Payments, invoices and cash drawer functions are not live.'},
+  tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Find any quotation by number and preview cash change. This is TRAINING ONLY: no payment, invoice or cash drawer posting.'},
   cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Review quotation details and print copies. Cash-up, approval and payment validation are not live.'},
   dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',hint:'Dispatch is a separate secured application. Picking, checking, POD and stock posting will be connected in a later phase.'},
 };
 function page(app){
  const d=APPS[app];
- const releaseLabel=app==='dispatch'?'PHASE 1 — CONTROLLED RELEASE':'PHASE 2 — QUOTATION RELEASE';
+ const releaseLabel=app==='dispatch'?'PHASE 1 — CONTROLLED RELEASE':app==='tills'?'PHASE 3 — TILLS TRAINING':'PHASE 2 — QUOTATION RELEASE';
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
  <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="#102a4b"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
@@ -39,7 +39,7 @@ function page(app){
  .tiny{font-size:12px;color:#63748a}.widebutton{width:100%}
  .small-btn{font-size:12px;padding:7px 10px}.basket-header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
  .amount-row{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e9eef5;padding:10px 0;font-size:14px}
- .grand-total{font-size:20px;font-weight:800;border-bottom:0;color:#12395e;margin-bottom:12px}
+ .grand-total{font-size:20px;font-weight:800;border-bottom:0;color:#12395e;margin-bottom:12px}.training-warning{border:2px solid #b45309;background:#fffbeb;padding:12px;border-radius:9px;color:#92400e;font-weight:700;margin:12px 0}.lookup-output{margin-top:14px}.tender-preview{border:2px dashed #94a3b8;padding:16px;border-radius:9px;margin:12px 0;background:#f8fafc}.tender-preview .total{margin:2px 0;padding:4px 0}.tender-preview label{margin-top:10px}
  .row-actions{text-align:right;white-space:nowrap}.row-actions button+button{margin-left:6px}.quote-detail{background:#f7fafe;border:1px solid #e0e8f0;border-radius:8px;padding:14px}
  .quote-detail p{margin:7px 0}.detail-total{font-size:14px;font-weight:700;text-align:right}
  td input[type=number]{min-width:86px;width:95px;padding:8px}.print-sheet{display:none}
@@ -227,13 +227,60 @@ function page(app){
    try{const data=await api('/api/quotes?branch='+encodeURIComponent(selected));if(selected!==branch)return;recentQuotes=data.quotes||[];renderQuotes('own-quotes',recentQuotes);}
    catch(e){if(selected!==branch)return;const r=h('tr');const td=h('td','Could not load quotations: '+e.message);td.colSpan=6;r.append(td);body.replaceChildren(r);}
  }
+ /** Cash maths is local to this page. It never calls an API or records a tender. */
+ function tenderPreview(row){
+   const area=h('section',undefined,'tender-preview');
+   area.append(h('h3','Cash change calculator — TRAINING ONLY'));
+   area.append(h('p','NO PAYMENT RECORDED. No receipt, invoice, till transaction or stock posting will be created.','training-warning'));
+   area.append(h('p','Amount due: '+money(row.total_cents),'price'));
+   const name=h('label','Cash received (R)');name.htmlFor='cash-preview';area.append(name);
+   const amount=h('input');amount.id='cash-preview';amount.type='text';amount.inputMode='decimal';amount.placeholder='Example: 500.00';amount.maxLength=12;area.append(amount);
+   const output=h('p','Enter a cash amount to calculate change or a shortfall.','muted');output.setAttribute('aria-live','polite');area.append(output);
+   amount.addEventListener('input',()=>{
+     const text=amount.value.trim();
+     if(!text){output.textContent='Enter a cash amount to calculate change or a shortfall.';return;}
+     if(!/^(?:0|[1-9]\d{0,8})(?:\.\d{1,2})?$/.test(text)){
+       output.textContent='Invalid amount. Use rand and up to two decimals, e.g. 500.00.';return;
+     }
+     const parts=text.split('.');const paid=Number(parts[0])*100+Number((parts[1]||'').padEnd(2,'0'));
+     if(!Number.isSafeInteger(paid)||paid>1000000000){output.textContent='Amount exceeds the preview limit.';return;}
+     const difference=paid-row.total_cents;
+     output.textContent=difference>=0?'Change to return (preview): '+money(difference):'Cash shortfall (preview): '+money(-difference);
+   });
+   return area;
+ }
+ async function exactLookup(){
+   const field=E('quote-number'),output=E('exact-result');if(!field||!output)return;
+   const number=field.value.trim().toUpperCase();output.replaceChildren();
+   if(!/^Q-\d{1,12}$/.test(number)){output.append(h('div','Use the quotation number, for example Q-00000001.','error'));return;}
+   const selected=branch;output.append(h('p','Looking up '+number+'…','muted'));
+   try{
+     const data=await api('/api/quotes/find?branch='+encodeURIComponent(selected)+'&number='+encodeURIComponent(number));
+     if(selected!==branch)return;output.replaceChildren();const row=data.quotation;
+     output.append(h('h3','Quotation '+row.number),quoteDetails(row));
+     const print=h('button','Print quotation','secondary small-btn');print.addEventListener('click',()=>printQuote(row));output.append(print);
+     if(APP==='tills')output.append(tenderPreview(row));
+   }catch(error){if(selected!==branch)return;output.replaceChildren(h('div',error.message,'error'));}
+ }
  async function quoteView(){
-   const root=E('app-content');const queue=panel(APP==='tills'?'Quotation lookup — payment disabled':'Cash Office — submitted quotations');
+   const root=E('app-content');
+   const lookup=panel('Find quotation by exact number');
+   const lookupBar=h('div',undefined,'bar');const lookupField=h('div');
+   const lookupLabel=h('label','Quotation number');lookupLabel.htmlFor='quote-number';
+   const lookupInput=h('input');lookupInput.id='quote-number';lookupInput.placeholder='Q-00000001';lookupInput.maxLength=14;
+   lookupInput.addEventListener('keydown',ev=>{if(ev.key==='Enter')void exactLookup();});
+   lookupField.append(lookupLabel,lookupInput);
+   const lookupButton=h('button','Find quotation');lookupButton.type='button';lookupButton.addEventListener('click',exactLookup);
+   lookupBar.append(lookupField,lookupButton);lookup.append(lookupBar);
+   const exactResult=h('div',undefined,'lookup-output');exactResult.id='exact-result';lookup.append(exactResult);
+   lookup.append(h('p','Exact lookup can find older quotations that are no longer in the recent-50 list, but only for your assigned branch.','tiny'));
+   root.append(lookup);
+   const queue=panel(APP==='tills'?'Recent quotations — training mode':'Cash Office — submitted quotations');
    const bar=h('div',undefined,'bar');const field=h('div');const label=h('label','Filter by quote number, customer or contact');label.htmlFor='quote-filter';const search=h('input');search.id='quote-filter';search.placeholder='Search the 50 most recent quotations';
    search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();renderQuotes('quotes',quoteRows.filter(x=>[x.number,x.customer_name,x.customer_contact,x.status].some(v=>String(v||'').toLowerCase().includes(q))));});
    field.append(label,search);const refresh=h('button','Refresh quotations','secondary');refresh.addEventListener('click',loadQuotes);bar.append(field,refresh);queue.append(bar);
    queue.append(makeQuoteTable('quotes'));
-   queue.append(h('p','Read-only handover: quotations are not marked paid, invoiced or approved for dispatch.','tiny'));root.append(queue);await loadQuotes();
+   queue.append(h('p','Read-only handover: quotations are not marked paid, invoiced or approved for dispatch. The cash calculator is a local training preview only.','tiny'));root.append(queue);await loadQuotes();
  }
  async function loadQuotes(){
    err('');const body=E('quotes');if(!body)return;const selected=branch;quoteRows=[];renderQuotes('quotes',[]);
@@ -260,7 +307,7 @@ export default {
    const url=new URL(req.url);
    if(url.pathname==='/powerbuild-logo.png' && req.method==='GET')return new Response(POWERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
-   const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes'};
+   const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});

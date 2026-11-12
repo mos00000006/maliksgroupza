@@ -55,3 +55,19 @@ export function quoteListStatement(app, branch, userEmail) {
   }
   return {sql:sql+' ORDER BY id DESC LIMIT 50',params:[branch]};
 }
+
+/** SQL builder for branch-scoped exact quotation lookup; never crosses a branch or app boundary. */
+export function quoteLookupStatement(app, branch, userEmail, number) {
+  if (!['pos','tills','cashoffice'].includes(app) || typeof branch !== 'string' || !branch.trim())
+    throw Error('Not authorised to look up quotations.');
+  const id=quoteId(number);
+  if(id===null)throw Error('Enter a quotation number such as Q-00000001.');
+  let sql='SELECT * FROM till_quotation_submissions WHERE id=? AND lower(branch)=lower(?)';
+  const params=[id,branch];
+  if(app==='pos'){
+    if(typeof userEmail!=='string'||!userEmail.trim())throw Error('Current user required.');
+    sql+=' AND lower(submitted_by_email)=lower(?)';
+    params.push(userEmail);
+  }
+  return {sql:sql+' LIMIT 1',params};
+}
