@@ -51,7 +51,7 @@ test('Browser marks preparation as NOT PAID, not a receipt or dispatch release',
       'Card portion (R)','EFT portion (R)','/api/tender-preparations','No stock or dispatch release'])
     assert.ok(tills.includes(text),text);
   const co=await read('cashoffice');
-  assert.match(co,/PHASE 6 — CASH OFFICE VIEW/);
+  assert.match(co,/PHASE 7 — PROVISIONAL CASH-UP/);
   assert.match(co,/Cash Office — Tender preparations \(read-only\)/);
 });
 test('POS and Dispatch cannot access tender preparations even with JWT header',async()=>{

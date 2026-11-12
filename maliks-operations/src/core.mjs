@@ -5,6 +5,7 @@ import { validateRequestId, validateTillCode, validateMoneyCents, validateCloseN
 import {validateReviewDecision,validateReviewNote,latestReviewsStatement,reviewHistoryStatement,reviewForClient} from './review-domain.mjs';
 import {validateTenderPreparation,tenderListStatement,tenderForClient} from './tender-domain.mjs';
 import {quoteId} from './quote-domain.mjs';
+import {cashupPreviewStatement,cashupForClient,CASHUP_MODE} from './cashup-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
@@ -272,6 +273,20 @@ async function recordTenderPreparation(req,env,context){
   return result({preparation:tenderForClient(saved),payment_recorded:false,invoice_created:false,dispatch_released:false});
 }
 
+// Phase 7 cash-up projections: read-only, unverified and strictly Cash Office only.
+// The projection is computed from immutable tender PREPARATIONS and cashier
+// declarations, not from receipts, transaction ledgers or bank settlements.
+async function listCashupPreviews(req,env,context){
+  if(context.app!=='cashoffice')return denied('Only Cash Office can view provisional cash-up figures.');
+  const branch=matchingBranch(context.branches,new URL(req.url).searchParams.get('branch'));
+  if(!branch)return denied('Select an assigned branch.');
+  const statement=cashupPreviewStatement(branch);
+  const {results}=await env.DB.prepare(statement.sql).bind(...statement.params).all();
+  return result({branch,mode:CASHUP_MODE,verified:false,reconciled:false,
+    warning:'Based on UNVERIFIED tender preparations, not receipts or payments. Do not certify cash-up or deposits.',
+    projections:results.map(cashupForClient)});
+}
+
 // Department shift register. The schema is installed separately by the Phase 4 SQL.
 // No shift endpoint marks quotations paid, creates an invoice or alters inventory.
 async function readShiftBody(req){
@@ -365,7 +380,7 @@ export default {
       const context={...access,app:auth.app};
       if(path==='/v1/session'&&req.method==='GET')return result({
         app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
-        mode:auth.app==='tills'?'PHASE_6_TENDER_PREPARATION':auth.app==='cashoffice'?'PHASE_6_PREPARATION_REVIEW':'QUOTATIONS',live_payment:false,stock_posting:false,
+        mode:auth.app==='tills'?'PHASE_6_TENDER_PREPARATION':auth.app==='cashoffice'?'PHASE_7_PROVISIONAL_CASHUP':'QUOTATIONS',live_payment:false,stock_posting:false,
       });
       if(path==='/v1/catalogue'&&req.method==='GET')return await catalogue(req,env,context);
       if(path==='/v1/quotes'&&req.method==='GET')return await listQuotes(req,env,context);
@@ -376,6 +391,7 @@ export default {
       if(path==='/v1/till-shifts/close'&&req.method==='POST')return await closeTillShift(req,env,context);
       if(path==='/v1/till-reviews'&&req.method==='GET')return await reviewHistory(req,env,context);
       if(path==='/v1/till-reviews'&&req.method==='POST')return await recordShiftReview(req,env,context);
+      if(path==='/v1/cashup-preview'&&req.method==='GET')return await listCashupPreviews(req,env,context);
       if(path==='/v1/tender-preparations'&&req.method==='GET')return await listTenderPreparations(req,env,context);
       if(path==='/v1/tender-preparations'&&req.method==='POST')return await recordTenderPreparation(req,env,context);
       return denied('Unknown operation.',404);

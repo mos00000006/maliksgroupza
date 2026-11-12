@@ -5,12 +5,12 @@ const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c =>
 const APPS={
   pos:{name:'Maliks POS',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
   tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Phase 6: save tender allocation PREPARATIONS for quotations during an open shift. NOT A LIVE PAYMENT SYSTEM: no payment, tax invoice, cash-up or stock movement is recorded.'},
-  cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Review cashier declarations and view tender PREPARATIONS only. Neither approval nor actual payment posting is enabled.'},
+  cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Phase 7: provisional cash-up worksheet using UNVERIFIED tender preparations and cashier declarations. No confirmed payments, bank reconciliation or approvals.'},
   dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',hint:'Dispatch is a separate secured application. Picking, checking, POD and stock posting will be connected in a later phase.'},
 };
 function page(app){
  const d=APPS[app];
- const releaseLabel=app==='dispatch'?'PHASE 1 — CONTROLLED RELEASE':app==='tills'?'PHASE 6 — TENDER PREPARATION':app==='cashoffice'?'PHASE 6 — CASH OFFICE VIEW':'PHASE 2 — QUOTATION RELEASE';
+ const releaseLabel=app==='dispatch'?'PHASE 1 — CONTROLLED RELEASE':app==='tills'?'PHASE 6 — TENDER PREPARATION':app==='cashoffice'?'PHASE 7 — PROVISIONAL CASH-UP':'PHASE 2 — QUOTATION RELEASE';
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
  <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="#102a4b"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
@@ -42,7 +42,7 @@ function page(app){
  .grand-total{font-size:20px;font-weight:800;border-bottom:0;color:#12395e;margin-bottom:12px}.training-warning{border:2px solid #b45309;background:#fffbeb;padding:12px;border-radius:9px;color:#92400e;font-weight:700;margin:12px 0}.lookup-output{margin-top:14px}.tender-preview{border:2px dashed #94a3b8;padding:16px;border-radius:9px;margin:12px 0;background:#f8fafc}.tender-preview .total{margin:2px 0;padding:4px 0}.tender-preview label{margin-top:10px}
  .row-actions{text-align:right;white-space:nowrap}.row-actions button+button{margin-left:6px}.quote-detail{background:#f7fafe;border:1px solid #e0e8f0;border-radius:8px;padding:14px}
  .quote-detail p{margin:7px 0}.detail-total{font-size:14px;font-weight:700;text-align:right}
- td input[type=number]{min-width:86px;width:95px;padding:8px}.shift-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px;align-items:end}.shift-form button{margin-bottom:1px}.shift-form .info{grid-column:1/-1}.review-flag{color:#991b1b;font-weight:700}.review-check{color:#166534;font-weight:700}.review-pending{color:#92400e;font-weight:700}.review-box{margin:18px 0;padding:17px;border:1px solid #b9cadc;border-radius:10px;background:#f8fafc}.review-box textarea{min-height:85px;resize:vertical}.review-stats{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.review-stats span{background:#e9eef6;border-radius:8px;padding:8px 12px;font-weight:700;font-size:13px}.tender-prep{border:2px solid #abc9e5;border-radius:11px;background:#f1f7fe;padding:17px;margin:14px 0}.tender-prep .training-warning{margin-top:0}.tender-rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px}.tender-prep .total{margin:4px 0;padding:4px 0}.print-sheet{display:none}
+ td input[type=number]{min-width:86px;width:95px;padding:8px}.shift-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px;align-items:end}.shift-form button{margin-bottom:1px}.shift-form .info{grid-column:1/-1}.review-flag{color:#991b1b;font-weight:700}.review-check{color:#166534;font-weight:700}.review-pending{color:#92400e;font-weight:700}.review-box{margin:18px 0;padding:17px;border:1px solid #b9cadc;border-radius:10px;background:#f8fafc}.review-box textarea{min-height:85px;resize:vertical}.review-stats{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.review-stats span{background:#e9eef6;border-radius:8px;padding:8px 12px;font-weight:700;font-size:13px}.tender-prep{border:2px solid #abc9e5;border-radius:11px;background:#f1f7fe;padding:17px;margin:14px 0}.tender-prep .training-warning{margin-top:0}.tender-rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px}.tender-prep .total{margin:4px 0;padding:4px 0}.cashup-warning{border-left:5px solid #b45309;background:#fff4d6;padding:13px 15px;font-weight:700;border-radius:5px;margin:10px 0 15px}.cashup-diff{color:#991b1b;font-weight:800}.cashup-zero{color:#56616f;font-weight:700}.cashup-stats{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.cashup-stats span{border:1px solid #dbe1e9;background:#f3f6fb;border-radius:7px;padding:9px 12px;font-size:13px;font-weight:700}.cashup-table{min-width:1030px} .print-sheet{display:none}
  @media print{body{background:#fff}.shell{display:none!important}.print-sheet{display:block!important;color:#111;font:12pt Arial,sans-serif;padding:10mm}
  .print-sheet .print-logo{width:110px;height:auto;object-fit:contain}.print-sheet h1{font-size:21pt}.print-sheet p{margin:6px 0}
  .print-sheet .print-warning{font-weight:bold;border:2px solid #000;padding:9px}.print-sheet .quote-detail{border:0;background:none;padding:0}
@@ -346,6 +346,42 @@ function page(app){
      table.append(tbody);const outer=h('div',undefined,'scroll');outer.append(table);target.append(outer);
    }catch(error){if(branch===b)target.replaceChildren(h('p','Preparation queue unavailable: '+error.message,'error'));}
  }
+ // Phase 7: read-only cash-up ESTIMATE. No money is posted by this feature.
+ function cashupView(){
+   const p=panel('Provisional cash-up & exceptions — NOT RECONCILED');
+   p.append(h('p','Training/control worksheet only. The projected cash is opening float PLUS CASH ALLOCATED IN UNVERIFIED TENDER PREPARATIONS, not actual verified takings. Zero difference is NOT proof of a balanced till. Do not bank, invoice or dispatch based on this screen.','cashup-warning'));
+   const row=h('div',undefined,'bar');const refresh=h('button','Refresh provisional worksheet','secondary');refresh.type='button';refresh.addEventListener('click',loadCashupPreviews);row.append(refresh);p.append(row);
+   const summary=h('div');summary.id='cashup-stats';summary.className='cashup-stats';p.append(summary);
+   const target=h('div','Loading provisional cash-up estimates…');target.id='cashup-preview';p.append(target);
+   p.append(h('p','Each row covers one cashier shift in the selected branch. A follow-up flag or declaration review remains available in the independent Shift Review panel above. No row is marked reconciled or approved.','tiny'));
+   return p;
+ }
+ async function loadCashupPreviews(){
+   const target=E('cashup-preview'),summary=E('cashup-stats');if(!target||!summary)return;
+   const selected=branch;target.replaceChildren(h('p','Loading provisional worksheet…','muted'));summary.replaceChildren();
+   try{
+     const data=await api('/api/cashup-preview?branch='+encodeURIComponent(selected));
+     if(branch!==selected)return;
+     if(data.verified!==false||data.reconciled!==false||data.mode!=='PROVISIONAL_PREPARATIONS_ONLY')throw Error('Unexpected cash-up state.');
+     const rows=data.projections||[];target.replaceChildren();
+     if(!rows.length){target.append(h('p','No cashier shifts recorded for this branch.','muted'));return;}
+     const closed=rows.filter(r=>r.status==='CLOSED').length;
+     const flagged=rows.filter(r=>r.signal==='PROVISIONAL_DIFFERENCE').length;
+     const lacking=rows.filter(r=>r.signal==='NO_PREPARATIONS').length;
+     for(const label of ['Shifts: '+rows.length,'Closed: '+closed,'Provisional differences: '+flagged,'No preparations: '+lacking])summary.append(h('span',label));
+     const t=h('table');t.className='cashup-table';const thead=h('thead'),tr=h('tr');
+     for(const title of ['Shift / till','Cashier','Status','Opening float','Prepared quotations','Prepared cash (net)','Prepared card','Prepared EFT','Projected cash*','Declared closing count','Difference*','Review attention'])cell(tr,title,'th');
+     thead.append(tr);t.append(thead);
+     const body=h('tbody');for(const r of rows){
+       const line=h('tr');const status=r.signal==='SHIFT_OPEN'?'Shift open':r.signal==='NO_PREPARATIONS'?'No preparations':r.signal==='PROVISIONAL_ZERO_DIFFERENCE'?'Provisional zero difference':'Provisional difference';
+       const difference=r.provisional_variance_cents;
+       for(const val of ['#'+r.shift_id+' / '+r.till_code,r.opened_by_name,r.status,money(r.opening_float_cents),String(r.preparation_count),money(r.prepared_cash_cents),money(r.prepared_card_cents),money(r.prepared_eft_cents),r.projected_cash_cents===null?'—':money(r.projected_cash_cents),r.counted_cash_cents===null?'—':money(r.counted_cash_cents),difference===null?'—':money(difference),status])cell(line,val);
+       const cells=line.querySelectorAll('td');if(difference!==null)cells[10].className=difference===0?'cashup-zero':'cashup-diff';
+       body.append(line);
+     }t.append(body);const scroll=h('div',undefined,'scroll');scroll.append(t);target.append(scroll);
+     target.append(h('p','* Provisional projected cash = opening float + cash applied in saved preparations. Difference = cashier-declared closing count minus projected cash. Card/EFT amounts are also UNVERIFIED. These totals are not financial balances.','tiny'));
+   }catch(error){if(branch===selected)target.replaceChildren(h('p','Provisional worksheet unavailable: '+error.message,'error'));}
+ }
  const randToCents=(value,maximum=100000000)=>{
    const text=String(value??'').trim();
    if(!/^(?:0|[1-9]\\d{0,7})(?:\\.\\d{1,2})?$/.test(text))throw Error('Enter a valid cash amount in rand, e.g. 250.00.');
@@ -478,6 +514,7 @@ function page(app){
  async function quoteView(){
    const root=E('app-content');
    if(APP==='tills'||APP==='cashoffice'){root.append(tillShiftView());void loadShifts();}
+   if(APP==='cashoffice'){root.append(cashupView());void loadCashupPreviews();}
    if(APP==='tills'||APP==='cashoffice'){const preps=panel(APP==='tills'?'My tender preparations — NOT PAID':'Cash Office — Tender preparations (read-only)');preps.append(h('p','These are proposed cash/card/EFT splits, not verified receipts, tax invoices or approved payments. No stock or dispatch release.','training-warning'));const refresh=h('button','Refresh preparations','secondary');refresh.addEventListener('click',loadPreparations);preps.append(refresh);const list=h('div');list.id='tender-preparations';preps.append(list);root.append(preps);void loadPreparations();}
    const lookup=panel('Find quotation by exact number');
    const lookupBar=h('div',undefined,'bar');const lookupField=h('div');
@@ -523,13 +560,14 @@ export default {
    if(url.pathname==='/powerbuild-logo.png' && req.method==='GET')return new Response(POWERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
-     '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations'};
+     '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
    if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // Department rules enforced here as an early deny and again by the private Core.
    if((url.pathname==='/api/till-reviews' && kind!=='cashoffice') ||
+      (url.pathname==='/api/cashup-preview' && kind!=='cashoffice') ||
       (url.pathname==='/api/tender-preparations' && !['tills','cashoffice'].includes(kind)) ||
       (url.pathname==='/api/tender-preparations' && req.method==='POST' && kind!=='tills') ||
       (url.pathname.startsWith('/api/till-shifts') && req.method==='POST' && kind!=='tills'))
