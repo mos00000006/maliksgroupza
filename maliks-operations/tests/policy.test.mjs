@@ -1,0 +1,16 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { APPS,canUseApp,allowedBranches,matchingBranch,limitSearch } from '../src/policy.mjs';
+import {calculateQuote,validateQuoteLines} from '../src/quote-domain.mjs';
+const base={active:1,role:'Sales / Tills',access_scope:'Assigned workspace',workspace_access:'["Buster Build"]',department:'Sales'};
+test('independent department applications',()=>assert.deepEqual(APPS,['pos','tills','cashoffice','dispatch']));
+test('sales role cannot access cash office or dispatch',()=>{assert.equal(canUseApp(base,'pos'),true);assert.equal(canUseApp(base,'tills'),true);assert.equal(canUseApp(base,'cashoffice'),false);assert.equal(canUseApp(base,'dispatch'),false);});
+test('inactive users blocked',()=>assert.equal(canUseApp({...base,active:0},'pos'),false));
+test('store scope prevents cross-branch disclosure',()=>assert.deepEqual(allowedBranches(base,['Buster Build','Sungate PowerBuild']),['Buster Build']));
+test('unassigned restricted staff blocked',()=>assert.deepEqual(allowedBranches({...base,workspace_access:'[]'},['Buster Build']),[]));
+test('full company scope does not elevate sales',()=>assert.deepEqual(allowedBranches({...base,access_scope:'Full company'},['Buster Build','Sungate PowerBuild']),['Buster Build']));
+test('owner has all branches',()=>assert.deepEqual(allowedBranches({...base,role:'Owner / Admin'},['Buster Build','Sungate PowerBuild']),['Buster Build','Sungate PowerBuild']));
+test('explicit branch required when more than one',()=>{assert.equal(matchingBranch(['A','B'],null),null);assert.equal(matchingBranch(['A','B'],'C'),null);});
+test('search bound',()=>{assert.equal(limitSearch('a'.repeat(101)),null);assert.equal(limitSearch(' ABC '),'ABC');});
+test('VAT-inclusive quotations retain 15% VAT',()=>{const q=calculateQuote([{product_id:1,price_cents:11500,quantity:1}]);assert.equal(q.vat_cents,1500);assert.equal(q.total_cents,11500);});
+test('quotation rejects invalid products',()=>assert.throws(()=>validateQuoteLines([{product_id:1,quantity:1,expected_price_cents:0}])));
