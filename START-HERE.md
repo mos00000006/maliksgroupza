@@ -1,43 +1,37 @@
-# FIX: Phase 8 GitHub `npm test` — 5 failures
+# MALIKS — Phase 8 Core API single-file correction
 
-Your pasted GitHub Actions log shows **76 tests, 71 passing, 5 failing**. I reproduced this exact result locally using the older Phase 7 tests, current Phase 8 frontend, and the missing evidence module. Applying the files in this package resulted in **87/87 passing** in the reconstructed project.
+## Why GitHub fails
 
-## Root causes
+The GitHub output says **86 passed, 1 failed**, specifically:
 
-1. `maliks-operations/src/payment-evidence-domain.mjs` **is missing** from the repository. The Phase 8 test runner cannot import it. This is a required runtime module, not a cosmetic test issue.
-2. Four older tests in `tests/phase4.test.mjs`, `phase5.test.mjs`, `phase6.test.mjs`, and `phase7.test.mjs` still check for `PHASE 7 — PROVISIONAL CASH-UP`. In Phase 8 the Cash Office header is `PHASE 8 — PAYMENT EVIDENCE CONTROL` while its Phase 7 provisional worksheet remains present. The supplied tests verify that the old features remain.
+`Core endpoints require Cash Office, cross-branch guard and other employee`
 
-## Upload into GitHub `mos00000006/maliksgroupza` on the `main` branch
+The failing test expects Phase 8 payment-evidence endpoints and independent-review controls in `maliks-operations/src/core.mjs`. The Core source printed in the test failure is the older Phase 7 version. The Phase 8 tests and payment-evidence domain file are already present; only `core.mjs` is out of sync.
 
-Replace or add exactly these files, preserving the shown paths:
+## Simple GitHub fix (recommended)
 
-- `maliks-operations/src/payment-evidence-domain.mjs` — **add** (required).
-- `maliks-operations/tests/phase4.test.mjs` — **replace**.
-- `maliks-operations/tests/phase5.test.mjs` — **replace**.
-- `maliks-operations/tests/phase6.test.mjs` — **replace**.
-- `maliks-operations/tests/phase7.test.mjs` — **replace**.
-- `maliks-operations/sql/phase8_payment_evidence.sql` — **add only if missing**; do not manually run against your real DB without a backup.
+1. Open your `mos00000006/maliksgroupza` repository on GitHub.
+2. Go to `maliks-operations/src/core.mjs`.
+3. Click **Edit** (pencil icon).
+4. Open this package's `maliks-operations/src/core.mjs` in a text editor; copy **all its contents** and replace the contents of the file on GitHub.
+5. Commit directly to the `main` branch, or make a pull request if you prefer review.
+6. Check that `maliks-operations/src/payment-evidence-domain.mjs` and `maliks-operations/sql/phase8_payment_evidence.sql` exist in your repo. Do **not** run a new migration solely to fix this test; ensure the phase 8 migration is applied before enabling the Phase 8 feature in production.
+7. Run a **new** `Deploy Maliks Department Applications` workflow run and confirm the Worker names only after verifying the target Workers are correct.
 
-Do **not** replace `src/frontend.mjs`, `src/core.mjs`, `src/quote-domain.mjs`, `scripts/make-config.mjs`, or your management Hub. The fix preserves the quotation lookup changes and the earlier Cloudflare domain correction.
+If you use git locally and your existing file matches the Phase 7 baseline, `git apply maliks-phase8-core-only.patch` can apply the narrower insertion without replacing the entire file.
 
-GitHub UI: open the path to each file > pencil **Edit** > replace file contents > **Commit changes**. To add the missing module, go to `maliks-operations/src` > **Add file** > **Upload files** > select `payment-evidence-domain.mjs` > commit. Repeat in `sql` only if the SQL is absent.
+## What changed in Core
 
-## Pre-deployment checks (important)
+- Added the Phase 8 payment-evidence domain import.
+- Added Cash Office-only observation listing, history and write handlers.
+- Enforced assigned branch, different preparer/reviewer, immutable evidence and idempotent writes.
+- Added the three `/v1/payment-evidence` routes.
+- Updated Cash Office's session mode string from Phase 7 to Phase 8.
 
-In GitHub, also verify:
+**No actual money, invoice, stock or Dispatch posting is enabled.** This is manual payment-evidence control only.
 
-- `maliks-operations/src/core.mjs` includes Phase 8 evidence endpoints and imports the module.
-- `maliks-operations/package.json` contains the `migrate:phase8` script.
-- `.github/workflows/deploy-maliks-operations.yml` runs `npm run migrate:phase8` **after npm test and config, before deploy:core**.
-- The Phase 4–6 migration scripts remain present.
+## Local verification
 
-If any check is missing, **do not deploy yet**. It means the Phase 8 upload was incomplete beyond the five failing tests; merge the missing deployment file(s) from the full Phase 8 package rather than replacing the workflow blindly.
+A reconstructed Phase 8 project, with previous four test-expectation updates, this Core file, and the existing quotation lookup test was run with `npm test` on Node.js. Result: **87 tests passed, 0 failed**. This is not a test of your deployed Cloudflare account or your exact current GitHub branch.
 
-## Verify safely
-
-1. Commit the source, test and SQL files.
-2. Run **Deploy Maliks Department Applications** as a **new run**; verify the Worker names and tick the confirmation box (do not re-run a previous failed job).
-3. The `npm test` job should now advance. If tests fail after importing the missing module, send the new **first failing test**: your repository may differ from the local reconstructed Phase 8 code.
-4. Before applying the Phase 8 database migration in production, back up D1 and confirm the migration is safe for your data. Prefer staging first.
-
-**Financial safety:** Phase 8 is only manual payment-document evidence; it does not confirm a payment, issue a tax invoice or release Dispatch. Do not enable paid status or dispatch on these records.
+Avoid replacing `src/frontend.mjs`, `src/quote-domain.mjs` or other application files for this fix. If `core.mjs` has newer changes than the failing log, merge the three Phase 8 route additions rather than overwriting new features.

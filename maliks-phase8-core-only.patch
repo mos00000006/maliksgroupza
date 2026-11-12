@@ -1,0 +1,103 @@
+--- a/maliks-operations/src/core.mjs
++++ b/maliks-operations/src/core.mjs
+@@ -6,6 +6,7 @@
+ import {validateTenderPreparation,tenderListStatement,tenderForClient} from './tender-domain.mjs';
+ import {quoteId} from './quote-domain.mjs';
+ import {cashupPreviewStatement,cashupForClient,CASHUP_MODE} from './cashup-domain.mjs';
++import {validateEvidenceInput,evidenceListStatement,evidenceHistoryStatement,evidenceForClient,EVIDENCE_MODE} from './payment-evidence-domain.mjs';
+ 
+ const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
+ const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
+@@ -287,6 +288,73 @@
+     projections:results.map(cashupForClient)});
+ }
+ 
++// Phase 8: manual documentary EVIDENCE observations ONLY. Never post receipts,
++// change quotation status, issue an invoice, clear a cash-up or release dispatch.
++async function listPaymentEvidence(req,env,context){
++  if(context.app!=='cashoffice')return denied('Cash Office evidence access required.');
++  const branch=matchingBranch(context.branches,new URL(req.url).searchParams.get('branch'));
++  if(!branch)return denied('Select an assigned branch.');
++  const query=evidenceListStatement(branch);
++  const {results}=await env.DB.prepare(query.sql).bind(...query.params).all();
++  return result({branch,mode:EVIDENCE_MODE,paid:false,bank_verified:false,dispatch_released:false,
++    observations:results.map(evidenceForClient)});
++}
++async function paymentEvidenceHistory(req,env,context){
++  if(context.app!=='cashoffice')return denied('Cash Office evidence access required.');
++  const params=new URL(req.url).searchParams;
++  const branch=matchingBranch(context.branches,params.get('branch'));
++  if(!branch)return denied('Branch access denied.');
++  let query;
++  try{query=evidenceHistoryStatement(branch,Number(params.get('preparation_id')),params.get('method'));}
++  catch(error){return denied(error.message,400);}
++  const {results}=await env.DB.prepare(query.sql).bind(...query.params).all();
++  return result({branch,mode:EVIDENCE_MODE,observations:results.map(evidenceForClient),paid:false});
++}
++async function recordPaymentEvidence(req,env,context){
++  if(context.app!=='cashoffice')return denied('Only Cash Office can record evidence observations.');
++  const origin=req.headers.get('origin');
++  if(!origin||origin!==req.headers.get('x-maliks-original-origin'))return denied('Invalid request origin.');
++  const raw=await req.text();
++  if(raw.length>2500)return denied('Evidence observation too large.',413);
++  let body,v;
++  try{body=JSON.parse(raw);v=validateEvidenceInput(body);}
++  catch(error){return denied(error.message||'Invalid evidence observation.',400);}
++  const branch=matchingBranch(context.branches,body.branch);
++  if(!branch)return denied('Branch access denied.');
++  const email=context.member.email.toLowerCase();
++  const prep=await env.DB.prepare(`SELECT id,branch,quotation_number,prepared_by_email,card_cents,eft_cents
++    FROM maliks_tender_preparations WHERE id=? AND lower(branch)=lower(?)`)
++    .bind(v.preparation_id,branch).first();
++  if(!prep)return denied('Preparation not found in your assigned branch.',404);
++  if(prep.prepared_by_email.toLowerCase()===email)return denied('Independent Cash Office review required.',403);
++  const expected=v.method==='CARD'?prep.card_cents:prep.eft_cents;
++  if(!Number.isSafeInteger(expected)||expected<=0)return denied('No allocation for this payment type.',409);
++  if(v.decision==='DOCUMENT_CHECKED'&&v.observed_amount_cents!==expected)
++    return denied('Amount differs. Flag for follow-up rather than marking document checked.',409);
++  const now=new Date().toISOString();
++  // Select-guard enforces branch, different reviewer, immutable tender amount.
++  // OR IGNORE protects request retries without allowing a new conflicting row.
++  await env.DB.prepare(`INSERT OR IGNORE INTO maliks_payment_evidence_observations
++    (request_id,preparation_id,branch,quotation_number,method,decision,source,source_reference,
++     expected_amount_cents,observed_amount_cents,note,reviewed_by_email,reviewed_by_name,status,created_at)
++    SELECT ?,p.id,p.branch,p.quotation_number,?,?,?,?,?,?,?,?,?,'OBSERVATION_ONLY',?
++    FROM maliks_tender_preparations p
++    WHERE p.id=? AND lower(p.branch)=lower(?) AND lower(p.prepared_by_email)<>lower(?)
++      AND (CASE WHEN ?='CARD' THEN p.card_cents ELSE p.eft_cents END)=?`)
++    .bind(v.request_id,v.method,v.decision,v.source,v.source_reference,expected,v.observed_amount_cents,
++      v.note,email,context.member.name,now,v.preparation_id,branch,email,v.method,expected).run();
++  const saved=await env.DB.prepare('SELECT * FROM maliks_payment_evidence_observations WHERE request_id=?')
++    .bind(v.request_id).first();
++  if(!saved)return denied('Evidence observation was not saved.',409);
++  if(saved.preparation_id!==v.preparation_id||saved.branch.toLowerCase()!==branch.toLowerCase()||
++    saved.reviewed_by_email.toLowerCase()!==email||saved.method!==v.method||
++    saved.decision!==v.decision||saved.source!==v.source||saved.source_reference!==v.source_reference||
++    saved.observed_amount_cents!==v.observed_amount_cents||saved.expected_amount_cents!==expected||saved.note!==v.note)
++    return denied('Evidence request identifier was already used with different details.',409);
++  return result({observation:evidenceForClient(saved),mode:EVIDENCE_MODE,paid:false,
++    bank_verified:false,invoice_created:false,dispatch_released:false});
++}
++
+ // Department shift register. The schema is installed separately by the Phase 4 SQL.
+ // No shift endpoint marks quotations paid, creates an invoice or alters inventory.
+ async function readShiftBody(req){
+@@ -380,7 +448,7 @@
+       const context={...access,app:auth.app};
+       if(path==='/v1/session'&&req.method==='GET')return result({
+         app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
+-        mode:auth.app==='tills'?'PHASE_6_TENDER_PREPARATION':auth.app==='cashoffice'?'PHASE_7_PROVISIONAL_CASHUP':'QUOTATIONS',live_payment:false,stock_posting:false,
++        mode:auth.app==='tills'?'PHASE_6_TENDER_PREPARATION':auth.app==='cashoffice'?'PHASE_8_EVIDENCE_CONTROL':'QUOTATIONS',live_payment:false,stock_posting:false,
+       });
+       if(path==='/v1/catalogue'&&req.method==='GET')return await catalogue(req,env,context);
+       if(path==='/v1/quotes'&&req.method==='GET')return await listQuotes(req,env,context);
+@@ -392,6 +460,9 @@
+       if(path==='/v1/till-reviews'&&req.method==='GET')return await reviewHistory(req,env,context);
+       if(path==='/v1/till-reviews'&&req.method==='POST')return await recordShiftReview(req,env,context);
+       if(path==='/v1/cashup-preview'&&req.method==='GET')return await listCashupPreviews(req,env,context);
++      if(path==='/v1/payment-evidence'&&req.method==='GET')return await listPaymentEvidence(req,env,context);
++      if(path==='/v1/payment-evidence/history'&&req.method==='GET')return await paymentEvidenceHistory(req,env,context);
++      if(path==='/v1/payment-evidence'&&req.method==='POST')return await recordPaymentEvidence(req,env,context);
+       if(path==='/v1/tender-preparations'&&req.method==='GET')return await listTenderPreparations(req,env,context);
+       if(path==='/v1/tender-preparations'&&req.method==='POST')return await recordTenderPreparation(req,env,context);
+       return denied('Unknown operation.',404);
