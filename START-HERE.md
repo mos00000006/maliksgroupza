@@ -1,82 +1,63 @@
-# Maliks Operations — Phase 5: Cash Office Shift Review & Exception Queue
+# Maliks Operations — Phase 6: Tender Allocation Preparation (NOT LIVE PAYMENT)
 
-This is the **next incremental update after Phase 4** for the four independent departmental Workers, **not** the management Hub. It is not a live payment, invoice, stock, bank-deposit or cash-up reconciliation feature.
+This is the next incremental upgrade for the **four separate department Workers**, based on the **Phase 5 source**. It does not modify or deploy the main `maliks-group-hub` Worker. It introduces an accountable *tender preparation* record: Cash, Card and EFT allocations against an existing quotation and cashier shift, visible to Cash Office. The feature does **NOT** receive money, verify EFT/card authorisations, mark a quotation paid, create tax invoices, release stock or dispatch orders, or produce a paid receipt.
 
-## What you get
+## Features
 
-- **Cash Office** shows 75 latest branch shifts, including counts of closed shifts awaiting review and shifts flagged for follow-up.
-- Cash Office can open a **closed** shift and record an independent observation: **Declaration checked (not reconciled)** or **Flag for follow-up**. A flag must include a reason (10–400 characters).
-- Reviews have reviewer identity, time, comment, decision and immutable history. Additional review events do not overwrite previous ones; the most recent decision is shown in the queue.
-- A Cash Office user **cannot review a shift they themselves opened**. There is no edit to the cashier's opening float or closing count.
-- **Tills:** retains Phase 4 shift register and Phase 3 quotation search; no new tills transaction capability.
-- **POS:** retains Phase 2 quotation workflow. **Dispatch:** remains non-transactional. PowerBuild logo remains.
-- All reads/writes are branch-restricted on the central API; separate Cloudflare Access AUDs remain in use.
+- **Maliks Tills:** Find an existing quotation, check cashier's OPEN till shift, calculate cash/card/EFT allocation and change, save an immutable `PREPARATION_ONLY` record with an idempotent request ID. Total allocations must match the server-saved quotation exactly. Enter only terminal approval references, never card numbers or CVV.
+- **Maliks Cash Office:** Read-only branch-scoped queue of tender preparations. Existing independent reviews of closed shift declarations remain in place.
+- **Maliks POS:** Existing quotations unchanged. **Dispatch:** Unchanged and not activated. Neither application may use the tender preparation API.
+- **Private Core and D1:** The private Core verifies Cloudflare Access JWT and branch roles; only an open till shift owned by the signed-in cashier can save a preparation. One immutable preparation per quotation. Duplicate retries with the same request ID can be retrieved, with no duplicate records.
+- **Visibility:** Explicit *NOT PAID* labels on the screen and API; quotations remain in their original status, and no payment posting happens.
 
-## Before installing (important)
+## Important prerequisites
 
-1. **Verify Phase 4 was actually deployed** and its `maliks_till_shift_register` D1 table exists. An earlier chat did not confirm the Phase 4 deployment. If Phase 4 was never deployed, apply the previous Phase 4 package first, including its database migration, and confirm that Tills can display its shift register. **Do not deploy Phase 5's Core without its schema.**
-2. Check that `MALIKS_GROUP_D1_DATABASE_ID` points to the existing `maliks-group-hub-db`. Do not recreate the shared database.
-3. Take a restorable D1 backup or Time Travel bookmark, test in a staging environment if available, and deploy when no one is relying on prototype departmental apps.
-4. Confirm names of the five department Workers. They should not overwrite the existing `maliks-group-hub` Worker.
+1. Verify **Phase 4 Till Shift Register** and **Phase 5 Cash Office Reviews** actually deployed, **including both D1 SQL migrations**. Past chat messages did **not** confirm their live deployment. **Do not skip these phases**. If unsure, check that Tills can open/close a shift and Cash Office shows `Shift Review & Exceptions`.
+2. Check the Phase 5 code is the baseline in GitHub (or compare/merge if your branch has custom changes). This package includes complete replacement source files for Phase 6, not a replacement Maliks management Hub.
+3. Back up the existing `maliks-group-hub-db` D1 database and verify it is recoverable. Prefer a staging deployment before modifying the production DB. Stop if the database ID, Worker names, branch mapping or Access AUDs differ from those expected.
+4. These are *development/test* records in the shared D1. Do **not** enter real payment card details, confidential banking information, actual tender references, or live customer transactions. Use test quotations and test shift declarations only.
 
-## GitHub files in this ZIP
+## GitHub files
 
-Place these files at the exact paths in `mos00000006/maliksgroupza` — do **not** create another `maliks-operations` directory inside it.
-
-| Path | Action |
+| Path relative to repository root | Action |
 |---|---|
-| `maliks-operations/src/core.mjs` | Replace; adds private Cash Office review API and branch enforcement |
-| `maliks-operations/src/frontend.mjs` | Replace; adds Cash Office queue, review form and history |
-| `maliks-operations/src/review-domain.mjs` | Add; validations and parameterised queries |
-| `maliks-operations/sql/phase5_cash_office_reviews.sql` | Add; creates one table and two indexes |
-| `maliks-operations/package.json` | Replace; adds `migrate:phase5` command |
-| `maliks-operations/tests/phase4.test.mjs` | Replace; updates Cash Office screen expectations |
-| `maliks-operations/tests/phase5.test.mjs` | Add; tests review validation, role isolation and routes |
-| `.github/workflows/deploy-maliks-operations.yml` | **Reference file only**. Prefer adding the single Phase 5 step below instead of overwriting any custom workflow changes. |
+| `maliks-operations/src/core.mjs` | Replace with Phase 6 version; new protected Core endpoints |
+| `maliks-operations/src/frontend.mjs` | Replace; Cash/Card/EFT preparation and Cash Office read-only queue |
+| `maliks-operations/src/tender-domain.mjs` | Add; amounts, references and branch-scoped query validation |
+| `maliks-operations/sql/phase6_tender_preparations.sql` | Add; additive, guarded D1 schema |
+| `maliks-operations/package.json` | Replace; adds `migrate:phase6` command |
+| `maliks-operations/tests/phase4.test.mjs` | Replace; preserves Phase 4 tests with updated phase labels |
+| `maliks-operations/tests/phase5.test.mjs` | Replace; preserves Phase 5 tests with updated phase labels |
+| `maliks-operations/tests/phase6.test.mjs` | Add; Phase 6 validation, scoping, and API forwarding tests |
+| `.github/workflows/deploy-maliks-operations.yml` | Reference workflow; merge only the Phase 6 step if you customized yours |
 
-Do **not** replace `maliks-operations/scripts/make-config.mjs` (your earlier working Cloudflare domain fix), `src/powerbuild-logo.mjs`, any repository secrets or any Maliks Group Hub source files.
+**Do not edit** the main Hub's source, main Hub deployment workflow, existing secrets, Cloudflare Access applications, `src/powerbuild-logo.mjs`, or your working `scripts/make-config.mjs`.
 
-## GitHub workflow: add ONE new step
+## Workflow modification
 
-In `.github/workflows/deploy-maliks-operations.yml`, find the existing lines around Phase 4:
-
-```yaml
-      - name: Apply additive till-shift D1 schema (Phase 4)
-        run: npm run migrate:phase4
-      - name: Deploy central API — private Worker
-        run: npm run deploy:core
-```
-
-Insert between them:
+In `.github/workflows/deploy-maliks-operations.yml`, after the existing Phase 5 migration and **before** `npm run deploy:core`, insert:
 
 ```yaml
-      - name: Apply additive cash office review D1 schema (Phase 5)
-        run: npm run migrate:phase5
+      - name: Apply additive tender preparations D1 schema (Phase 6)
+        run: npm run migrate:phase6
 ```
 
-Both migrations must run **after** `npm run config`, **before** Core deployment. Phase 5 uses `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS`. It does not update, delete or overwrite previously posted records.
+Verify the order is `npm test` -> `npm run config` -> Phase 4 migration -> Phase 5 migration -> **Phase 6 migration** -> Core -> POS -> Tills -> Cash Office -> Dispatch.
 
-If Phase 4's migration step is missing, **stop and install Phase 4 correctly first**. Do not skip the Phase 4 database requirements.
+Because the schema is additive (`CREATE TABLE/INDEX IF NOT EXISTS`), reapplying it does not clear records. The database includes constraints against mismatched tender totals and a unique index to prevent two preparations for the same quotation.
 
-## Run and test
+## Deploy and test
 
-1. Commit these changes to GitHub. Confirm `npm test` is green (52 passing local tests in this package).
-2. GitHub → Actions → **Deploy Maliks Department Applications** → **Run workflow**. Select `main`, confirm Worker names (these are **updates** to your departmental Workers), tick the checkbox and start a **new run**.
-3. Check Phase 4 and Phase 5 migrations are green, followed by Core, POS, Tills, Cash Office and Dispatch deployments.
-4. Open `https://maliks-cash-office.moyanamoses006.workers.dev/` and refresh (Ctrl+Shift+R). Look for **PHASE 5 — CASH OFFICE REVIEWS**.
-5. Using **separate test accounts**, open and close a till shift in Maliks Tills as a test cashier (Phase 4); sign in as a *different* Cash Office reviewer at the same branch. Confirm the closed shift appears as **Not reviewed**.
-6. Choose **Review**, select **Flag for follow-up** and write a test reason. Save, refresh and confirm the flagged status and immutable review history. Add a second review noting the outcome and confirm the first event remains in history.
-7. Verify a different branch cannot see the record; the original cashier cannot review their own shift; and none of the applications now show a real payment/invoice/dispatch control.
+1. Upload/replace the files in GitHub at the exact paths above. Do not add a nested extra `maliks-operations` folder. Commit them together.
+2. Run tests in the `maliks-operations` folder (`npm install` and `npm test`). This package passed **62 Node tests**; the generated browser modules passed `node --check`; SQL schema and insert guards passed local SQLite checks.
+3. GitHub → Actions → **Deploy Maliks Department Applications** → **Run workflow** → choose `main` → confirm the existing department Worker names (they are existing apps being updated) → tick the confirmation checkbox → start a **new** run.
+4. Look for green GitHub steps: `migrate:phase4`, `migrate:phase5`, `migrate:phase6`, deploy Core, POS, Tills, Cash Office, Dispatch. Any failed step means do not test live workflows yet.
+5. In Tills (`https://maliks-tills.moyanamoses006.workers.dev/`), open a **test** shift, look up a **test** quote, and find **Prepare tender allocation — NOT PAYMENT**. Use dummy card/EFT references. Save a valid exact-total split; confirm it appears in **My tender preparations — NOT PAID**.
+6. In Cash Office (`https://maliks-cash-office.moyanamoses006.workers.dev/`), confirm the same preparation is visible in the assigned branch's read-only queue and other branches cannot see it. Ensure there is no payment receipt, paid quote, tax invoice, dispatch release, or stock movement.
+7. Try an over-allocated split and a second preparation for the same quote; both should be rejected. Do not test with production financial data.
 
-**Do not enter live tender, customer transactions or real till cash counts.** This prototype stores review and shift records in your shared database, but has no accounting/reconciliation foundation.
+## What Phase 7 needs before financial go-live
 
-## Technical checks
+Actual payment posting needs an atomic journal, payment reference verification and POS device integrations, invoice numbering and VAT documents, tender reversal/approval controls, expected cash-up computation, bank/EFT reconciliation, inventory posting and dispatch release. None of those are implemented here. Until then, Phase 6 is a **controlled preparation/training function only**, not a POS payment system.
 
-- 52 Node.js tests passed.
-- Source and embedded browser scripts passed `node --check`.
-- SQL migrations applied twice on SQLite without replacing data; tested request-id retries, branch isolation, checks against open shifts and self-review, and latest-status query.
-- No Cloudflare live deployment or actual production data verification was performed by this package.
-
-## Next architectural milestone
-
-Implement a production payment ledger and cashier reconciliation only after agreeing on transaction states, tender types, receipt/invoice numbering, VAT posting, refunds/reversals, closing balance calculations, atomic writes, and stock/dispatch release rules. That needs a separate fully tested release.
+No live Cloudflare deployment or production database test was performed to prepare this ZIP.

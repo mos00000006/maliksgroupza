@@ -32,16 +32,16 @@ test('Recent statuses and history queries are branch-scoped, parameterized and b
     id:2,shift_id:3,decision:'FLAGGED_FOR_FOLLOWUP',note:'Count differs',reviewed_by_name:'Bob',created_at:'time'
   });
 });
-test('Cash Office clearly shows phase 5 review and audit controls, and disclaims reconciliation',async()=>{
+test('Cash Office retains phase 5 review and audit controls, and disclaims reconciliation',async()=>{
   const html=await page('cashoffice');
-  for(const text of ['PHASE 5 — CASH OFFICE REVIEWS','Shift Review & Exceptions','awaiting review','flagged for follow-up',
+  for(const text of ['PHASE 6 — CASH OFFICE VIEW','Shift Review & Exceptions','awaiting review','flagged for follow-up',
     'Declaration checked (not reconciled)','Record review (audit history)','Review history','/api/till-reviews','review_status',
     'This review does not confirm payments'])assert.ok(html.includes(text),text);
   assert.match(html,/No sales, deposits, invoices or stock balances are posted/);
 });
-test('Tills is still Phase 4 and no financial transaction is added',async()=>{
+test('Tills displays Phase 6 preparation but no financial payment submission',async()=>{
   const html=await page('tills');
-  assert.match(html,/PHASE 4 — TILL SHIFTS/);
+  assert.match(html,/PHASE 6 — TENDER PREPARATION/);
   assert.match(html,/Cash change calculator — TRAINING ONLY/);
   assert.doesNotMatch(html,/Confirm payment and print receipt|Record payment/);
 });

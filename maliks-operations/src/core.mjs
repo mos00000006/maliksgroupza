@@ -3,6 +3,8 @@ import { APPS, canUseApp, allowedBranches, matchingBranch, limitSearch } from '.
 import { validateQuoteLines, calculateQuote, canonicalQuotePayload, quoteNumber, quoteListStatement, quoteLookupStatement } from './quote-domain.mjs';
 import { validateRequestId, validateTillCode, validateMoneyCents, validateCloseNote, validateShiftId, shiftForClient, shiftListStatement } from './shift-domain.mjs';
 import {validateReviewDecision,validateReviewNote,latestReviewsStatement,reviewHistoryStatement,reviewForClient} from './review-domain.mjs';
+import {validateTenderPreparation,tenderListStatement,tenderForClient} from './tender-domain.mjs';
+import {quoteId} from './quote-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
@@ -217,6 +219,59 @@ async function recordShiftReview(req,env,context){
   return result({review:reviewForClient(saved),cash_reconciliation:false});
 }
 
+// Phase 6 tender PREPARATION: never records payment, invoice, settlement, or stock movement.
+// A quote has at most one immutable practice allocation, and only a signed-in
+// cashier with an OPEN shift for the same branch can prepare it.
+async function listTenderPreparations(req,env,context){
+  if(!['tills','cashoffice'].includes(context.app))return denied('Tender preparation access denied.');
+  const branch=matchingBranch(context.branches,new URL(req.url).searchParams.get('branch'));
+  if(!branch)return denied('Branch access denied.');
+  const statement=tenderListStatement(context.app,branch,context.member.email);
+  const {results}=await env.DB.prepare(statement.sql).bind(...statement.params).all();
+  return result({branch,preparations:results.map(tenderForClient),payment_recorded:false,dispatch_released:false});
+}
+async function recordTenderPreparation(req,env,context){
+  if(context.app!=='tills')return denied('Only a Tills cashier can prepare tender allocations.');
+  const origin=req.headers.get('origin');
+  if(!origin||origin!==req.headers.get('x-maliks-original-origin'))return denied('Invalid request origin.');
+  const raw=await req.text();
+  if(raw.length>2500)return denied('Preparation too large.',413);
+  let body;
+  try{body=JSON.parse(raw);if(!body||typeof body!=='object'||Array.isArray(body))throw Error();}
+  catch{return denied('Invalid tender preparation.',400);}
+  const branch=matchingBranch(context.branches,body.branch);
+  if(!branch)return denied('Branch access denied.');
+  const id=quoteId(body.quotation_number);
+  if(!id)return denied('Valid quotation number required.',400);
+  const quote=await env.DB.prepare(`SELECT id,branch,total_cents,status FROM till_quotation_submissions
+    WHERE id=? AND lower(branch)=lower(?) LIMIT 1`).bind(id,branch).first();
+  if(!quote)return denied('Quotation not found in your assigned branch.',404);
+  let v;
+  try{v=validateTenderPreparation(body,quote.total_cents);}
+  catch(error){return denied(error.message,400);}
+  const email=context.member.email.toLowerCase();
+  // Atomic INSERT SELECT checks open-shift ownership, branch and unchanged
+  // quote total at the moment of writing, rather than trusting browser claims.
+  await env.DB.prepare(`INSERT OR IGNORE INTO maliks_tender_preparations
+    (request_id,quotation_id,quotation_number,branch,shift_id,prepared_by_email,prepared_by_name,
+     cash_applied_cents,cash_received_cents,card_cents,card_reference,eft_cents,eft_reference,
+     change_cents,quote_total_cents,status,created_at)
+    SELECT ?,q.id,?,q.branch,s.id,?,?,?,?,?,?,?,?,?,q.total_cents,'PREPARATION_ONLY',?
+    FROM till_quotation_submissions q JOIN maliks_till_shift_register s
+      ON s.id=? AND lower(s.branch)=lower(q.branch) AND lower(s.opened_by_email)=lower(?) AND s.status='OPEN'
+    WHERE q.id=? AND lower(q.branch)=lower(?) AND q.total_cents=?`)
+    .bind(v.request_id,quoteNumber(id),email,context.member.name,
+      v.cash_applied_cents,v.cash_received_cents,v.card_cents,v.card_reference,v.eft_cents,v.eft_reference,
+      v.change_cents,new Date().toISOString(),v.shift_id,email,id,branch,v.quote_total_cents).run();
+  const saved=await env.DB.prepare('SELECT * FROM maliks_tender_preparations WHERE request_id=?').bind(v.request_id).first();
+  if(!saved)return denied('An open shift is required, or this quotation already has a preparation.',409);
+  if(saved.quotation_id!==id || saved.branch.toLowerCase()!==branch.toLowerCase() || saved.shift_id!==v.shift_id ||
+     saved.prepared_by_email.toLowerCase()!==email ||
+     ['cash_applied_cents','cash_received_cents','card_cents','card_reference','eft_cents','eft_reference','change_cents','quote_total_cents'].some(k=>saved[k]!==v[k]))
+    return denied('Preparation request identifier already used.',409);
+  return result({preparation:tenderForClient(saved),payment_recorded:false,invoice_created:false,dispatch_released:false});
+}
+
 // Department shift register. The schema is installed separately by the Phase 4 SQL.
 // No shift endpoint marks quotations paid, creates an invoice or alters inventory.
 async function readShiftBody(req){
@@ -310,7 +365,7 @@ export default {
       const context={...access,app:auth.app};
       if(path==='/v1/session'&&req.method==='GET')return result({
         app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
-        mode:auth.app==='tills'?'PHASE_4':auth.app==='cashoffice'?'PHASE_5_REVIEW':'QUOTATIONS',live_payment:false,stock_posting:false,
+        mode:auth.app==='tills'?'PHASE_6_TENDER_PREPARATION':auth.app==='cashoffice'?'PHASE_6_PREPARATION_REVIEW':'QUOTATIONS',live_payment:false,stock_posting:false,
       });
       if(path==='/v1/catalogue'&&req.method==='GET')return await catalogue(req,env,context);
       if(path==='/v1/quotes'&&req.method==='GET')return await listQuotes(req,env,context);
@@ -321,6 +376,8 @@ export default {
       if(path==='/v1/till-shifts/close'&&req.method==='POST')return await closeTillShift(req,env,context);
       if(path==='/v1/till-reviews'&&req.method==='GET')return await reviewHistory(req,env,context);
       if(path==='/v1/till-reviews'&&req.method==='POST')return await recordShiftReview(req,env,context);
+      if(path==='/v1/tender-preparations'&&req.method==='GET')return await listTenderPreparations(req,env,context);
+      if(path==='/v1/tender-preparations'&&req.method==='POST')return await recordTenderPreparation(req,env,context);
       return denied('Unknown operation.',404);
     }catch(error){
       console.error('Maliks Core request failed',error?.message||'Unknown error');
