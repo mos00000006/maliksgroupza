@@ -333,6 +333,14 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       setPages(result.pages || 1);
       setTotal(result.total || 0);
       setCanManage(Boolean(result.can_manage));
+      if (result.can_manage) {
+        void fetch("/api/catalogue/cleanup")
+          .then(apiResult)
+          .then((summary) => {
+            if (summary.counts) setCleanupCounts(summary.counts);
+          })
+          .catch(() => undefined);
+      }
     } catch (caught) {
       if (id !== requestId.current) return;
       setError(caught instanceof Error ? caught.message : "Could not load the catalogue.");
@@ -377,10 +385,6 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     setCleanupOpen(true);
     void refreshCleanupSummary();
   };
-
-  useEffect(() => {
-    if (canManage) void refreshCleanupSummary();
-  }, [canManage, refreshCleanupSummary]);
 
   const getLeafletTurn = useCallback((direction: -1 | 1): LeafletTurnState | null => {
     if (!leafletPages.length) return null;
