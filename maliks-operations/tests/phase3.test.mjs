@@ -20,7 +20,7 @@ test('POS quotation number lookup also filters by current salesperson',()=>{
   assert.deepEqual(params,[31,'Buster Build','sales@example.test']);
 });
 test('invalid quotation IDs and unauthorised department are denied',()=>{
-  for(const invalid of [null,'','Q-0','Q--1','Q-1 OR 1=1','100','Q-1.0','Q-999999999999999999']){
+  for(const invalid of [null,'','Q-0','Q--1','Q-1 OR 1=1','Q-ABC','Q-1.0','Q-999999999999999999']){
     assert.throws(()=>quoteLookupStatement('tills','Buster Build','user@example.test',invalid),/quotation number/i);
   }
   assert.throws(()=>quoteLookupStatement('dispatch','Buster Build','user@example.test','Q-1'),/Not authorised/);

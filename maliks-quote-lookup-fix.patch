@@ -1,0 +1,55 @@
+--- a/maliks-operations/src/quote-domain.mjs
++++ b/maliks-operations/src/quote-domain.mjs
+@@ -4,8 +4,10 @@
+   return `Q-${String(id).padStart(8,'0')}`;
+ }
+ export function quoteId(input) {
+-  const text=String(input||'').trim().toUpperCase();
+-  const match=/^Q-(\d{1,12})$/.exec(text);
++  const text=String(input??'').trim().toUpperCase();
++  // Accept Q-00000001, Q00000001, q000000001 or just 1.
++  // Always resolve to the same numeric, branch-scoped quotation ID.
++  const match=/^(?:Q-?)?(\d{1,12})$/.exec(text);
+   const id=match?Number(match[1]):Number.NaN;
+   return Number.isSafeInteger(id)&&id>0?id:null;
+ }
+--- a/maliks-operations/src/frontend.mjs
++++ b/maliks-operations/src/frontend.mjs
+@@ -253,8 +253,13 @@
+  }
+  async function exactLookup(){
+    const field=E('quote-number'),output=E('exact-result');if(!field||!output)return;
+-   const number=field.value.trim().toUpperCase();output.replaceChildren();
+-   if(!/^Q-\\d{1,12}$/.test(number)){output.append(h('div','Use the quotation number, for example Q-00000001.','error'));return;}
++   const typed=field.value.trim().toUpperCase();output.replaceChildren();
++   // Normalise pasted, lowercase, or unhyphenated numbers before lookup.
++   const digits=/^(?:Q-?)?(\\d{1,12})$/.exec(typed);
++   const id=digits?Number(digits[1]):0;
++   if(!Number.isSafeInteger(id)||id<=0){output.append(h('div','Enter a valid quotation number (e.g. Q-00000001, Q00000001 or 1).','error'));return;}
++   const number='Q-'+String(id).padStart(8,'0');
++   field.value=number;
+    const selected=branch;output.append(h('p','Looking up '+number+'…','muted'));
+    try{
+      const data=await api('/api/quotes/find?branch='+encodeURIComponent(selected)+'&number='+encodeURIComponent(number));
+--- a/maliks-operations/tests/phase3.test.mjs
++++ b/maliks-operations/tests/phase3.test.mjs
+@@ -20,7 +20,7 @@
+   assert.deepEqual(params,[31,'Buster Build','sales@example.test']);
+ });
+ test('invalid quotation IDs and unauthorised department are denied',()=>{
+-  for(const invalid of [null,'','Q-0','Q--1','Q-1 OR 1=1','100','Q-1.0','Q-999999999999999999']){
++  for(const invalid of [null,'','Q-0','Q--1','Q-1 OR 1=1','Q-ABC','Q-1.0','Q-999999999999999999']){
+     assert.throws(()=>quoteLookupStatement('tills','Buster Build','user@example.test',invalid),/quotation number/i);
+   }
+   assert.throws(()=>quoteLookupStatement('dispatch','Buster Build','user@example.test','Q-1'),/Not authorised/);
+--- a/maliks-operations/tests/phase8.test.mjs
++++ b/maliks-operations/tests/phase8.test.mjs
+@@ -113,7 +113,7 @@
+   const page=await render('cashoffice');
+   const script=page.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1];
+   assert.ok(script);
+-  assert.ok(script.includes(String.raw`/^Q-\d{1,12}$/`),'Quotation lookup requires a numeric ID');
++  assert.ok(script.includes(String.raw`/^(?:Q-?)?(\d{1,12})$/`),'Quotation lookup requires a numeric ID');
+   assert.ok(script.includes(String.raw`/^(?:0|[1-9]\d{0,8})(?:\.\d{1,2})?$/`),'Cash preview input uses strict decimals');
+   assert.ok(script.includes(String.raw`/^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/`),'Phase 6 input retains strict decimals');
+ });

@@ -5,12 +5,12 @@ const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c =>
 const APPS={
   pos:{name:'Maliks POS',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
   tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Phase 6: save tender allocation PREPARATIONS for quotations during an open shift. NOT A LIVE PAYMENT SYSTEM: no payment, tax invoice, cash-up or stock movement is recorded.'},
-  cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Phase 7: provisional cash-up worksheet using UNVERIFIED tender preparations and cashier declarations. No confirmed payments, bank reconciliation or approvals.'},
+  cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Phase 8: independent CARD/EFT evidence observations and exceptions, plus Phase 7 provisional cash-up. Manual document checks are NOT payment settlement or reconciliation. Phase 7 uses UNVERIFIED tender preparations.'},
   dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',hint:'Dispatch is a separate secured application. Picking, checking, POD and stock posting will be connected in a later phase.'},
 };
 function page(app){
  const d=APPS[app];
- const releaseLabel=app==='dispatch'?'PHASE 1 — CONTROLLED RELEASE':app==='tills'?'PHASE 6 — TENDER PREPARATION':app==='cashoffice'?'PHASE 7 — PROVISIONAL CASH-UP':'PHASE 2 — QUOTATION RELEASE';
+ const releaseLabel=app==='dispatch'?'PHASE 1 — CONTROLLED RELEASE':app==='tills'?'PHASE 6 — TENDER PREPARATION':app==='cashoffice'?'PHASE 8 — PAYMENT EVIDENCE CONTROL':'PHASE 2 — QUOTATION RELEASE';
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
  <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="#102a4b"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
@@ -42,7 +42,7 @@ function page(app){
  .grand-total{font-size:20px;font-weight:800;border-bottom:0;color:#12395e;margin-bottom:12px}.training-warning{border:2px solid #b45309;background:#fffbeb;padding:12px;border-radius:9px;color:#92400e;font-weight:700;margin:12px 0}.lookup-output{margin-top:14px}.tender-preview{border:2px dashed #94a3b8;padding:16px;border-radius:9px;margin:12px 0;background:#f8fafc}.tender-preview .total{margin:2px 0;padding:4px 0}.tender-preview label{margin-top:10px}
  .row-actions{text-align:right;white-space:nowrap}.row-actions button+button{margin-left:6px}.quote-detail{background:#f7fafe;border:1px solid #e0e8f0;border-radius:8px;padding:14px}
  .quote-detail p{margin:7px 0}.detail-total{font-size:14px;font-weight:700;text-align:right}
- td input[type=number]{min-width:86px;width:95px;padding:8px}.shift-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px;align-items:end}.shift-form button{margin-bottom:1px}.shift-form .info{grid-column:1/-1}.review-flag{color:#991b1b;font-weight:700}.review-check{color:#166534;font-weight:700}.review-pending{color:#92400e;font-weight:700}.review-box{margin:18px 0;padding:17px;border:1px solid #b9cadc;border-radius:10px;background:#f8fafc}.review-box textarea{min-height:85px;resize:vertical}.review-stats{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.review-stats span{background:#e9eef6;border-radius:8px;padding:8px 12px;font-weight:700;font-size:13px}.tender-prep{border:2px solid #abc9e5;border-radius:11px;background:#f1f7fe;padding:17px;margin:14px 0}.tender-prep .training-warning{margin-top:0}.tender-rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px}.tender-prep .total{margin:4px 0;padding:4px 0}.cashup-warning{border-left:5px solid #b45309;background:#fff4d6;padding:13px 15px;font-weight:700;border-radius:5px;margin:10px 0 15px}.cashup-diff{color:#991b1b;font-weight:800}.cashup-zero{color:#56616f;font-weight:700}.cashup-stats{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.cashup-stats span{border:1px solid #dbe1e9;background:#f3f6fb;border-radius:7px;padding:9px 12px;font-size:13px;font-weight:700}.cashup-table{min-width:1030px} .print-sheet{display:none}
+ td input[type=number]{min-width:86px;width:95px;padding:8px}.shift-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px;align-items:end}.shift-form button{margin-bottom:1px}.shift-form .info{grid-column:1/-1}.review-flag{color:#991b1b;font-weight:700}.review-check{color:#166534;font-weight:700}.review-pending{color:#92400e;font-weight:700}.review-box{margin:18px 0;padding:17px;border:1px solid #b9cadc;border-radius:10px;background:#f8fafc}.review-box textarea{min-height:85px;resize:vertical}.review-stats{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.review-stats span{background:#e9eef6;border-radius:8px;padding:8px 12px;font-weight:700;font-size:13px}.tender-prep{border:2px solid #abc9e5;border-radius:11px;background:#f1f7fe;padding:17px;margin:14px 0}.tender-prep .training-warning{margin-top:0}.tender-rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px}.tender-prep .total{margin:4px 0;padding:4px 0}.cashup-warning{border-left:5px solid #b45309;background:#fff4d6;padding:13px 15px;font-weight:700;border-radius:5px;margin:10px 0 15px}.cashup-diff{color:#991b1b;font-weight:800}.cashup-zero{color:#56616f;font-weight:700}.cashup-stats{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.cashup-stats span{border:1px solid #dbe1e9;background:#f3f6fb;border-radius:7px;padding:9px 12px;font-size:13px;font-weight:700}.cashup-table{min-width:1030px}.evidence-table{min-width:980px}.evidence-form{border:1px solid #b8cbdf;background:#f5f9ff;border-radius:10px;padding:17px;margin:15px 0}.evidence-form textarea{min-height:85px}.evidence-form .bar>*{min-width:170px}.evidence-history{margin-top:18px} .print-sheet{display:none}
  @media print{body{background:#fff}.shell{display:none!important}.print-sheet{display:block!important;color:#111;font:12pt Arial,sans-serif;padding:10mm}
  .print-sheet .print-logo{width:110px;height:auto;object-fit:contain}.print-sheet h1{font-size:21pt}.print-sheet p{margin:6px 0}
  .print-sheet .print-warning{font-weight:bold;border:2px solid #000;padding:9px}.print-sheet .quote-detail{border:0;background:none;padding:0}
@@ -241,7 +241,7 @@ function page(app){
    amount.addEventListener('input',()=>{
      const text=amount.value.trim();
      if(!text){output.textContent='Enter a cash amount to calculate change or a shortfall.';return;}
-     if(!/^(?:0|[1-9]\d{0,8})(?:\.\d{1,2})?$/.test(text)){
+     if(!/^(?:0|[1-9]\\d{0,8})(?:\\.\\d{1,2})?$/.test(text)){
        output.textContent='Invalid amount. Use rand and up to two decimals, e.g. 500.00.';return;
      }
      const parts=text.split('.');const paid=Number(parts[0])*100+Number((parts[1]||'').padEnd(2,'0'));
@@ -253,8 +253,13 @@ function page(app){
  }
  async function exactLookup(){
    const field=E('quote-number'),output=E('exact-result');if(!field||!output)return;
-   const number=field.value.trim().toUpperCase();output.replaceChildren();
-   if(!/^Q-\d{1,12}$/.test(number)){output.append(h('div','Use the quotation number, for example Q-00000001.','error'));return;}
+   const typed=field.value.trim().toUpperCase();output.replaceChildren();
+   // Normalise pasted, lowercase, or unhyphenated numbers before lookup.
+   const digits=/^(?:Q-?)?(\\d{1,12})$/.exec(typed);
+   const id=digits?Number(digits[1]):0;
+   if(!Number.isSafeInteger(id)||id<=0){output.append(h('div','Enter a valid quotation number (e.g. Q-00000001, Q00000001 or 1).','error'));return;}
+   const number='Q-'+String(id).padStart(8,'0');
+   field.value=number;
    const selected=branch;output.append(h('p','Looking up '+number+'…','muted'));
    try{
      const data=await api('/api/quotes/find?branch='+encodeURIComponent(selected)+'&number='+encodeURIComponent(number));
@@ -382,6 +387,88 @@ function page(app){
      target.append(h('p','* Provisional projected cash = opening float + cash applied in saved preparations. Difference = cashier-declared closing count minus projected cash. Card/EFT amounts are also UNVERIFIED. These totals are not financial balances.','tiny'));
    }catch(error){if(branch===selected)target.replaceChildren(h('p','Provisional worksheet unavailable: '+error.message,'error'));}
  }
+ // Phase 8: independent Cash Office observations of card/bank documents only.
+ // These records are NOT actual receipts, processor confirmations, paid orders,
+ // financial journal entries or instructions to dispatch.
+ function evidenceView(){
+   const p=panel('Payment evidence & exceptions — NOT SETTLED');
+   p.append(h('p','MANUAL DOCUMENT REVIEW ONLY. Card-terminal and EFT statement checks are observations, not verified receipts, settlement, a bank reconciliation or payment posting. Never release goods or issue a paid invoice from this screen.','cashup-warning'));
+   const row=h('div',undefined,'bar');const refresh=h('button','Refresh evidence queue','secondary');refresh.addEventListener('click',loadEvidence);row.append(refresh);p.append(row);
+   const list=h('div','Loading evidence queue…');list.id='evidence-register';p.append(list);
+   const detail=h('div');detail.id='evidence-detail';p.append(detail);
+   p.append(h('p','Each record is an append-only observation by Cash Office. The cashier who prepared the allocation cannot review it. A new observation does not erase earlier entries.','tiny'));
+   return p;
+ }
+ async function loadEvidence(){
+   const target=E('evidence-register'),detail=E('evidence-detail');if(!target)return;
+   const b=branch;target.replaceChildren(h('p','Loading document observations…','muted'));detail?.replaceChildren();
+   try{
+     const data=await api('/api/payment-evidence?branch='+encodeURIComponent(b));
+     if(branch!==b)return;
+     if(data.mode!=='MANUAL_EVIDENCE_OBSERVATIONS_ONLY'||data.paid!==false||data.bank_verified!==false)throw Error('Unsafe payment evidence response.');
+     const rows=data.observations||[];target.replaceChildren();
+     if(!rows.length){target.append(h('p','No card/EFT tender preparations for this branch yet.','muted'));return;}
+     const t=h('table');t.className='evidence-table';const th=h('thead'),hr=h('tr');
+     for(const text of ['Quotation','Type','Prepared amount','Observed amount','Latest observation','Reviewed by','Time','Action'])cell(hr,text,'th');th.append(hr);t.append(th);
+     const tbody=h('tbody');for(const r of rows){
+       const tr=h('tr');const state=r.decision==='DOCUMENT_CHECKED'?'Document checked — NOT PAID':r.decision==='FOLLOW_UP_REQUIRED'?'Follow-up required':'Not reviewed';
+       for(const value of [r.number,r.method,money(r.expected_amount_cents),r.observed_amount_cents===null?'—':money(r.observed_amount_cents),state,r.reviewed_by_name||'—',showDate(r.observed_at)])cell(tr,value);
+       const action=h('td');const btn=h('button','Review / history','secondary small-btn');btn.type='button';btn.addEventListener('click',()=>openEvidenceForm(r));action.append(btn);tr.append(action);tbody.append(tr);
+     }t.append(tbody);const sc=h('div',undefined,'scroll');sc.append(t);target.append(sc);
+     target.append(h('p','Document checked ≠ bank confirmed, payment recorded or dispatch authorised. Recorded amounts are manually entered and cannot be treated as financial balances.','tiny'));
+   }catch(e){if(branch===b)target.replaceChildren(h('p','Evidence register unavailable: '+e.message,'error'));}
+ }
+ async function openEvidenceForm(row){
+   if(APP!=='cashoffice')return;
+   const target=E('evidence-detail');if(!target)return;
+   target.replaceChildren();const b=branch;
+   const section=h('section',undefined,'evidence-form');section.append(h('h3',row.method+' evidence — '+row.number));
+   section.append(h('p','Tender preparation #'+row.preparation_id+' · Prepared amount '+money(row.expected_amount_cents)+' · Prepared by '+row.prepared_by_name,'muted'));
+   section.append(h('p','This form stores an independent observation only. It does not record money received, verify settlement or change quotation status.','training-warning'));
+   const group=h('div',undefined,'bar');
+   const choose=(caption,choices)=>{const wrap=h('div'),label=h('label',caption),select=h('select');label.append(select);for(const [value,text] of choices){const opt=h('option',text);opt.value=value;select.append(opt);}wrap.append(label);group.append(wrap);return select;};
+   const decision=choose('Observation',[['DOCUMENT_CHECKED','Document checked (NOT PAID)'],['FOLLOW_UP_REQUIRED','Flag for follow-up']]);
+   const allowed=row.method==='CARD'?[["TERMINAL_REPORT","Card-terminal settlement report"],["NOT_AVAILABLE","Not available"]]:[["BANK_STATEMENT","Bank statement"],["NOT_AVAILABLE","Not available"]];
+   const source=choose('Source document',allowed);
+   const input=(labelText,placeholder,max)=>{const wrap=h('div'),label=h('label',labelText),input=h('input');input.type='text';input.autocomplete='off';input.placeholder=placeholder;input.maxLength=max;label.append(input);wrap.append(label);group.append(wrap);return input;};
+   const observed=input('Amount appearing on document (R)','0.00',14);observed.inputMode='decimal';observed.value=(row.expected_amount_cents/100).toFixed(2);
+   const reference=input('Document reference (not account/card number)','Bank or terminal evidence ID',80);
+   section.append(group);
+   const l=h('label','Explanation / discrepancy details (10–400 characters)'),note=h('textarea');note.maxLength=400;note.placeholder='Identify the source document and any discrepancy. Do not enter card numbers or bank account details.';l.append(note);section.append(l);
+   const submit=h('button','Record observation — no payment posting');submit.type='button';section.append(submit);
+   const feedback=h('div');feedback.setAttribute('aria-live','polite');section.append(feedback);
+   let pending=null;
+   submit.addEventListener('click',async()=>{
+     feedback.replaceChildren();let cents;
+     try{cents=randToCents(observed.value.trim());}catch(e){feedback.append(h('p',e.message,'error'));return;}
+     if(decision.value==='DOCUMENT_CHECKED'&&cents!==row.expected_amount_cents){feedback.append(h('p','Amounts differ: choose Flag for follow-up.','error'));return;}
+     const payload={branch:b,preparation_id:row.preparation_id,method:row.method,decision:decision.value,
+       source:source.value,source_reference:reference.value.trim(),observed_amount_cents:cents,note:note.value.trim()};
+     if(pending&&JSON.stringify(payload)!==JSON.stringify(pending.payload)){
+       feedback.append(h('p','A prior request may have saved. Retry the same values or refresh the evidence queue before changing them.','error'));return;
+     }
+     if(!window.confirm('Save an immutable DOCUMENT OBSERVATION? This does NOT verify payment or authorise dispatch.'))return;
+     const request_id=pending?.request_id||crypto.randomUUID();pending={request_id,payload};submit.disabled=true;
+     try{
+       const data=await api('/api/payment-evidence',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...payload,request_id})});
+       if(data.paid!==false||data.bank_verified!==false)throw Error('Unexpected settlement response.');
+       if(branch!==b)return;pending=null;
+       feedback.append(h('p','Observation recorded. NOT PAID — no invoice or dispatch release.','success'));
+       submit.disabled=true;await loadEvidence();
+       const current=E('evidence-detail');if(current)current.replaceChildren(h('p','Observation saved. Reopen the row to see its audit history.','success'));
+     }catch(e){if(branch===b){feedback.append(h('p',e.message+' Retry unchanged values, or check the history first.','error'));submit.disabled=false;}}
+   });
+   const history=h('div',undefined,'evidence-history');history.append(h('h3','Audit history'),h('p','Loading…','muted'));section.append(history);target.append(section);
+   try{
+     const data=await api('/api/payment-evidence/history?branch='+encodeURIComponent(b)+'&preparation_id='+row.preparation_id+'&method='+encodeURIComponent(row.method));
+     if(branch!==b||!target.contains(section))return;
+     history.replaceChildren(h('h3','Audit history'));
+     if(!data.observations?.length){history.append(h('p','No prior observations.','muted'));return;}
+     const table=h('table'),head=h('thead'),hr=h('tr');for(const title of ['Date','Outcome','Document','Observed amount','Reviewer','Note'])cell(hr,title,'th');head.append(hr);table.append(head);
+     const body=h('tbody');for(const item of data.observations){const tr=h('tr');for(const val of [showDate(item.created_at),item.decision,item.source+' / '+item.source_reference,money(item.observed_amount_cents),item.reviewed_by_name,item.note])cell(tr,val);body.append(tr);}table.append(body);const sc=h('div',undefined,'scroll');sc.append(table);history.append(sc);
+   }catch(e){if(target.contains(section))history.replaceChildren(h('p','Audit history unavailable: '+e.message,'error'));}
+ }
+
  const randToCents=(value,maximum=100000000)=>{
    const text=String(value??'').trim();
    if(!/^(?:0|[1-9]\\d{0,7})(?:\\.\\d{1,2})?$/.test(text))throw Error('Enter a valid cash amount in rand, e.g. 250.00.');
@@ -514,7 +601,7 @@ function page(app){
  async function quoteView(){
    const root=E('app-content');
    if(APP==='tills'||APP==='cashoffice'){root.append(tillShiftView());void loadShifts();}
-   if(APP==='cashoffice'){root.append(cashupView());void loadCashupPreviews();}
+   if(APP==='cashoffice'){root.append(cashupView());void loadCashupPreviews();root.append(evidenceView());void loadEvidence();}
    if(APP==='tills'||APP==='cashoffice'){const preps=panel(APP==='tills'?'My tender preparations — NOT PAID':'Cash Office — Tender preparations (read-only)');preps.append(h('p','These are proposed cash/card/EFT splits, not verified receipts, tax invoices or approved payments. No stock or dispatch release.','training-warning'));const refresh=h('button','Refresh preparations','secondary');refresh.addEventListener('click',loadPreparations);preps.append(refresh);const list=h('div');list.id='tender-preparations';preps.append(list);root.append(preps);void loadPreparations();}
    const lookup=panel('Find quotation by exact number');
    const lookupBar=h('div',undefined,'bar');const lookupField=h('div');
@@ -560,13 +647,15 @@ export default {
    if(url.pathname==='/powerbuild-logo.png' && req.method==='GET')return new Response(POWERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
-     '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview'};
+     '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview',
+     '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // Department rules enforced here as an early deny and again by the private Core.
    if((url.pathname==='/api/till-reviews' && kind!=='cashoffice') ||
+      (url.pathname.startsWith('/api/payment-evidence') && kind!=='cashoffice') ||
       (url.pathname==='/api/cashup-preview' && kind!=='cashoffice') ||
       (url.pathname==='/api/tender-preparations' && !['tills','cashoffice'].includes(kind)) ||
       (url.pathname==='/api/tender-preparations' && req.method==='POST' && kind!=='tills') ||

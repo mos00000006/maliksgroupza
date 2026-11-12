@@ -4,8 +4,10 @@ export function quoteNumber(id) {
   return `Q-${String(id).padStart(8,'0')}`;
 }
 export function quoteId(input) {
-  const text=String(input||'').trim().toUpperCase();
-  const match=/^Q-(\d{1,12})$/.exec(text);
+  const text=String(input??'').trim().toUpperCase();
+  // Accept Q-00000001, Q00000001, q000000001 or just 1.
+  // Always resolve to the same numeric, branch-scoped quotation ID.
+  const match=/^(?:Q-?)?(\d{1,12})$/.exec(text);
   const id=match?Number(match[1]):Number.NaN;
   return Number.isSafeInteger(id)&&id>0?id:null;
 }
