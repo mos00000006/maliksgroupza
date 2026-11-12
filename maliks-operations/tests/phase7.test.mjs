@@ -47,7 +47,7 @@ test('Database preview is read-only, branch-scoped and bounded',()=>{
 });
 test('Cash Office alone displays Phase 7, even if Tills remains Phase 6',async()=>{
   const co=await html('cashoffice');
-  for(const token of ['PHASE 7 — PROVISIONAL CASH-UP','Provisional cash-up & exceptions — NOT RECONCILED',
+  for(const token of ['PHASE 8 — PAYMENT EVIDENCE CONTROL','Provisional cash-up & exceptions — NOT RECONCILED',
     '/api/cashup-preview','UNVERIFIED tender preparations','Zero difference is NOT proof'])assert.ok(co.includes(token),token);
   assert.match(await html('tills'),/PHASE 6 — TENDER PREPARATION/);
   assert.match(await html('pos'),/PHASE 2 — QUOTATION RELEASE/);

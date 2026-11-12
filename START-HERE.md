@@ -1,25 +1,43 @@
-# Maliks Tills quotation-number lookup correction
+# FIX: Phase 8 GitHub `npm test` — 5 failures
 
-## What it fixes
+Your pasted GitHub Actions log shows **76 tests, 71 passing, 5 failing**. I reproduced this exact result locally using the older Phase 7 tests, current Phase 8 frontend, and the missing evidence module. Applying the files in this package resulted in **87/87 passing** in the reconstructed project.
 
-The screenshot shows the cashier typing `q000000001`, which was rejected by the original browser validator. This patch lets Tills, POS and Cash Office find the same quote using `q000000001`, `Q000000001`, `Q-00000001`, or `1`. The field automatically converts the value to `Q-00000001` before searching. It does not modify the underlying quotation number or any existing quotations.
+## Root causes
 
-## Important release boundary
+1. `maliks-operations/src/payment-evidence-domain.mjs` **is missing** from the repository. The Phase 8 test runner cannot import it. This is a required runtime module, not a cosmetic test issue.
+2. Four older tests in `tests/phase4.test.mjs`, `phase5.test.mjs`, `phase6.test.mjs`, and `phase7.test.mjs` still check for `PHASE 7 — PROVISIONAL CASH-UP`. In Phase 8 the Cash Office header is `PHASE 8 — PAYMENT EVIDENCE CONTROL` while its Phase 7 provisional worksheet remains present. The supplied tests verify that the old features remain.
 
-This change fixes **quotation lookup only**. It does NOT record verified payment, issue a tax invoice, or create a dispatch-release record. Only verified paid invoices should become dispatchable. The current Phase 8 code still explicitly labels tender allocations as preparations, not settled payments.
+## Upload into GitHub `mos00000006/maliksgroupza` on the `main` branch
 
-## Install
+Replace or add exactly these files, preserving the shown paths:
 
-**Use this package only with the Phase 8 baseline that was previously supplied.** If you have later or independent changes, apply `maliks-quote-lookup-fix.patch` or merge just the two small code edits; do not overwrite newer files.
+- `maliks-operations/src/payment-evidence-domain.mjs` — **add** (required).
+- `maliks-operations/tests/phase4.test.mjs` — **replace**.
+- `maliks-operations/tests/phase5.test.mjs` — **replace**.
+- `maliks-operations/tests/phase6.test.mjs` — **replace**.
+- `maliks-operations/tests/phase7.test.mjs` — **replace**.
+- `maliks-operations/sql/phase8_payment_evidence.sql` — **add only if missing**; do not manually run against your real DB without a backup.
 
-1. In GitHub `maliksgroupza`, edit `maliks-operations/src/frontend.mjs` and `maliks-operations/src/quote-domain.mjs`. Replace them with the included versions ONLY if they match your deployed Phase 8 baseline, or use the `.patch`/manual merge instead.
-2. Also update `maliks-operations/tests/phase3.test.mjs` and `maliks-operations/tests/phase8.test.mjs` to match the new accepted formats; add `maliks-operations/tests/quote-lookup-fix.test.mjs`.
-3. Commit to `main` and run `Deploy Maliks Department Applications` with name confirmation checked.
-4. In Maliks Tills, hard-refresh then try `q000000001`. The input should display `Q-00000001` after clicking Find quotation. If it isn't found, check that a quotation with ID 1 exists and matches the selected branch.
-5. Use only test quotations. **Do not hand the customer an item from Dispatch based on a quotation or unverified tender preparation.**
+Do **not** replace `src/frontend.mjs`, `src/core.mjs`, `src/quote-domain.mjs`, `scripts/make-config.mjs`, or your management Hub. The fix preserves the quotation lookup changes and the earlier Cloudflare domain correction.
 
-No D1 migration or Cloudflare secret change is required. The main management Hub is not targeted.
+GitHub UI: open the path to each file > pencil **Edit** > replace file contents > **Commit changes**. To add the missing module, go to `maliks-operations/src` > **Add file** > **Upload files** > select `payment-evidence-domain.mjs` > commit. Repeat in `sql` only if the SQL is absent.
 
-## Next necessary build for real sale -> Dispatch
+## Pre-deployment checks (important)
 
-Implement a posted payment/receipt journal, independently confirmed card/EFT or cash tender evidence, locked invoice sequencing, reversals, sale+inventory atomic posting, and a dispatch queue gated on verified PAID invoice state. Until those controls exist, do not label tender preparations as paid or auto-release stock.
+In GitHub, also verify:
+
+- `maliks-operations/src/core.mjs` includes Phase 8 evidence endpoints and imports the module.
+- `maliks-operations/package.json` contains the `migrate:phase8` script.
+- `.github/workflows/deploy-maliks-operations.yml` runs `npm run migrate:phase8` **after npm test and config, before deploy:core**.
+- The Phase 4–6 migration scripts remain present.
+
+If any check is missing, **do not deploy yet**. It means the Phase 8 upload was incomplete beyond the five failing tests; merge the missing deployment file(s) from the full Phase 8 package rather than replacing the workflow blindly.
+
+## Verify safely
+
+1. Commit the source, test and SQL files.
+2. Run **Deploy Maliks Department Applications** as a **new run**; verify the Worker names and tick the confirmation box (do not re-run a previous failed job).
+3. The `npm test` job should now advance. If tests fail after importing the missing module, send the new **first failing test**: your repository may differ from the local reconstructed Phase 8 code.
+4. Before applying the Phase 8 database migration in production, back up D1 and confirm the migration is safe for your data. Prefer staging first.
+
+**Financial safety:** Phase 8 is only manual payment-document evidence; it does not confirm a payment, issue a tax invoice or release Dispatch. Do not enable paid status or dispatch on these records.

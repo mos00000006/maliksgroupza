@@ -34,7 +34,7 @@ test('Recent statuses and history queries are branch-scoped, parameterized and b
 });
 test('Cash Office retains phase 5 review and audit controls, and disclaims reconciliation',async()=>{
   const html=await page('cashoffice');
-  for(const text of ['PHASE 7 — PROVISIONAL CASH-UP','Shift Review & Exceptions','awaiting review','flagged for follow-up',
+  for(const text of ['PHASE 8 — PAYMENT EVIDENCE CONTROL','Shift Review & Exceptions','awaiting review','flagged for follow-up',
     'Declaration checked (not reconciled)','Record review (audit history)','Review history','/api/till-reviews','review_status',
     'This review does not confirm payments'])assert.ok(html.includes(text),text);
   assert.match(html,/No sales, deposits, invoices or stock balances are posted/);

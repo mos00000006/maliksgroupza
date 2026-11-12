@@ -33,7 +33,7 @@ test('tills retains shift open/close controls and no payment submission',async()
 });
 test('Cash Office displays read-only shift register, not cashier write forms by app role',async()=>{
   const html=await page('cashoffice');
-  assert.match(html,/PHASE 7 — PROVISIONAL CASH-UP/);
+  assert.match(html,/PHASE 8 — PAYMENT EVIDENCE CONTROL/);
   assert.match(html,/Cash Office — Shift Review & Exceptions/);
   assert.match(html,/Cash Office view is read-only/);
   assert.match(html,/Open \/ close must be performed by the signed-in cashier/);
