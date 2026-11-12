@@ -1,17 +1,21 @@
+import { POWERBUILD_LOGO_BASE64 } from './powerbuild-logo.mjs';
+
+const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c => c.charCodeAt(0));
+
 const APPS={
-  pos:{name:'Maliks POS',subtitle:'Sales & Quotations',icon:'◈',hint:'Product lookup and quotations only. No till payment or dispatch posting.'},
-  tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',icon:'▣',hint:'Quotation handover is visible. Payment capture, invoices and drawer functions are not live.'},
-  cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',icon:'◫',hint:'Review quotations without marking them paid. Cash-up and payment validation are not live.'},
-  dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',icon:'▤',hint:'Dispatch is a separate secured application. Picking, checking, POD and stock posting will be connected in a later phase.'},
+  pos:{name:'Maliks POS',subtitle:'Sales & Quotations',hint:'Product lookup and quotations only. No till payment or dispatch posting.'},
+  tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Quotation handover is visible. Payment capture, invoices and drawer functions are not live.'},
+  cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Review quotations without marking them paid. Cash-up and payment validation are not live.'},
+  dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',hint:'Dispatch is a separate secured application. Picking, checking, POD and stock posting will be connected in a later phase.'},
 };
 function page(app){
  const d=APPS[app];
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
- <title>${d.name}</title><style>
+ <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="#102a4b"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
  body{margin:0}.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
  aside{background:#102a4b;color:#fff;padding:28px 18px}aside h1{font-size:21px;margin:14px 0 5px}aside p{font-size:13px;color:#adbed0}
- aside .logo{font-size:34px;border-radius:15px;background:#1c4775;width:56px;height:56px;display:grid;place-items:center}
+ aside .brand-logo{display:block;width:112px;height:112px;max-width:100%;object-fit:contain}
  .nav{margin-top:35px;background:#21436b;padding:13px;border-radius:10px;font-weight:700}
  .foot{font-size:12px;color:#aabbd0;margin-top:34px;line-height:1.6}
  main{max-width:1200px;padding:34px 38px;width:100%;margin:0 auto}
@@ -32,9 +36,9 @@ function page(app){
  .item button{white-space:nowrap}.price{font-weight:800;color:#165eab}.empty{color:#738299;font-size:14px;padding:25px 5px;text-align:center}
  .total{font-size:24px;font-weight:800;text-align:right;color:#12395e;padding:16px 0}
  .tiny{font-size:12px;color:#63748a}.widebutton{width:100%}
- @media(max-width:850px){.shell{grid-template-columns:1fr}aside{padding:15px 20px;display:flex;align-items:center;gap:14px}aside h1{margin:0;font-size:17px}aside .logo{font-size:23px;height:40px;width:40px}aside .nav,aside .foot,aside p{display:none}main{padding:23px 14px}.two{grid-template-columns:1fr}}
+ @media(max-width:850px){.shell{grid-template-columns:1fr}aside{padding:15px 20px;display:flex;align-items:center;gap:14px}aside h1{margin:0;font-size:17px}aside .brand-logo{width:56px;height:56px;flex:0 0 56px}aside .nav,aside .foot,aside p{display:none}main{padding:23px 14px}.two{grid-template-columns:1fr}}
  </style></head><body>
- <div class="shell"><aside><div class="logo">${d.icon}</div><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
+ <div class="shell"><aside><img class="brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
  <main><div class="top"><div><h2>${d.name}</h2><div class="muted" id="signed-in">Checking approved user access…</div></div><span class="tag">PHASE 1 — CONTROLLED RELEASE</span></div>
  <div class="notice">${d.hint}</div><div id="error" role="alert" hidden></div>
  <div class="panel"><div class="bar"><div><label for="branch">Assigned branch</label><select id="branch" disabled><option>Authorising…</option></select></div><div><label>Application access</label><p class="muted" id="access">Verification in progress…</p></div></div></div>
@@ -103,6 +107,7 @@ export default {
    const kind=String(env.APP_TYPE||'').toLowerCase();
    if(!APPS[kind])return new Response('Misconfigured application.',{status:503});
    const url=new URL(req.url);
+   if(url.pathname==='/powerbuild-logo.png' && req.method==='GET')return new Response(POWERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes'};
    const path=pathMap[url.pathname];
