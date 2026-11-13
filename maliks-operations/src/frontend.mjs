@@ -39,7 +39,7 @@ const SUITE_MENU_TREE = {
     'Master Files':['Stock Master','Departments','Categories','Units','Barcodes','Stock Groups'],
     'Transactions':['Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Returns','Stock Take'],
     'Reporting':['Master','Stock Valuations','Stock Take','Transactions','Sales','Onhands','Re-Order','Audits','Promotions'],
-    'Utilities':['Promotions','Labelling','Pricing Utilities','Master Utilities','Minimum / Maximum Stock Levels','Stock Take','Freeze Onhands','Reprint Documents','Link Pictures','Stock Master CSV/Text File Export','Daily Stock Count','Serial Number Tracking','Stock Master CSV File Import','Delete Stock Items','Delete Stock Purchase Orders'],
+    'Utilities':['Promotions','Labelling','Pricing Utilities','Master Utilities','Minimum / Maximum Stock Levels','Stock Take','Opening Stock Count','Freeze Onhands','Reprint Documents','Link Pictures','Stock Master CSV/Text File Export','Daily Stock Count','Serial Number Tracking','Stock Master CSV File Import','Delete Stock Items','Delete Stock Purchase Orders'],
     'Settings':['Settings','Numbering'],
   },
   backoffice: {
@@ -190,7 +190,7 @@ function page(app){
  .suite-menu-card{background:#fff;border:1px solid #dce5ed;border-radius:14px;padding:20px;box-shadow:0 5px 18px #132b420a}
  .suite-menu-card h3{font-size:17px;color:#1a344f;border-bottom:1px solid #e5edf5;padding-bottom:12px;margin-bottom:7px}
  .suite-menu-list{display:grid;gap:2px}.suite-menu-action{background:transparent;color:#304a64;text-align:left;font-size:13px;font-weight:600;border-radius:7px;padding:10px 8px;display:flex;justify-content:space-between;gap:10px}
- .suite-menu-action:hover{background:#f0f5fa;color:#135e9e}.suite-menu-action:after{content:'›';font-size:19px;line-height:13px;color:#9aaabd}
+ .suite-menu-action:hover{background:#f0f5fa;color:#135e9e}.suite-menu-action:disabled{background:transparent;color:#8a99aa;cursor:not-allowed;opacity:.7}.suite-menu-action:disabled:after{content:'—';font-size:13px}.suite-menu-action:after{content:'›';font-size:19px;line-height:13px;color:#9aaabd}
  .suite-feature-detail[hidden]{display:none!important}
  .suite-feature-detail{background:#fff9e9;border:1px solid #f1dca6;border-radius:12px;padding:18px 20px;margin:20px 0;color:#6d531e}
  .suite-feature-detail strong{display:block;margin-bottom:5px}.suite-footnote{font-size:12px;color:#6b7c91;margin-top:18px}
@@ -1477,12 +1477,76 @@ function page(app){
    void loadPOs();void loadReceipts();
  }
  function suiteStockBalances(){
-   const w=invWorkspace('Stock-on-Hand','Quantities are from posted GRVs and completed transfers only. Sales, returns, adjustments and opening balances are not yet integrated.');w.form.hidden=true;
-   const refresh=invButton('Refresh stock balances',()=>void load(),'suite-primary');w.list.append(refresh);
+   const w=invWorkspace('Stock-on-Hand','Operational quantities include posted GRVs, transfers, independently approved adjustments and stock counts. Sales deductions and returns are not yet integrated.');w.form.hidden=true;
+   let stockPage=1;const refresh=invButton('Refresh stock balances',()=>void load(),'suite-primary');
+   const pager=h('div',undefined,'suite-master-actions'),prev=invButton('Previous',()=>{if(stockPage>1){stockPage--;void load();}}),next=invButton('Next',()=>{stockPage++;void load();});pager.append(prev,next);w.list.append(refresh,pager);
    const items=h('div'),moves=h('div');w.list.append(h('h4','Branch balances'),items,h('h4','Recent stock movements'),moves);
-   async function load(){try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch));if(!w.valid())return;
+   async function load(){try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch)+'&page='+stockPage);if(!w.valid())return;
+     prev.disabled=stockPage<=1;next.disabled=stockPage>=data.pages;pager.hidden=data.pages<=1;
      invTable(items,['Code','Description','Unit','On-hand','Version'],data.items.map(x=>[x.code,x.name,x.unit||'each',invQty(x.qty_milli),x.stock_version]));
      invTable(moves,['Date','Stock','Type','Document','Change','User'],data.movements.map(x=>[showDate(x.created_at),x.code,x.movement_type,x.document_id,(x.quantity_delta_milli>0?'+':'')+invQty(x.quantity_delta_milli),x.actor_email]));
+   }catch(e){if(w.valid())w.message(e.message);}}
+   void load();
+ }
+ function suiteStockControl(initialType='STOCKTAKE'){
+   const w=invWorkspace('Stock Control — Adjustments & Stock Takes','Physical count/adjustment is a draft until a DIFFERENT authorised manager approves it. Opening stock is only for items without prior movements. This changes operational stock, NOT the General Ledger.');
+   const form=h('div',undefined,'suite-master-form');w.form.append(h('h4','New controlled stock document'),form);
+   const type=invSelect(form,'Document type',['STOCKTAKE','ADJUSTMENT','OPENING'],x=>x,x=>({STOCKTAKE:'Physical stock take',ADJUSTMENT:'Stock adjustment (+ / −)',OPENING:'Opening physical count'}[x]));type.value=initialType;
+   const reason=invField(form,'Reason / reference');reason.placeholder='Explain the count, damage, correction or opening balance';
+   const lookup=invField(form,'Find stock code / description','search');lookup.placeholder='Search the linked Hub stock items';
+   const searchButton=invButton('Search stock',()=>void loadItems(),'secondary');form.append(searchButton);
+   const lineArea=h('div');lineArea.style.gridColumn='1/-1';form.append(lineArea);
+   const actions=h('div',undefined,'suite-master-form-buttons');actions.style.gridColumn='1/-1';form.append(actions);
+   const add=invButton('Add stock line',addLine),save=invButton('Save draft for manager',()=>void create(),'suite-primary');actions.append(add,save);
+   const docs=h('div'),movements=h('div');w.list.append(h('h4','Documents awaiting approval / history'),docs,h('h4','Stock control movement audit'),movements);
+   let products=[];const lines=[];
+   function addLine(){if(!products.length){w.message('Link the Group Hub catalogue to this branch first.');return;}
+     const row=h('div',undefined,'suite-master-actions');const item=invSelect(row,'Stock item',products,x=>x.stock_id,x=>x.code+' · '+x.name+' (current '+invQty(x.qty_milli)+')');
+     const qty=invField(row,type.value==='ADJUSTMENT'?'Change (+ or −)':'Physical count','number',type.value==='ADJUSTMENT'?'1':'0');qty.min=type.value==='ADJUSTMENT'?'-1000000':'0';
+     const entry={row,item,qty};row.append(invButton('Remove',()=>{row.remove();lines.splice(lines.indexOf(entry),1);}));lines.push(entry);lineArea.append(row);
+   }
+   function updateMode(){for(const l of lines){l.qty.parentNode.querySelector('span').textContent=type.value==='ADJUSTMENT'?'Change (+ or −)':'Physical count';l.qty.min=type.value==='ADJUSTMENT'?'-1000000':'0';}
+     save.disabled=!(type.value==='ADJUSTMENT'?inventoryPermissions.transfer:inventoryPermissions.count);}
+   type.addEventListener('change',updateMode);
+   async function create(){save.disabled=true;w.message('');try{
+     const entries=lines.map(l=>{
+       const n=Number(l.qty.value);if(!Number.isFinite(n)||Math.abs(n)>1000000||Math.abs(n*1000-Math.round(n*1000))>0.000001||
+         (type.value==='ADJUSTMENT'&&n===0)||(type.value!=='ADJUSTMENT'&&n<0))throw Error('Invalid stock quantity (maximum three decimals).');
+       return type.value==='ADJUSTMENT'?{stock_id:Number(l.item.value),delta_milli:Math.round(n*1000)}:{stock_id:Number(l.item.value),counted_milli:Math.round(n*1000)};
+     });
+     const data=await invPost('/api/stock-control',{branch,doc_type:type.value,reason:reason.value,lines:entries});
+     if(w.valid()){w.message('Draft '+data.document.number+' saved. A DIFFERENT manager must approve before stock changes.',true);await loadDocs();}
+   }catch(e){if(w.valid())w.message(e.message);}finally{updateMode();}}
+   async function act(doc,action){if(!window.confirm(action+' '+doc.number+'?'+(action==='POST'?' This will change stock quantities.':'')))return;
+     try{const data=await invPost('/api/stock-control/action',{branch,id:doc.id,version:doc.version,action});
+       if(w.valid()){w.message(data.document.number+' '+data.document.status+'.',true);await loadDocs();await loadItems();}}
+     catch(e){if(w.valid())w.message(e.message);}}
+   async function loadItems(){try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch)+'&q='+encodeURIComponent(lookup.value.trim()));if(!w.valid())return;products=data.items;
+     if(!lines.length)addLine();}catch(e){if(w.valid())w.message(e.message);}}
+   async function loadDocs(){try{const data=await api('/api/stock-control?branch='+encodeURIComponent(branch));if(!w.valid())return;
+     invTable(docs,['Document','Type / reason','Status','Counted / adjusted items','Creator','Actions'],data.documents.map(d=>{
+       const buttons=h('div',undefined,'suite-master-actions');if(inventoryPermissions.approveTransfer&&d.status==='DRAFT'){
+         buttons.append(invButton('Approve & post',()=>void act(d,'POST')),invButton('Cancel',()=>void act(d,'CANCEL')));}
+       return [d.number,d.doc_type+' · '+d.reason,d.status,d.lines.map(l=>l.code+' '+(d.doc_type==='ADJUSTMENT'?(l.delta_milli>0?'+':'')+invQty(l.delta_milli):'count '+invQty(l.counted_milli)+' / prior '+invQty(l.expected_qty_milli))).join('; '),d.created_by_email,buttons];
+     }));
+     invTable(movements,['Date','Stock','Type','Change','Approver'],data.movements.map(m=>[showDate(m.created_at),m.code,m.movement_type,(m.quantity_delta_milli>0?'+':'')+invQty(m.quantity_delta_milli),m.actor_email]));
+   }catch(e){if(w.valid())w.message(e.message);}}
+   if(!inventoryPermissions.count&&!inventoryPermissions.transfer)w.form.hidden=true;
+   updateMode();void loadItems();void loadDocs();
+ }
+ function suiteStockReport(mode){
+   const label={valuation:'Indicative Stock Valuation',reorder:'Re-Order Report',transactions:'Stock Movement Register',categories:'Hub Stock Categories',units:'Units & Barcodes',master:'Stock Master Report'}[mode]||'Stock Report';
+   const w=invWorkspace(label,'Branch-scoped operational report using linked Group Hub stock and posted POS quantities. Valuations use stored indicative cost prices and are NOT accounting balances.');w.form.hidden=true;
+   let reportPage=1;const refresh=invButton('Refresh',()=>void load(),'suite-primary'),table=h('div'),pager=h('div',undefined,'suite-master-actions');
+   const prev=invButton('Previous',()=>{if(reportPage>1){reportPage--;void load();}}),next=invButton('Next',()=>{reportPage++;void load();});pager.append(prev,next);w.list.append(refresh,table,pager);
+   async function load(){try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch)+'&page='+reportPage);if(!w.valid())return;
+     const items=data.items;prev.disabled=reportPage<=1;next.disabled=reportPage>=data.pages;pager.hidden=mode==='transactions'||data.pages<=1;
+     if(mode==='transactions')invTable(table,['Date','Stock','Type','Document','Quantity','User'],data.movements.map(m=>[showDate(m.created_at),m.code,m.movement_type,m.document_id,(m.quantity_delta_milli>0?'+':'')+invQty(m.quantity_delta_milli),m.actor_email]));
+     else if(mode==='reorder')invTable(table,['Code','Description','On-hand','Minimum','To reorder'],items.filter(i=>i.reorder_min>0&&i.qty_milli<i.reorder_min*1000).map(i=>[i.code,i.name,invQty(i.qty_milli),i.reorder_min,invQty(i.reorder_min*1000-i.qty_milli)]));
+     else if(mode==='valuation')invTable(table,['Code','Description','On-hand','Indicative unit cost','Indicative stock value'],items.map(i=>[i.code,i.name,invQty(i.qty_milli),i.cost_cents>0?money(i.cost_cents):'Not set',i.cost_cents>0?money(Math.round(i.qty_milli*i.cost_cents/1000)):'Not valued']));
+     else if(mode==='categories')invTable(table,['Code','Description','Hub category'],items.map(i=>[i.code,i.name,i.category||'Uncategorised']));
+     else if(mode==='units')invTable(table,['Code','Description','Unit','Barcode'],items.map(i=>[i.code,i.name,i.unit||'each',i.barcode||'—']));
+     else invTable(table,['Code','Description','Category','Unit','On-hand','Min. stock'],items.map(i=>[i.code,i.name,i.category||'—',i.unit||'each',invQty(i.qty_milli),i.reorder_min]));
    }catch(e){if(w.valid())w.message(e.message);}}
    void load();
  }
@@ -1490,6 +1554,7 @@ function page(app){
    const w=invWorkspace('Stock Transfers','Create at source → independent manager sends (deducts stock) → destination independently receives (adds stock).');
    const controls=h('div',undefined,'suite-master-form');w.form.append(h('h4','New inter-branch transfer'),controls);
    const dest=invSelect(controls,'Destination branch',[],x=>x,x=>x);const notes=invField(controls,'Transfer notes');
+   const stockSearch=invField(controls,'Find stock code / description','search');const stockFind=invButton('Search stock',()=>void loadInventory(),'secondary');controls.append(stockFind);
    const linesArea=h('div');linesArea.style.gridColumn='1/-1';controls.append(linesArea);const lines=[];let products=[];
    function addLine(){if(!products.length){w.message('No active stock items.');return;}
      const row=h('div',undefined,'suite-master-actions');const item=invSelect(row,'Stock item',products,x=>x.stock_id,x=>x.code+' · '+x.name+' · Available '+invQty(x.qty_milli));
@@ -1498,7 +1563,7 @@ function page(app){
    const add=invButton('Add line',addLine),save=invButton('Create transfer',()=>void create(),'suite-primary');controls.append(add,save);
    const table=h('div');w.list.append(h('h4','Outgoing and incoming transfers'),table);
    async function loadInventory(){
-     try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch));if(!w.valid())return;
+     try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch)+'&q='+encodeURIComponent(stockSearch.value.trim()));if(!w.valid())return;
        products=data.items;dest.replaceChildren();for(const name of data.destinations||[]){if(name.toLowerCase()===branch.toLowerCase())continue;const o=h('option',name);o.value=name;dest.append(o);}if(!lines.length)addLine();
      }catch(e){w.message(e.message);}
    }
@@ -1582,15 +1647,26 @@ function page(app){
    void load();
  }
 
+ function isConnectedSuiteAction(id,item){
+   if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Audits'].includes(item);
+   if(id==='suppliers')return ['Suppliers','Purchase Orders','Invoices and Debit Notes','Audits'].includes(item);
+   if(id==='debtors')return ['Debtors','Audits'].includes(item);
+   if(id==='system')return ['User Permissions','Branch Access'].includes(item);
+   return false;
+ }
  function suiteModuleView(id){
    const root=E('app-content');const name=SUITE_TITLES[id]||({tills:'Tills',cashoffice:'Cash Office'}[id])||'Module';
    const isSeparate=['tills','cashoffice','dispatching'].includes(id);
-   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':['stock','suppliers','debtors'].includes(id)?'Hub-linked stock master, purchasing and controlled stock operations are connected. Financial posting is not yet enabled.':'The menu inventory is a reference. Unbuilt operations remain disabled until their secure workflows are implemented.','suite-menu-intro'));
+   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':['stock','suppliers','debtors'].includes(id)?'Hub-linked stock master, purchasing and controlled stock operations are connected. Financial posting is not yet enabled.':'Only connected operations can be opened. Unimplemented menu entries are disabled rather than opening misleading screens.','suite-menu-intro'));
    const menu=SUITE_MENU_TREE[id]||{};const grid=h('div',undefined,'suite-menu-grid');
    for(const [section,items] of Object.entries(menu)){
      const card=h('section',undefined,'suite-menu-card');card.append(h('h3',section));const list=h('div',undefined,'suite-menu-list');
      for(const item of items){
        const b=h('button',item,'suite-menu-action');b.type='button';
+       if(!isConnectedSuiteAction(id,item)){
+         b.disabled=true;b.title='Not implemented. Disabled to prevent a misleading transaction.';
+         b.setAttribute('aria-label',item+' — not available');list.append(b);continue;
+       }
        b.addEventListener('click',()=>{
          if(id==='system'&&['User Permissions','Branch Access'].includes(item)){window.location.assign(MEMBER_TEAM_URL);return;}
          const masterKind=id==='stock'&&item==='Stock Master'?'stock':id==='suppliers'&&item==='Suppliers'?'supplier':id==='debtors'&&item==='Debtors'?'debtor':null;
@@ -1600,10 +1676,21 @@ function page(app){
          if(id==='stock'&&item==='Goods Received Vouchers (GRV)'){suiteReceiving();return;}
          if(id==='stock'&&item==='Stock Transfers'){suiteTransfers();return;}
          if(id==='stock'&&item==='Onhands'){suiteStockBalances();return;}
+         if(id==='stock'&&item==='Stock Adjustments'){suiteStockControl('ADJUSTMENT');return;}
+         if(id==='stock'&&item==='Stock Take'){suiteStockControl('STOCKTAKE');return;}
+         if(id==='stock'&&item==='Daily Stock Count'){suiteStockControl('STOCKTAKE');return;}
+         if(id==='stock'&&item==='Opening Stock Count'){suiteStockControl('OPENING');return;}
+         if(id==='stock'&&item==='Stock Valuations'){suiteStockReport('valuation');return;}
+         if(id==='stock'&&item==='Re-Order'){suiteStockReport('reorder');return;}
+         if(id==='stock'&&item==='Transactions'){suiteStockReport('transactions');return;}
+         if(id==='stock'&&item==='Master'){suiteStockReport('master');return;}
+         if(id==='stock'&&item==='Categories'){suiteStockReport('categories');return;}
+         if(id==='stock'&&['Units','Barcodes'].includes(item)){suiteStockReport('units');return;}
+         if(id==='stock'&&item==='Minimum / Maximum Stock Levels'){suiteMasterView('stock');return;}
          if(item==='Audits'&&['stock','suppliers','debtors'].includes(id)){suiteMasterView(id==='suppliers'?'supplier':id==='debtors'?'debtor':'stock',true);return;}
          const detail=E('suite-feature-detail');detail.className='suite-feature-detail';detail.replaceChildren();
          detail.append(h('strong',name+'  /  '+section+'  /  '+item));
-         detail.append(h('p',isSeparate?'Open the authorised department workstation for operational access. This suite menu is a reference only.':'This function is in the module inventory but is not live yet. It requires a secure API, database workflow, branch permissions and audit logging before activation.'));
+         detail.append(h('p',isSeparate?'Open the authorised department workstation for operational access. This suite menu is a reference only.':'This menu has no configured action. Contact the system administrator.'));
          detail.hidden=false;detail.scrollIntoView({block:'nearest',behavior:'smooth'});
        });list.append(b);
      }
@@ -1715,15 +1802,16 @@ export default {
      '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
      '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue','/api/master/catalogue/sync':'/v1/master/catalogue/sync',
      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
+     '/api/stock-control':'/v1/stock-control','/api/stock-control/action':'/v1/stock-control/action',
      '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action','/api/supplier-invoices':'/v1/supplier-invoices','/api/supplier-invoices/action':'/v1/supplier-invoices/action',
      '/api/team':'/v1/team','/api/team/change':'/v1/team/change'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
    if((path==='/v1/team'&&req.method!=='GET')||(path==='/v1/team/change'&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // The Professional suite cannot submit Sales transactions through its old POS origin.
-   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
    // The Member Team Worker is isolated from POS, payments and sales.
    if(kind==='member' && !['/v1/session','/v1/team','/v1/team/change'].includes(path))return Response.json({error:'Team app only.'},{status:403});

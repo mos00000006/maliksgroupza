@@ -81,17 +81,31 @@ async function replay(db,table,id,hash,actorEmail){
 export async function listInventory(req,env,c){
  if(!allow(c,'read'))return fail('Stock access denied.',403);
  const branch=matchingBranch(c.branches,new URL(req.url).searchParams.get('branch'));if(!branch)return fail('Branch access denied.',403);
- const q=limitSearch(new URL(req.url).searchParams.get('q')||'');if(q===null)return fail('Search too long.');const term=q.toLowerCase();
+ const query=new URL(req.url).searchParams;
+ const q=limitSearch(query.get('q')||'');if(q===null)return fail('Search too long.');const term=q.toLowerCase();
+ const pageRaw=Number(query.get('page')||1);if(!Number.isSafeInteger(pageRaw)||pageRaw<1||pageRaw>10000)return fail('Invalid page.');
+ const page=pageRaw,perPage=150;
  const {results}=await env.DB.prepare(`SELECT m.id AS stock_id,m.code,m.name,json_extract(m.details_json,'$.unit') AS unit,
- COALESCE(b.qty_milli,0) AS qty_milli,COALESCE(b.version,0) AS stock_version
+ COALESCE(b.qty_milli,0) AS qty_milli,COALESCE(b.version,0) AS stock_version,
+ json_extract(m.details_json,'$.category') AS category,json_extract(m.details_json,'$.barcode') AS barcode,
+ COALESCE(CAST(json_extract(m.details_json,'$.cost_cents') AS INTEGER),0) AS cost_cents,
+ COALESCE(CAST(json_extract(m.details_json,'$.reorder_min') AS INTEGER),0) AS reorder_min
  FROM maliks_pos_master_records m LEFT JOIN maliks_pos_stock_balances b ON b.stock_master_id=m.id AND lower(b.branch)=lower(m.branch)
  WHERE m.kind='stock' AND lower(m.branch)=lower(?) AND m.active=1 AND (?='' OR instr(lower(m.code),?)>0 OR instr(lower(m.name),?)>0)
- ORDER BY m.name LIMIT 150`).bind(branch,term,term,term).all();
- const {results:movements}=await env.DB.prepare(`SELECT m.id,m.movement_type,m.document_id,m.quantity_delta_milli,m.created_at,m.actor_email,s.code
+ ORDER BY m.name LIMIT ? OFFSET ?`).bind(branch,term,term,term,perPage,(page-1)*perPage).all();
+ const totalRow=await env.DB.prepare(`SELECT COUNT(*) AS total FROM maliks_pos_master_records m
+ WHERE m.kind='stock' AND lower(m.branch)=lower(?) AND m.active=1 AND (?='' OR instr(lower(m.code),?)>0 OR instr(lower(m.name),?)>0)`).bind(branch,term,term,term).first();
+ const {results:movements}=await env.DB.prepare(`SELECT * FROM (
+ SELECT m.id,m.movement_type,m.document_id,m.quantity_delta_milli,m.created_at,m.actor_email,s.code
  FROM maliks_pos_stock_movements m LEFT JOIN maliks_pos_master_records s ON s.id=m.stock_master_id
- WHERE lower(m.branch)=lower(?) ORDER BY m.id DESC LIMIT 60`).bind(branch).all();
+ WHERE lower(m.branch)=lower(?)
+ UNION ALL
+ SELECT m.id,m.movement_type,m.doc_id AS document_id,m.quantity_delta_milli,m.created_at,m.actor_email,s.code
+ FROM maliks_pos_stock_control_movements m LEFT JOIN maliks_pos_master_records s ON s.id=m.stock_master_id
+ WHERE lower(m.branch)=lower(?)
+ ) ORDER BY created_at DESC,id DESC LIMIT 60`).bind(branch,branch).all();
  const {results:destinations}=await env.DB.prepare("SELECT name FROM workspaces WHERE type='Store' AND active=1 ORDER BY name").all();
- return json({branch,items:results,movements,destinations:destinations.map(r=>r.name),accounting_posted:false});
+ return json({branch,items:results,page,pages:Math.ceil(Number(totalRow?.total||0)/perPage),total:Number(totalRow?.total||0),movements,destinations:destinations.map(r=>r.name),accounting_posted:false});
 }
 export async function listReceipts(req,env,c){
  if(!allow(c,'read'))return fail('Receiving access denied.',403);

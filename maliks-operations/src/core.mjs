@@ -13,6 +13,7 @@ import {canUsePurchase,listPurchaseOrders,purchaseAudit,savePurchaseOrder,action
 import {canUseSupplierInvoice,listSupplierInvoices,captureSupplierInvoice,supplierInvoiceAction} from './supplier-invoice-domain.mjs';
 import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
 import {canManageTeam,listTeam,changeTeam} from './team-domain.mjs';
+import {listStockControl,createStockControl,stockControlAction} from './stock-control-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
@@ -484,6 +485,9 @@ export default {
       if(path==='/v1/purchase-orders/audit'&&req.method==='GET')return await purchaseAudit(req,env,context);
       if(path==='/v1/purchase-orders/action'&&req.method==='POST')return await actionPurchaseOrder(req,env,context);
       if(path==='/v1/inventory'&&req.method==='GET')return await listInventory(req,env,context);
+      if(path==='/v1/stock-control'&&req.method==='GET')return await listStockControl(req,env,context);
+      if(path==='/v1/stock-control'&&req.method==='POST')return await createStockControl(req,env,context);
+      if(path==='/v1/stock-control/action'&&req.method==='POST')return await stockControlAction(req,env,context);
       if(path==='/v1/receipts'&&req.method==='GET')return await listReceipts(req,env,context);
       if(path==='/v1/receipts'&&req.method==='POST')return await countReceipt(req,env,context);
       if(path==='/v1/receipts/action'&&req.method==='POST')return await receiptAction(req,env,context);

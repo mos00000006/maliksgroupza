@@ -16,7 +16,7 @@ const write=(path,body)=>new Request('https://pos.example'+path,{method:'POST',h
 const get=path=>new Request('https://pos.example'+path);
 const result=async r=>({status:r.status,body:await r.json()});
 class D1{
- constructor(){this.sqlite=new DatabaseSync(':memory:');for(const name of ['phase15_master_files.sql','phase16_purchase_orders.sql','phase17_inventory_flow.sql'])this.sqlite.exec(readFileSync(new URL('../sql/'+name,import.meta.url),'utf8'));
+ constructor(){this.sqlite=new DatabaseSync(':memory:');for(const name of ['phase15_master_files.sql','phase16_purchase_orders.sql','phase17_inventory_flow.sql','phase20_stock_control.sql'])this.sqlite.exec(readFileSync(new URL('../sql/'+name,import.meta.url),'utf8'));
  this.sqlite.exec(`CREATE TABLE workspaces(name TEXT,type TEXT,active INTEGER);INSERT INTO workspaces VALUES('Branch A','Store',1),('Branch B','Store',1);
  INSERT INTO maliks_pos_master_records(id,kind,branch,code,name,active,details_json,version,created_by_email,updated_by_email,created_at,updated_at,create_request_id,create_payload_hash,last_request_id) VALUES
  (1,'supplier','Branch A','SUP1','Supplier',1,'{}',1,'a','a','x','x','a','a','a'),

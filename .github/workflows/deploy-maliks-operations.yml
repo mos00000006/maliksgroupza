@@ -74,6 +74,8 @@ jobs:
         run: npm run migrate:phase18
       - name: Apply Member Team staff audit schema (Phase 19)
         run: npm run migrate:phase19
+      - name: Apply controlled stocktake and adjustment schema (Phase 20)
+        run: npm run migrate:phase20
       - name: Deploy central API — private Worker
         run: npm run deploy:core
       - name: Deploy Maliks POS Professional (management suite)
