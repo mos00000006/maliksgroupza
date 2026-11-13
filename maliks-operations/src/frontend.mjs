@@ -95,6 +95,7 @@ function page(app){
  h2{font-size:28px;margin:0 0 6px}h3{font-size:19px;margin:0 0 14px}p{line-height:1.5}.muted{color:#607187;font-size:14px}
  .tag{background:#fef3c7;border:1px solid #eab308;border-radius:6px;padding:7px 10px;color:#785217;font-weight:700;font-size:11px}
  .panel{background:white;padding:22px;border:1px solid #dae2ec;border-radius:15px;box-shadow:0 6px 24px #1529480b;margin-bottom:18px}
+ .login-panel{max-width:520px;margin:36px auto;padding:30px;box-shadow:0 16px 40px #102a4b18}.login-panel input{margin-bottom:16px}.login-panel button{width:100%}.login-logo{display:block;width:76px;height:76px;object-fit:contain;margin:0 auto 16px}
  .bar{display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0}.bar>*{flex:1 1 170px}
  label{font-weight:700;font-size:12px;display:block;margin:0 0 7px}input,select,textarea{width:100%;border:1px solid #bdc9d9;border-radius:7px;padding:11px;font:inherit;background:#fff;color:#19263b}
  input:focus,select:focus,textarea:focus{outline:2px solid #8fc1f6;outline-offset:1px}
@@ -212,17 +213,18 @@ function page(app){
  <div class="shell ${suiteShell?'suite-shell':''}"><aside><img class="brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
  <main><div class="top"><div><h2 id="screen-heading">${d.name}</h2><div class="muted" id="signed-in">Checking approved user access…</div></div><span class="tag" id="workstation-tag">${releaseLabel}</span></div>
  <div class="notice" id="workstation-notice">${d.hint}</div><div id="error" role="alert" hidden></div>
- <div class="panel"><div class="bar"><div><label for="branch">Assigned branch</label><select id="branch" disabled><option>Authorising…</option></select></div><div><label>Application access</label><p class="muted" id="access">Verification in progress…</p></div></div></div>
+ <div class="panel" id="branch-panel"><div class="bar"><div><label for="branch">Assigned branch</label><select id="branch" disabled><option>Authorising…</option></select></div><div><label>Application access</label><p class="muted" id="access">Verification in progress…</p></div></div></div>
  <div id="app-content"></div>
  </main></div><script type="module">
  const APP=${JSON.stringify(app)};
  const MEMBER_TEAM_URL='https://maliks-member-team.moyanamoses006.workers.dev';
+ let currentUserRole='';
  const SUITE_NAV=${JSON.stringify(SUITE_NAV)};
  const SUITE_MENU_TREE=${JSON.stringify(SUITE_MENU_TREE)};
  const SUITE_TITLES=${JSON.stringify(SUITE_TITLES)};
  const E=id=>document.getElementById(id);
  const h=(tag,text='',cls='')=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=String(text);if(cls)el.className=cls;return el;};
- const api=async (url,opts)=>{const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});let data;try{data=await r.json();}catch{throw Error('Unexpected service response.');}if(!r.ok)throw Error(data.error||'Request failed');return data;};
+ const api=async (url,opts)=>{const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});let data;try{data=await r.json();}catch{throw Error('Unexpected service response.');}if(!r.ok){const e=Error(data.error||'Request failed');e.status=r.status;throw e;}return data;};
  const money=c=>new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR'}).format(c/100);
  const err=message=>{const e=E('error');e.hidden=!message;e.textContent=message||'';e.className='error';};
  const panel=title=>{const p=h('section',undefined,'panel');p.append(h('h3',title));return p;};
@@ -1710,7 +1712,7 @@ function page(app){
  function setSuiteView(id){
    if(APP!=='pos')return;
    if(id==='lock'||id==='exit'){
-     window.location.assign('/cdn-cgi/access/logout');return;
+     void api('/api/auth/logout',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}).finally(()=>window.location.assign('/'));return;
    }
    if(!['home',...Object.keys(SUITE_MENU_TREE)].includes(id))return;
    suiteView=id;draw();window.scrollTo({top:0,behavior:'auto'});
@@ -1721,17 +1723,37 @@ function page(app){
    main.append(h('p','Add staff to their correct branch, or deactivate staff who have left. Deactivation blocks Maliks department API access immediately.','muted'));
    const toolbar=h('div',undefined,'bar');const refresh=h('button','Refresh employees','secondary');
    refresh.addEventListener('click',()=>void loadTeam());toolbar.append(refresh);main.append(toolbar);
+   if(currentUserRole==='Owner / Admin'||currentUserRole==='Developer / Technical Admin'){
+     const bootstrap=h('button','Create / reset my own employee login','secondary');bootstrap.type='button';
+     bootstrap.addEventListener('click',async()=>{
+       if(!window.confirm('Create a temporary login for your administrator account? You must be signed in through Cloudflare Access.'))return;
+       bootstrap.disabled=true;try{showTemporaryPassword(await api('/api/auth/bootstrap',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}));}
+       catch(ex){err(ex.message);}finally{bootstrap.disabled=false;}
+     });main.append(bootstrap);
+   }
    const form=h('form');form.autocomplete='off';const fields=h('div',undefined,'bar');
    const field=(title,type)=>{const wrap=h('div');const lab=h('label',title);const inp=h('input');inp.type=type;inp.required=true;wrap.append(lab,inp);fields.append(wrap);return inp;};
    const name=field('Employee full name','text');name.maxLength=120;
    const email=field('Employee login email','email');email.maxLength=150;
    const roleWrap=h('div');roleWrap.append(h('label','Department role'));const role=h('select');roleWrap.append(role);fields.append(roleWrap);
    const save=h('button','Add employee');save.type='submit';form.append(fields,save);
+   const credentialNotice=h('section',undefined,'panel');credentialNotice.hidden=true;main.append(credentialNotice);
+   function showTemporaryPassword(data){
+     credentialNotice.hidden=false;credentialNotice.replaceChildren(h('h3','Temporary login password — copy now'),
+       h('p','Employee: '+data.employee),h('p','This password is shown once. The employee must change it at first sign-in. Do not send it in a public group.'));
+     const pre=h('pre',data.temporary_password);credentialNotice.append(pre);
+     const copy=h('button','Copy temporary password','secondary');copy.type='button';copy.addEventListener('click',()=>void navigator.clipboard.writeText(data.temporary_password));credentialNotice.append(copy);
+   }
+   async function issuePassword(person){
+     const data=await api('/api/team/password-reset',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({branch,member_id:person.id,request_id:crypto.randomUUID()})});
+     showTemporaryPassword(data);
+   }
    form.addEventListener('submit',async e=>{
      e.preventDefault();if(!window.confirm('Add '+name.value+' to '+branch+' with '+role.value+' access?'))return;
      save.disabled=true;err('');
-     try{await api('/api/team/change',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'CREATE',branch,name:name.value,email:email.value,role:role.value,request_id:crypto.randomUUID()})});
-       name.value='';email.value='';await loadTeam();}
+     try{const created=await api('/api/team/change',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'CREATE',branch,name:name.value,email:email.value,role:role.value,request_id:crypto.randomUUID()})});
+       name.value='';email.value='';await loadTeam();
+       try{await issuePassword({id:created.member_id});}catch(ex){err('Employee created, but password was not issued: '+ex.message+' Use Issue password below.');}}
      catch(ex){err(ex.message);}finally{save.disabled=false;}
    });main.append(form);
    const status=h('p','Loading employees…','muted');status.id='team-status';main.append(status);
@@ -1749,6 +1771,12 @@ function page(app){
            const b=h('button','Deactivate','secondary small-btn');b.addEventListener('click',()=>void changeStatus(person,'DEACTIVATE',b));action.append(b);
          }else if(!person.active&&data.can_reactivate){
            const b=h('button','Reactivate','secondary small-btn');b.addEventListener('click',()=>void changeStatus(person,'REACTIVATE',b));action.append(b);
+         }
+         if(person.active&&(data.can_reactivate||(data.can_assign_roles||[]).includes(person.role))){
+           const pw=h('button','Issue password','secondary small-btn');pw.type='button';pw.addEventListener('click',async()=>{
+             if(!window.confirm('Issue a NEW temporary password for '+person.name+'? Existing sessions will be revoked.'))return;
+             pw.disabled=true;err('');try{await issuePassword(person);}catch(ex){err(ex.message);}finally{pw.disabled=false;}
+           });action.append(pw);
          }
          row.append(action);tbl.append(row);
        }
@@ -1776,18 +1804,55 @@ function page(app){
    }else if(APP==='member')teamView();else if(APP==='sales')posView();else if(APP==='dispatch')dispatchView();else void quoteView();
  }
 
+
+ function signInView(){
+   E('branch-panel').hidden=true;E('signed-in').textContent='Employee sign in';E('access').textContent='Not signed in';
+   const root=E('app-content');root.replaceChildren();const p=panel('Sign in to '+(APP==='member'?'Maliks Member Team':APP==='sales'?'Maliks Sales':APP==='pos'?'Maliks POS Professional':'Maliks '+APP));p.classList.add('login-panel');const logo=h('img');logo.src='/powerbuild-logo.png';logo.alt='PowerBuild';logo.className='login-logo';p.prepend(logo);
+   p.append(h('p','Enter the email and password issued by your store manager.','muted'));
+   const f=h('form');f.autocomplete='on';const email=h('input');email.type='email';email.autocomplete='username';email.required=true;email.placeholder='Employee email';
+   const pw=h('input');pw.type='password';pw.autocomplete='current-password';pw.required=true;pw.placeholder='Password';
+   const btn=h('button','Sign in');btn.type='submit';const notice=h('p','','muted');
+   f.append(h('label','Email address'),email,h('label','Password'),pw,btn,notice);
+   f.addEventListener('submit',async event=>{event.preventDefault();btn.disabled=true;notice.textContent='Signing in…';err('');
+     try{await api('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:email.value,password:pw.value})});pw.value='';location.reload();}
+     catch(ex){notice.textContent='';err(ex.message);}finally{btn.disabled=false;}
+   });p.append(f);root.append(p);
+ }
+ function changePasswordView(){
+   E('branch-panel').hidden=true;E('signed-in').textContent='Password change required';E('access').textContent='First login';
+   const root=E('app-content');root.replaceChildren();const p=panel('Create your own password');p.classList.add('login-panel');
+   p.append(h('p','Your temporary password must be changed before you can use any workstation. Choose at least 14 characters.','muted'));
+   const f=h('form');const old=h('input');old.type='password';old.required=true;old.autocomplete='current-password';
+   const next=h('input');next.type='password';next.required=true;next.minLength=14;next.autocomplete='new-password';
+   const confirm=h('input');confirm.type='password';confirm.required=true;confirm.minLength=14;confirm.autocomplete='new-password';
+   const btn=h('button','Save new password');btn.type='submit';f.append(h('label','Temporary password'),old,h('label','New password'),next,h('label','Confirm new password'),confirm,btn);
+   f.addEventListener('submit',async event=>{event.preventDefault();err('');if(next.value!==confirm.value){err('Passwords do not match.');return;}
+     btn.disabled=true;try{await api('/api/auth/change-password',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({current_password:old.value,new_password:next.value})});
+       await api('/api/auth/logout',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});location.reload();}
+     catch(ex){err(ex.message);}finally{btn.disabled=false;}
+   });p.append(f);root.append(p);
+ }
+ function addSignOut(){
+   const parent=E('screen-heading').parentElement;const b=h('button','Sign out','secondary small-btn');b.type='button';b.addEventListener('click',async()=>{
+     try{await api('/api/auth/logout',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});}catch{}location.reload();
+   });parent.append(b);
+ }
  try{
-   const session=await api('/api/session');masterPermissions=session.master_permissions||{};purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};currentUserEmail=String(session.user.email||'').toLowerCase();E('signed-in').textContent=APP==='sales'?session.user.name:session.user.name+' · '+session.user.role;
-   E('access').textContent=APP==='sales'?session.branches.join(', '):session.branches.length+' assigned branch(es)'+(['pos','member'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
-   for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=APP==='sales'&&session.branches.length===1;branch=select.value;select.addEventListener('change',selectBranch);
-   if(APP==='sales'){E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;const label=document.querySelector('label[for=branch]');if(label)label.textContent='Store';}
-   if(APP==='pos'){
-     E('suite-user').textContent=session.user.name+' · '+session.user.role;
-     for(const btn of E('suite-navigation').querySelectorAll('[data-suite-module]'))btn.addEventListener('click',()=>setSuiteView(btn.dataset.suiteModule));
-     E('suite-navigation').hidden=false;
+   const session=await api('/api/session');
+   if(session.password_change_required){changePasswordView();}
+   else{
+     masterPermissions=session.master_permissions||{};purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};currentUserEmail=String(session.user.email||'').toLowerCase();currentUserRole=session.user.role;E('signed-in').textContent=APP==='sales'?session.user.name:session.user.name+' · '+session.user.role;
+     E('access').textContent=APP==='sales'?session.branches.join(', '):session.branches.length+' assigned branch(es)'+(['pos','member'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
+     for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=APP==='sales'&&session.branches.length===1;branch=select.value;select.addEventListener('change',selectBranch);
+     if(APP==='sales'){E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;const label=document.querySelector('label[for=branch]');if(label)label.textContent='Store';}
+     if(APP==='pos'){
+       E('suite-user').textContent=session.user.name+' · '+session.user.role;
+       for(const btn of E('suite-navigation').querySelectorAll('[data-suite-module]'))btn.addEventListener('click',()=>setSuiteView(btn.dataset.suiteModule));
+       E('suite-navigation').hidden=false;
+     }
+     addSignOut();draw();
    }
-   draw();
- }catch(e){E('signed-in').textContent='Access unavailable';E('access').textContent='Not authorised';err(e.message+' Contact your Hub administrator to verify department role and branch assignment.');}
+ }catch(e){if(e.status===401){signInView();}else{E('signed-in').textContent='Access unavailable';E('access').textContent='Not authorised';err(e.message+' Contact your Hub administrator to verify department role and branch assignment.');}}
  </script></body></html>`;
 }
 export default {
@@ -1804,20 +1869,21 @@ export default {
      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
      '/api/stock-control':'/v1/stock-control','/api/stock-control/action':'/v1/stock-control/action',
      '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action','/api/supplier-invoices':'/v1/supplier-invoices','/api/supplier-invoices/action':'/v1/supplier-invoices/action',
-     '/api/team':'/v1/team','/api/team/change':'/v1/team/change'};
+     '/api/team':'/v1/team','/api/team/change':'/v1/team/change','/api/team/password-reset':'/v1/team/password-reset',
+     '/api/auth/login':'/v1/auth/login','/api/auth/logout':'/v1/auth/logout','/api/auth/change-password':'/v1/auth/change-password','/api/auth/bootstrap':'/v1/auth/bootstrap'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
-   if((path==='/v1/team'&&req.method!=='GET')||(path==='/v1/team/change'&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if((path==='/v1/team'&&req.method!=='GET')||(['/v1/team/change','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path)&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // The Professional suite cannot submit Sales transactions through its old POS origin.
-   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
    // The Member Team Worker is isolated from POS, payments and sales.
-   if(kind==='member' && !['/v1/session','/v1/team','/v1/team/change'].includes(path))return Response.json({error:'Team app only.'},{status:403});
+   if(kind==='member' && !['/v1/session','/v1/team','/v1/team/change','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Team app only.'},{status:403});
    if(kind!=='member' && path.startsWith('/v1/team'))return Response.json({error:'Team app only.'},{status:403});
    // The dedicated Sales Worker may only access the quotation/catalogue APIs.
-   if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
+   if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
    // Department rules enforced here as an early deny and again by the private Core.
    if((url.pathname.startsWith('/api/dispatch-jobs') && kind!=='dispatch') ||
       (url.pathname==='/api/payments/verify' && kind!=='cashoffice') ||
@@ -1835,15 +1901,26 @@ export default {
    // No public CORS. Require same-origin for all browser-initiated writes.
    if(req.method==='POST' && req.headers.get('origin')!==url.origin)return Response.json({error:'Invalid request origin.'},{status:403});
    const token=req.headers.get('cf-access-jwt-assertion');
-   if(!token)return Response.json({error:'Cloudflare Access application login required.'},{status:401,headers:{'cache-control':'no-store'}});
+   const sessionToken=(req.headers.get('cookie')||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('__Host-maliks_session='))?.split('=')[1]||'';
+   if(!token&&!sessionToken&&!['/v1/auth/login','/v1/auth/logout'].includes(path))return Response.json({error:'Employee sign in required.'},{status:401,headers:{'cache-control':'no-store'}});
    // Both public Workers use the existing verified POS Access audience. Core receives
    // 'pos' only for the dedicated Sales Worker, preserving its current Sales-only roles.
    const coreApp=kind==='sales'?'pos':kind==='pos'?'management':kind;
-   const headers=new Headers({'cf-access-jwt-assertion':token,'x-maliks-app':coreApp,'x-maliks-original-origin':url.origin});
+   const headers=new Headers({'x-maliks-app':coreApp,'x-maliks-original-origin':url.origin});
+   if(token)headers.set('cf-access-jwt-assertion',token);
+   if(sessionToken)headers.set('x-maliks-session',sessionToken);
+   if(path==='/v1/auth/login')headers.set('x-maliks-client-ip',req.headers.get('cf-connecting-ip')||'unknown');
    if(req.method==='POST'){headers.set('content-type','application/json');headers.set('origin',url.origin);}
    const target=new URL('https://maliks-core.internal'+path+url.search);
    const response=await env.CORE.fetch(new Request(target,{method:req.method,headers,body:req.method==='POST'?req.body:undefined,duplex:req.method==='POST'?'half':undefined}));
    const h=new Headers({'cache-control':'no-store','x-content-type-options':'nosniff','content-type':'application/json'});
+   if(path==='/v1/auth/login'&&response.ok){
+     const data=await response.json();
+     if(!/^[A-Za-z0-9_-]{43}$/.test(data.token||''))return Response.json({error:'Login service failed.'},{status:503});
+     h.set('set-cookie','__Host-maliks_session='+data.token+'; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=28800');
+     return Response.json({ok:true,password_change_required:!!data.password_change_required},{headers:h});
+   }
+   if(path==='/v1/auth/logout')h.set('set-cookie','__Host-maliks_session=; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=0');
    return new Response(response.body,{status:response.status,headers:h});
  }
 };

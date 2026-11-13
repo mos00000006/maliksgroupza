@@ -27,6 +27,7 @@ jobs:
       CF_ACCESS_AUD_DISPATCH: ${{ secrets.CF_ACCESS_AUD_DISPATCH }}
       CF_ACCESS_AUD_MEMBER: ${{ secrets.CF_ACCESS_AUD_MEMBER }}
       MALIKS_P9_APPROVAL_ENABLED: ${{ vars.MALIKS_P9_APPROVAL_ENABLED }}
+      MALIKS_NATIVE_LOGIN_APPS: ${{ vars.MALIKS_NATIVE_LOGIN_APPS }}
     defaults:
       run:
         working-directory: maliks-operations
@@ -76,6 +77,8 @@ jobs:
         run: npm run migrate:phase19
       - name: Apply controlled stocktake and adjustment schema (Phase 20)
         run: npm run migrate:phase20
+      - name: Apply employee password and session schema (Phase 21)
+        run: npm run migrate:phase21
       - name: Deploy central API — private Worker
         run: npm run deploy:core
       - name: Deploy Maliks POS Professional (management suite)

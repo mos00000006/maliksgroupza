@@ -24,6 +24,8 @@ console.log('Cloudflare Access Team domain validated (value hidden).');
 const apps={pos:'CF_ACCESS_AUD_POS',sales:'CF_ACCESS_AUD_POS',tills:'CF_ACCESS_AUD_TILLS',cashoffice:'CF_ACCESS_AUD_CASHOFFICE',dispatch:'CF_ACCESS_AUD_DISPATCH',member:'CF_ACCESS_AUD_MEMBER'};
 if(!uuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid))throw Error('MALIKS_GROUP_D1_DATABASE_ID must be an existing D1 database UUID.');
 for(const [app,key] of Object.entries(apps)){if(!process.env[key]?.trim())throw Error('Missing Cloudflare Access application AUD: '+key+' ('+app+')');}
+const nativeApps=(process.env.MALIKS_NATIVE_LOGIN_APPS||'').split(',').map(x=>x.trim()).filter(Boolean);
+if(nativeApps.some(x=>!['management','pos','member','tills','cashoffice','dispatch'].includes(x)))throw Error('MALIKS_NATIVE_LOGIN_APPS contains an invalid application.');
 const date='2026-11-09';
 const common={compatibility_date:date,compatibility_flags:['nodejs_compat'],observability:{enabled:true}};
 const out=path.resolve('.generated');await mkdir(out,{recursive:true});
@@ -32,7 +34,8 @@ const core={...common,name:'maliks-core-api',main:'../src/core.mjs',workers_dev:
   ACCESS_AUD_POS:process.env.CF_ACCESS_AUD_POS.trim(),ACCESS_AUD_TILLS:process.env.CF_ACCESS_AUD_TILLS.trim(),
   ACCESS_AUD_CASHOFFICE:process.env.CF_ACCESS_AUD_CASHOFFICE.trim(),ACCESS_AUD_DISPATCH:process.env.CF_ACCESS_AUD_DISPATCH.trim(),
   ACCESS_AUD_MEMBER:process.env.CF_ACCESS_AUD_MEMBER.trim(),
-  P9_APPROVAL_ENABLED:process.env.MALIKS_P9_APPROVAL_ENABLED==='true'?'true':'false'},
+  P9_APPROVAL_ENABLED:process.env.MALIKS_P9_APPROVAL_ENABLED==='true'?'true':'false',
+  NATIVE_LOGIN_APPS:process.env.MALIKS_NATIVE_LOGIN_APPS||''},
  d1_databases:[{binding:'DB',database_name:'maliks-group-hub-db',database_id:uuid}]};
 await writeFile(path.join(out,'core.json'),JSON.stringify(core,null,2)+'\n',{mode:0o600});
 for(const app of Object.keys(apps)){

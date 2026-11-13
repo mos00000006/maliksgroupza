@@ -117,7 +117,10 @@ export async function changeTeam(req,env,ctx){
     const before=snapshot(target),after={...before,active:desired===1};
     const roleGuard=isAdmin(ctx)?'':` AND role IN (${STORE_STAFF_ROLES.map(()=>'?').join(',')})`;
     const guardArgs=isAdmin(ctx)?[]:STORE_STAFF_ROLES;
-    const result=await env.DB.batch([
+    // Phase 21: revocation must survive a later reactivation. The session table
+    // is optional in legacy Phase 19 test fixtures; production migrations create it.
+    const sessionsAvailable=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='maliks_pos_staff_sessions'").first();
+    const statements=[
       env.DB.prepare(`UPDATE team_members SET active=? WHERE id=? AND active=? AND lower(department)=lower(?)
         AND lower(email)<>lower(?)${roleGuard}`)
         .bind(desired,target.id,1-desired,branch,actor,...guardArgs),
@@ -125,7 +128,9 @@ export async function changeTeam(req,env,ctx){
         (request_id,payload_hash,action,member_id,member_email,branch,actor_email,before_json,after_json,created_at)
         SELECT ?,?,?,?,?,?,?,?,?,? WHERE changes()=1`)
         .bind(id,hash,action,target.id,target.email,branch,actor,JSON.stringify(before),JSON.stringify(after),now)
-    ]);
+    ];
+    if(sessionsAvailable)statements.push(env.DB.prepare('DELETE FROM maliks_pos_staff_sessions WHERE member_id=?').bind(target.id));
+    const result=await env.DB.batch(statements);
     if(Number(result[0]?.meta?.changes)!==1)return fail('Employee status changed. Refresh and retry.',409);
   }
   const saved=await env.DB.prepare('SELECT action,member_id,member_email FROM maliks_member_team_audit WHERE request_id=?').bind(id).first();

@@ -14,6 +14,7 @@ import {canUseSupplierInvoice,listSupplierInvoices,captureSupplierInvoice,suppli
 import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
 import {canManageTeam,listTeam,changeTeam} from './team-domain.mjs';
 import {listStockControl,createStockControl,stockControlAction} from './stock-control-domain.mjs';
+import {loginPassword,verifySession,logoutPassword,changeOwnPassword,issueTemporaryPassword,bootstrapOwnPassword} from './password-auth-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
@@ -24,17 +25,21 @@ const accessVars={pos:'ACCESS_AUD_POS',management:'ACCESS_AUD_POS',tills:'ACCESS
 async function identity(request,env) {
   const app=request.headers.get('x-maliks-app');
   if(!APPS.includes(app)) return null;
+  const nativeOnly=String(env.NATIVE_LOGIN_APPS||'').split(',').map(x=>x.trim());
+  if(nativeOnly.includes(app))return verifySession(env,app,request.headers.get('x-maliks-session'));
   const jwt=request.headers.get('cf-access-jwt-assertion');
   const issuer=String(env.CF_ACCESS_TEAM_DOMAIN||'').replace(/\/$/,'');
   const audience=env[accessVars[app]];
-  if(!jwt || !issuer.startsWith('https://') || !audience || audience.startsWith('REPLACE_')) return null;
+  if(!jwt || !issuer.startsWith('https://') || !audience || audience.startsWith('REPLACE_')) {
+    return verifySession(env,app,request.headers.get('x-maliks-session'));
+  }
   try {
     let keys=securityCache.get(issuer);
     if(!keys){keys=createRemoteJWKSet(new URL(`${issuer}/cdn-cgi/access/certs`));securityCache.set(issuer,keys);}
     const {payload}=await jwtVerify(jwt,keys,{issuer,audience,algorithms:['RS256']});
     const email=typeof payload.email==='string' ? payload.email.trim().toLowerCase() : '';
-    return email ? {email,app} : null;
-  } catch {return null;}
+    return email ? {email,app,method:'access',must_change_password:false} : null;
+  } catch {return verifySession(env,app,request.headers.get('x-maliks-session'));}
 }
 
 async function memberAndBranches(env,email,app){
@@ -455,14 +460,27 @@ export default {
     const path=new URL(req.url).pathname;
     if(!path.startsWith('/v1/'))return denied('Internal service only.',404);
     if(!['GET','POST'].includes(req.method))return denied('Method not allowed.',405);
+    const app=req.headers.get('x-maliks-app');
+    if(path==='/v1/auth/login'&&req.method==='POST'){
+      if(!APPS.includes(app))return denied('Invalid application.',403);
+      return loginPassword(req,env,app,req.headers.get('x-maliks-client-ip')||'');
+    }
+    if(path==='/v1/auth/logout'&&req.method==='POST'){
+      if(req.headers.get('origin')!==req.headers.get('x-maliks-original-origin'))return denied('Invalid origin.',403);
+      return logoutPassword(env,req.headers.get('x-maliks-session'));
+    }
     const auth=await identity(req,env);
-    if(!auth)return denied('Cloudflare Access login is required.',401);
+    if(!auth)return denied('Sign in with your employee credentials.',401);
+    if(path==='/v1/auth/change-password'&&req.method==='POST')return changeOwnPassword(req,env,auth);
+    if(path==='/v1/auth/bootstrap'&&req.method==='POST')return bootstrapOwnPassword(req,env,auth);
+    if(auth.method==='password'&&auth.must_change_password&&path!=='/v1/session')return denied('Password change required.',428);
     try{
       const access=await memberAndBranches(env,auth.email,auth.app);
       if(!access)return denied('No active department and branch assignment.');
-      const context={...access,app:auth.app};
+      const context={...access,app:auth.app,auth_method:auth.method};
       if(path==='/v1/session'&&req.method==='GET')return result({
         app:auth.app,user:{name:access.member.name,role:access.member.role,email:access.member.email},branches:access.branches,
+        password_change_required:auth.method==='password'&&auth.must_change_password,
         team_permissions:auth.app==='member'?{manage:canManageTeam(access.member)}:undefined,
         master_permissions:auth.app==='management'?Object.fromEntries(MASTER_KINDS.map(k=>[k,{read:canUseMaster(access.member,k),write:canUseMaster(access.member,k,true)}])):undefined,
         purchase_permissions:auth.app==='management'?{read:canUsePurchase(access.member),write:canUsePurchase(access.member,'write'),approve:canUsePurchase(access.member,'approve')}:undefined,
@@ -472,6 +490,7 @@ export default {
       });
       if(path==='/v1/team'&&req.method==='GET')return await listTeam(req,env,context);
       if(path==='/v1/team/change'&&req.method==='POST')return await changeTeam(req,env,context);
+      if(path==='/v1/team/password-reset'&&req.method==='POST')return await issueTemporaryPassword(req,env,context);
       if(path==='/v1/master/records'&&req.method==='GET')return await listMasterRecords(req,env,context);
       if(path==='/v1/master/records'&&req.method==='POST')return await saveMasterRecord(req,env,context);
       if(path==='/v1/master/audit'&&req.method==='GET')return await listMasterAudit(req,env,context);
