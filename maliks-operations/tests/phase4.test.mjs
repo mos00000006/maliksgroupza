@@ -39,7 +39,7 @@ test('Cash Office displays read-only shift register, not cashier write forms by 
   assert.match(html,/Open \/ close must be performed by the signed-in cashier/);
 });
 test('POS release unchanged and dispatch still isolated',async()=>{
-  assert.match(await page('pos'),/PHASE 2 — QUOTATION RELEASE/);
+  assert.match(await page('pos'),/SALES · QUOTATIONS/);
   assert.match(await page('dispatch'),/PAID INVOICE DISPATCH QUEUE/);
 });
 test('unauthenticated shift request rejected and cross-origin write denied',async()=>{

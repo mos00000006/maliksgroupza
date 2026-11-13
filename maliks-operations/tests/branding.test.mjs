@@ -11,7 +11,8 @@ for(const [app,name] of Object.entries(APP_NAMES)){
     const html=await res.text();
     assert.match(html,/class="brand-logo" src="\/powerbuild-logo\.png" alt="PowerBuild logo"/);
     assert.match(html,new RegExp(name));
-    assert.match(html,/rel="icon" type="image\/png" href="\/powerbuild-logo\.png"/);
+    if(app==='pos')assert.match(html,/rel="icon" type="image\/svg\+xml" href="\/maliks-mark\.svg"/);
+    else assert.match(html,/rel="icon" type="image\/png" href="\/powerbuild-logo\.png"/);
     assert.doesNotMatch(html,/class="logo"/);
   });
   test(`${name} serves logo as PNG on same origin`,async()=>{

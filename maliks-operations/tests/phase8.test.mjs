@@ -60,7 +60,7 @@ test('Cash Office new UI retains prior Phase 7 worksheet and review functionalit
      '/api/payment-evidence/history','NOT PAID','/api/cashup-preview','/api/till-reviews',
      'MANUAL DOCUMENT REVIEW ONLY'])assert.ok(co.includes(marker),marker);
   assert.match(await render('tills'),/TILLS — PAYMENT WORKFLOW/);
-  assert.match(await render('pos'),/PHASE 2 — QUOTATION RELEASE/);
+  assert.match(await render('pos'),/SALES · QUOTATIONS/);
   assert.match(await render('dispatch'),/PAID INVOICE DISPATCH QUEUE/);
 });
 test('Only Cash Office can read or post payment evidence',async()=>{

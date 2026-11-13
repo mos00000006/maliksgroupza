@@ -1,18 +1,89 @@
 import { POWERBUILD_LOGO_BASE64 } from './powerbuild-logo.mjs';
 
 const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c => c.charCodeAt(0));
+const MALIKS_MARK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#142941"/><path d="M13 48V17h8l11 15 11-15h8v31h-9V31L32 44 22 31v17z" fill="#e9c46f"/></svg>';
 
 const APPS={
-  pos:{name:'Maliks POS',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
+  pos:{name:'Maliks Sales',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
   tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Cash or card: cashier confirms receipt and sends paid internal invoice directly to Dispatch. Bank/terminal integration remains separate.'},
   cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Audit cashier-confirmed Cash/Card payments and independently verify legacy or EFT payment requests.'},
   dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',hint:'Confirmed paid invoices appear in the dispatch queue. Picking and independent checking are recorded; stock posting, exit release and driver POD are not yet integrated.'},
 };
+// Phase 13: Touch365-inspired module hierarchy, with original Maliks visual identity.
+// This is a navigation inventory. Only the existing Sales workstation is connected
+// in this Worker; other department workflows remain separately secured applications.
+const SUITE_NAV = [
+  ['home','Home','⌂'],['sales','Sales','▣'],['debtors','Debtors','◎'],
+  ['suppliers','Suppliers','▤'],['stock','Stock','▦'],['backoffice','Back Office','▥'],
+  ['dispatching','Dispatching','⇥'],['headoffice','Head Office','◇'],
+  ['system','System Settings','⚙'],['widget','Widget','◫'],
+  ['help','Help','?'],['lock','Lock','♙'],['exit','Exit','⏻'],
+];
+const SUITE_MENU_TREE = {
+  sales: {'Transactions':['Sales Quotations','Sales Orders'],'Utilities':['Reprint Documents'],'Reporting':['Sales Orders','Quotations']},
+  debtors: {
+    'Master Files':['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes'],
+    'Transactions':['Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements'],
+    'Reporting':['Master','Transactions','Sales','Ledger','Statements','Control Account','Age Analysis','Debtors PDCs','Audits'],
+    'Utilities':['Current Agents','Block Sales','Reprint Documents','Reprint Journals','Labelling','Delete Expired Quotations','Debtors Master CSV/Text File Export','Debtors Master CSV File Import'],
+    'Settings':['Settings','Numbering'],
+  },
+  suppliers: {
+    'Master Files':['Suppliers','Categories','Classifications','Claims','Suppliers Returns Reasons','Statements Recon Reasons','Invoices and Debit Notes Details'],
+    'Transactions':['Invoices and Debit Notes','Payments and Reversals','Journals','Claims','Rebates','Payments Reconciliation'],
+    'Reporting':['Master','Transactions','Ledger','Statements','Control Account','Age Analysis','Payments','Suppliers PDC','Purchases','Audits'],
+    'Utilities':['Control Agents','Statement Reconciliation','Reprint Documents','Reprint Unallocated Balances to Unpaid Invoices','Housekeeping','Supplier Master CSV File Export'],
+    'Settings':['Settings','Numbering'],
+    'Suppliers Month End':['Suppliers Month End','Suppliers Month End History'],
+  },
+  stock: {
+    'Master Files':['Stock Master','Departments','Categories','Units','Barcodes','Stock Groups'],
+    'Transactions':['Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Returns','Stock Take'],
+    'Reporting':['Master','Stock Valuations','Stock Take','Transactions','Sales','Onhands','Re-Order','Audits','Promotions'],
+    'Utilities':['Promotions','Labelling','Pricing Utilities','Master Utilities','Minimum / Maximum Stock Levels','Stock Take','Freeze Onhands','Reprint Documents','Link Pictures','Stock Master CSV/Text File Export','Daily Stock Count','Serial Number Tracking','Stock Master CSV File Import','Delete Stock Items','Delete Stock Purchase Orders'],
+    'Settings':['Settings','Numbering'],
+  },
+  backoffice: {
+    'Master Files':['Tills','Till Drawings Expenses','Payment Types','Coinage','Cash Sales Transaction Numbers Free Voucher'],
+    'Widget':['Back Office Widget'],
+    'Reporting':['Tills','Departments','Sales Reps','Transactions','Laybyes','Tills Drawings','Audits','VAT','FoodCourt','Management','Parked Transactions'],
+    'Utilities':['Reprint Documents','Housekeeping'],
+    'Settings':['Settings','Numbering'],
+    'Cash-Up':['Till Cash-Up','Till Transfer','Till Cash Take On'],
+    'End of Day':['End of Day','End of Day History'],
+    'Sales and Stock Month End':['Sales and Stock Month End','Sales and Stock Month End History'],
+    'Housekeeping':['Clear Temporary Spool Folders'],
+  },
+  dispatching: {
+    'Transactions':['Staggered Invoices Dispatch','Staggered Dispatch Credit'],
+    'Reporting':['Staggered Invoices Awaiting Dispatch','Staggered Invoices Awaiting Dispatch Quick Valuation','Stock Items Awaiting Dispatch Summary','Staggered Invoices','Delivery Schedule'],
+    'Utilities':['Amend Debtors/Laybyes Delivery Dates'],
+  },
+  headoffice: {
+    'Master Files':['Master Files'], 'Transactions':['Transactions'], 'Reporting':['Reporting'],
+    'Utilities':['Utilities'], 'Settings':['Settings'],
+    'Synchronization':['Branches Synchronization History','Branches Comms Synchronization Status','Head Office Comms Sales Synchronization History'],
+  },
+  system: {'Administration':['System Settings','User Permissions','Branch Access','Numbering','Audit Log']},
+  widget: {'Dashboard':['Management Dashboard','Branch Dashboard','Sales Overview','Stock Overview']},
+  help: {'Support':['Using Maliks Professional','Department Access','Branch Selection','Contact Administrator']},
+  tills: {'Tills Workstation':['Cash / Card Checkout','Till Shift Open / Close','80mm Paid Receipts']},
+  cashoffice: {'Cash Office Workstation':['Payment Verification','Cash-Up','Cash Office Reports']},
+};
+const SUITE_TITLES = Object.fromEntries(SUITE_NAV.map(([id,label])=>[id,label]));
+function suiteHeader(){
+  const buttons=SUITE_NAV.map(([id,label,symbol])=>`<button type="button" data-suite-module="${id}" class="suite-nav-button" aria-pressed="false"><span class="suite-nav-icon" aria-hidden="true">${symbol}</span><span>${label}</span></button>`).join('');
+  return `<header id="suite-navigation" class="suite-header" hidden>
+    <div class="suite-brandbar"><button type="button" class="suite-brand" data-suite-module="home" aria-label="Maliks Professional home"><span class="suite-brand-mark">M</span><span class="suite-brand-text"><strong>MALIKS <span>POS</span></strong><small>ACCOUNTING &amp; POS SOLUTIONS <em>PROFESSIONAL</em></small></span></button><span class="suite-system-status">● SECURE WORKSPACE</span><span id="suite-user" class="suite-user">Signed in</span></div>
+    <nav class="suite-navbar" aria-label="Maliks Professional modules">${buttons}</nav>
+  </header>`;
+}
 function page(app){
  const d=APPS[app];
- const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':'PHASE 2 — QUOTATION RELEASE';
+ const suiteShell=app==='pos';
+ const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':'SALES · QUOTATIONS';
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
- <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="#102a4b"/><style>
+ <title>${suiteShell?'Maliks POS Professional — ':''}${d.name}</title><link rel="icon" type="${suiteShell?'image/svg+xml':'image/png'}" href="${suiteShell?'/maliks-mark.svg':'/powerbuild-logo.png'}"/><meta name="theme-color" content="#102a4b"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
  body{margin:0}.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
  aside{background:#102a4b;color:#fff;padding:28px 18px}aside h1{font-size:21px;margin:14px 0 5px}aside p{font-size:13px;color:#adbed0}
@@ -64,7 +135,52 @@ function page(app){
  .print-sheet .pick-signatures{display:grid;grid-template-columns:1fr 1fr;gap:15px 25px;margin-top:40px}
  .print-sheet .pick-signatures p{border-top:1px solid #345;padding-top:8px}
  
- @media print{body{background:#fff}.shell{display:none!important}.print-sheet{display:block!important;color:#111;font:12pt Arial,sans-serif;padding:10mm}
+
+ /* Maliks Professional suite: independent visual identity; existing branch receipts remain PowerBuild-branded. */
+ .maliks-professional{background:#edf2f7}
+ .suite-header{position:sticky;top:0;z-index:200;background:#101e32;color:#f7fbff;box-shadow:0 5px 22px #0b1d3430}
+ .suite-header[hidden]{display:none!important}
+ .suite-brandbar{display:flex;align-items:center;gap:18px;padding:13px clamp(16px,3vw,42px);min-height:84px;background:linear-gradient(110deg,#101e32 0%,#193a59 66%,#12465a 100%)}
+ .suite-brand{display:flex;align-items:center;gap:12px;border:0;background:transparent;padding:0;color:#fff;text-align:left;flex:none}
+ .suite-brand-mark{width:52px;height:52px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(135deg,#e8c778,#c89c48);color:#12243a;font-weight:900;font-size:31px;box-shadow:0 6px 22px #0004}
+ .suite-brand-text{display:grid;gap:2px}.suite-brand-text strong{font-size:25px;letter-spacing:.08em;line-height:1.1}.suite-brand-text strong span{color:#eac46f}
+ .suite-brand-text small{font-size:10px;letter-spacing:.16em;color:#b9cfe0;font-weight:700}.suite-brand-text em{font-style:normal;color:#f4d78c}
+ .suite-system-status{margin-left:auto;color:#8ee0c2;font-size:11px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
+ .suite-user{border:1px solid #ffffff28;padding:10px 13px;border-radius:9px;font-size:12px;color:#d6e4f3;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .suite-navbar{display:flex;align-items:stretch;overflow-x:auto;scrollbar-width:thin;background:#182e47;padding:0 20px;gap:2px}
+ .suite-nav-button{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;min-width:91px;min-height:76px;border:0;border-radius:0;background:transparent;color:#b8cde1;font-size:11px;font-weight:700;padding:10px 13px;white-space:nowrap;border-bottom:3px solid transparent;transition:background .18s,color .18s}
+ .suite-nav-button:hover{background:#ffffff12;color:#fff}.suite-nav-button[aria-pressed="true"]{background:#ffffff13;color:#fff;border-bottom-color:#e9c66f}
+ .suite-nav-icon{font-size:23px;line-height:1;font-weight:700;color:#e4bb66}.suite-nav-button:focus-visible{outline:2px solid #f4d78c;outline-offset:-4px}
+ .suite-shell{display:block;min-height:calc(100vh - 160px)}.suite-shell>aside{display:none}.suite-shell>main{max-width:1480px;padding:30px clamp(16px,3vw,46px) 60px}
+ .suite-shell .top{margin-bottom:16px}.suite-shell .top h2{font-size:25px;color:#152a44}.suite-shell .top .tag{background:#e8f3fa;color:#24607e;border:1px solid #c6dbe9}
+ .suite-shell .panel{border-radius:13px;box-shadow:0 4px 16px #102a4b0b}
+ .suite-hero{position:relative;overflow:hidden;background:radial-gradient(circle at 90% 5%,#2c657a 0,transparent 43%),linear-gradient(125deg,#12253e,#163653);color:#fff;border-radius:22px;padding:clamp(30px,5vw,64px);margin:20px 0 24px;box-shadow:0 15px 40px #102a4b25}
+ .suite-hero:after{content:'M';position:absolute;right:4%;bottom:-105px;font-size:360px;font-weight:900;color:#ffffff08;pointer-events:none}
+ .suite-eyebrow{color:#e4bf70;font-weight:800;letter-spacing:.19em;font-size:12px;margin-bottom:12px}
+ .suite-hero-title{font-size:clamp(36px,5vw,66px);font-weight:900;letter-spacing:.03em;line-height:1.06;margin:0 0 13px;position:relative;z-index:1}
+ .suite-hero-title span{color:#e9c66f}.suite-hero-subtitle{font-size:clamp(14px,1.5vw,19px);color:#c6d8e8;max-width:700px;margin:0 0 25px;position:relative;z-index:1}
+ .suite-primary{background:#e5be65;color:#10263c;border-radius:10px;padding:13px 24px;box-shadow:0 5px 18px #0002}.suite-primary:hover{background:#f3d385}
+ .suite-section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:24px 0 12px}.suite-section-head h3{margin:0;color:#172b43}.suite-section-head small{color:#62738b}
+ .suite-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:15px}
+ .suite-card{border:1px solid #dbe4ee;border-radius:15px;background:#fff;padding:22px;text-align:left;color:#1d2f46;display:flex;flex-direction:column;align-items:flex-start;gap:9px;min-height:170px;box-shadow:0 5px 20px #0f29400b;transition:transform .16s,box-shadow .16s}
+ .suite-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px #0f294018}.suite-card .suite-card-icon{font-size:27px;color:#b98b38}.suite-card strong{font-size:18px}.suite-card small{font-size:12px;color:#60718a;font-weight:500;white-space:normal;line-height:1.5}
+ .suite-card .suite-card-status{margin-top:auto;font-size:10px;font-weight:900;letter-spacing:.1em;color:#8b6c31}
+ .suite-card .suite-card-status.live{color:#12715b}
+ .suite-sales-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 18px;padding:12px;background:#fff;border:1px solid #dce5ed;border-radius:12px}
+ .suite-sales-toolbar strong{margin-right:9px;color:#1b3a57;font-size:13px}.suite-sales-toolbar button{background:#edf3fa;color:#2c5679;padding:9px 12px;font-size:12px;border-radius:7px}.suite-sales-toolbar button.selected{background:#1b517c;color:#fff}
+ .suite-menu-intro{margin:14px 0 20px;padding:18px 20px;border-radius:12px;background:#eaf2fa;border-left:4px solid #386a9b;color:#304d6c;font-size:14px}
+ .suite-menu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}
+ .suite-menu-card{background:#fff;border:1px solid #dce5ed;border-radius:14px;padding:20px;box-shadow:0 5px 18px #132b420a}
+ .suite-menu-card h3{font-size:17px;color:#1a344f;border-bottom:1px solid #e5edf5;padding-bottom:12px;margin-bottom:7px}
+ .suite-menu-list{display:grid;gap:2px}.suite-menu-action{background:transparent;color:#304a64;text-align:left;font-size:13px;font-weight:600;border-radius:7px;padding:10px 8px;display:flex;justify-content:space-between;gap:10px}
+ .suite-menu-action:hover{background:#f0f5fa;color:#135e9e}.suite-menu-action:after{content:'›';font-size:19px;line-height:13px;color:#9aaabd}
+ .suite-feature-detail[hidden]{display:none!important}
+ .suite-feature-detail{background:#fff9e9;border:1px solid #f1dca6;border-radius:12px;padding:18px 20px;margin:20px 0;color:#6d531e}
+ .suite-feature-detail strong{display:block;margin-bottom:5px}.suite-footnote{font-size:12px;color:#6b7c91;margin-top:18px}
+ @media(max-width:900px){.suite-brandbar{flex-wrap:wrap}.suite-system-status{display:none}.suite-user{margin-left:auto}.suite-navbar{padding:0 8px}.suite-nav-button{min-width:78px;padding:9px 10px}.suite-shell>main{padding:22px 14px 45px}}
+ @media(max-width:540px){.suite-brand-text strong{font-size:20px}.suite-brand-text small{font-size:8px}.suite-brand-mark{width:43px;height:43px;font-size:27px}.suite-user{max-width:100%;margin-left:0}.suite-brandbar{gap:9px}.suite-hero{padding:29px 23px}.suite-hero:after{font-size:250px;bottom:-70px}}
+
+ @media print{body{background:#fff}.shell{display:none!important}.suite-header{display:none!important}.print-sheet{display:block!important;color:#111;font:12pt Arial,sans-serif;padding:10mm}
  .print-sheet .print-logo{width:110px;height:auto;object-fit:contain}.print-sheet h1{font-size:21pt}.print-sheet p{margin:6px 0}
  .print-sheet .print-warning{font-weight:bold;border:2px solid #000;padding:9px}.print-sheet .quote-detail{border:0;background:none;padding:0}
  .print-sheet table{font-size:10pt;width:100%}.print-sheet th,.print-sheet td{border-bottom:1px solid #d9e0eb;padding:9px 5px;text-align:left}
@@ -74,14 +190,18 @@ function page(app){
  @page{size:A4;margin:12mm}}
 
  @media(max-width:850px){.shell{grid-template-columns:1fr}aside{padding:15px 20px;display:flex;align-items:center;gap:14px}aside h1{margin:0;font-size:17px}aside .brand-logo{width:56px;height:56px;flex:0 0 56px}aside .nav,aside .foot,aside p{display:none}main{padding:23px 14px}.two{grid-template-columns:1fr}}
- </style></head><body>
- <div class="shell"><aside><img class="brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
- <main><div class="top"><div><h2>${d.name}</h2><div class="muted" id="signed-in">Checking approved user access…</div></div><span class="tag">${releaseLabel}</span></div>
- <div class="notice">${d.hint}</div><div id="error" role="alert" hidden></div>
+ </style></head><body class="${suiteShell?'maliks-professional':''}">
+ ${suiteShell?suiteHeader():''}
+ <div class="shell ${suiteShell?'suite-shell':''}"><aside><img class="brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
+ <main><div class="top"><div><h2 id="screen-heading">${d.name}</h2><div class="muted" id="signed-in">Checking approved user access…</div></div><span class="tag" id="workstation-tag">${releaseLabel}</span></div>
+ <div class="notice" id="workstation-notice">${d.hint}</div><div id="error" role="alert" hidden></div>
  <div class="panel"><div class="bar"><div><label for="branch">Assigned branch</label><select id="branch" disabled><option>Authorising…</option></select></div><div><label>Application access</label><p class="muted" id="access">Verification in progress…</p></div></div></div>
  <div id="app-content"></div>
  </main></div><script type="module">
  const APP=${JSON.stringify(app)};
+ const SUITE_NAV=${JSON.stringify(SUITE_NAV)};
+ const SUITE_MENU_TREE=${JSON.stringify(SUITE_MENU_TREE)};
+ const SUITE_TITLES=${JSON.stringify(SUITE_TITLES)};
  const E=id=>document.getElementById(id);
  const h=(tag,text='',cls='')=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=String(text);if(cls)el.className=cls;return el;};
  const api=async (url,opts)=>{const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});let data;try{data=await r.json();}catch{throw Error('Unexpected service response.');}if(!r.ok)throw Error(data.error||'Request failed');return data;};
@@ -92,13 +212,15 @@ function page(app){
  const showDate=value=>{if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?value:new Intl.DateTimeFormat('en-ZA',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Johannesburg'}).format(d);};
  const calcBasket=()=>{const total=basket.reduce((s,l)=>s+Math.round(l.product.price_cents*l.quantity),0);const vat=Math.round(total*15/115);return {total,vat,net:total-vat};};
  let branch='',basket=[],pendingQuote=null,recentQuotes=[],quoteRows=[],pendingShiftAction=null,pendingReviewAction=null,pendingTenderAction=null;
+ let suiteView='home';
+ let suiteSalesDraft={customer:'',contact:'',notes:''};
  function selectBranch(){
    const incoming=E('branch').value;
    if(pendingQuote){E('branch').value=branch;err('Finish or release the pending quotation before changing branch.');return;}
    if(pendingReviewAction){E('branch').value=branch;err('Retry or resolve the pending Cash Office review before changing branch.');return;}
    if(pendingTenderAction){E('branch').value=branch;err('Resolve the pending tender preparation before changing branch.');return;}
    if(basket.length && !window.confirm('Changing branch will clear the quotation basket. Continue?')){E('branch').value=branch;return;}
-   branch=incoming;basket=[];recentQuotes=[];quoteRows=[];pendingShiftAction=null;pendingReviewAction=null;pendingTenderAction=null;draw();
+   branch=incoming;basket=[];recentQuotes=[];quoteRows=[];suiteSalesDraft={customer:'',contact:'',notes:''};pendingShiftAction=null;pendingReviewAction=null;pendingTenderAction=null;draw();
  }
  async function searchProducts(){
    err('');const q=E('search')?.value.trim();if(!q){err('Enter a product name or code.');return;}
@@ -173,7 +295,7 @@ function page(app){
      slip.addEventListener('click',()=>void printQuote(data.quotation).catch(e=>err(e.message)));
      confirm.append(slip);
      pendingQuote=null;basket=[];
-     E('customer').value='';E('contact').value='';E('notes').value='';
+     E('customer').value='';E('contact').value='';E('notes').value='';suiteSalesDraft={customer:'',contact:'',notes:''};
      drawBasket();await loadOwnQuotes();
    }catch(e){
      err(e.message+' Submission is not confirmed. Check My Recent Quotations or retry the SAME request; do not create a second quotation.');
@@ -299,7 +421,19 @@ function page(app){
    }
  }
  function posView(){
-   const root=E('app-content');const two=h('div',undefined,'two');const lookup=panel('Product catalogue');
+   const root=E('app-content');
+   if(APP==='pos'){
+     const tools=h('div',undefined,'suite-sales-toolbar');tools.append(h('strong','Sales · Transactions'));
+     const live=h('button','Quotations · LIVE','selected');live.type='button';tools.append(live);
+     for(const item of ['Sales Orders','Reprint Documents','Reporting']){
+       const b=h('button',item);b.type='button';b.addEventListener('click',()=>{
+         const existing=E('suite-sales-preview');if(existing)existing.remove();
+         const note=h('div',item+' is included in the Sales menu inventory, but is not connected to a live workflow yet. Quotation creation below remains available.','suite-menu-intro');note.id='suite-sales-preview';tools.after(note);
+       });tools.append(b);
+     }
+     root.append(tools);
+   }
+   const two=h('div',undefined,'two');const lookup=panel('Product catalogue');
    const bar=h('div',undefined,'bar');const field=h('div');const l=h('label','Search products');l.htmlFor='search';field.append(l);
    const input=h('input');input.id='search';input.placeholder='Enter product code or name';input.maxLength=100;
    input.addEventListener('keydown',ev=>{if(ev.key==='Enter')searchProducts();});field.append(input);
@@ -315,7 +449,9 @@ function page(app){
      const r=h('div',undefined,id==='total'?'amount-row grand-total':'amount-row');r.append(h('span',label));const num=h('strong','R 0,00');num.id=id;r.append(num);checkout.append(r);
    }
    for(const [id,label,placeholder] of [['customer','Customer name','Walk-in customer'],['contact','Customer contact','Optional'],['notes','Notes','Optional']]){
-     const l=h('label',label);l.htmlFor=id;const inp=h('input');inp.id=id;inp.placeholder=placeholder;inp.maxLength=id==='notes'?400:id==='customer'?120:80;checkout.append(l,inp);
+     const l=h('label',label);l.htmlFor=id;const inp=h('input');inp.id=id;inp.placeholder=placeholder;inp.maxLength=id==='notes'?400:id==='customer'?120:80;
+     if(APP==='pos'){inp.value=suiteSalesDraft[id]||'';inp.addEventListener('input',()=>{suiteSalesDraft[id]=inp.value;});}
+     checkout.append(l,inp);
    }
    const send=h('button','Send quotation to Cash Office','widebutton');send.id='quote-btn';send.disabled=true;send.addEventListener('click',sendQuote);checkout.append(send);
    const release=h('button','Release pending request (after checking quotations)','secondary widebutton');release.id='release-pending';release.type='button';release.hidden=true;release.addEventListener('click',releasePending);checkout.append(release);
@@ -1016,11 +1152,91 @@ function page(app){
    E('app-content').append(dispatchQueuePanel());void loadDispatchQueue();
    if(!dispatchWatch)dispatchWatch=setInterval(()=>{if(document.visibilityState==='visible'&&E('p9-dispatch'))void loadDispatchQueue({quiet:true});},20000);
  }
- function draw(){E('app-content').replaceChildren();err('');if(APP==='pos')posView();else if(APP==='dispatch')dispatchView();else void quoteView();}
+ function suiteButton(text,module,cls=''){
+   const b=h('button',text,cls);b.type='button';b.addEventListener('click',()=>setSuiteView(module));return b;
+ }
+ function suiteHome(){
+   const root=E('app-content');
+   const hero=h('section',undefined,'suite-hero');
+   hero.append(h('div','MALIKS PROFESSIONAL · SECURE RETAIL OPERATIONS','suite-eyebrow'));
+   const title=h('div',undefined,'suite-hero-title');title.append(h('span','MALIKS '),document.createTextNode('POS'));hero.append(title);
+   hero.append(h('p','Accounting & POS Solutions Professional — one workspace for your sales, stock, debtors, suppliers, back office and multi-branch operations.','suite-hero-subtitle'));
+   hero.append(suiteButton('Open Sales workspace  →','sales','suite-primary'));root.append(hero);
+   const head=h('div',undefined,'suite-section-head');head.append(h('h3','Your workspaces'),h('small','Menus based on the supplied system reference'));root.append(head);
+   const cards=h('div',undefined,'suite-card-grid');
+   const definitions=[
+     ['sales','▣','Sales','Product search, VAT-inclusive quotations and 80mm quotation slips.','LIVE'],
+     ['tills','▤','Tills','Cashier checkout, cash/card confirmations and paid receipts.','SEPARATE WORKSTATION'],
+     ['cashoffice','◈','Cash Office','Payment verification, cash-up and internal finance controls.','SEPARATE WORKSTATION'],
+     ['dispatching','⇥','Dispatching','Paid-order picking, checking and delivery management.','SEPARATE WORKSTATION'],
+     ['stock','▦','Stock','Stock master, receiving, transfers, valuations and stock take.','MENU INVENTORY'],
+     ['debtors','◎','Debtors','Accounts, collections, statements and age analysis.','MENU INVENTORY'],
+     ['suppliers','▤','Suppliers','Purchasing, invoices, claims and supplier accounts.','MENU INVENTORY'],
+     ['backoffice','▥','Back Office','Tills, end-of-day, VAT, reporting and month-end controls.','MENU INVENTORY'],
+     ['headoffice','◇','Head Office','Branches, synchronization and group management.','MENU INVENTORY'],
+   ];
+   for(const [id,symbol,name,description,status] of definitions){
+     const card=suiteButton('',id,'suite-card');card.append(h('span',symbol,'suite-card-icon'),h('strong',name),h('small',description));
+     card.append(h('span',status,'suite-card-status'+(status==='LIVE'?' live':'')));cards.append(card);
+   }
+   root.append(cards,h('p','Sales is connected in this application. Tills, Cash Office and Dispatch are separate secured Workers; other menus are navigation previews until their own APIs, permissions and accounting controls are implemented.','suite-footnote'));
+ }
+ function suiteModuleView(id){
+   const root=E('app-content');const name=SUITE_TITLES[id]||({tills:'Tills',cashoffice:'Cash Office'}[id])||'Module';
+   const isSeparate=['tills','cashoffice','dispatching'].includes(id);
+   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':'This menu inventory follows the supplied Touch365 screenshots, redesigned for Maliks Professional. Menu entries shown here are not yet connected to live accounting or stock transactions.','suite-menu-intro'));
+   const menu=SUITE_MENU_TREE[id]||{};const grid=h('div',undefined,'suite-menu-grid');
+   for(const [section,items] of Object.entries(menu)){
+     const card=h('section',undefined,'suite-menu-card');card.append(h('h3',section));const list=h('div',undefined,'suite-menu-list');
+     for(const item of items){
+       const b=h('button',item,'suite-menu-action');b.type='button';
+       b.addEventListener('click',()=>{
+         const detail=E('suite-feature-detail');detail.replaceChildren();
+         detail.append(h('strong',name+'  /  '+section+'  /  '+item));
+         detail.append(h('p',isSeparate?'Open the authorised department workstation for operational access. This suite menu is a reference only.':'This function is in the module inventory but is not live yet. It requires a secure API, database workflow, branch permissions and audit logging before activation.'));
+         detail.hidden=false;detail.scrollIntoView({block:'nearest',behavior:'smooth'});
+       });list.append(b);
+     }
+     card.append(list);grid.append(card);
+   }
+   root.append(grid);const detail=h('section',undefined,'suite-feature-detail');detail.id='suite-feature-detail';detail.hidden=true;root.append(detail);
+ }
+ function updateSuiteUI(){
+   if(APP!=='pos')return;
+   const title=suiteView==='home'?'Maliks Professional':suiteView==='sales'?'Sales Workspace':SUITE_TITLES[suiteView]||({tills:'Tills',cashoffice:'Cash Office'}[suiteView])||'Maliks Professional';
+   E('screen-heading').textContent=title;
+   E('workstation-notice').hidden=suiteView!=='sales';E('workstation-tag').hidden=suiteView!=='sales';
+   for(const b of document.querySelectorAll('[data-suite-module]')){
+     if(b.classList.contains('suite-nav-button'))b.setAttribute('aria-pressed',String(b.dataset.suiteModule===suiteView));
+   }
+ }
+ function setSuiteView(id){
+   if(APP!=='pos')return;
+   if(id==='lock'||id==='exit'){
+     if((basket.length||pendingQuote||Object.values(suiteSalesDraft).some(Boolean))&&!window.confirm('Leave the workstation? Unsaved Sales work may be lost.'))return;
+     window.location.assign('/cdn-cgi/access/logout');return;
+   }
+   if(!['home','sales',...Object.keys(SUITE_MENU_TREE)].includes(id))return;
+   suiteView=id;draw();window.scrollTo({top:0,behavior:'auto'});
+ }
+ function draw(){
+   E('app-content').replaceChildren();err('');
+   if(APP==='pos'){
+     if(suiteView==='home')suiteHome();else if(suiteView==='sales')posView();else suiteModuleView(suiteView);
+     updateSuiteUI();
+   }else if(APP==='dispatch')dispatchView();else void quoteView();
+ }
+
  try{
    const session=await api('/api/session');E('signed-in').textContent=session.user.name+' · '+session.user.role;
    E('access').textContent=session.branches.length+' assigned branch(es)'+(APP==='pos'?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
-   for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=false;branch=select.value;select.addEventListener('change',selectBranch);draw();
+   for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=false;branch=select.value;select.addEventListener('change',selectBranch);
+   if(APP==='pos'){
+     E('suite-user').textContent=session.user.name+' · '+session.user.role;
+     for(const btn of E('suite-navigation').querySelectorAll('[data-suite-module]'))btn.addEventListener('click',()=>setSuiteView(btn.dataset.suiteModule));
+     E('suite-navigation').hidden=false;
+   }
+   draw();
  }catch(e){E('signed-in').textContent='Access unavailable';E('access').textContent='Not authorised';err(e.message+' Contact your Hub administrator to verify department role and branch assignment.');}
  </script></body></html>`;
 }
@@ -1029,6 +1245,7 @@ export default {
    const kind=String(env.APP_TYPE||'').toLowerCase();
    if(!APPS[kind])return new Response('Misconfigured application.',{status:503});
    const url=new URL(req.url);
+   if(url.pathname==='/maliks-mark.svg' && kind==='pos' && req.method==='GET')return new Response(MALIKS_MARK_SVG,{headers:{'content-type':'image/svg+xml; charset=utf-8','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/powerbuild-logo.png' && req.method==='GET')return new Response(POWERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
