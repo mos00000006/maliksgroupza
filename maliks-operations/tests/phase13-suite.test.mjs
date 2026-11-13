@@ -30,14 +30,18 @@ test('Other secured department applications do not expose the new POS suite menu
     assert.match(page,/Restricted department workstation/);
   }
 });
-test('Maliks mark is served for the Professional shell and old PowerBuild logo remains',async()=>{
+test('PowerBuild is the Professional suite logo and favicon; legacy M mark is removed',async()=>{
   const env={APP_TYPE:'pos'};
-  const mark=await frontend.fetch(new Request('https://example.test/maliks-mark.svg'),env);
-  assert.equal(mark.status,200);
-  assert.match(mark.headers.get('content-type'),/image\/svg\+xml/);
-  assert.match(await mark.text(),/<svg/);
+  const page=await html('pos');
+  assert.match(page,/class="suite-brand-logo" src="\/powerbuild-logo\.png" alt="PowerBuild logo"/);
+  assert.match(page,/rel="icon" type="image\/png" href="\/powerbuild-logo\.png"/);
+  assert.doesNotMatch(page,/suite-brand-mark/);
+  assert.doesNotMatch(page,/maliks-mark\.svg/);
   const logo=await frontend.fetch(new Request('https://example.test/powerbuild-logo.png'),env);
   assert.equal(logo.status,200);
+  assert.equal(logo.headers.get('content-type'),'image/png');
+  const oldMark=await frontend.fetch(new Request('https://example.test/maliks-mark.svg'),env);
+  assert.equal(oldMark.status,404);
 });
 test('Existing Cloudflare Access API boundary is unchanged',async()=>{
   const response=await frontend.fetch(new Request('https://example.test/api/session'),{APP_TYPE:'pos'});

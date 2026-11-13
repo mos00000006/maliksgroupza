@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import frontend from '../src/frontend.mjs';
 
-const APP_NAMES={pos:'Maliks POS',tills:'Maliks Tills',cashoffice:'Maliks Cash Office',dispatch:'Maliks Dispatch'};
+const APP_NAMES={pos:'Maliks POS',sales:'Maliks Sales',tills:'Maliks Tills',cashoffice:'Maliks Cash Office',dispatch:'Maliks Dispatch'};
 for(const [app,name] of Object.entries(APP_NAMES)){
   test(`${name} displays PowerBuild logo rather than placeholder icon`,async()=>{
     const env={APP_TYPE:app};
@@ -11,8 +11,8 @@ for(const [app,name] of Object.entries(APP_NAMES)){
     const html=await res.text();
     assert.match(html,/class="brand-logo" src="\/powerbuild-logo\.png" alt="PowerBuild logo"/);
     assert.match(html,new RegExp(name));
-    if(app==='pos')assert.match(html,/rel="icon" type="image\/svg\+xml" href="\/maliks-mark\.svg"/);
-    else assert.match(html,/rel="icon" type="image\/png" href="\/powerbuild-logo\.png"/);
+    assert.match(html,/rel="icon" type="image\/png" href="\/powerbuild-logo\.png"/);
+    assert.doesNotMatch(html,/maliks-mark\.svg/);
     assert.doesNotMatch(html,/class="logo"/);
   });
   test(`${name} serves logo as PNG on same origin`,async()=>{

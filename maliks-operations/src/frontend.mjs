@@ -1,7 +1,6 @@
 import { POWERBUILD_LOGO_BASE64 } from './powerbuild-logo.mjs';
 
 const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c => c.charCodeAt(0));
-const MALIKS_MARK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#142941"/><path d="M13 48V17h8l11 15 11-15h8v31h-9V31L32 44 22 31v17z" fill="#e9c46f"/></svg>';
 
 const APPS={
   pos:{name:'Maliks POS Professional',subtitle:'Accounting & POS Solutions',hint:'Professional management workspace. Department transactions remain in their own secured applications.'},
@@ -73,7 +72,7 @@ const SUITE_TITLES = Object.fromEntries(SUITE_NAV.map(([id,label])=>[id,label]))
 function suiteHeader(){
   const buttons=SUITE_NAV.map(([id,label,symbol])=>`<button type="button" data-suite-module="${id}" class="suite-nav-button" aria-pressed="false"><span class="suite-nav-icon" aria-hidden="true">${symbol}</span><span>${label}</span></button>`).join('');
   return `<header id="suite-navigation" class="suite-header" hidden>
-    <div class="suite-brandbar"><button type="button" class="suite-brand" data-suite-module="home" aria-label="Maliks Professional home"><span class="suite-brand-mark">M</span><span class="suite-brand-text"><strong>MALIKS <span>POS</span></strong><small>ACCOUNTING &amp; POS SOLUTIONS <em>PROFESSIONAL</em></small></span></button><span class="suite-system-status">● SECURE WORKSPACE</span><span id="suite-user" class="suite-user">Signed in</span></div>
+    <div class="suite-brandbar"><button type="button" class="suite-brand" data-suite-module="home" aria-label="Maliks Professional home"><img class="suite-brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="66" height="66"/><span class="suite-brand-text"><strong>MALIKS <span>POS</span></strong><small>ACCOUNTING &amp; POS SOLUTIONS <em>PROFESSIONAL</em></small></span></button><span class="suite-system-status">● SECURE WORKSPACE</span><span id="suite-user" class="suite-user">Signed in</span></div>
     <nav class="suite-navbar" aria-label="Maliks Professional modules">${buttons}</nav>
   </header>`;
 }
@@ -83,7 +82,7 @@ function page(app){
  const salesShell=app==='sales';
  const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':salesShell?'SALES · QUOTATIONS':'ACCOUNTING & POS SOLUTIONS';
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
- <title>${d.name}</title><link rel="icon" type="${suiteShell||salesShell?'image/svg+xml':'image/png'}" href="${suiteShell||salesShell?'/maliks-mark.svg':'/powerbuild-logo.png'}"/><meta name="theme-color" content="#102a4b"/><style>
+ <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="#102a4b"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
  body{margin:0}.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
  aside{background:#102a4b;color:#fff;padding:28px 18px}aside h1{font-size:21px;margin:14px 0 5px}aside p{font-size:13px;color:#adbed0}
@@ -140,13 +139,13 @@ function page(app){
  .maliks-professional{background:#edf2f7}
  .maliks-sales-workstation aside{background:linear-gradient(150deg,#101e32,#1d4562)}
  .maliks-sales-workstation aside h1{color:#f0c875;font-size:24px}
- .maliks-sales-workstation aside .brand-logo{width:86px;height:86px;border-radius:18px;box-shadow:0 6px 20px #0003}
+ .maliks-sales-workstation aside .brand-logo{width:110px;height:110px;object-fit:contain}
  .maliks-sales-workstation aside .nav{background:#ffffff17;border-left:3px solid #e9c46f}
  .suite-header{position:sticky;top:0;z-index:200;background:#101e32;color:#f7fbff;box-shadow:0 5px 22px #0b1d3430}
  .suite-header[hidden]{display:none!important}
  .suite-brandbar{display:flex;align-items:center;gap:18px;padding:13px clamp(16px,3vw,42px);min-height:84px;background:linear-gradient(110deg,#101e32 0%,#193a59 66%,#12465a 100%)}
  .suite-brand{display:flex;align-items:center;gap:12px;border:0;background:transparent;padding:0;color:#fff;text-align:left;flex:none}
- .suite-brand-mark{width:52px;height:52px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(135deg,#e8c778,#c89c48);color:#12243a;font-weight:900;font-size:31px;box-shadow:0 6px 22px #0004}
+ .suite-brand-logo{width:66px;height:66px;object-fit:contain;flex:0 0 66px;filter:drop-shadow(0 4px 8px #0003)}
  .suite-brand-text{display:grid;gap:2px}.suite-brand-text strong{font-size:25px;letter-spacing:.08em;line-height:1.1}.suite-brand-text strong span{color:#eac46f}
  .suite-brand-text small{font-size:10px;letter-spacing:.16em;color:#b9cfe0;font-weight:700}.suite-brand-text em{font-style:normal;color:#f4d78c}
  .suite-system-status{margin-left:auto;color:#8ee0c2;font-size:11px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
@@ -159,7 +158,7 @@ function page(app){
  .suite-shell .top{margin-bottom:16px}.suite-shell .top h2{font-size:25px;color:#152a44}.suite-shell .top .tag{background:#e8f3fa;color:#24607e;border:1px solid #c6dbe9}
  .suite-shell .panel{border-radius:13px;box-shadow:0 4px 16px #102a4b0b}
  .suite-hero{position:relative;overflow:hidden;background:radial-gradient(circle at 90% 5%,#2c657a 0,transparent 43%),linear-gradient(125deg,#12253e,#163653);color:#fff;border-radius:22px;padding:clamp(30px,5vw,64px);margin:20px 0 24px;box-shadow:0 15px 40px #102a4b25}
- .suite-hero:after{content:'M';position:absolute;right:4%;bottom:-105px;font-size:360px;font-weight:900;color:#ffffff08;pointer-events:none}
+ .suite-hero:after{content:'';position:absolute;right:3%;bottom:-65px;width:310px;height:310px;background:url('/powerbuild-logo.png') center/contain no-repeat;opacity:.10;pointer-events:none}
  .suite-eyebrow{color:#e4bf70;font-weight:800;letter-spacing:.19em;font-size:12px;margin-bottom:12px}
  .suite-hero-title{font-size:clamp(36px,5vw,66px);font-weight:900;letter-spacing:.03em;line-height:1.06;margin:0 0 13px;position:relative;z-index:1}
  .suite-hero-title span{color:#e9c66f}.suite-hero-subtitle{font-size:clamp(14px,1.5vw,19px);color:#c6d8e8;max-width:700px;margin:0 0 25px;position:relative;z-index:1}
@@ -182,7 +181,7 @@ function page(app){
  .suite-feature-detail{background:#fff9e9;border:1px solid #f1dca6;border-radius:12px;padding:18px 20px;margin:20px 0;color:#6d531e}
  .suite-feature-detail strong{display:block;margin-bottom:5px}.suite-footnote{font-size:12px;color:#6b7c91;margin-top:18px}
  @media(max-width:900px){.suite-brandbar{flex-wrap:wrap}.suite-system-status{display:none}.suite-user{margin-left:auto}.suite-navbar{padding:0 8px}.suite-nav-button{min-width:78px;padding:9px 10px}.suite-shell>main{padding:22px 14px 45px}}
- @media(max-width:540px){.suite-brand-text strong{font-size:20px}.suite-brand-text small{font-size:8px}.suite-brand-mark{width:43px;height:43px;font-size:27px}.suite-user{max-width:100%;margin-left:0}.suite-brandbar{gap:9px}.suite-hero{padding:29px 23px}.suite-hero:after{font-size:250px;bottom:-70px}}
+ @media(max-width:540px){.suite-brand-text strong{font-size:20px}.suite-brand-text small{font-size:8px}.suite-brand-logo{width:49px;height:49px;flex-basis:49px}.suite-user{max-width:100%;margin-left:0}.suite-brandbar{gap:9px}.suite-hero{padding:29px 23px}.suite-hero:after{width:220px;height:220px;bottom:-40px;right:-28px}}
 
  @media print{body{background:#fff}.shell{display:none!important}.suite-header{display:none!important}.print-sheet{display:block!important;color:#111;font:12pt Arial,sans-serif;padding:10mm}
  .print-sheet .print-logo{width:110px;height:auto;object-fit:contain}.print-sheet h1{font-size:21pt}.print-sheet p{margin:6px 0}
@@ -196,7 +195,7 @@ function page(app){
  @media(max-width:850px){.shell{grid-template-columns:1fr}aside{padding:15px 20px;display:flex;align-items:center;gap:14px}aside h1{margin:0;font-size:17px}aside .brand-logo{width:56px;height:56px;flex:0 0 56px}aside .nav,aside .foot,aside p{display:none}main{padding:23px 14px}.two{grid-template-columns:1fr}}
  </style></head><body class="${suiteShell?'maliks-professional':salesShell?'maliks-sales-workstation':''}">
  ${suiteShell?suiteHeader():''}
- <div class="shell ${suiteShell?'suite-shell':''}"><aside><img class="brand-logo" src="${salesShell?'/maliks-mark.svg':'/powerbuild-logo.png'}" alt="${salesShell?'Maliks logo':'PowerBuild logo'}" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
+ <div class="shell ${suiteShell?'suite-shell':''}"><aside><img class="brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
  <main><div class="top"><div><h2 id="screen-heading">${d.name}</h2><div class="muted" id="signed-in">Checking approved user access…</div></div><span class="tag" id="workstation-tag">${releaseLabel}</span></div>
  <div class="notice" id="workstation-notice">${d.hint}</div><div id="error" role="alert" hidden></div>
  <div class="panel"><div class="bar"><div><label for="branch">Assigned branch</label><select id="branch" disabled><option>Authorising…</option></select></div><div><label>Application access</label><p class="muted" id="access">Verification in progress…</p></div></div></div>
@@ -1247,7 +1246,6 @@ export default {
    const kind=String(env.APP_TYPE||'').toLowerCase();
    if(!APPS[kind])return new Response('Misconfigured application.',{status:503});
    const url=new URL(req.url);
-   if(url.pathname==='/maliks-mark.svg' && ['pos','sales'].includes(kind) && req.method==='GET')return new Response(MALIKS_MARK_SVG,{headers:{'content-type':'image/svg+xml; charset=utf-8','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/powerbuild-logo.png' && req.method==='GET')return new Response(POWERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',

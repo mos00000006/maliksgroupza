@@ -21,12 +21,14 @@ test('Sales runs as its own branded standalone workstation',async()=>{
   const page=await html('sales');
   assert.match(page,/<title>Maliks Sales<\/title>/);
   assert.match(page,/class="maliks-sales-workstation"/);
-  assert.match(page,/src="\/maliks-mark.svg" alt="Maliks logo"/);
+  assert.match(page,/src="\/powerbuild-logo\.png" alt="PowerBuild logo"/);
   assert.doesNotMatch(page,/id="suite-navigation"/);
   assert.match(page,/else if\(APP==='sales'\)posView\(\)/);
   for(const term of ['Send quotation to Cash Office','Print 80mm quotation slip','NOT PAID — QUOTATION ONLY'])assert.ok(page.includes(term),term);
-  const mark=await frontend.fetch(new Request('https://test.example/maliks-mark.svg'),{APP_TYPE:'sales'});
-  assert.equal(mark.status,200);
+  const logo=await frontend.fetch(new Request('https://test.example/powerbuild-logo.png'),{APP_TYPE:'sales'});
+  assert.equal(logo.status,200);
+  assert.equal(logo.headers.get('content-type'),'image/png');
+  assert.doesNotMatch(page,/maliks-mark\.svg/);
 });
 
 test('POS suite cannot access catalogue or quotations even with valid JWT',async()=>{
