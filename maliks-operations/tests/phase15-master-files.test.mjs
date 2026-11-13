@@ -24,9 +24,9 @@ class LocalD1{
     this.sqlite.exec('CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT,name TEXT,category TEXT,active INTEGER);');
     this.sqlite.exec('CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER);CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER);');}
   prepare(sql){
-    const d=this;let params=[];
-    return {bind(...v){params=v;return this;},first(){return d.sqlite.prepare(sql).get(...params)||null;},
-      all(){return {results:d.sqlite.prepare(sql).all(...params)};},run(){const r=d.sqlite.prepare(sql).run(...params);return {meta:{changes:Number(r.changes)}};}};
+    const sqlite=this.sqlite;let params=[];
+    return {bind(...v){params=v;return this;},first(){return sqlite.prepare(sql).get(...params)||null;},
+      all(){return {results:sqlite.prepare(sql).all(...params)};},run(){const r=sqlite.prepare(sql).run(...params);return {meta:{changes:Number(r.changes)}};}};
   }
   batch(steps){this.sqlite.exec('BEGIN');try{const result=steps.map(s=>s.run());this.sqlite.exec('COMMIT');return result;}
     catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
