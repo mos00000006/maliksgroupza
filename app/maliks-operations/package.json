@@ -1,0 +1,34 @@
+{
+  "name": "maliks-operations-workers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "config": "node scripts/make-config.mjs",
+    "migrate:phase4": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase4_till_shift_register.sql --config .generated/core.json",
+    "deploy:core": "wrangler deploy --config .generated/core.json",
+    "deploy:pos": "wrangler deploy --config .generated/pos.json",
+    "deploy:sales": "wrangler deploy --config .generated/sales.json",
+    "deploy:tills": "wrangler deploy --config .generated/tills.json",
+    "deploy:cashoffice": "wrangler deploy --config .generated/cashoffice.json",
+    "deploy:dispatch": "wrangler deploy --config .generated/dispatch.json",
+    "migrate:phase6": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase6_tender_preparations.sql --config .generated/core.json",
+    "migrate:phase5": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase5_cash_office_reviews.sql --config .generated/core.json",
+    "migrate:phase8": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase8_payment_evidence.sql --config .generated/core.json",
+    "migrate:phase10": "wrangler d1 execute maliks-group-hub-db --remote --file sql/phase10_simple_cashier_checkout.sql --yes --config .generated/core.json",
+    "migrate:phase17": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase17_inventory_flow.sql --config .generated/core.json",
+    "migrate:phase16": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase16_purchase_orders.sql --config .generated/core.json",
+    "migrate:phase15": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase15_master_files.sql --config .generated/core.json",
+    "migrate:phase9": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase9_paid_sales_dispatch.sql --config .generated/core.json"
+  },
+  "dependencies": {
+    "jose": "^6.1.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.92.0"
+  }
+}

@@ -1,0 +1,1271 @@
+diff --git a/.github/workflows/deploy-maliks-operations.yml b/.github/workflows/deploy-maliks-operations.yml
+index 1e51a8d..05cca69 100644
+--- a/.github/workflows/deploy-maliks-operations.yml
++++ b/.github/workflows/deploy-maliks-operations.yml
+@@ -65,6 +65,10 @@ jobs:
+         run: npm run migrate:phase10
+       - name: Apply additive POS master-file schema (Phase 15)
+         run: npm run migrate:phase15
++      - name: Apply additive purchase order schema (Phase 16)
++        run: npm run migrate:phase16
++      - name: Apply additive inventory schema (Phase 17)
++        run: npm run migrate:phase17
+       - name: Deploy central API — private Worker
+         run: npm run deploy:core
+       - name: Deploy Maliks POS Professional (management suite)
+diff --git a/maliks-operations/package.json b/maliks-operations/package.json
+index 3b5125d..b0ad2b8 100644
+--- a/maliks-operations/package.json
++++ b/maliks-operations/package.json
+@@ -20,6 +20,8 @@
+     "migrate:phase5": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase5_cash_office_reviews.sql --config .generated/core.json",
+     "migrate:phase8": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase8_payment_evidence.sql --config .generated/core.json",
+     "migrate:phase10": "wrangler d1 execute maliks-group-hub-db --remote --file sql/phase10_simple_cashier_checkout.sql --yes --config .generated/core.json",
++    "migrate:phase17": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase17_inventory_flow.sql --config .generated/core.json",
++    "migrate:phase16": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase16_purchase_orders.sql --config .generated/core.json",
+     "migrate:phase15": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase15_master_files.sql --config .generated/core.json",
+     "migrate:phase9": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase9_paid_sales_dispatch.sql --config .generated/core.json"
+   },
+diff --git a/maliks-operations/sql/phase16_purchase_orders.sql b/maliks-operations/sql/phase16_purchase_orders.sql
+new file mode 100644
+index 0000000..8166a39
+--- /dev/null
++++ b/maliks-operations/sql/phase16_purchase_orders.sql
+@@ -0,0 +1,42 @@
++-- Phase 16: purchasing authorisation register only. No GRV, SOH, AP, VAT, or GL postings.
++CREATE TABLE IF NOT EXISTS maliks_pos_purchase_orders (
++  id INTEGER PRIMARY KEY AUTOINCREMENT,
++  branch TEXT NOT NULL COLLATE NOCASE,
++  supplier_master_id INTEGER NOT NULL,
++  supplier_code TEXT NOT NULL,
++  supplier_name TEXT NOT NULL,
++  lines_json TEXT NOT NULL,
++  total_cents INTEGER NOT NULL CHECK(total_cents>0),
++  notes TEXT NOT NULL DEFAULT '',
++  expected_date TEXT NOT NULL DEFAULT '',
++  status TEXT NOT NULL DEFAULT 'DRAFT' CHECK(status IN ('DRAFT','SUBMITTED','APPROVED','REJECTED','CANCELLED')),
++  version INTEGER NOT NULL DEFAULT 1 CHECK(version>0),
++  created_by_email TEXT NOT NULL,
++  created_by_name TEXT NOT NULL,
++  submitted_by_email TEXT,
++  approved_by_email TEXT,
++  rejected_by_email TEXT,
++  cancelled_by_email TEXT,
++  created_at TEXT NOT NULL,
++  updated_at TEXT NOT NULL,
++  create_request_id TEXT NOT NULL UNIQUE,
++  create_payload_hash TEXT NOT NULL,
++  last_request_id TEXT NOT NULL
++);
++CREATE INDEX IF NOT EXISTS idx_maliks_pos_po_branch ON maliks_pos_purchase_orders(branch,id DESC);
++CREATE INDEX IF NOT EXISTS idx_maliks_pos_po_status ON maliks_pos_purchase_orders(branch,status,id DESC);
++CREATE TABLE IF NOT EXISTS maliks_pos_po_audit (
++  id INTEGER PRIMARY KEY AUTOINCREMENT,
++  request_id TEXT NOT NULL UNIQUE,
++  po_id INTEGER NOT NULL,
++  branch TEXT NOT NULL COLLATE NOCASE,
++  action TEXT NOT NULL CHECK(action IN ('CREATE','SAVE','SUBMIT','APPROVE','REJECT','CANCEL')),
++  actor_email TEXT NOT NULL,
++  actor_name TEXT NOT NULL,
++  payload_hash TEXT NOT NULL,
++  before_json TEXT,
++  after_json TEXT NOT NULL,
++  note TEXT NOT NULL DEFAULT '',
++  created_at TEXT NOT NULL
++);
++CREATE INDEX IF NOT EXISTS idx_maliks_pos_po_audit ON maliks_pos_po_audit(branch,po_id,id DESC);
+diff --git a/maliks-operations/sql/phase17_inventory_flow.sql b/maliks-operations/sql/phase17_inventory_flow.sql
+new file mode 100644
+index 0000000..20383bb
+--- /dev/null
++++ b/maliks-operations/sql/phase17_inventory_flow.sql
+@@ -0,0 +1,117 @@
++-- Phase 17: independently verified goods receipts, GRV stock posting and inter-branch transfers.
++-- Operational quantities only. No supplier invoice, AP, VAT, general ledger or sales stock posting.
++CREATE TABLE IF NOT EXISTS maliks_pos_stock_balances (
++ branch TEXT NOT NULL COLLATE NOCASE,
++ stock_master_id INTEGER NOT NULL,
++ qty_milli INTEGER NOT NULL DEFAULT 0 CHECK(qty_milli>=0),
++ version INTEGER NOT NULL DEFAULT 1,
++ updated_at TEXT NOT NULL,
++ PRIMARY KEY(branch,stock_master_id)
++);
++CREATE TABLE IF NOT EXISTS maliks_pos_stock_movements (
++ id INTEGER PRIMARY KEY AUTOINCREMENT,
++ branch TEXT NOT NULL COLLATE NOCASE,
++ stock_master_id INTEGER NOT NULL,
++ quantity_delta_milli INTEGER NOT NULL CHECK(quantity_delta_milli!=0),
++ movement_type TEXT NOT NULL CHECK(movement_type IN ('GRV','TRANSFER_OUT','TRANSFER_IN')),
++ document_id INTEGER NOT NULL,
++ actor_email TEXT NOT NULL,
++ created_at TEXT NOT NULL,
++ UNIQUE(movement_type,document_id,branch,stock_master_id)
++);
++CREATE INDEX IF NOT EXISTS idx_maliks_pos_stock_movements ON maliks_pos_stock_movements(branch,stock_master_id,id DESC);
++CREATE TABLE IF NOT EXISTS maliks_pos_receipts (
++ id INTEGER PRIMARY KEY AUTOINCREMENT,
++ po_id INTEGER NOT NULL,
++ branch TEXT NOT NULL COLLATE NOCASE,
++ delivery_note TEXT NOT NULL,
++ supplier_invoice_reference TEXT NOT NULL DEFAULT '',
++ driver_name TEXT NOT NULL DEFAULT '',
++ notes TEXT NOT NULL DEFAULT '',
++ status TEXT NOT NULL DEFAULT 'COUNTED' CHECK(status IN ('COUNTED','VERIFIED','POSTED','CANCELLED')),
++ version INTEGER NOT NULL DEFAULT 1 CHECK(version>0),
++ counted_by_email TEXT NOT NULL,
++ verified_by_email TEXT,
++ posted_by_email TEXT,
++ cancelled_by_email TEXT,
++ labels_printed_by TEXT,labels_printed_at TEXT,
++ labelled_by TEXT,labelled_at TEXT,
++ pack_checked_by TEXT,pack_checked_at TEXT,
++ created_at TEXT NOT NULL,
++ updated_at TEXT NOT NULL,
++ create_request_id TEXT NOT NULL UNIQUE,
++ create_hash TEXT NOT NULL,
++ last_request_id TEXT NOT NULL,
++ UNIQUE(po_id,delivery_note COLLATE NOCASE)
++);
++CREATE INDEX IF NOT EXISTS idx_maliks_pos_receipts_po ON maliks_pos_receipts(branch,po_id,id DESC);
++CREATE TABLE IF NOT EXISTS maliks_pos_receipt_lines (
++ receipt_id INTEGER NOT NULL,
++ stock_master_id INTEGER NOT NULL,
++ accepted_milli INTEGER NOT NULL CHECK(accepted_milli>=0),
++ rejected_milli INTEGER NOT NULL CHECK(rejected_milli>=0),
++ PRIMARY KEY(receipt_id,stock_master_id),
++ CHECK(accepted_milli+rejected_milli>0)
++);
++-- Prevent accepting more stock than was ordered, even if two receipts are counted concurrently.
++CREATE TRIGGER IF NOT EXISTS maliks_pos_receipt_no_overaccept
++BEFORE INSERT ON maliks_pos_receipt_lines
++BEGIN
++ SELECT CASE
++  WHEN (SELECT status FROM maliks_pos_purchase_orders WHERE id=(SELECT po_id FROM maliks_pos_receipts WHERE id=NEW.receipt_id))!='APPROVED'
++   THEN RAISE(ABORT,'PO_NOT_APPROVED')
++  WHEN (SELECT CAST(json_extract(j.value,'$.quantity_milli') AS INTEGER)
++       FROM maliks_pos_purchase_orders p, json_each(p.lines_json) j
++       WHERE p.id=(SELECT po_id FROM maliks_pos_receipts WHERE id=NEW.receipt_id)
++       AND CAST(json_extract(j.value,'$.stock_id') AS INTEGER)=NEW.stock_master_id) IS NULL
++   THEN RAISE(ABORT,'STOCK_NOT_ON_PO')
++  WHEN NEW.accepted_milli + COALESCE((SELECT SUM(rl.accepted_milli) FROM maliks_pos_receipt_lines rl
++       JOIN maliks_pos_receipts r ON r.id=rl.receipt_id
++       WHERE r.po_id=(SELECT po_id FROM maliks_pos_receipts WHERE id=NEW.receipt_id)
++       AND r.status!='CANCELLED' AND rl.stock_master_id=NEW.stock_master_id),0)
++       > (SELECT CAST(json_extract(j.value,'$.quantity_milli') AS INTEGER)
++          FROM maliks_pos_purchase_orders p, json_each(p.lines_json) j
++          WHERE p.id=(SELECT po_id FROM maliks_pos_receipts WHERE id=NEW.receipt_id)
++          AND CAST(json_extract(j.value,'$.stock_id') AS INTEGER)=NEW.stock_master_id)
++   THEN RAISE(ABORT,'RECEIPT_EXCEEDS_ORDER')
++ END;
++END;
++CREATE TABLE IF NOT EXISTS maliks_pos_receipt_audit (
++ id INTEGER PRIMARY KEY AUTOINCREMENT,
++ request_id TEXT NOT NULL UNIQUE,
++ receipt_id INTEGER NOT NULL,
++ branch TEXT NOT NULL COLLATE NOCASE,
++ action TEXT NOT NULL CHECK(action IN ('COUNT','VERIFY','POST','CANCEL','PRINT_LABELS','LABELLED','PACK_CHECK')),
++ actor_email TEXT NOT NULL,
++ payload_hash TEXT NOT NULL,
++ created_at TEXT NOT NULL
++);
++CREATE TABLE IF NOT EXISTS maliks_pos_transfers (
++ id INTEGER PRIMARY KEY AUTOINCREMENT,
++ source_branch TEXT NOT NULL COLLATE NOCASE,
++ destination_branch TEXT NOT NULL COLLATE NOCASE,
++ lines_json TEXT NOT NULL,
++ notes TEXT NOT NULL DEFAULT '',
++ status TEXT NOT NULL DEFAULT 'DRAFT' CHECK(status IN ('DRAFT','IN_TRANSIT','RECEIVED','CANCELLED')),
++ version INTEGER NOT NULL DEFAULT 1,
++ created_by_email TEXT NOT NULL,
++ sent_by_email TEXT,
++ received_by_email TEXT,
++ cancelled_by_email TEXT,
++ created_at TEXT NOT NULL,
++ updated_at TEXT NOT NULL,
++ create_request_id TEXT NOT NULL UNIQUE,
++ create_hash TEXT NOT NULL,
++ last_request_id TEXT NOT NULL
++);
++CREATE INDEX IF NOT EXISTS idx_maliks_pos_transfer_source ON maliks_pos_transfers(source_branch,id DESC);
++CREATE INDEX IF NOT EXISTS idx_maliks_pos_transfer_dest ON maliks_pos_transfers(destination_branch,id DESC);
++CREATE TABLE IF NOT EXISTS maliks_pos_transfer_audit (
++ id INTEGER PRIMARY KEY AUTOINCREMENT,
++ request_id TEXT NOT NULL UNIQUE,
++ transfer_id INTEGER NOT NULL,
++ action TEXT NOT NULL CHECK(action IN ('CREATE','SEND','RECEIVE','CANCEL')),
++ actor_email TEXT NOT NULL,
++ payload_hash TEXT NOT NULL,
++ created_at TEXT NOT NULL
++);
+diff --git a/maliks-operations/src/core.mjs b/maliks-operations/src/core.mjs
+index d535b51..0035c03 100644
+--- a/maliks-operations/src/core.mjs
++++ b/maliks-operations/src/core.mjs
+@@ -9,6 +9,8 @@ import {cashupPreviewStatement,cashupForClient,CASHUP_MODE} from './cashup-domai
+ import {submitPayment,confirmSimpleCheckout,listPayments,verifyPayment,listDispatch,updateDispatch,getInvoice} from './payment-dispatch-domain.mjs';
+ import {validateEvidenceInput,evidenceListStatement,evidenceHistoryStatement,evidenceForClient,EVIDENCE_MODE} from './payment-evidence-domain.mjs';
+ import {listMasterRecords,listMasterAudit,listMasterCatalogue,saveMasterRecord,canUseMaster,MASTER_KINDS} from './master-domain.mjs';
++import {canUsePurchase,listPurchaseOrders,purchaseAudit,savePurchaseOrder,actionPurchaseOrder} from './purchase-domain.mjs';
++import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
+ 
+ const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
+ const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
+@@ -451,12 +453,25 @@ export default {
+       if(path==='/v1/session'&&req.method==='GET')return result({
+         app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
+         master_permissions:auth.app==='management'?Object.fromEntries(MASTER_KINDS.map(k=>[k,{read:canUseMaster(access.member,k),write:canUseMaster(access.member,k,true)}])):undefined,
++        purchase_permissions:auth.app==='management'?{read:canUsePurchase(access.member),write:canUsePurchase(access.member,'write'),approve:canUsePurchase(access.member,'approve')}:undefined,
++        inventory_permissions:auth.app==='management'?Object.fromEntries(['read','count','verify','post','packCheck','transfer','approveTransfer'].map(k=>[k,canUseInventory(access.member,k)])):undefined,
+         mode:auth.app==='management'?'MASTER_FILES':auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
+       });
+       if(path==='/v1/master/records'&&req.method==='GET')return await listMasterRecords(req,env,context);
+       if(path==='/v1/master/records'&&req.method==='POST')return await saveMasterRecord(req,env,context);
+       if(path==='/v1/master/audit'&&req.method==='GET')return await listMasterAudit(req,env,context);
+       if(path==='/v1/master/catalogue'&&req.method==='GET')return await listMasterCatalogue(req,env,context);
++      if(path==='/v1/purchase-orders'&&req.method==='GET')return await listPurchaseOrders(req,env,context);
++      if(path==='/v1/purchase-orders'&&req.method==='POST')return await savePurchaseOrder(req,env,context);
++      if(path==='/v1/purchase-orders/audit'&&req.method==='GET')return await purchaseAudit(req,env,context);
++      if(path==='/v1/purchase-orders/action'&&req.method==='POST')return await actionPurchaseOrder(req,env,context);
++      if(path==='/v1/inventory'&&req.method==='GET')return await listInventory(req,env,context);
++      if(path==='/v1/receipts'&&req.method==='GET')return await listReceipts(req,env,context);
++      if(path==='/v1/receipts'&&req.method==='POST')return await countReceipt(req,env,context);
++      if(path==='/v1/receipts/action'&&req.method==='POST')return await receiptAction(req,env,context);
++      if(path==='/v1/transfers'&&req.method==='GET')return await listTransfers(req,env,context);
++      if(path==='/v1/transfers'&&req.method==='POST')return await createTransfer(req,env,context);
++      if(path==='/v1/transfers/action'&&req.method==='POST')return await transferAction(req,env,context);
+       if(path==='/v1/catalogue'&&req.method==='GET')return await catalogue(req,env,context);
+       if(path==='/v1/quotes'&&req.method==='GET')return await listQuotes(req,env,context);
+       if(path==='/v1/quotes/find'&&req.method==='GET')return await findQuote(req,env,context);
+diff --git a/maliks-operations/src/frontend.mjs b/maliks-operations/src/frontend.mjs
+index 7c9f529..2f99c1e 100644
+--- a/maliks-operations/src/frontend.mjs
++++ b/maliks-operations/src/frontend.mjs
+@@ -28,7 +28,7 @@ const SUITE_MENU_TREE = {
+   },
+   suppliers: {
+     'Master Files':['Suppliers','Categories','Classifications','Claims','Suppliers Returns Reasons','Statements Recon Reasons','Invoices and Debit Notes Details'],
+-    'Transactions':['Invoices and Debit Notes','Payments and Reversals','Journals','Claims','Rebates','Payments Reconciliation'],
++    'Transactions':['Purchase Orders','Invoices and Debit Notes','Payments and Reversals','Journals','Claims','Rebates','Payments Reconciliation'],
+     'Reporting':['Master','Transactions','Ledger','Statements','Control Account','Age Analysis','Payments','Suppliers PDC','Purchases','Audits'],
+     'Utilities':['Control Agents','Statement Reconciliation','Reprint Documents','Reprint Unallocated Balances to Unpaid Invoices','Housekeeping','Supplier Master CSV File Export'],
+     'Settings':['Settings','Numbering'],
+@@ -1184,9 +1184,9 @@ function page(app){
+      ['tills','▤','Tills','Cashier checkout, cash/card confirmations and paid receipts.','SEPARATE WORKSTATION'],
+      ['cashoffice','◈','Cash Office','Payment verification, cash-up and internal finance controls.','SEPARATE WORKSTATION'],
+      ['dispatching','⇥','Dispatching','Paid-order picking, checking and delivery management.','SEPARATE WORKSTATION'],
+-     ['stock','▦','Stock','Branch stock master and existing product catalogue lookup.','LIVE MASTER FILES'],
++     ['stock','▦','Stock','Purchase orders, receiving, GRVs, stock-on-hand and transfers.','LIVE STOCK FLOW'],
+      ['debtors','◎','Debtors','Branch debtor master records and audit history.','LIVE MASTER FILES'],
+-     ['suppliers','▤','Suppliers','Branch supplier master records and audit history.','LIVE MASTER FILES'],
++     ['suppliers','▤','Suppliers','Supplier master and purchase orders.','LIVE PURCHASING'],
+      ['backoffice','▥','Back Office','Tills, end-of-day, VAT, reporting and month-end controls.','MENU INVENTORY'],
+      ['headoffice','◇','Head Office','Branches, synchronization and group management.','MENU INVENTORY'],
+    ];
+@@ -1194,7 +1194,7 @@ function page(app){
+      const card=suiteButton('',id,'suite-card');card.append(h('span',symbol,'suite-card-icon'),h('strong',name),h('small',description));
+      card.append(h('span',status,'suite-card-status'+(status.startsWith('LIVE')?' live':'')));cards.append(card);
+    }
+-   root.append(cards,h('p','Stock, Suppliers and Debtors master files are now database-backed. All other menu entries remain previews until their individual workflows are built and tested. Department transactions remain separately secured.','suite-footnote'));
++   root.append(cards,h('p','Purchase orders, receiving counts, GRV posting, stock-on-hand and inter-branch transfers are connected. Supplier invoices, VAT, accounting, sales stock deduction and returns are not yet posted.','suite-footnote'));
+  }
+  const MASTER_LABELS={stock:'Stock Master',supplier:'Suppliers Master',debtor:'Debtors Master'};
+  const MASTER_FIELDS={
+@@ -1203,6 +1203,8 @@ function page(app){
+    debtor:[['contact_name','Contact person','text'],['phone','Phone','text'],['email','Email','email'],['credit_limit_cents','Credit limit (R)','money'],['payment_terms_days','Payment terms (days)','integer']]
+  };
+  let masterPermissions={};
++ let purchasePermissions={};
++ let inventoryPermissions={};
+  function suiteMasterView(kind,openAudit=false){
+    const detail=E('suite-feature-detail');if(!detail)return;
+    const selectedBranch=branch;detail.hidden=false;detail.className='suite-feature-detail suite-master-workspace';detail.replaceChildren();
+@@ -1331,10 +1333,200 @@ function page(app){
+    }
+    if(openAudit)void loadAudit();else void loadRecords();
+  }
++ // Phases 16–17: live purchasing and controlled stock operations, all server-authorised.
++ const invQty=milli=>new Intl.NumberFormat('en-ZA',{maximumFractionDigits:3}).format(milli/1000);
++ const invNum=(value,name,allowZero=false)=>{const n=Number(value);if(!Number.isFinite(n)||n<(allowZero?0:0.001)||Math.abs(n*1000-Math.round(n*1000))>0.000001||n>1000000)throw Error('Invalid '+name+' (maximum three decimals).');return Math.round(n*1000);};
++ const invMoney=value=>{const n=Number(value);if(!Number.isFinite(n)||n<=0||Math.abs(n*100-Math.round(n*100))>0.00001)throw Error('Invalid unit cost.');return Math.round(n*100);};
++ const invPending=new Map();
++ const invPost=async(path,data)=>{const key=path+'#'+JSON.stringify(data);const request_id=invPending.get(key)||crypto.randomUUID();invPending.set(key,request_id);
++   const response=await api(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...data,request_id})});invPending.delete(key);return response;};
++ function invWorkspace(title,notice){
++   const root=E('suite-feature-detail');root.hidden=false;root.className='suite-feature-detail suite-master-workspace';root.replaceChildren();
++   root.append(h('h3',title),h('p','Branch: '+branch+' · '+notice,'suite-master-note'));
++   const msg=h('div');msg.hidden=true;msg.setAttribute('role','status');root.append(msg);
++   const form=h('section',undefined,'suite-master-editor');root.append(form);
++   const list=h('section');root.append(list);
++   const branchAtOpen=branch;
++   return {root,form,list,valid:()=>root.isConnected&&branch===branchAtOpen,
++     message:(s,good=false)=>{msg.textContent=s;msg.className=good?'success':'error';msg.hidden=!s;}};
++ }
++ const invButton=(text,fn,cls='secondary small-btn')=>{const b=h('button',text,cls);b.type='button';b.addEventListener('click',fn);return b;};
++ const invField=(parent,label,type='text',value='')=>{const wrap=h('label');wrap.append(h('span',label));const el=h('input');el.type=type;el.value=String(value);if(type==='number'){el.min='0';el.step='0.001';}wrap.append(el);parent.append(wrap);return el;};
++ const invSelect=(parent,label,items,getValue,getLabel)=>{const wrap=h('label');wrap.append(h('span',label));const el=h('select');for(const item of items){const o=h('option',getLabel(item));o.value=String(getValue(item));el.append(o);}wrap.append(el);parent.append(wrap);return el;};
++ const invTable=(container,headings,rows)=>{
++   container.replaceChildren();if(!rows.length){container.append(h('p','No records yet.','empty'));return;}
++   const t=h('table'),thead=h('thead'),tr=h('tr');for(const title of headings)cell(tr,title,'th');thead.append(tr);t.append(thead);
++   const tb=h('tbody');for(const row of rows){const r=h('tr');for(const item of row){const td=h('td');if(item instanceof Node)td.append(item);else td.textContent=String(item??'');r.append(td);}tb.append(r);}t.append(tb);
++   const scroll=h('div',undefined,'scroll');scroll.append(t);container.append(scroll);
++ };
++ function suitePurchaseOrders(){
++   const w=invWorkspace('Purchase Orders','Draft → Submit → Independent approval. Values are estimated cost only; VAT and supplier accounting are not posted.');
++   const controls=h('div',undefined,'suite-master-form');w.form.append(h('h4','Create purchase order'),controls);
++   const table=h('div');w.list.append(h('h4','Purchase order register'),table);
++   if(!purchasePermissions.read){w.form.hidden=true;w.message('Purchasing permission denied.');return;}
++   if(!purchasePermissions.write)w.form.hidden=true;
++   const supplierSelect=invSelect(controls,'Supplier',[],s=>s.id,s=>s.name);
++   const delivery=invField(controls,'Expected delivery','date');const notes=invField(controls,'Notes');
++   const lineSection=h('div');lineSection.style.gridColumn='1/-1';controls.append(lineSection);
++   const rows=[];let products=[];
++   const addLine=()=>{
++     if(!products.length){w.message('Create active Stock Master items before purchasing.');return;}
++     const row=h('div',undefined,'suite-master-actions');
++     const product=invSelect(row,'Stock item',products,p=>p.id,p=>p.code+' · '+p.name);
++     const qty=invField(row,'Quantity','number','1');const cost=invField(row,'Unit cost (R)','number',String((products[0].details?.cost_cents||100)/100));cost.step='0.01';
++     product.addEventListener('change',()=>{const p=products.find(x=>x.id===Number(product.value));if(p)cost.value=String((p.details?.cost_cents||100)/100);});
++     const entry={product,qty,cost,row};row.append(invButton('Remove',()=>{row.remove();rows.splice(rows.indexOf(entry),1);}));rows.push(entry);lineSection.append(row);
++   };
++   const actions=h('div',undefined,'suite-master-form-buttons');actions.style.gridColumn='1/-1';
++   const add=invButton('Add stock line',addLine);const save=invButton('Save draft',()=>void savePO(),'suite-primary');actions.append(add,save);controls.append(actions);
++   async function loadMasters(){
++     try{const [s,p]=await Promise.all(['supplier','stock'].map(kind=>api('/api/master/records?kind='+kind+'&branch='+encodeURIComponent(branch))));
++       if(!w.valid())return;products=p.records.filter(x=>x.active);supplierSelect.replaceChildren();
++       for(const item of s.records.filter(x=>x.active)){const o=h('option',item.code+' · '+item.name);o.value=item.id;supplierSelect.append(o);}
++       if(!rows.length)addLine();
++     }catch(e){w.message(e.message);}
++   }
++   async function savePO(){
++     if(!w.valid())return;save.disabled=true;w.message('');
++     try{
++       const lines=rows.map(x=>({stock_id:Number(x.product.value),quantity_milli:invNum(x.qty.value,'quantity'),unit_cost_cents:invMoney(x.cost.value)}));
++       const response=await invPost('/api/purchase-orders',{branch,supplier_master_id:Number(supplierSelect.value),expected_date:delivery.value,notes:notes.value,lines});
++       if(!w.valid())return;w.message('Saved '+response.po.number+' as DRAFT. Submit for independent approval.',true);await loadPOs();
++     }catch(e){w.message(e.message);}finally{save.disabled=false;}
++   }
++   async function doAction(po,action){
++     let note='';if(action==='REJECT'||action==='CANCEL'){note=window.prompt('Reason for '+action.toLowerCase()+':','')||'';if(!note)return;}
++     else if(!window.confirm(action+' '+po.number+'?'))return;
++     try{const r=await invPost('/api/purchase-orders/action',{id:po.id,version:po.version,branch,action,note});
++       if(w.valid()){w.message(r.po.number+' is now '+r.po.status+'.',true);await loadPOs();}
++     }catch(e){if(w.valid())w.message(e.message);}
++   }
++   async function showAudit(po){
++     try{const data=await api('/api/purchase-orders/audit?branch='+encodeURIComponent(branch)+'&id='+po.id);
++       if(!w.valid())return;const lines=data.audit.map(a=>showDate(a.created_at)+' · '+a.action+' · '+a.actor_name+' · '+(a.note||''));
++       w.message('');window.alert(lines.join('\\n')||'No audit events.');
++     }catch(e){w.message(e.message);}
++   }
++   async function loadPOs(){
++     try{const data=await api('/api/purchase-orders?branch='+encodeURIComponent(branch));if(!w.valid())return;
++       invTable(table,['PO','Supplier','Status','Amount','Lines','Updated','Actions'],data.orders.map(po=>{
++         const buttons=h('div',undefined,'suite-master-actions');
++         if(purchasePermissions.write&&po.status==='DRAFT')buttons.append(invButton('Submit',()=>void doAction(po,'SUBMIT')));
++         if(purchasePermissions.approve&&po.status==='SUBMITTED'){buttons.append(invButton('Approve',()=>void doAction(po,'APPROVE')),invButton('Reject',()=>void doAction(po,'REJECT')));}
++         if(purchasePermissions.write&&['DRAFT','SUBMITTED'].includes(po.status))buttons.append(invButton('Cancel',()=>void doAction(po,'CANCEL')));
++         buttons.append(invButton('Audit',()=>void showAudit(po)));
++         return [po.number,po.supplier_name,po.status,money(po.total_cents),po.lines.map(l=>l.stock_code+' × '+invQty(l.quantity_milli)).join('; '),showDate(po.updated_at),buttons];
++       }));
++     }catch(e){if(w.valid())w.message(e.message);}
++   }
++   void loadMasters();void loadPOs();
++ }
++ function suiteReceiving(){
++   const w=invWorkspace('Receiving and GRV','Receiving Clerk counts accepted/damaged items; a different manager verifies; an independent GRV Clerk posts stock.');
++   const controls=h('div',undefined,'suite-master-form');w.form.append(h('h4','Count delivery against approved PO'),controls);
++   const poSelect=invSelect(controls,'Approved purchase order',[],p=>p.id,p=>p.number);
++   const dn=invField(controls,'Supplier delivery note');const invoice=invField(controls,'Supplier invoice reference');const driver=invField(controls,'Driver name');const notes=invField(controls,'Count notes');
++   const lineArea=h('div');lineArea.style.gridColumn='1/-1';controls.append(lineArea);
++   const count=invButton('Record blind/count sheet',()=>void recordCount(),'suite-primary');controls.append(count);
++   const table=h('div');w.list.append(h('h4','Receiving and GRV register'),table);
++   let poList=[];const inputRows=[];
++   function linesForPO(){
++     inputRows.length=0;lineArea.replaceChildren();const po=poList.find(p=>p.id===Number(poSelect.value));if(!po)return;
++     for(const l of po.lines){const row=h('div',undefined,'suite-master-actions');row.append(h('strong',l.stock_code+' · '+l.stock_name));
++       const accepted=invField(row,'Accepted qty','number','0');const rejected=invField(row,'Damaged/rejected qty','number','0');
++       inputRows.push({l,accepted,rejected});lineArea.append(row);
++     }
++   }
++   poSelect.addEventListener('change',linesForPO);
++   async function recordCount(){
++     count.disabled=true;w.message('');try{
++       const lines=inputRows.map(x=>({stock_id:x.l.stock_id,accepted_milli:invNum(x.accepted.value,'accepted',true),rejected_milli:invNum(x.rejected.value,'rejected',true)})).filter(x=>x.accepted_milli||x.rejected_milli);
++       const r=await invPost('/api/receipts',{branch,po_id:Number(poSelect.value),delivery_note:dn.value,supplier_invoice_reference:invoice.value,driver_name:driver.value,notes:notes.value,lines});
++       if(w.valid()){w.message('Count saved '+r.receipt.number+'. Manager verification is required.',true);await loadReceipts();}
++     }catch(e){w.message(e.message);}finally{count.disabled=false;}
++   }
++   async function doAction(receipt,action){
++     if(!window.confirm(action+' '+receipt.number+'?'+(action==='POST'?' This will INCREASE stock-on-hand.':'')))return;
++     try{const r=await invPost('/api/receipts/action',{id:receipt.id,version:receipt.version,branch,action});
++       if(w.valid()){w.message(r.receipt.number+' '+r.receipt.status+'.',true);await loadReceipts();}
++     }catch(e){w.message(e.message);}
++   }
++   async function loadPOs(){
++     try{const data=await api('/api/purchase-orders?branch='+encodeURIComponent(branch));if(!w.valid())return;
++       poList=data.orders.filter(p=>p.status==='APPROVED');poSelect.replaceChildren();
++       for(const po of poList){const o=h('option',po.number+' · '+po.supplier_name);o.value=po.id;poSelect.append(o);}linesForPO();
++     }catch(e){w.message(e.message);}
++   }
++   async function loadReceipts(){
++     try{const data=await api('/api/receipts?branch='+encodeURIComponent(branch));if(!w.valid())return;
++       invTable(table,['Receipt','PO','DN','Status','Counted items','Actions'],data.receipts.map(r=>{
++         const buttons=h('div',undefined,'suite-master-actions');
++         if(inventoryPermissions.verify&&r.status==='COUNTED')buttons.append(invButton('Verify',()=>void doAction(r,'VERIFY')),invButton('Cancel',()=>void doAction(r,'CANCEL')));
++         if(inventoryPermissions.post&&r.status==='VERIFIED')buttons.append(invButton('Post GRV',()=>void doAction(r,'POST')));
++         if(inventoryPermissions.post&&r.status==='POSTED'&&!r.labels_printed_by)buttons.append(invButton('Confirm labels printed',()=>void doAction(r,'PRINT_LABELS')));
++         if(inventoryPermissions.count&&r.labels_printed_by&&!r.labelled_by)buttons.append(invButton('Mark labelled',()=>void doAction(r,'LABELLED')));
++         if(inventoryPermissions.packCheck&&r.labelled_by&&!r.pack_checked_by)buttons.append(invButton('Check GRV pack',()=>void doAction(r,'PACK_CHECK')));
++         return [r.number,'PO-'+String(r.po_id).padStart(6,'0'),r.delivery_note,r.status,r.lines.map(l=>l.code+' '+invQty(l.accepted_milli)+' accepted / '+invQty(l.rejected_milli)+' damaged').join('; '),buttons];
++       }));
++     }catch(e){if(w.valid())w.message(e.message);}
++   }
++   if(!inventoryPermissions.count)w.form.hidden=true;
++   void loadPOs();void loadReceipts();
++ }
++ function suiteStockBalances(){
++   const w=invWorkspace('Stock-on-Hand','Quantities are from posted GRVs and completed transfers only. Sales, returns, adjustments and opening balances are not yet integrated.');w.form.hidden=true;
++   const refresh=invButton('Refresh stock balances',()=>void load(),'suite-primary');w.list.append(refresh);
++   const items=h('div'),moves=h('div');w.list.append(h('h4','Branch balances'),items,h('h4','Recent stock movements'),moves);
++   async function load(){try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch));if(!w.valid())return;
++     invTable(items,['Code','Description','Unit','On-hand','Version'],data.items.map(x=>[x.code,x.name,x.unit||'each',invQty(x.qty_milli),x.stock_version]));
++     invTable(moves,['Date','Stock','Type','Document','Change','User'],data.movements.map(x=>[showDate(x.created_at),x.code,x.movement_type,x.document_id,(x.quantity_delta_milli>0?'+':'')+invQty(x.quantity_delta_milli),x.actor_email]));
++   }catch(e){if(w.valid())w.message(e.message);}}
++   void load();
++ }
++ function suiteTransfers(){
++   const w=invWorkspace('Stock Transfers','Create at source → independent manager sends (deducts stock) → destination independently receives (adds stock).');
++   const controls=h('div',undefined,'suite-master-form');w.form.append(h('h4','New inter-branch transfer'),controls);
++   const dest=invSelect(controls,'Destination branch',[],x=>x,x=>x);const notes=invField(controls,'Transfer notes');
++   const linesArea=h('div');linesArea.style.gridColumn='1/-1';controls.append(linesArea);const lines=[];let products=[];
++   function addLine(){if(!products.length){w.message('No active stock items.');return;}
++     const row=h('div',undefined,'suite-master-actions');const item=invSelect(row,'Stock item',products,x=>x.stock_id,x=>x.code+' · '+x.name+' · Available '+invQty(x.qty_milli));
++     const qty=invField(row,'Transfer qty','number','1');const entry={item,qty,row};row.append(invButton('Remove',()=>{row.remove();lines.splice(lines.indexOf(entry),1);}));lines.push(entry);linesArea.append(row);
++   }
++   const add=invButton('Add line',addLine),save=invButton('Create transfer',()=>void create(),'suite-primary');controls.append(add,save);
++   const table=h('div');w.list.append(h('h4','Outgoing and incoming transfers'),table);
++   async function loadInventory(){
++     try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch));if(!w.valid())return;
++       products=data.items;dest.replaceChildren();for(const name of data.destinations||[]){if(name.toLowerCase()===branch.toLowerCase())continue;const o=h('option',name);o.value=name;dest.append(o);}if(!lines.length)addLine();
++     }catch(e){w.message(e.message);}
++   }
++   async function create(){save.disabled=true;w.message('');try{
++     const body={source_branch:branch,destination_branch:dest.value,notes:notes.value,lines:lines.map(l=>({stock_id:Number(l.item.value),qty_milli:invNum(l.qty.value,'transfer quantity')}))};
++     const data=await invPost('/api/transfers',body);if(w.valid()){w.message('Created '+data.transfer.number+' as draft. A different manager must send it.',true);await loadTransfers();}
++   }catch(e){w.message(e.message);}finally{save.disabled=false;}}
++   async function doAction(t,action){if(!window.confirm(action+' '+t.number+'?'+(action==='SEND'?' This deducts stock at the source.':action==='RECEIVE'?' This adds stock at the destination.':'')))return;
++     const actionBranch=action==='RECEIVE'?t.destination_branch:t.source_branch;
++     try{const r=await invPost('/api/transfers/action',{id:t.id,version:t.version,branch:actionBranch,action});
++       if(w.valid()){w.message(r.transfer.number+' is now '+r.transfer.status+'.',true);await loadTransfers();}
++     }catch(e){w.message(e.message);}
++   }
++   async function loadTransfers(){
++     try{const data=await api('/api/transfers?branch='+encodeURIComponent(branch));if(!w.valid())return;
++       invTable(table,['Transfer','From → To','Status','Items','Actions'],data.transfers.map(t=>{
++         const buttons=h('div',undefined,'suite-master-actions');
++         if(t.source_branch.toLowerCase()===branch.toLowerCase()&&inventoryPermissions.approveTransfer&&t.status==='DRAFT')buttons.append(invButton('Send',()=>void doAction(t,'SEND')),invButton('Cancel',()=>void doAction(t,'CANCEL')));
++         if(t.destination_branch.toLowerCase()===branch.toLowerCase()&&inventoryPermissions.count&&t.status==='IN_TRANSIT')buttons.append(invButton('Receive',()=>void doAction(t,'RECEIVE')));
++         return [t.number,t.source_branch+' → '+t.destination_branch,t.status,t.lines.map(l=>l.code+' × '+invQty(l.qty_milli)).join('; '),buttons];
++       }));
++     }catch(e){if(w.valid())w.message(e.message);}
++   }
++   if(!inventoryPermissions.transfer)w.form.hidden=true;
++   void loadInventory();void loadTransfers();
++ }
++
+  function suiteModuleView(id){
+    const root=E('app-content');const name=SUITE_TITLES[id]||({tills:'Tills',cashoffice:'Cash Office'}[id])||'Module';
+    const isSeparate=['tills','cashoffice','dispatching'].includes(id);
+-   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':['stock','suppliers','debtors'].includes(id)?'Branch master files and their audit histories are live. Other transactions and financial postings are not enabled yet.':'The menu inventory is a reference. Unbuilt operations remain disabled until their secure workflows are implemented.','suite-menu-intro'));
++   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':['stock','suppliers','debtors'].includes(id)?'Branch master files, purchasing and controlled stock operations are live. Supplier invoice and general ledger posting are not yet enabled.':'The menu inventory is a reference. Unbuilt operations remain disabled until their secure workflows are implemented.','suite-menu-intro'));
+    const menu=SUITE_MENU_TREE[id]||{};const grid=h('div',undefined,'suite-menu-grid');
+    for(const [section,items] of Object.entries(menu)){
+      const card=h('section',undefined,'suite-menu-card');card.append(h('h3',section));const list=h('div',undefined,'suite-menu-list');
+@@ -1343,6 +1535,10 @@ function page(app){
+        b.addEventListener('click',()=>{
+          const masterKind=id==='stock'&&item==='Stock Master'?'stock':id==='suppliers'&&item==='Suppliers'?'supplier':id==='debtors'&&item==='Debtors'?'debtor':null;
+          if(masterKind){suiteMasterView(masterKind);return;}
++         if(item==='Purchase Orders'&&(id==='stock'||id==='suppliers')){suitePurchaseOrders();return;}
++         if(id==='stock'&&item==='Goods Received Vouchers (GRV)'){suiteReceiving();return;}
++         if(id==='stock'&&item==='Stock Transfers'){suiteTransfers();return;}
++         if(id==='stock'&&item==='Onhands'){suiteStockBalances();return;}
+          if(item==='Audits'&&['stock','suppliers','debtors'].includes(id)){suiteMasterView(id==='suppliers'?'supplier':id==='debtors'?'debtor':'stock',true);return;}
+          const detail=E('suite-feature-detail');detail.className='suite-feature-detail';detail.replaceChildren();
+          detail.append(h('strong',name+'  /  '+section+'  /  '+item));
+@@ -1380,7 +1576,7 @@ function page(app){
+  }
+ 
+  try{
+-   const session=await api('/api/session');masterPermissions=session.master_permissions||{};E('signed-in').textContent=session.user.name+' · '+session.user.role;
++   const session=await api('/api/session');masterPermissions=session.master_permissions||{};purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};E('signed-in').textContent=session.user.name+' · '+session.user.role;
+    E('access').textContent=session.branches.length+' assigned branch(es)'+(['pos','sales'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
+    for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=false;branch=select.value;select.addEventListener('change',selectBranch);
+    if(APP==='pos'){
+@@ -1402,13 +1598,15 @@ export default {
+    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
+      '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview',
+      '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
+-     '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue'};
++     '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue',
++     '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
++     '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action'};
+    const path=pathMap[url.pathname];
+    if(!path)return Response.json({error:'Unknown API.'},{status:404});
+    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
+-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
++   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/transfers','/api/transfers/action'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+    // The Professional suite cannot submit Sales transactions through its old POS origin.
+-   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/master/'))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
++   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
+    // The dedicated Sales Worker may only access the quotation/catalogue APIs.
+    if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
+diff --git a/maliks-operations/src/inventory-domain.mjs b/maliks-operations/src/inventory-domain.mjs
+new file mode 100644
+index 0000000..2c0d5a1
+--- /dev/null
++++ b/maliks-operations/src/inventory-domain.mjs
+@@ -0,0 +1,252 @@
++// Phase 17: controlled PO receiving, GRV posting, operational SOH and inter-branch transfers.
++// Stock changes are transactional; there is deliberately no VAT/AP/GL or sales stock posting.
++import {matchingBranch,limitSearch} from './policy.mjs';
++
++const COMMON=new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager']);
++const COUNT=new Set([...COMMON,'Receiving Clerk','Receiving','Receiving Supervisor','Warehouse Manager','Warehouse Management','Stock Controller']);
++const VERIFY=new Set([...COMMON,'Receiving Manager','Warehouse Manager','Warehouse Management']);
++const POST=new Set([...COMMON,'GRV Clerk']);
++const PACK_CHECK=new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager']);
++const TRANSFER=new Set([...COMMON,'Stock Controller','Warehouse Manager','Warehouse Management']);
++const READ=new Set([...COUNT,...VERIFY,...POST,'Purchasing Manager','Buyer','Finance Manager','Creditors Clerk','Executive / EXCO']);
++export function canUseInventory(member,permission='read'){
++ if(!member||Number(member.active)!==1)return false;
++ const role=member.role;
++ if(permission==='count')return COUNT.has(role);
++ if(permission==='verify')return VERIFY.has(role);
++ if(permission==='post')return POST.has(role);
++ if(permission==='packCheck')return PACK_CHECK.has(role);
++ if(permission==='transfer')return TRANSFER.has(role);
++ if(permission==='approveTransfer')return VERIFY.has(role);
++ return READ.has(role)&&(role!=='Executive / EXCO'||member.access_scope==='Full company');
++}
++const json=(v,status=200)=>Response.json(v,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
++const fail=(v,status=400)=>json({error:v},status);
++const int=(v,name,min=1,max=2_000_000_000)=>{if(!Number.isSafeInteger(v)||v<min||v>max)throw Error('Invalid '+name+'.');return v;};
++const str=(v,name,max=150,required=false)=>{if(typeof v!=='string'||v.trim().length>max||(required&&!v.trim())||/[\u0000-\u001f\u007f]/.test(v))throw Error('Invalid '+name+'.');return v.trim();};
++const uuid=v=>{if(typeof v!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(v))throw Error('Invalid request ID.');return v.toLowerCase();};
++const actor=c=>c.member.email.toLowerCase();
++const allow=(c,perm)=>c.app==='management'&&canUseInventory(c.member,perm);
++const originOK=req=>Boolean(req.headers.get('origin'))&&req.headers.get('origin')===req.headers.get('x-maliks-original-origin');
++const parse=async req=>{const s=await req.text();if(s.length>18000)throw Error('Request too large.');try{return JSON.parse(s);}catch{throw Error('Invalid JSON.');}};
++const sha=async data=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(data)))),b=>b.toString(16).padStart(2,'0')).join('');
++const requireBranch=(c,v)=>{const b=matchingBranch(c.branches,v);if(!b)throw Error('Branch access denied.');return b;};
++const checkAction=(raw,kind)=>{
++ if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid action.');
++ const action=str(raw.action,'action',16,true).toUpperCase();
++ const actions=kind==='receipt'?['VERIFY','POST','CANCEL','PRINT_LABELS','LABELLED','PACK_CHECK']:['SEND','RECEIVE','CANCEL'];
++ if(!actions.includes(action))throw Error('Invalid action.');
++ return {id:int(raw.id,kind+' ID'),version:int(raw.version,'version'),branch:str(raw.branch,'branch',150,true),action,request_id:uuid(raw.request_id)};
++};
++const stockLines=raw=>{
++ if(!Array.isArray(raw)||!raw.length||raw.length>30)throw Error('Select 1–30 stock lines.');
++ const seen=new Set();return raw.map(v=>{
++  const stock_id=int(v.stock_id,'stock ID');if(seen.has(stock_id))throw Error('Duplicate stock line.');seen.add(stock_id);
++  const accepted_milli=int(v.accepted_milli,'accepted quantity',0,1_000_000_000);
++  const rejected_milli=int(v.rejected_milli,'rejected quantity',0,1_000_000_000);
++  if(!accepted_milli&&!rejected_milli)throw Error('A counted line must have accepted or rejected quantity.');
++  return {stock_id,accepted_milli,rejected_milli};
++ });
++};
++export function validateReceipt(raw){
++ if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid receiving note.');
++ return {branch:str(raw.branch,'branch',150,true),po_id:int(raw.po_id,'PO ID'),delivery_note:str(raw.delivery_note,'delivery note',90,true),
++  supplier_invoice_reference:str(raw.supplier_invoice_reference,'supplier invoice reference',90),driver_name:str(raw.driver_name,'driver name',100),
++  notes:str(raw.notes,'notes',400),lines:stockLines(raw.lines),request_id:uuid(raw.request_id)};
++}
++export function validateTransfer(raw){
++ if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid transfer.');
++ if(!Array.isArray(raw.lines)||!raw.lines.length||raw.lines.length>30)throw Error('Select 1–30 transfer lines.');
++ const seen=new Set();const lines=raw.lines.map(l=>{const stock_id=int(l.stock_id,'stock ID'),qty_milli=int(l.qty_milli,'quantity',1,1_000_000_000);if(seen.has(stock_id))throw Error('Duplicate stock item.');seen.add(stock_id);return {stock_id,qty_milli};});
++ return {source_branch:str(raw.source_branch,'source branch',150,true),destination_branch:str(raw.destination_branch,'destination branch',150,true),notes:str(raw.notes,'notes',400),lines,request_id:uuid(raw.request_id)};
++}
++const receiptFor=(r,lines=[])=>({id:r.id,number:'RCV-'+String(r.id).padStart(6,'0'),po_id:r.po_id,branch:r.branch,delivery_note:r.delivery_note,
++ supplier_invoice_reference:r.supplier_invoice_reference,driver_name:r.driver_name,notes:r.notes,status:r.status,version:r.version,
++ counted_by_email:r.counted_by_email,verified_by_email:r.verified_by_email,posted_by_email:r.posted_by_email,labels_printed_by:r.labels_printed_by,labels_printed_at:r.labels_printed_at,
++ labelled_by:r.labelled_by,labelled_at:r.labelled_at,pack_checked_by:r.pack_checked_by,pack_checked_at:r.pack_checked_at,created_at:r.created_at,lines});
++const transferFor=r=>({id:r.id,number:'TRF-'+String(r.id).padStart(6,'0'),source_branch:r.source_branch,destination_branch:r.destination_branch,
++ lines:JSON.parse(r.lines_json),notes:r.notes,status:r.status,version:r.version,created_by_email:r.created_by_email,
++ sent_by_email:r.sent_by_email,received_by_email:r.received_by_email,created_at:r.created_at});
++async function receiptWithLines(db,row){
++ const {results}=await db.prepare(`SELECT rl.stock_master_id AS stock_id,rl.accepted_milli,rl.rejected_milli,m.code,m.name
++ FROM maliks_pos_receipt_lines rl LEFT JOIN maliks_pos_master_records m ON m.id=rl.stock_master_id
++ WHERE rl.receipt_id=? ORDER BY rl.stock_master_id`).bind(row.id).all();
++ return receiptFor(row,results);
++}
++async function replay(db,table,id,hash,actorEmail){
++ const row=await db.prepare(`SELECT * FROM ${table} WHERE request_id=?`).bind(id).first();
++ if(!row)return null;
++ return row.payload_hash===hash&&row.actor_email===actorEmail?{duplicate:true,document_id:table==='maliks_pos_receipt_audit'?row.receipt_id:row.transfer_id}:{conflict:true};
++}
++export async function listInventory(req,env,c){
++ if(!allow(c,'read'))return fail('Stock access denied.',403);
++ const branch=matchingBranch(c.branches,new URL(req.url).searchParams.get('branch'));if(!branch)return fail('Branch access denied.',403);
++ const q=limitSearch(new URL(req.url).searchParams.get('q')||'');if(q===null)return fail('Search too long.');const term=q.toLowerCase();
++ const {results}=await env.DB.prepare(`SELECT m.id AS stock_id,m.code,m.name,json_extract(m.details_json,'$.unit') AS unit,
++ COALESCE(b.qty_milli,0) AS qty_milli,COALESCE(b.version,0) AS stock_version
++ FROM maliks_pos_master_records m LEFT JOIN maliks_pos_stock_balances b ON b.stock_master_id=m.id AND lower(b.branch)=lower(m.branch)
++ WHERE m.kind='stock' AND lower(m.branch)=lower(?) AND m.active=1 AND (?='' OR instr(lower(m.code),?)>0 OR instr(lower(m.name),?)>0)
++ ORDER BY m.name LIMIT 150`).bind(branch,term,term,term).all();
++ const {results:movements}=await env.DB.prepare(`SELECT m.id,m.movement_type,m.document_id,m.quantity_delta_milli,m.created_at,m.actor_email,s.code
++ FROM maliks_pos_stock_movements m LEFT JOIN maliks_pos_master_records s ON s.id=m.stock_master_id
++ WHERE lower(m.branch)=lower(?) ORDER BY m.id DESC LIMIT 60`).bind(branch).all();
++ const {results:destinations}=await env.DB.prepare("SELECT name FROM workspaces WHERE type='Store' AND active=1 ORDER BY name").all();
++ return json({branch,items:results,movements,destinations:destinations.map(r=>r.name),accounting_posted:false});
++}
++export async function listReceipts(req,env,c){
++ if(!allow(c,'read'))return fail('Receiving access denied.',403);
++ const branch=matchingBranch(c.branches,new URL(req.url).searchParams.get('branch'));if(!branch)return fail('Branch access denied.',403);
++ const {results}=await env.DB.prepare(`SELECT * FROM maliks_pos_receipts WHERE lower(branch)=lower(?) ORDER BY id DESC LIMIT 80`).bind(branch).all();
++ return json({branch,receipts:await Promise.all(results.map(r=>receiptWithLines(env.DB,r)))});
++}
++export async function countReceipt(req,env,c){
++ if(!allow(c,'count'))return fail('Receiving count permission denied.',403);
++ if(!originOK(req))return fail('Invalid request origin.',403);
++ let v;try{v=validateReceipt(await parse(req));v.branch=requireBranch(c,v.branch);}catch(e){return fail(e.message,403);}
++ const email=actor(c),payloadHash=await sha(v),now=new Date().toISOString();
++ const prev=await env.DB.prepare('SELECT * FROM maliks_pos_receipts WHERE create_request_id=?').bind(v.request_id).first();
++ if(prev)return prev.create_hash===payloadHash&&prev.counted_by_email===email?json({receipt:await receiptWithLines(env.DB,prev),duplicate:true}):fail('Request ID already used.',409);
++ const po=await env.DB.prepare(`SELECT id,status,lines_json FROM maliks_pos_purchase_orders WHERE id=? AND lower(branch)=lower(?)`).bind(v.po_id,v.branch).first();
++ if(!po||po.status!=='APPROVED')return fail('Only approved POs can be received.',409);
++ const lineMap=new Map(JSON.parse(po.lines_json).map(l=>[l.stock_id,l]));
++ for(const line of v.lines)if(!lineMap.has(line.stock_id))return fail('Counted item not on this purchase order.',409);
++ const steps=[env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_receipts
++ (po_id,branch,delivery_note,supplier_invoice_reference,driver_name,notes,status,version,counted_by_email,created_at,updated_at,create_request_id,create_hash,last_request_id)
++ VALUES (?,?,?,?,?,?,'COUNTED',1,?,?,?,?,?,?)`)
++ .bind(v.po_id,v.branch,v.delivery_note,v.supplier_invoice_reference,v.driver_name,v.notes,email,now,now,v.request_id,payloadHash,v.request_id)];
++ for(const l of v.lines)steps.push(env.DB.prepare(`INSERT INTO maliks_pos_receipt_lines(receipt_id,stock_master_id,accepted_milli,rejected_milli)
++ SELECT id,?,?,? FROM maliks_pos_receipts WHERE create_request_id=? AND create_hash=? AND counted_by_email=?`)
++ .bind(l.stock_id,l.accepted_milli,l.rejected_milli,v.request_id,payloadHash,email));
++ steps.push(env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_receipt_audit(request_id,receipt_id,branch,action,actor_email,payload_hash,created_at)
++ SELECT ?,id,branch,'COUNT',?,?,? FROM maliks_pos_receipts WHERE create_request_id=? AND create_hash=? AND counted_by_email=?`)
++ .bind(v.request_id,email,payloadHash,now,v.request_id,payloadHash,email));
++ try{await env.DB.batch(steps);}catch(e){return fail(/RECEIPT_EXCEEDS_ORDER/.test(String(e))?'Accepted quantities exceed outstanding PO quantities.':`Count could not be saved: ${String(e.message||e).slice(0,100)}`,409);}
++ const saved=await env.DB.prepare('SELECT * FROM maliks_pos_receipts WHERE create_request_id=?').bind(v.request_id).first();
++ if(!saved||saved.create_hash!==payloadHash||saved.counted_by_email!==email)return fail('Count was not saved. Refresh.',409);
++ return json({receipt:await receiptWithLines(env.DB,saved)});
++}
++export async function receiptAction(req,env,c){
++ if(!originOK(req))return fail('Invalid request origin.',403);
++ let v;try{v=checkAction(await parse(req),'receipt');v.branch=requireBranch(c,v.branch);}catch(e){return fail(e.message);}
++ const permission={VERIFY:'verify',POST:'post',CANCEL:'verify',PRINT_LABELS:'post',LABELLED:'count',PACK_CHECK:'packCheck'}[v.action];if(!allow(c,permission))return fail('Insufficient receiving permissions.',403);
++ const email=actor(c),hash=await sha(v),now=new Date().toISOString();
++ const old=await replay(env.DB,'maliks_pos_receipt_audit',v.request_id,hash,email);
++ if(old){if(old.conflict)return fail('Request ID already used.',409);const row=await env.DB.prepare('SELECT * FROM maliks_pos_receipts WHERE id=? AND lower(branch)=lower(?)').bind(old.document_id,v.branch).first();return row?json({receipt:await receiptWithLines(env.DB,row),duplicate:true}):fail('Receipt not found.',404);}
++ const r=await env.DB.prepare('SELECT * FROM maliks_pos_receipts WHERE id=? AND lower(branch)=lower(?)').bind(v.id,v.branch).first();
++ if(!r)return fail('Receiving note not found.',404);
++ if(r.version!==v.version)return fail('Receiving note changed. Refresh.',409);
++ if(v.action==='VERIFY'&&r.status!=='COUNTED'||v.action==='POST'&&r.status!=='VERIFIED'||v.action==='CANCEL'&&r.status!=='COUNTED')return fail('Invalid receiving status transition.',409);
++ if(['PRINT_LABELS','LABELLED','PACK_CHECK'].includes(v.action)&&r.status!=='POSTED')return fail('Post the GRV before label and pack controls.',409);
++ if(v.action==='PRINT_LABELS'&&r.labels_printed_by)return fail('Labels were already printed.',409);
++ if(v.action==='LABELLED'&&(!r.labels_printed_by||r.labelled_by))return fail('Labels must be printed first and can only be marked once.',409);
++ if(v.action==='PACK_CHECK'&&(!r.labelled_by||r.pack_checked_by))return fail('Store Manager must wait until labelling is complete.',409);
++ if(v.action==='LABELLED'&&email===r.labels_printed_by)return fail('Receiving staff must independently confirm labelling.',403);
++ if(v.action==='PACK_CHECK'&&email===r.posted_by_email)return fail('Store Manager pack check must be independent of GRV posting.',403);
++ if(v.action==='VERIFY'&&r.counted_by_email===email)return fail('Receiving Manager must be different from the counter.',403);
++ if(v.action==='POST'&&(r.verified_by_email===email||r.counted_by_email===email))return fail('GRV poster must be independent from counter and verifier.',403);
++ if(v.action==='CANCEL'&&r.counted_by_email===email&&!COMMON.has(c.member.role))return fail('Independent manager must cancel the count.',403);
++ const status={VERIFY:'VERIFIED',POST:'POSTED',CANCEL:'CANCELLED'}[v.action]||'POSTED';
++ const column={VERIFY:'verified_by_email',POST:'posted_by_email',CANCEL:'cancelled_by_email',
++   PRINT_LABELS:'labels_printed_by',LABELLED:'labelled_by',PACK_CHECK:'pack_checked_by'}[v.action];
++ const extra={PRINT_LABELS:'labels_printed_at',LABELLED:'labelled_at',PACK_CHECK:'pack_checked_at'}[v.action];
++ const guard=v.action==='PRINT_LABELS'?' AND labels_printed_by IS NULL':v.action==='LABELLED'?' AND labels_printed_by IS NOT NULL AND labelled_by IS NULL':v.action==='PACK_CHECK'?' AND labelled_by IS NOT NULL AND pack_checked_by IS NULL':'';
++ const steps=[env.DB.prepare(`UPDATE maliks_pos_receipts SET status=CASE WHEN status=? AND version=?${guard} THEN ? ELSE 'INVALID' END,
++ version=version+1,${column}=?,${extra?extra+'=?,':''}updated_at=?,last_request_id=? WHERE id=? AND lower(branch)=lower(?)`)
++ .bind(r.status,v.version,status,email,...(extra?[now]:[]),now,v.request_id,v.id,v.branch)];
++ if(v.action==='POST'){
++  const {results:lines}=await env.DB.prepare(`SELECT stock_master_id,accepted_milli FROM maliks_pos_receipt_lines WHERE receipt_id=? AND accepted_milli>0`).bind(v.id).all();
++  const ids=lines.map(l=>l.stock_master_id);
++  if(ids.length){const {results:active}=await env.DB.prepare(`SELECT id FROM maliks_pos_master_records WHERE kind='stock' AND active=1 AND lower(branch)=lower(?) AND id IN (${ids.map(()=>'?').join(',')})`).bind(v.branch,...ids).all();
++   if(active.length!==ids.length)return fail('Reactivate the relevant Stock Master items before GRV posting.',409);}
++  for(const l of lines){
++   steps.push(env.DB.prepare(`INSERT INTO maliks_pos_stock_balances(branch,stock_master_id,qty_milli,version,updated_at) VALUES(?,?,?,1,?)
++    ON CONFLICT(branch,stock_master_id) DO UPDATE SET qty_milli=qty_milli+excluded.qty_milli,version=version+1,updated_at=excluded.updated_at`)
++    .bind(v.branch,l.stock_master_id,l.accepted_milli,now));
++   steps.push(env.DB.prepare(`INSERT INTO maliks_pos_stock_movements(branch,stock_master_id,quantity_delta_milli,movement_type,document_id,actor_email,created_at)
++    VALUES (?,?,?,'GRV',?,?,?)`).bind(v.branch,l.stock_master_id,l.accepted_milli,v.id,email,now));
++  }
++ }
++ steps.push(env.DB.prepare(`INSERT INTO maliks_pos_receipt_audit(request_id,receipt_id,branch,action,actor_email,payload_hash,created_at)
++ VALUES (?,?,?,?,?,?,?)`).bind(v.request_id,v.id,v.branch,v.action,email,hash,now));
++ try{await env.DB.batch(steps);}catch{return fail('Receipt changed or GRV could not be posted. No stock was changed.',409);}
++ const updated=await env.DB.prepare('SELECT * FROM maliks_pos_receipts WHERE id=?').bind(v.id).first();return json({receipt:await receiptWithLines(env.DB,updated)});
++}
++export async function listTransfers(req,env,c){
++ if(!allow(c,'read'))return fail('Transfer access denied.',403);
++ const branch=matchingBranch(c.branches,new URL(req.url).searchParams.get('branch'));if(!branch)return fail('Branch access denied.',403);
++ const {results}=await env.DB.prepare(`SELECT * FROM maliks_pos_transfers WHERE lower(source_branch)=lower(?) OR lower(destination_branch)=lower(?) ORDER BY id DESC LIMIT 100`).bind(branch,branch).all();
++ return json({branch,transfers:results.map(transferFor)});
++}
++export async function createTransfer(req,env,c){
++ if(!allow(c,'transfer'))return fail('Transfer creation denied.',403);
++ if(!originOK(req))return fail('Invalid request origin.',403);
++ let v;try{v=validateTransfer(await parse(req));v.source_branch=requireBranch(c,v.source_branch);}catch(e){return fail(e.message,/Branch access denied/.test(e.message)?403:400);}
++ if(v.source_branch.toLowerCase()===v.destination_branch.toLowerCase())return fail('Source and destination must be different.');
++ const dest=await env.DB.prepare("SELECT name FROM workspaces WHERE type='Store' AND active=1 AND lower(name)=lower(?)").bind(v.destination_branch).first();
++ if(!dest)return fail('Destination must be an active store.',409);v.destination_branch=dest.name;
++ const email=actor(c),hash=await sha(v),now=new Date().toISOString();
++ const prior=await env.DB.prepare('SELECT * FROM maliks_pos_transfers WHERE create_request_id=?').bind(v.request_id).first();
++ if(prior)return prior.create_hash===hash&&prior.created_by_email===email?json({transfer:transferFor(prior),duplicate:true}):fail('Request ID already used.',409);
++ const ids=v.lines.map(l=>l.stock_id),{results:stocks}=await env.DB.prepare(`SELECT id,code,name FROM maliks_pos_master_records WHERE kind='stock' AND active=1 AND lower(branch)=lower(?) AND id IN (${ids.map(()=>'?').join(',')})`).bind(v.source_branch,...ids).all();
++ if(stocks.length!==ids.length)return fail('Every transfer line must be an active source stock item.',409);
++ const byId=new Map(stocks.map(x=>[x.id,x]));const lines=v.lines.map(l=>({...l,code:byId.get(l.stock_id).code,name:byId.get(l.stock_id).name}));
++ try{await env.DB.batch([
++  env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_transfers(source_branch,destination_branch,lines_json,notes,status,version,created_by_email,created_at,updated_at,create_request_id,create_hash,last_request_id)
++   VALUES(?,?,?,?,'DRAFT',1,?,?,?,?,?,?)`).bind(v.source_branch,v.destination_branch,JSON.stringify(lines),v.notes,email,now,now,v.request_id,hash,v.request_id),
++  env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_transfer_audit(request_id,transfer_id,action,actor_email,payload_hash,created_at)
++   SELECT ?,id,'CREATE',?,?,? FROM maliks_pos_transfers WHERE create_request_id=? AND create_hash=? AND created_by_email=?`).bind(v.request_id,email,hash,now,v.request_id,hash,email),
++ ]);}catch{return fail('Unable to create transfer.',409);}
++ const row=await env.DB.prepare('SELECT * FROM maliks_pos_transfers WHERE create_request_id=?').bind(v.request_id).first();
++ if(!row||row.create_hash!==hash||row.created_by_email!==email)return fail('Request ID already used.',409);
++ return json({transfer:transferFor(row)});
++}
++export async function transferAction(req,env,c){
++ if(!originOK(req))return fail('Invalid request origin.',403);
++ let v;try{v=checkAction(await parse(req),'transfer');v.branch=requireBranch(c,v.branch);}catch(e){return fail(e.message);}
++ const perm=v.action==='RECEIVE'?'count':'approveTransfer';if(!allow(c,perm))return fail('Transfer approval/receipt permission denied.',403);
++ const email=actor(c),hash=await sha(v),now=new Date().toISOString();
++ const old=await replay(env.DB,'maliks_pos_transfer_audit',v.request_id,hash,email);
++ if(old){if(old.conflict)return fail('Request ID already used.',409);const r=await env.DB.prepare('SELECT * FROM maliks_pos_transfers WHERE id=?').bind(old.document_id).first();
++ if(!r)return fail('Transfer not found.',404);const required=v.action==='RECEIVE'?r.destination_branch:r.source_branch;
++ if(v.branch.toLowerCase()!==required.toLowerCase())return fail('Branch access denied.',403);
++ return json({transfer:transferFor(r),duplicate:true});}
++ const r=await env.DB.prepare('SELECT * FROM maliks_pos_transfers WHERE id=?').bind(v.id).first();if(!r)return fail('Transfer not found.',404);
++ const requiredBranch=v.action==='RECEIVE'?r.destination_branch:r.source_branch;
++ if(v.branch.toLowerCase()!==requiredBranch.toLowerCase())return fail('Action must be performed at the correct branch.',403);
++ if(r.version!==v.version)return fail('Transfer changed. Refresh.',409);
++ if(v.action==='SEND'&&r.status!=='DRAFT'||v.action==='RECEIVE'&&r.status!=='IN_TRANSIT'||v.action==='CANCEL'&&r.status!=='DRAFT')return fail('Invalid transfer status transition.',409);
++ if(v.action==='SEND'&&r.created_by_email===email)return fail('Transfer must be released by an independent manager.',403);
++ if(v.action==='RECEIVE'&&(r.sent_by_email===email||r.created_by_email===email))return fail('Destination receiving must be independent.',403);
++ if(v.action==='CANCEL'&&r.created_by_email===email&&!COMMON.has(c.member.role))return fail('Independent manager required to cancel.',403);
++ const status={SEND:'IN_TRANSIT',RECEIVE:'RECEIVED',CANCEL:'CANCELLED'}[v.action],column={SEND:'sent_by_email',RECEIVE:'received_by_email',CANCEL:'cancelled_by_email'}[v.action];
++ const steps=[env.DB.prepare(`UPDATE maliks_pos_transfers SET status=CASE WHEN status=? AND version=? THEN ? ELSE 'INVALID' END,
++ version=version+1,${column}=?,updated_at=?,last_request_id=? WHERE id=?`).bind(r.status,v.version,status,email,now,v.request_id,v.id)];
++ const lines=JSON.parse(r.lines_json);
++ if(v.action==='SEND'){
++  const ids=lines.map(l=>l.stock_id),codes=lines.map(l=>l.code);
++  const {results:activeSource}=await env.DB.prepare(`SELECT id FROM maliks_pos_master_records WHERE kind='stock' AND active=1 AND lower(branch)=lower(?) AND id IN (${ids.map(()=>'?').join(',')})`).bind(r.source_branch,...ids).all();
++  const {results:activeDest}=await env.DB.prepare(`SELECT code FROM maliks_pos_master_records WHERE kind='stock' AND active=1 AND lower(branch)=lower(?) AND code IN (${codes.map(()=>'?').join(',')})`).bind(r.destination_branch,...codes).all();
++  if(activeSource.length!==lines.length||activeDest.length!==lines.length)return fail('Both branches need active matching Stock Master codes before transfer dispatch.',409);
++  for(const l of lines){
++   // A CHECK constraint on stock balances aborts the complete transaction if any line would go negative.
++   steps.push(env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_stock_balances(branch,stock_master_id,qty_milli,version,updated_at) VALUES(?,?,0,1,?)`).bind(r.source_branch,l.stock_id,now));
++   steps.push(env.DB.prepare(`UPDATE maliks_pos_stock_balances SET qty_milli=qty_milli-?,version=version+1,updated_at=? WHERE lower(branch)=lower(?) AND stock_master_id=?`).bind(l.qty_milli,now,r.source_branch,l.stock_id));
++   steps.push(env.DB.prepare(`INSERT INTO maliks_pos_stock_movements(branch,stock_master_id,quantity_delta_milli,movement_type,document_id,actor_email,created_at)
++    VALUES(?,?,?,'TRANSFER_OUT',?,?,?)`).bind(r.source_branch,l.stock_id,-l.qty_milli,v.id,email,now));
++  }
++ }
++ if(v.action==='RECEIVE'){
++  const codes=lines.map(l=>l.code);const {results:dest}=await env.DB.prepare(`SELECT id,code FROM maliks_pos_master_records WHERE kind='stock' AND active=1 AND lower(branch)=lower(?) AND code IN (${codes.map(()=>'?').join(',')})`).bind(r.destination_branch,...codes).all();
++  if(dest.length!==lines.length)return fail('Destination must have active stock masters with matching codes before receiving.',409);
++  const byCode=new Map(dest.map(x=>[x.code.toLowerCase(),x.id]));
++  for(const l of lines){const stockId=byCode.get(l.code.toLowerCase());if(!stockId)return fail('Destination stock code mismatch.',409);
++   steps.push(env.DB.prepare(`INSERT INTO maliks_pos_stock_balances(branch,stock_master_id,qty_milli,version,updated_at) VALUES(?,?,?,1,?)
++    ON CONFLICT(branch,stock_master_id) DO UPDATE SET qty_milli=qty_milli+excluded.qty_milli,version=version+1,updated_at=excluded.updated_at`).bind(r.destination_branch,stockId,l.qty_milli,now));
++   steps.push(env.DB.prepare(`INSERT INTO maliks_pos_stock_movements(branch,stock_master_id,quantity_delta_milli,movement_type,document_id,actor_email,created_at)
++    VALUES(?,?,?,'TRANSFER_IN',?,?,?)`).bind(r.destination_branch,stockId,l.qty_milli,v.id,email,now));
++  }
++ }
++ steps.push(env.DB.prepare(`INSERT INTO maliks_pos_transfer_audit(request_id,transfer_id,action,actor_email,payload_hash,created_at) VALUES(?,?,?,?,?,?)`).bind(v.request_id,v.id,v.action,email,hash,now));
++ try{await env.DB.batch(steps);}catch{return fail(v.action==='SEND'?'Insufficient stock, stale transfer, or duplicate send. No stock was moved.':'Transfer changed or receipt could not be posted. No stock was moved.',409);}
++ const updated=await env.DB.prepare('SELECT * FROM maliks_pos_transfers WHERE id=?').bind(v.id).first();return json({transfer:transferFor(updated)});
++}
+diff --git a/maliks-operations/src/policy.mjs b/maliks-operations/src/policy.mjs
+index 7580678..96f06e0 100644
+--- a/maliks-operations/src/policy.mjs
++++ b/maliks-operations/src/policy.mjs
+@@ -7,7 +7,7 @@ const DEPARTMENT_ROLES = {
+   dispatch: new Set(['Dispatch','Dispatcher','Dispatch Head','Dispatch Manager','Checker','Driver']),
+ };
+ export const APPS = Object.freeze(['pos','tills','cashoffice','dispatch','management']);
+-const MANAGEMENT_ONLY = new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager','Stock Controller','Warehouse Manager','Warehouse Management','Purchasing Manager','Buyer','Finance Manager','Creditors Clerk','Debtors Clerk','Credit Controller']);
++const MANAGEMENT_ONLY = new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager','Stock Controller','Warehouse Manager','Warehouse Management','Purchasing Manager','Buyer','Finance Manager','Creditors Clerk','Debtors Clerk','Credit Controller','Receiving Clerk','Receiving Manager','Receiving Supervisor','Receiving','GRV Clerk']);
+ export function canUseApp(member, app) {
+   if (!APPS.includes(app) || !member || Number(member.active) !== 1) return false;
+   if (app === 'management') return MANAGEMENT_ONLY.has(member.role) || (member.role === 'Executive / EXCO' && member.access_scope === 'Full company');
+diff --git a/maliks-operations/src/purchase-domain.mjs b/maliks-operations/src/purchase-domain.mjs
+new file mode 100644
+index 0000000..a0635c8
+--- /dev/null
++++ b/maliks-operations/src/purchase-domain.mjs
+@@ -0,0 +1,235 @@
++// Phase 16: branch-scoped purchase order draft, submission and independent approval.
++// Approved POs are authorisations, NOT goods receipts or financial postings.
++import {matchingBranch,limitSearch} from './policy.mjs';
++
++const CREATE_ROLES=new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager','Purchasing Manager','Buyer']);
++const APPROVE_ROLES=new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager','Purchasing Manager']);
++const READ_ROLES=new Set([...CREATE_ROLES,'Finance Manager','Creditors Clerk','Stock Controller','Warehouse Manager','Warehouse Management','Receiving Clerk','Receiving Manager','Receiving Supervisor','Receiving','GRV Clerk','Executive / EXCO']);
++const headers={'cache-control':'no-store','x-content-type-options':'nosniff'};
++const ok=(data,status=200)=>Response.json(data,{status,headers});
++const error=(message,status=400)=>ok({error:message},status);
++export const canUsePurchase=(member,permission='read')=>{
++  if(!member||Number(member.active)!==1)return false;
++  if(permission==='approve')return APPROVE_ROLES.has(member.role);
++  if(permission==='write')return CREATE_ROLES.has(member.role);
++  return READ_ROLES.has(member.role) && (member.role!=='Executive / EXCO'||member.access_scope==='Full company');
++};
++const integer=(value,name,min,max)=>{
++  if(!Number.isSafeInteger(value)||value<min||value>max)throw Error('Invalid '+name+'.');
++  return value;
++};
++const text=(value,name,max,required=false)=>{
++  if(typeof value!=='string')throw Error('Invalid '+name+'.');
++  const v=value.trim();if(v.length>max||(required&&!v)||/[\u0000-\u001f\u007f]/.test(v))throw Error('Invalid '+name+'.');return v;
++};
++const requestId=value=>{
++  if(typeof value!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value))throw Error('Invalid request ID.');
++  return value.toLowerCase();
++};
++const date=value=>{
++  const s=text(value,'expected delivery date',10);
++  if(s&&(!/^\d{4}-\d{2}-\d{2}$/.test(s)||new Date(s).toISOString().slice(0,10)!==s))throw Error('Invalid expected delivery date.');
++  return s;
++};
++export function validatePurchaseDraft(raw){
++  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid purchase order.');
++  const branch=text(raw.branch,'branch',150,true);
++  const supplier_master_id=integer(raw.supplier_master_id,'supplier',1,2_000_000_000);
++  const notes=text(raw.notes,'notes',400);
++  const expected_date=date(raw.expected_date);
++  const id=requestId(raw.request_id);
++  if(!Array.isArray(raw.lines)||!raw.lines.length||raw.lines.length>30)throw Error('Purchase order requires 1–30 stock lines.');
++  const seen=new Set();
++  const lines=raw.lines.map(line=>{
++    if(!line||typeof line!=='object'||Array.isArray(line))throw Error('Invalid purchase order line.');
++    const stock_id=integer(line.stock_id,'stock ID',1,2_000_000_000);
++    const quantity_milli=integer(line.quantity_milli,'quantity',1,1_000_000);
++    const unit_cost_cents=integer(line.unit_cost_cents,'unit cost',1,100_000_000);
++    if(seen.has(stock_id))throw Error('Duplicate stock item. Combine the quantities.');seen.add(stock_id);
++    return {stock_id,quantity_milli,unit_cost_cents};
++  });
++  const result={branch,supplier_master_id,notes,expected_date,request_id:id,lines};
++  if(raw.id!==undefined){result.id=integer(raw.id,'PO ID',1,2_000_000_000);result.version=integer(raw.version,'version',1,2_000_000_000);}
++  return result;
++}
++export function validatePurchaseAction(raw){
++  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid purchase order action.');
++  const action=text(raw.action,'action',12,true).toUpperCase();
++  if(!['SUBMIT','APPROVE','REJECT','CANCEL'].includes(action))throw Error('Invalid purchase order action.');
++  const note=text(raw.note,'action note',400);
++  if(['REJECT','CANCEL'].includes(action)&&!note)throw Error('A reason is required.');
++  return {id:integer(raw.id,'PO ID',1,2_000_000_000),version:integer(raw.version,'version',1,2_000_000_000),
++    branch:text(raw.branch,'branch',150,true),request_id:requestId(raw.request_id),action,note};
++}
++const asPO=row=>({id:row.id,number:'PO-'+String(row.id).padStart(6,'0'),branch:row.branch,
++  supplier_master_id:row.supplier_master_id,supplier_code:row.supplier_code,supplier_name:row.supplier_name,
++  lines:JSON.parse(row.lines_json),total_cents:row.total_cents,notes:row.notes,expected_date:row.expected_date,
++  status:row.status,version:row.version,created_by_email:row.created_by_email,created_by_name:row.created_by_name,
++  submitted_by_email:row.submitted_by_email,approved_by_email:row.approved_by_email,rejected_by_email:row.rejected_by_email,
++  cancelled_by_email:row.cancelled_by_email,created_at:row.created_at,updated_at:row.updated_at});
++const hash=async data=>{
++  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(data)));
++  return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('');
++};
++const actorOf=context=>context.member.email.toLowerCase();
++const branchOf=(context,requested)=>matchingBranch(context.branches,requested);
++const authorised=(context,permission)=>context.app==='management'&&canUsePurchase(context.member,permission);
++const originOK=req=>Boolean(req.headers.get('origin'))&&req.headers.get('origin')===req.headers.get('x-maliks-original-origin');
++const parse=async req=>{
++  const raw=await req.text();if(raw.length>20000)throw Error('Purchase order request too large.');
++  try{return JSON.parse(raw);}catch{throw Error('Invalid JSON request.');}
++};
++const replay=async(db,id,actor,payloadHash)=>{
++  const a=await db.prepare('SELECT * FROM maliks_pos_po_audit WHERE request_id=?').bind(id).first();
++  if(!a)return null;
++  if(a.actor_email!==actor||a.payload_hash!==payloadHash)return {conflict:true};
++  const current=await db.prepare('SELECT * FROM maliks_pos_purchase_orders WHERE id=? AND lower(branch)=lower(?)').bind(a.po_id,a.branch).first();
++  return {po:current?asPO(current):JSON.parse(a.after_json),duplicate:true};
++};
++async function resolveLines(db,branch,input){
++  const supplier=await db.prepare(`SELECT id,code,name FROM maliks_pos_master_records
++    WHERE id=? AND kind='supplier' AND lower(branch)=lower(?) AND active=1`).bind(input.supplier_master_id,branch).first();
++  if(!supplier)throw Error('Active supplier not found for this branch.');
++  const ids=input.lines.map(l=>l.stock_id);
++  const marks=ids.map(()=>'?').join(',');
++  const {results}=await db.prepare(`SELECT id,code,name,details_json FROM maliks_pos_master_records
++    WHERE kind='stock' AND lower(branch)=lower(?) AND active=1 AND id IN (${marks})`).bind(branch,...ids).all();
++  if(results.length!==ids.length)throw Error('Every line must reference an active branch stock master item.');
++  const lookup=new Map(results.map(row=>[row.id,row]));
++  let total=0;
++  const lines=input.lines.map(line=>{
++    const stock=lookup.get(line.stock_id);const unit=JSON.parse(stock.details_json).unit||'each';
++    const amount_cents=Math.round(line.quantity_milli*line.unit_cost_cents/1000);
++    total+=amount_cents;
++    if(!Number.isSafeInteger(total)||total>3_000_000_000_000)throw Error('Purchase order total is too large.');
++    return {...line,stock_code:stock.code,stock_name:stock.name,unit,amount_cents};
++  });
++  return {supplier,lines,total_cents:total};
++}
++export async function listPurchaseOrders(req,env,context){
++  if(!authorised(context,'read'))return error('Purchasing access denied.',403);
++  const params=new URL(req.url).searchParams;const branch=branchOf(context,params.get('branch'));
++  if(!branch)return error('Branch access denied.',403);
++  const q=limitSearch(params.get('q')||'');if(q===null)return error('Search too long.');
++  const term=q.toLowerCase();
++  const {results}=await env.DB.prepare(`SELECT * FROM maliks_pos_purchase_orders
++    WHERE lower(branch)=lower(?) AND (?='' OR instr(lower(supplier_code),?)>0 OR instr(lower(supplier_name),?)>0 OR CAST(id AS TEXT)=?)
++    ORDER BY id DESC LIMIT 100`).bind(branch,term,term,term,term.replace(/^PO-0*/i,'')).all();
++  return ok({branch,orders:results.map(asPO)});
++}
++export async function purchaseAudit(req,env,context){
++  if(!authorised(context,'read'))return error('Purchasing access denied.',403);
++  const params=new URL(req.url).searchParams;const branch=branchOf(context,params.get('branch'));
++  if(!branch)return error('Branch access denied.',403);
++  let poId;try{poId=integer(Number(params.get('id')),'PO ID',1,2_000_000_000);}catch(e){return error(e.message);}
++  const row=await env.DB.prepare('SELECT id FROM maliks_pos_purchase_orders WHERE id=? AND lower(branch)=lower(?)').bind(poId,branch).first();
++  if(!row)return error('Purchase order not found.',404);
++  const {results}=await env.DB.prepare(`SELECT action,actor_email,actor_name,note,created_at,before_json,after_json
++    FROM maliks_pos_po_audit WHERE po_id=? AND lower(branch)=lower(?) ORDER BY id DESC LIMIT 60`).bind(poId,branch).all();
++  return ok({branch,po_id:poId,audit:results.map(r=>({action:r.action,actor_email:r.actor_email,actor_name:r.actor_name,
++    note:r.note,created_at:r.created_at,before:r.before_json?JSON.parse(r.before_json):null,after:JSON.parse(r.after_json)}))});
++}
++export async function savePurchaseOrder(req,env,context){
++  if(!authorised(context,'write'))return error('Purchase order write permission denied.',403);
++  if(!originOK(req))return error('Invalid request origin.',403);
++  let input;try{input=validatePurchaseDraft(await parse(req));}catch(e){return error(e.message);}
++  const branch=branchOf(context,input.branch);if(!branch)return error('Branch access denied.',403);
++  input.branch=branch;
++  const actor=actorOf(context),now=new Date().toISOString();
++  const payloadHash=await hash({op:input.id?'SAVE':'CREATE',...input});
++  const previousReplay=await replay(env.DB,input.request_id,actor,payloadHash);
++  if(previousReplay)return previousReplay.conflict?error('Request ID already used.',409):ok(previousReplay);
++  let refs;try{refs=await resolveLines(env.DB,branch,input);}catch(e){return error(e.message,409);}
++  if(!refs.total_cents)return error('Total must be positive.');
++  if(input.id===undefined){
++    await env.DB.batch([
++      env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_purchase_orders
++        (branch,supplier_master_id,supplier_code,supplier_name,lines_json,total_cents,notes,expected_date,status,version,
++        created_by_email,created_by_name,created_at,updated_at,create_request_id,create_payload_hash,last_request_id)
++        VALUES (?,?,?,?,?,?,?,?,'DRAFT',1,?,?,?,?,?,?,?)`)
++        .bind(branch,refs.supplier.id,refs.supplier.code,refs.supplier.name,JSON.stringify(refs.lines),refs.total_cents,input.notes,input.expected_date,
++          actor,context.member.name,now,now,input.request_id,payloadHash,input.request_id),
++      env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_po_audit
++        (request_id,po_id,branch,action,actor_email,actor_name,payload_hash,before_json,after_json,note,created_at)
++        SELECT ?,id,branch,'CREATE',?,?,?,?,?, '',? FROM maliks_pos_purchase_orders
++        WHERE create_request_id=? AND created_by_email=?`)
++        .bind(input.request_id,actor,context.member.name,payloadHash,null,
++          JSON.stringify({branch,supplier_master_id:refs.supplier.id,supplier_code:refs.supplier.code,supplier_name:refs.supplier.name,
++            lines:refs.lines,total_cents:refs.total_cents,notes:input.notes,expected_date:input.expected_date,status:'DRAFT',version:1,created_by_email:actor}),
++          now,input.request_id,actor),
++    ]);
++    const saved=await env.DB.prepare('SELECT * FROM maliks_pos_purchase_orders WHERE create_request_id=?').bind(input.request_id).first();
++    if(!saved)return error('Unable to create purchase order.',409);
++    if(saved.create_payload_hash!==payloadHash||saved.created_by_email!==actor)return error('Request ID already used.',409);
++    return ok({po:asPO(saved)});
++  }
++  const prior=await env.DB.prepare('SELECT * FROM maliks_pos_purchase_orders WHERE id=? AND lower(branch)=lower(?)').bind(input.id,branch).first();
++  if(!prior)return error('Purchase order not found.',404);
++  if(prior.status!=='DRAFT'||prior.version!==input.version)return error('Only a current draft can be edited. Refresh.',409);
++  if(prior.created_by_email!==actor&&!canUsePurchase(context.member,'approve'))return error('Only the creator or manager may edit this draft.',403);
++  const after={...asPO(prior),supplier_master_id:refs.supplier.id,supplier_code:refs.supplier.code,supplier_name:refs.supplier.name,
++    lines:refs.lines,total_cents:refs.total_cents,notes:input.notes,expected_date:input.expected_date,version:prior.version+1,updated_at:now};
++  const outcomes=await env.DB.batch([
++    env.DB.prepare(`UPDATE maliks_pos_purchase_orders SET supplier_master_id=?,supplier_code=?,supplier_name=?,lines_json=?,total_cents=?,
++      notes=?,expected_date=?,version=version+1,updated_at=?,last_request_id=?
++      WHERE id=? AND lower(branch)=lower(?) AND status='DRAFT' AND version=?
++      AND NOT EXISTS(SELECT 1 FROM maliks_pos_po_audit WHERE request_id=?)`)
++      .bind(refs.supplier.id,refs.supplier.code,refs.supplier.name,JSON.stringify(refs.lines),refs.total_cents,input.notes,input.expected_date,now,
++        input.request_id,input.id,branch,input.version,input.request_id),
++    env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_po_audit
++      (request_id,po_id,branch,action,actor_email,actor_name,payload_hash,before_json,after_json,note,created_at)
++      SELECT ?,id,branch,'SAVE',?,?,?,?,?,'',? FROM maliks_pos_purchase_orders
++      WHERE id=? AND lower(branch)=lower(?) AND version=? AND last_request_id=?`)
++      .bind(input.request_id,actor,context.member.name,payloadHash,JSON.stringify(asPO(prior)),JSON.stringify(after),now,
++        input.id,branch,input.version+1,input.request_id),
++  ]);
++  if(Number(outcomes?.[0]?.meta?.changes)!==1)return error('Purchase order changed. Refresh before saving.',409);
++  return ok({po:after});
++}
++export async function actionPurchaseOrder(req,env,context){
++  if(!authorised(context,'write'))return error('Purchase order permission denied.',403);
++  if(!originOK(req))return error('Invalid request origin.',403);
++  let input;try{input=validatePurchaseAction(await parse(req));}catch(e){return error(e.message);}
++  const branch=branchOf(context,input.branch);if(!branch)return error('Branch access denied.',403);
++  input.branch=branch;const actor=actorOf(context),now=new Date().toISOString();
++  const payloadHash=await hash(input);
++  const previousReplay=await replay(env.DB,input.request_id,actor,payloadHash);
++  if(previousReplay)return previousReplay.conflict?error('Request ID already used.',409):ok(previousReplay);
++  const prior=await env.DB.prepare('SELECT * FROM maliks_pos_purchase_orders WHERE id=? AND lower(branch)=lower(?)').bind(input.id,branch).first();
++  if(!prior)return error('Purchase order not found.',404);
++  if(prior.version!==input.version)return error('Purchase order changed. Refresh before continuing.',409);
++  const expected={SUBMIT:'DRAFT',APPROVE:'SUBMITTED',REJECT:'SUBMITTED'};
++  if(input.action==='CANCEL'){
++    if(!['DRAFT','SUBMITTED'].includes(prior.status))return error('Only draft or submitted orders may be cancelled.',409);
++    if(prior.status==='SUBMITTED'&&!canUsePurchase(context.member,'approve'))return error('Manager approval required to cancel a submitted order.',403);
++    if(prior.status==='DRAFT'&&prior.created_by_email!==actor&&!canUsePurchase(context.member,'approve'))return error('Only the creator or manager may cancel this draft.',403);
++  }else if(prior.status!==expected[input.action])return error('Invalid purchase order status transition.',409);
++  if(['APPROVE','REJECT'].includes(input.action)){
++    if(!canUsePurchase(context.member,'approve'))return error('Independent purchasing approval permission required.',403);
++    if(actor===prior.created_by_email.toLowerCase()||actor===(prior.submitted_by_email||'').toLowerCase())return error('The creator/submitter cannot approve or reject their own order.',403);
++  }
++  if(input.action==='SUBMIT'&&prior.created_by_email!==actor&&!canUsePurchase(context.member,'approve'))return error('Only the creator or manager may submit this draft.',403);
++  const status={SUBMIT:'SUBMITTED',APPROVE:'APPROVED',REJECT:'REJECTED',CANCEL:'CANCELLED'}[input.action];
++  const after={...asPO(prior),status,version:prior.version+1,updated_at:now,
++    ...(input.action==='SUBMIT'?{submitted_by_email:actor}:{}),...(input.action==='APPROVE'?{approved_by_email:actor}:{}),
++    ...(input.action==='REJECT'?{rejected_by_email:actor}:{}),...(input.action==='CANCEL'?{cancelled_by_email:actor}:{})};
++  const outcomes=await env.DB.batch([
++    env.DB.prepare(`UPDATE maliks_pos_purchase_orders SET status=?,version=version+1,updated_at=?,last_request_id=?,
++      submitted_by_email=CASE WHEN ?='SUBMIT' THEN ? ELSE submitted_by_email END,
++      approved_by_email=CASE WHEN ?='APPROVE' THEN ? ELSE approved_by_email END,
++      rejected_by_email=CASE WHEN ?='REJECT' THEN ? ELSE rejected_by_email END,
++      cancelled_by_email=CASE WHEN ?='CANCEL' THEN ? ELSE cancelled_by_email END
++      WHERE id=? AND lower(branch)=lower(?) AND status=? AND version=?
++      AND NOT EXISTS(SELECT 1 FROM maliks_pos_po_audit WHERE request_id=?)`)
++      .bind(status,now,input.request_id,input.action,actor,input.action,actor,input.action,actor,input.action,actor,
++        input.id,branch,prior.status,input.version,input.request_id),
++    env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_po_audit
++      (request_id,po_id,branch,action,actor_email,actor_name,payload_hash,before_json,after_json,note,created_at)
++      SELECT ?,id,branch,?,?,?,?,?,?,?,? FROM maliks_pos_purchase_orders
++      WHERE id=? AND lower(branch)=lower(?) AND version=? AND last_request_id=?`)
++      .bind(input.request_id,input.action,actor,context.member.name,payloadHash,JSON.stringify(asPO(prior)),JSON.stringify(after),input.note,now,
++        input.id,branch,input.version+1,input.request_id),
++  ]);
++  if(Number(outcomes?.[0]?.meta?.changes)!==1)return error('Purchase order changed. Refresh before continuing.',409);
++  return ok({po:after});
++}
+diff --git a/maliks-operations/tests/phase13-suite.test.mjs b/maliks-operations/tests/phase13-suite.test.mjs
+index 3ce40ba..a9f092a 100644
+--- a/maliks-operations/tests/phase13-suite.test.mjs
++++ b/maliks-operations/tests/phase13-suite.test.mjs
+@@ -19,9 +19,9 @@ test('Maliks POS Professional suite retains navigation without Sales',async()=>{
+ test('Reference menus are visible but not falsely connected to financial APIs',async()=>{
+   const page=await html('pos');
+   for(const term of ['Staggered Invoices Dispatch','Branches Synchronization History','Stock Valuations','Till Cash-Up','Sales and Stock Month End','Debtors Invoicing Classifications','Invoices and Debit Notes'])assert.ok(page.includes(term),term);
+-  assert.match(page,/master files and their audit histories are live/);
+-  assert.match(page,/Other transactions and financial postings are not enabled yet/);
+-  assert.match(page,/separately secured/);
++  assert.match(page,/Branch master files, purchasing and controlled stock operations are live/);
++  assert.match(page,/Supplier invoice and general ledger posting are not yet enabled/);
++  assert.match(page,/separate secure department application/);
+   assert.match(page,/if\(APP==='pos'\)/);
+ });
+ test('Other secured department applications do not expose the new POS suite menu',async()=>{
+diff --git a/maliks-operations/tests/phase15-master-files.test.mjs b/maliks-operations/tests/phase15-master-files.test.mjs
+index 1dab924..08d216b 100644
+--- a/maliks-operations/tests/phase15-master-files.test.mjs
++++ b/maliks-operations/tests/phase15-master-files.test.mjs
+@@ -24,9 +24,9 @@ class LocalD1{
+     this.sqlite.exec('CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT,name TEXT,category TEXT,active INTEGER);');
+     this.sqlite.exec('CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER);CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER);');}
+   prepare(sql){
+-    const d=this;let params=[];
+-    return {bind(...v){params=v;return this;},first(){return d.sqlite.prepare(sql).get(...params)||null;},
+-      all(){return {results:d.sqlite.prepare(sql).all(...params)};},run(){const r=d.sqlite.prepare(sql).run(...params);return {meta:{changes:Number(r.changes)}};}};
++    const sqlite=this.sqlite;let params=[];
++    return {bind(...v){params=v;return this;},first(){return sqlite.prepare(sql).get(...params)||null;},
++      all(){return {results:sqlite.prepare(sql).all(...params)};},run(){const r=sqlite.prepare(sql).run(...params);return {meta:{changes:Number(r.changes)}};}};
+   }
+   batch(steps){this.sqlite.exec('BEGIN');try{const result=steps.map(s=>s.run());this.sqlite.exec('COMMIT');return result;}
+     catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
+diff --git a/maliks-operations/tests/phase16-purchase-orders.test.mjs b/maliks-operations/tests/phase16-purchase-orders.test.mjs
+new file mode 100644
+index 0000000..c0b97e2
+--- /dev/null
++++ b/maliks-operations/tests/phase16-purchase-orders.test.mjs
+@@ -0,0 +1,51 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {readFileSync} from 'node:fs';
++import {DatabaseSync} from 'node:sqlite';
++import {canUsePurchase,validatePurchaseDraft,validatePurchaseAction,listPurchaseOrders,savePurchaseOrder,actionPurchaseOrder,purchaseAudit} from '../src/purchase-domain.mjs';
++const uuid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
++const admin={active:1,role:'Store Manager',name:'Store Manager',email:'admin@example.com'};
++const buyer={active:1,role:'Buyer',name:'Buyer',email:'buyer@example.com'};
++const manager={active:1,role:'Operations Manager',name:'Manager',email:'manager@example.com'};
++const ctx=(member=buyer,branches=['Branch A'])=>({app:'management',member,branches});
++const write=(path,data,origin='https://pos.example')=>new Request(origin+path,{method:'POST',headers:{origin,'x-maliks-original-origin':origin,'content-type':'application/json'},body:JSON.stringify(data)});
++const get=(path)=>new Request('https://pos.example'+path);
++const body=(id,overrides={})=>({request_id:uuid(id),branch:'Branch A',supplier_master_id:1,notes:'Order test',expected_date:'2026-12-01',lines:[{stock_id:2,quantity_milli:2000,unit_cost_cents:1500}],...overrides});
++class LocalD1{
++ constructor(){this.sqlite=new DatabaseSync(':memory:');for(const file of ['phase15_master_files.sql','phase16_purchase_orders.sql'])this.sqlite.exec(readFileSync(new URL('../sql/'+file,import.meta.url),'utf8'));this.sqlite.exec(`INSERT INTO maliks_pos_master_records (id,kind,branch,code,name,active,details_json,version,created_by_email,updated_by_email,created_at,updated_at,create_request_id,create_payload_hash,last_request_id) VALUES
++  (1,'supplier','Branch A','SUP1','Supplier',1,'{}',1,'a','a','x','x','a','a','a'),
++  (2,'stock','Branch A','STK1','Stock item',1,'{"unit":"each"}',1,'a','a','x','x','b','b','b'),
++  (3,'supplier','Branch B','SUP1','Supplier B',1,'{}',1,'a','a','x','x','c','c','c'),
++  (4,'stock','Branch B','STK1','Stock B',1,'{"unit":"each"}',1,'a','a','x','x','d','d','d');`);}
++ prepare(sql){const db=this.sqlite;let params=[];return {bind(...values){params=values;return this;},first(){return db.prepare(sql).get(...params)||null;},all(){return {results:db.prepare(sql).all(...params)};},run(){const r=db.prepare(sql).run(...params);return {meta:{changes:Number(r.changes)}};}};}
++ batch(statements){this.sqlite.exec('BEGIN');try{const results=statements.map(s=>s.run());this.sqlite.exec('COMMIT');return results;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
++}
++const unpack=async res=>({status:res.status,data:await res.json()});
++test('PO role and request validation',()=>{
++ assert.equal(canUsePurchase(buyer,'write'),true);assert.equal(canUsePurchase(buyer,'approve'),false);assert.equal(canUsePurchase(manager,'approve'),true);
++ assert.throws(()=>validatePurchaseDraft(body(1,{lines:[]})),/lines/);
++ assert.throws(()=>validatePurchaseDraft(body(1,{lines:[{stock_id:2,quantity_milli:0,unit_cost_cents:5}]})),/quantity/);
++ assert.throws(()=>validatePurchaseAction({action:'APPROVE',id:1,version:1,branch:'Branch A',request_id:'x',note:''}),/request ID/);
++});
++test('PO creation, idempotency, supplier and stock branch isolation',async()=>{
++ const env={DB:new LocalD1()};const first=await unpack(await savePurchaseOrder(write('/v1/purchase-orders',body(1)),env,ctx()));
++ assert.equal(first.status,200,JSON.stringify(first.data));assert.equal(first.data.po.total_cents,3000);assert.equal(first.data.po.status,'DRAFT');
++ assert.equal((await unpack(await savePurchaseOrder(write('/v1/purchase-orders',body(1)),env,ctx()))).data.duplicate,true);
++ assert.equal((await unpack(await savePurchaseOrder(write('/v1/purchase-orders',body(2,{branch:'Branch B'})),env,ctx()))).status,403);
++ assert.equal((await unpack(await savePurchaseOrder(write('/v1/purchase-orders',body(3,{supplier_master_id:3})),env,ctx()))).status,409);
++ const list=await unpack(await listPurchaseOrders(get('/v1/purchase-orders?branch=Branch%20A'),env,ctx()));assert.equal(list.data.orders.length,1);
++ const audit=await unpack(await purchaseAudit(get('/v1/purchase-orders/audit?branch=Branch%20A&id=1'),env,ctx()));assert.equal(audit.data.audit[0].action,'CREATE');
++});
++test('PO draft edit, submission and independent approval',async()=>{
++ const env={DB:new LocalD1()};const created=(await unpack(await savePurchaseOrder(write('/v1/purchase-orders',body(10)),env,ctx()))).data.po;
++ const updated=await unpack(await savePurchaseOrder(write('/v1/purchase-orders',body(11,{id:created.id,version:1,notes:'Revised'})),env,ctx()));
++ assert.equal(updated.status,200,JSON.stringify(updated.data));assert.equal(updated.data.po.version,2);
++ assert.equal((await unpack(await savePurchaseOrder(write('/v1/purchase-orders',body(12,{id:created.id,version:1})),env,ctx()))).status,409);
++ const act=(n,action,version,member,note='')=>actionPurchaseOrder(write('/v1/purchase-orders/action',{id:created.id,version,branch:'Branch A',action,note,request_id:uuid(n)}),env,ctx(member));
++ const submitted=await unpack(await act(13,'SUBMIT',2,buyer));assert.equal(submitted.status,200,JSON.stringify(submitted.data));
++ assert.equal((await unpack(await act(14,'APPROVE',3,buyer))).status,403);
++ const approved=await unpack(await act(15,'APPROVE',3,manager));assert.equal(approved.status,200,JSON.stringify(approved.data));assert.equal(approved.data.po.status,'APPROVED');
++ assert.equal((await unpack(await act(15,'APPROVE',3,manager))).data.duplicate,true);
++ assert.equal((await unpack(await act(16,'CANCEL',4,manager,'No'))).status,409);
++ assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) n FROM maliks_pos_po_audit').get().n,4);
++});
+diff --git a/maliks-operations/tests/phase17-inventory-flow.test.mjs b/maliks-operations/tests/phase17-inventory-flow.test.mjs
+new file mode 100644
+index 0000000..aea6722
+--- /dev/null
++++ b/maliks-operations/tests/phase17-inventory-flow.test.mjs
+@@ -0,0 +1,140 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {readFileSync} from 'node:fs';
++import {DatabaseSync} from 'node:sqlite';
++import {canUseInventory,countReceipt,listReceipts,receiptAction,listInventory,createTransfer,transferAction,listTransfers} from '../src/inventory-domain.mjs';
++import {savePurchaseOrder,actionPurchaseOrder} from '../src/purchase-domain.mjs';
++import frontend from '../src/frontend.mjs';
++import {canUseApp} from '../src/policy.mjs';
++const uuid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
++const user=(role,email)=>({role,email,name:role,active:1,access_scope:'Assigned workspace'});
++const buyer=user('Buyer','buyer@example.com');const approver=user('Operations Manager','manager@example.com');
++const counter=user('Receiving Clerk','counter@example.com');const verifier=user('Receiving Manager','verify@example.com');const poster=user('GRV Clerk','grv@example.com');
++const stocker=user('Stock Controller','stocker@example.com');const receiver=user('Receiving Clerk','receiver@example.com');
++const ctx=(member,branches=['Branch A'])=>({app:'management',member,branches});
++const write=(path,body)=>new Request('https://pos.example'+path,{method:'POST',headers:{origin:'https://pos.example','x-maliks-original-origin':'https://pos.example'},body:JSON.stringify(body)});
++const get=path=>new Request('https://pos.example'+path);
++const result=async r=>({status:r.status,body:await r.json()});
++class D1{
++ constructor(){this.sqlite=new DatabaseSync(':memory:');for(const name of ['phase15_master_files.sql','phase16_purchase_orders.sql','phase17_inventory_flow.sql'])this.sqlite.exec(readFileSync(new URL('../sql/'+name,import.meta.url),'utf8'));
++ this.sqlite.exec(`CREATE TABLE workspaces(name TEXT,type TEXT,active INTEGER);INSERT INTO workspaces VALUES('Branch A','Store',1),('Branch B','Store',1);
++ INSERT INTO maliks_pos_master_records(id,kind,branch,code,name,active,details_json,version,created_by_email,updated_by_email,created_at,updated_at,create_request_id,create_payload_hash,last_request_id) VALUES
++ (1,'supplier','Branch A','SUP1','Supplier',1,'{}',1,'a','a','x','x','a','a','a'),
++ (2,'stock','Branch A','STK1','Stock item',1,'{"unit":"each"}',1,'a','a','x','x','b','b','b'),
++ (3,'stock','Branch A','STK2','Other item',1,'{"unit":"each"}',1,'a','a','x','x','c','c','c'),
++ (4,'supplier','Branch B','SUP1','Supplier B',1,'{}',1,'a','a','x','x','d','d','d'),
++ (5,'stock','Branch B','STK1','Stock B',1,'{"unit":"each"}',1,'a','a','x','x','e','e','e');`);}
++ prepare(sql){const sqlite=this.sqlite;let params=[];return {bind(...v){params=v;return this;},first(){return sqlite.prepare(sql).get(...params)||null;},all(){return {results:sqlite.prepare(sql).all(...params)};},run(){const r=sqlite.prepare(sql).run(...params);return {meta:{changes:Number(r.changes)}};}};}
++ batch(steps){this.sqlite.exec('BEGIN');try{const result=steps.map(s=>s.run());this.sqlite.exec('COMMIT');return result;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
++}
++async function setup(){
++ const env={DB:new D1()};
++ const po=await result(await savePurchaseOrder(write('/v1/purchase-orders',{branch:'Branch A',supplier_master_id:1,expected_date:'',notes:'',lines:[{stock_id:2,quantity_milli:5000,unit_cost_cents:2000}],request_id:uuid(1)}),env,ctx(buyer)));
++ assert.equal(po.status,200,JSON.stringify(po.body));
++ const sub=await result(await actionPurchaseOrder(write('/v1/purchase-orders/action',{branch:'Branch A',id:1,version:1,action:'SUBMIT',note:'',request_id:uuid(2)}),env,ctx(buyer)));assert.equal(sub.status,200,JSON.stringify(sub.body));
++ const approve=await result(await actionPurchaseOrder(write('/v1/purchase-orders/action',{branch:'Branch A',id:1,version:2,action:'APPROVE',note:'',request_id:uuid(3)}),env,ctx(approver)));assert.equal(approve.status,200,JSON.stringify(approve.body));
++ return env;
++}
++const count=(n,lines)=>({branch:'Branch A',po_id:1,delivery_note:'DN-'+n,supplier_invoice_reference:'INV-TEST',driver_name:'Driver',notes:'',lines,request_id:uuid(n)});
++const line=(accepted,rejected=0)=>[{stock_id:2,accepted_milli:accepted,rejected_milli:rejected}];
++const act=(n,id,version,action,branch='Branch A')=>({id,version,action,branch,request_id:uuid(n)});
++const transfer=(n,qty)=>({source_branch:'Branch A',destination_branch:'Branch B',notes:'',lines:[{stock_id:2,qty_milli:qty}],request_id:uuid(n)});
++test('roles, migration idempotence, and frontend route separation',async()=>{
++ assert.equal(canUseApp(counter,'management'),true);assert.equal(canUseApp(poster,'management'),true);
++ assert.equal(canUseInventory(counter,'count'),true);assert.equal(canUseInventory(counter,'post'),false);
++ assert.equal(canUseInventory(verifier,'verify'),true);assert.equal(canUseInventory(poster,'post'),true);
++ const db=new D1();db.sqlite.exec(readFileSync(new URL('../sql/phase17_inventory_flow.sql',import.meta.url),'utf8'));
++ const html=await (await frontend.fetch(get('/'),{APP_TYPE:'pos'})).text();
++ for(const label of ['suitePurchaseOrders','suiteReceiving','suiteStockBalances','suiteTransfers'])assert.ok(html.includes(label),label);
++ const blocked=await frontend.fetch(get('/api/receipts'),{APP_TYPE:'sales'});assert.equal(blocked.status,403);
++});
++test('count → verify → post GRV, no damaged stock, idempotent retry, no cross-branch reads',async()=>{
++ const env=await setup();const request=count(10,line(3000,1000));
++ const counted=await result(await countReceipt(write('/v1/receipts',request),env,ctx(counter)));assert.equal(counted.status,200,JSON.stringify(counted.body));assert.equal(counted.body.receipt.status,'COUNTED');
++ const retry=await result(await countReceipt(write('/v1/receipts',request),env,ctx(counter)));assert.equal(retry.body.duplicate,true);
++ assert.equal((await result(await countReceipt(write('/v1/receipts',count(11,line(3000))),env,ctx(counter)))).status,409);
++ assert.equal((await result(await receiptAction(write('/v1/receipts/action',act(12,1,1,'VERIFY')),env,ctx(counter)))).status,403);
++ const verified=await result(await receiptAction(write('/v1/receipts/action',act(13,1,1,'VERIFY')),env,ctx(verifier)));assert.equal(verified.status,200,JSON.stringify(verified.body));
++ assert.equal((await result(await receiptAction(write('/v1/receipts/action',act(14,1,2,'POST')),env,ctx(verifier)))).status,403);
++ const posted=await result(await receiptAction(write('/v1/receipts/action',act(15,1,2,'POST')),env,ctx(poster)));assert.equal(posted.status,200,JSON.stringify(posted.body));
++ assert.equal(posted.body.receipt.status,'POSTED');
++ assert.equal((await result(await receiptAction(write('/v1/receipts/action',act(15,1,2,'POST')),env,ctx(poster)))).body.duplicate,true);
++ const inventory=await result(await listInventory(get('/v1/inventory?branch=Branch%20A'),env,ctx(stocker)));
++ assert.equal(inventory.status,200);assert.equal(inventory.body.items.find(x=>x.code==='STK1').qty_milli,3000);
++ assert.equal(inventory.body.movements.length,1);assert.equal(inventory.body.movements[0].movement_type,'GRV');
++ assert.equal((await result(await listReceipts(get('/v1/receipts?branch=Branch%20A'),env,ctx(counter,['Branch B'])))).status,403);
++ assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) n FROM maliks_pos_receipt_audit').get().n,3);
++});
++test('partial receipts can be completed later; cancelled counts release outstanding quantities',async()=>{
++ const env=await setup();
++ assert.equal((await result(await countReceipt(write('/v1/receipts',count(20,line(3000))),env,ctx(counter)))).status,200);
++ assert.equal((await result(await countReceipt(write('/v1/receipts',count(21,line(2000))),env,ctx(counter)))).status,200);
++ assert.equal((await result(await countReceipt(write('/v1/receipts',count(22,line(1))),env,ctx(counter)))).status,409);
++ const cancelled=await result(await receiptAction(write('/v1/receipts/action',act(23,2,1,'CANCEL')),env,ctx(approver)));assert.equal(cancelled.status,200);
++ assert.equal((await result(await countReceipt(write('/v1/receipts',count(24,line(2000))),env,ctx(counter)))).status,200);
++});
++test('GRV stock can transfer out and in, independent users, no negative stock',async()=>{
++ const env=await setup();
++ await countReceipt(write('/v1/receipts',count(30,line(5000))),env,ctx(counter));
++ await receiptAction(write('/v1/receipts/action',act(31,1,1,'VERIFY')),env,ctx(verifier));
++ await receiptAction(write('/v1/receipts/action',act(32,1,2,'POST')),env,ctx(poster));
++ const created=await result(await createTransfer(write('/v1/transfers',transfer(33,3000)),env,ctx(stocker)));assert.equal(created.status,200,JSON.stringify(created.body));
++ assert.equal((await result(await transferAction(write('/v1/transfers/action',act(34,1,1,'SEND')),env,ctx(stocker)))).status,403);
++ const sent=await result(await transferAction(write('/v1/transfers/action',act(35,1,1,'SEND')),env,ctx(approver)));assert.equal(sent.status,200,JSON.stringify(sent.body));assert.equal(sent.body.transfer.status,'IN_TRANSIT');
++ assert.equal((await result(await transferAction(write('/v1/transfers/action',act(36,1,2,'RECEIVE','Branch B')),env,ctx(approver,['Branch B'])))).status,403);
++ const received=await result(await transferAction(write('/v1/transfers/action',act(37,1,2,'RECEIVE','Branch B')),env,ctx(receiver,['Branch B'])));assert.equal(received.status,200,JSON.stringify(received.body));
++ assert.equal(received.body.transfer.status,'RECEIVED');
++ assert.equal((await result(await transferAction(write('/v1/transfers/action',act(37,1,2,'RECEIVE','Branch B')),env,ctx(receiver,['Branch B'])))).body.duplicate,true);
++ const a=await result(await listInventory(get('/v1/inventory?branch=Branch%20A'),env,ctx(stocker)));
++ const b=await result(await listInventory(get('/v1/inventory?branch=Branch%20B'),env,ctx(receiver,['Branch B'])));
++ assert.equal(a.body.items.find(x=>x.code==='STK1').qty_milli,2000);assert.equal(b.body.items.find(x=>x.code==='STK1').qty_milli,3000);
++ assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) n FROM maliks_pos_stock_movements').get().n,3);
++ const over=await result(await createTransfer(write('/v1/transfers',transfer(38,2500)),env,ctx(stocker)));assert.equal(over.status,200);
++ const denied=await result(await transferAction(write('/v1/transfers/action',act(39,2,1,'SEND')),env,ctx(approver)));assert.equal(denied.status,409);
++ assert.equal(env.DB.sqlite.prepare("SELECT status FROM maliks_pos_transfers WHERE id=2").get().status,'DRAFT');
++ assert.equal(env.DB.sqlite.prepare("SELECT qty_milli FROM maliks_pos_stock_balances WHERE branch='Branch A' AND stock_master_id=2").get().qty_milli,2000);
++});
++test('destination must have stock code and branch scope prevents unauthorised transfers',async()=>{
++ const env=await setup();
++ assert.equal((await result(await createTransfer(write('/v1/transfers',{...transfer(40,1000),destination_branch:'Unknown'}),env,ctx(stocker)))).status,409);
++ assert.equal((await result(await createTransfer(write('/v1/transfers',{...transfer(41,1000),source_branch:'Branch B'}),env,ctx(stocker)))).status,403);
++ assert.equal((await result(await listTransfers(get('/v1/transfers?branch=Branch%20B'),env,ctx(stocker)))).status,403);
++});
++test('GRV labels are printed by GRV role, labelled by receiving, then checked by store manager',async()=>{
++ const env=await setup();
++ await countReceipt(write('/v1/receipts',count(60,line(2000))),env,ctx(counter));
++ await receiptAction(write('/v1/receipts/action',act(61,1,1,'VERIFY')),env,ctx(verifier));
++ const premature=await result(await receiptAction(write('/v1/receipts/action',act(62,1,2,'PRINT_LABELS')),env,ctx(poster)));
++ assert.equal(premature.status,409);
++ await receiptAction(write('/v1/receipts/action',act(63,1,2,'POST')),env,ctx(poster));
++ const printed=await result(await receiptAction(write('/v1/receipts/action',act(64,1,3,'PRINT_LABELS')),env,ctx(poster)));
++ assert.equal(printed.status,200,JSON.stringify(printed.body));assert.equal(printed.body.receipt.labels_printed_by,poster.email);
++ assert.equal((await result(await receiptAction(write('/v1/receipts/action',act(65,1,4,'LABELLED')),env,ctx(poster)))).status,403);
++ const labelled=await result(await receiptAction(write('/v1/receipts/action',act(66,1,4,'LABELLED')),env,ctx(counter)));
++ assert.equal(labelled.status,200,JSON.stringify(labelled.body));assert.equal(labelled.body.receipt.labelled_by,counter.email);
++ assert.equal((await result(await receiptAction(write('/v1/receipts/action',act(67,1,5,'PACK_CHECK')),env,ctx(poster)))).status,403);
++ const checked=await result(await receiptAction(write('/v1/receipts/action',act(68,1,5,'PACK_CHECK')),env,ctx(approver)));
++ assert.equal(checked.status,200,JSON.stringify(checked.body));assert.equal(checked.body.receipt.pack_checked_by,approver.email);
++ assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) n FROM maliks_pos_stock_movements').get().n,1);
++});
++test('duplicate delivery note cannot create a second count, even when remaining PO qty exists',async()=>{
++ const env=await setup();const a=await result(await countReceipt(write('/v1/receipts',count(70,line(1000))),env,ctx(counter)));
++ assert.equal(a.status,200);
++ const b=await result(await countReceipt(write('/v1/receipts',{...count(71,line(1000)),delivery_note:'dn-70'}),env,ctx(counter)));
++ assert.equal(b.status,409);
++ assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) n FROM maliks_pos_receipts').get().n,1);
++});
++test('two-line transfer rolls back all stock movements if any item is insufficient',async()=>{
++ const env=await setup();
++ env.DB.sqlite.exec(`INSERT INTO maliks_pos_master_records(id,kind,branch,code,name,active,details_json,version,created_by_email,updated_by_email,created_at,updated_at,create_request_id,create_payload_hash,last_request_id)
++ VALUES (6,'stock','Branch B','STK2','Other B',1,'{"unit":"each"}',1,'a','a','x','x','f','f','f');
++ INSERT INTO maliks_pos_stock_balances VALUES('Branch A',2,2000,1,'x'),('Branch A',3,500,1,'x');`);
++ const created=await result(await createTransfer(write('/v1/transfers',{source_branch:'Branch A',destination_branch:'Branch B',notes:'',lines:[{stock_id:2,qty_milli:1000},{stock_id:3,qty_milli:1000}],request_id:uuid(80)}),env,ctx(stocker)));
++ assert.equal(created.status,200,JSON.stringify(created.body));
++ const sent=await result(await transferAction(write('/v1/transfers/action',act(81,1,1,'SEND')),env,ctx(approver)));
++ assert.equal(sent.status,409);
++ const quantities=env.DB.sqlite.prepare("SELECT stock_master_id,qty_milli FROM maliks_pos_stock_balances WHERE branch='Branch A' ORDER BY stock_master_id").all();
++ assert.deepEqual(quantities.map(x=>x.qty_milli),[2000,500]);
++ assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) n FROM maliks_pos_stock_movements').get().n,0);
++ assert.equal(env.DB.sqlite.prepare('SELECT status FROM maliks_pos_transfers WHERE id=1').get().status,'DRAFT');
++});

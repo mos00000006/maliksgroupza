@@ -1,0 +1,83 @@
+name: Deploy Maliks Department Applications
+on:
+  workflow_dispatch:
+    inputs:
+      confirmed_worker_names_checked:
+        description: "I checked Workers & Pages: these Worker names are available or safe to replace"
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+concurrency:
+  group: maliks-operations-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      MALIKS_GROUP_D1_DATABASE_ID: ${{ secrets.MALIKS_GROUP_D1_DATABASE_ID }}
+      CF_ACCESS_TEAM_DOMAIN: ${{ secrets.CF_ACCESS_TEAM_DOMAIN }}
+      CF_ACCESS_AUD_POS: ${{ secrets.CF_ACCESS_AUD_POS }}
+      CF_ACCESS_AUD_TILLS: ${{ secrets.CF_ACCESS_AUD_TILLS }}
+      CF_ACCESS_AUD_CASHOFFICE: ${{ secrets.CF_ACCESS_AUD_CASHOFFICE }}
+      CF_ACCESS_AUD_DISPATCH: ${{ secrets.CF_ACCESS_AUD_DISPATCH }}
+      MALIKS_P9_APPROVAL_ENABLED: ${{ vars.MALIKS_P9_APPROVAL_ENABLED }}
+    defaults:
+      run:
+        working-directory: maliks-operations
+    steps:
+      # Checkout must run before any shell step using maliks-operations/.
+      - uses: actions/checkout@v6
+      - name: Confirm this is a safe independent deployment
+        working-directory: .
+        env:
+          NAMES_CONFIRMED: ${{ inputs.confirmed_worker_names_checked }}
+        run: test "$NAMES_CONFIRMED" = "true"
+      - name: Verify department application files exist
+        working-directory: .
+        run: |
+          if [ ! -f "maliks-operations/package.json" ]; then
+            echo "::error title=Missing maliks-operations folder::Upload the complete maliks-operations directory to the repository root. Do not upload only the workflow file."
+            exit 1
+          fi
+          echo "Found maliks-operations/package.json"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - run: npm run config
+      - name: Apply additive till-shift D1 schema (Phase 4)
+        run: npm run migrate:phase4
+      - name: Apply additive cash office review D1 schema (Phase 5)
+        run: npm run migrate:phase5
+      - name: Apply additive tender preparations D1 schema (Phase 6)
+        run: npm run migrate:phase6
+      - name: Apply additive manual payment evidence schema (Phase 8)
+        run: npm run migrate:phase8
+      - name: Apply additive verified-sales and dispatch schema (Phase 9)
+        run: npm run migrate:phase9
+      - name: Apply additive cashier-confirmation schema (Phase 10)
+        run: npm run migrate:phase10
+      - name: Apply additive POS master-file schema (Phase 15)
+        run: npm run migrate:phase15
+      - name: Apply additive purchase order schema (Phase 16)
+        run: npm run migrate:phase16
+      - name: Apply additive inventory schema (Phase 17)
+        run: npm run migrate:phase17
+      - name: Deploy central API — private Worker
+        run: npm run deploy:core
+      - name: Deploy Maliks POS Professional (management suite)
+        run: npm run deploy:pos
+      - name: Deploy Maliks Sales (separate Worker)
+        run: npm run deploy:sales
+      - name: Deploy Tills
+        run: npm run deploy:tills
+      - name: Deploy Cash Office
+        run: npm run deploy:cashoffice
+      - name: Deploy Dispatch
+        run: npm run deploy:dispatch
