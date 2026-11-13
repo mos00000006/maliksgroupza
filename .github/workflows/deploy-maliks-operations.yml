@@ -65,6 +65,12 @@ jobs:
         run: npm run migrate:phase10
       - name: Apply additive POS master-file schema (Phase 15)
         run: npm run migrate:phase15
+      - name: Apply additive purchase order schema (Phase 16)
+        run: npm run migrate:phase16
+      - name: Apply additive inventory schema (Phase 17)
+        run: npm run migrate:phase17
+      - name: Apply supplier invoice three-way matching schema (Phase 18)
+        run: npm run migrate:phase18
       - name: Deploy central API — private Worker
         run: npm run deploy:core
       - name: Deploy Maliks POS Professional (management suite)

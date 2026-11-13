@@ -8,7 +8,10 @@ import {quoteId} from './quote-domain.mjs';
 import {cashupPreviewStatement,cashupForClient,CASHUP_MODE} from './cashup-domain.mjs';
 import {submitPayment,confirmSimpleCheckout,listPayments,verifyPayment,listDispatch,updateDispatch,getInvoice} from './payment-dispatch-domain.mjs';
 import {validateEvidenceInput,evidenceListStatement,evidenceHistoryStatement,evidenceForClient,EVIDENCE_MODE} from './payment-evidence-domain.mjs';
-import {listMasterRecords,listMasterAudit,listMasterCatalogue,saveMasterRecord,canUseMaster,MASTER_KINDS} from './master-domain.mjs';
+import {listMasterRecords,listMasterAudit,listMasterCatalogue,syncStockCatalogue,saveMasterRecord,canUseMaster,MASTER_KINDS} from './master-domain.mjs';
+import {canUsePurchase,listPurchaseOrders,purchaseAudit,savePurchaseOrder,actionPurchaseOrder} from './purchase-domain.mjs';
+import {canUseSupplierInvoice,listSupplierInvoices,captureSupplierInvoice,supplierInvoiceAction} from './supplier-invoice-domain.mjs';
+import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
@@ -451,12 +454,30 @@ export default {
       if(path==='/v1/session'&&req.method==='GET')return result({
         app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
         master_permissions:auth.app==='management'?Object.fromEntries(MASTER_KINDS.map(k=>[k,{read:canUseMaster(access.member,k),write:canUseMaster(access.member,k,true)}])):undefined,
+        purchase_permissions:auth.app==='management'?{read:canUsePurchase(access.member),write:canUsePurchase(access.member,'write'),approve:canUsePurchase(access.member,'approve')}:undefined,
+        supplier_invoice_permissions:auth.app==='management'?Object.fromEntries(['read','capture','verify'].map(k=>[k,canUseSupplierInvoice(access.member,k)])):undefined,
+        inventory_permissions:auth.app==='management'?Object.fromEntries(['read','count','verify','post','packCheck','transfer','approveTransfer'].map(k=>[k,canUseInventory(access.member,k)])):undefined,
         mode:auth.app==='management'?'MASTER_FILES':auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
       });
       if(path==='/v1/master/records'&&req.method==='GET')return await listMasterRecords(req,env,context);
       if(path==='/v1/master/records'&&req.method==='POST')return await saveMasterRecord(req,env,context);
       if(path==='/v1/master/audit'&&req.method==='GET')return await listMasterAudit(req,env,context);
       if(path==='/v1/master/catalogue'&&req.method==='GET')return await listMasterCatalogue(req,env,context);
+      if(path==='/v1/master/catalogue/sync'&&req.method==='POST')return await syncStockCatalogue(req,env,context);
+      if(path==='/v1/supplier-invoices'&&req.method==='GET')return await listSupplierInvoices(req,env,context);
+      if(path==='/v1/supplier-invoices'&&req.method==='POST')return await captureSupplierInvoice(req,env,context);
+      if(path==='/v1/supplier-invoices/action'&&req.method==='POST')return await supplierInvoiceAction(req,env,context);
+      if(path==='/v1/purchase-orders'&&req.method==='GET')return await listPurchaseOrders(req,env,context);
+      if(path==='/v1/purchase-orders'&&req.method==='POST')return await savePurchaseOrder(req,env,context);
+      if(path==='/v1/purchase-orders/audit'&&req.method==='GET')return await purchaseAudit(req,env,context);
+      if(path==='/v1/purchase-orders/action'&&req.method==='POST')return await actionPurchaseOrder(req,env,context);
+      if(path==='/v1/inventory'&&req.method==='GET')return await listInventory(req,env,context);
+      if(path==='/v1/receipts'&&req.method==='GET')return await listReceipts(req,env,context);
+      if(path==='/v1/receipts'&&req.method==='POST')return await countReceipt(req,env,context);
+      if(path==='/v1/receipts/action'&&req.method==='POST')return await receiptAction(req,env,context);
+      if(path==='/v1/transfers'&&req.method==='GET')return await listTransfers(req,env,context);
+      if(path==='/v1/transfers'&&req.method==='POST')return await createTransfer(req,env,context);
+      if(path==='/v1/transfers/action'&&req.method==='POST')return await transferAction(req,env,context);
       if(path==='/v1/catalogue'&&req.method==='GET')return await catalogue(req,env,context);
       if(path==='/v1/quotes'&&req.method==='GET')return await listQuotes(req,env,context);
       if(path==='/v1/quotes/find'&&req.method==='GET')return await findQuote(req,env,context);

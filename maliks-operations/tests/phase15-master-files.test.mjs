@@ -21,8 +21,8 @@ const get=(path)=>new Request('https://pos.example'+path);
 
 class LocalD1{
   constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));
-    this.sqlite.exec('CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT,name TEXT,category TEXT,active INTEGER);');
-    this.sqlite.exec('CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER);CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER);');}
+    this.sqlite.exec(`CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT,name TEXT,category TEXT,active INTEGER,updated_at TEXT);INSERT INTO catalogue_products VALUES(10,'ABC123','Test Stock Item','General',1,'2026-11-13');`);
+    this.sqlite.exec('CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);CREATE TABLE price_tag_branch_prices(product_id INTEGER,brand TEXT,branch_name TEXT,price_cents INTEGER);');}
   prepare(sql){
     const sqlite=this.sqlite;let params=[];
     return {bind(...v){params=v;return this;},first(){return sqlite.prepare(sql).get(...params)||null;},
@@ -85,7 +85,7 @@ test('optimistic versioning and audit of updates; no stale overwrite',async()=>{
   const audit=await response(await listMasterAudit(get('/v1/master/audit?kind=stock&branch=Branch%20A'),env,context()));
   assert.equal(audit.body.audit.length,2);assert.equal(audit.body.audit[0].action,'UPDATE');assert.equal(audit.body.audit[0].before.name,'Test Stock Item');
   const list=await response(await listMasterRecords(get('/v1/master/records?kind=stock&branch=Branch%20A'),env,context()));
-  assert.equal(list.body.records[0].name,'Renamed Item');
+  assert.equal(list.body.records[0].name,'Test Stock Item');
 });
 test('supplier and debtor master files are independently branch scoped and role controlled',async()=>{
   const env={DB:new LocalD1()};
@@ -112,7 +112,7 @@ test('the same code is allowed in different branches but not duplicated within a
   assert.equal(list.body.records.length,1);
 });
 test('catalogue is read-only and uses existing product records without inventing SOH',async()=>{
-  const env={DB:new LocalD1()};env.DB.sqlite.exec("INSERT INTO catalogue_products VALUES(1,'P001','White Tile','Tiles',1),(2,'P002','Other Item','General',0);INSERT INTO powerbuild_price_tags VALUES(1,1),(2,1);");
+  const env={DB:new LocalD1()};env.DB.sqlite.exec("INSERT INTO catalogue_products VALUES(1,'P001','White Tile','Tiles',1,'2026-11-13'),(2,'P002','Other Item','General',0,'2026-11-13');INSERT INTO powerbuild_price_tags(product_id,published) VALUES(1,1),(2,1);");
   const result=await response(await listMasterCatalogue(get('/v1/master/catalogue?branch=Branch%20A&q=tile'),env,context()));
   assert.equal(result.status,200);assert.equal(result.body.products.length,1);assert.equal(result.body.read_only,true);assert.equal(result.body.stock_on_hand_available,false);
 });

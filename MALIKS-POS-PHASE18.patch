@@ -1,0 +1,878 @@
+diff --git a/.github/workflows/deploy-maliks-operations.yml b/.github/workflows/deploy-maliks-operations.yml
+index 05cca69..5ff0222 100644
+--- a/.github/workflows/deploy-maliks-operations.yml
++++ b/.github/workflows/deploy-maliks-operations.yml
+@@ -69,6 +69,8 @@ jobs:
+         run: npm run migrate:phase16
+       - name: Apply additive inventory schema (Phase 17)
+         run: npm run migrate:phase17
++      - name: Apply supplier invoice three-way matching schema (Phase 18)
++        run: npm run migrate:phase18
+       - name: Deploy central API — private Worker
+         run: npm run deploy:core
+       - name: Deploy Maliks POS Professional (management suite)
+diff --git a/maliks-operations/package.json b/maliks-operations/package.json
+index b0ad2b8..0c7352c 100644
+--- a/maliks-operations/package.json
++++ b/maliks-operations/package.json
+@@ -23,7 +23,8 @@
+     "migrate:phase17": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase17_inventory_flow.sql --config .generated/core.json",
+     "migrate:phase16": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase16_purchase_orders.sql --config .generated/core.json",
+     "migrate:phase15": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase15_master_files.sql --config .generated/core.json",
+-    "migrate:phase9": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase9_paid_sales_dispatch.sql --config .generated/core.json"
++    "migrate:phase9": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase9_paid_sales_dispatch.sql --config .generated/core.json",
++    "migrate:phase18": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase18_supplier_invoice_matching.sql --config .generated/core.json"
+   },
+   "dependencies": {
+     "jose": "^6.1.0"
+diff --git a/maliks-operations/sql/phase18_supplier_invoice_matching.sql b/maliks-operations/sql/phase18_supplier_invoice_matching.sql
+new file mode 100644
+index 0000000..4c8d8c2
+--- /dev/null
++++ b/maliks-operations/sql/phase18_supplier_invoice_matching.sql
+@@ -0,0 +1,71 @@
++-- Phase 18: supplier invoice capture and three-way verification register.
++-- NO AP balance, input VAT claim, GL journal, supplier payment or tax invoice posting.
++CREATE TABLE IF NOT EXISTS maliks_pos_supplier_invoices (
++ id INTEGER PRIMARY KEY AUTOINCREMENT,
++ branch TEXT NOT NULL COLLATE NOCASE,
++ po_id INTEGER NOT NULL REFERENCES maliks_pos_purchase_orders(id),
++ supplier_master_id INTEGER NOT NULL,
++ supplier_code TEXT NOT NULL,
++ supplier_name TEXT NOT NULL,
++ invoice_number TEXT NOT NULL COLLATE NOCASE,
++ invoice_date TEXT NOT NULL,
++ lines_json TEXT NOT NULL,
++ net_cents INTEGER NOT NULL CHECK(net_cents>0),
++ declared_vat_cents INTEGER NOT NULL CHECK(declared_vat_cents>=0),
++ gross_cents INTEGER NOT NULL CHECK(gross_cents>0),
++ status TEXT NOT NULL CHECK(status IN ('MATCHED','EXCEPTION','VERIFIED','CANCELLED')),
++ exceptions_json TEXT NOT NULL DEFAULT '[]',
++ version INTEGER NOT NULL DEFAULT 1,
++ captured_by_email TEXT NOT NULL,
++ verified_by_email TEXT,
++ cancelled_by_email TEXT,
++ created_at TEXT NOT NULL,
++ updated_at TEXT NOT NULL,
++ create_request_id TEXT NOT NULL UNIQUE,
++ create_payload_hash TEXT NOT NULL,
++ last_request_id TEXT NOT NULL
++);
++CREATE UNIQUE INDEX IF NOT EXISTS idx_maliks_pos_supplier_invoice_unique
++ ON maliks_pos_supplier_invoices(branch,supplier_master_id,invoice_number) WHERE status!='CANCELLED';
++CREATE INDEX IF NOT EXISTS idx_maliks_pos_supplier_invoice_branch ON maliks_pos_supplier_invoices(branch,id DESC);
++CREATE TABLE IF NOT EXISTS maliks_pos_supplier_invoice_allocations (
++ invoice_id INTEGER NOT NULL REFERENCES maliks_pos_supplier_invoices(id),
++ stock_master_id INTEGER NOT NULL,
++ qty_milli INTEGER NOT NULL CHECK(qty_milli>0),
++ PRIMARY KEY(invoice_id,stock_master_id)
++);
++-- Atomic protection against two concurrent verifications allocating the same GRV quantity.
++CREATE TRIGGER IF NOT EXISTS maliks_pos_supplier_invoice_no_overallocation
++BEFORE INSERT ON maliks_pos_supplier_invoice_allocations
++BEGIN
++ SELECT CASE
++ WHEN (SELECT status FROM maliks_pos_supplier_invoices WHERE id=NEW.invoice_id)!='VERIFIED'
++ THEN RAISE(ABORT,'INVOICE_NOT_VERIFIED')
++ WHEN (SELECT COUNT(*) FROM maliks_pos_supplier_invoices i, json_each(i.lines_json) l
++       WHERE i.id=NEW.invoice_id AND CAST(json_extract(l.value,'$.stock_id') AS INTEGER)=NEW.stock_master_id
++       AND CAST(json_extract(l.value,'$.qty_milli') AS INTEGER)=NEW.qty_milli)!=1
++ THEN RAISE(ABORT,'INVALID_INVOICE_LINE')
++ WHEN NEW.qty_milli + COALESCE((SELECT SUM(a.qty_milli) FROM maliks_pos_supplier_invoice_allocations a
++       JOIN maliks_pos_supplier_invoices i ON i.id=a.invoice_id
++       WHERE i.po_id=(SELECT po_id FROM maliks_pos_supplier_invoices WHERE id=NEW.invoice_id)
++       AND a.stock_master_id=NEW.stock_master_id),0)
++       > COALESCE((SELECT SUM(rl.accepted_milli) FROM maliks_pos_receipt_lines rl
++         JOIN maliks_pos_receipts r ON r.id=rl.receipt_id
++         WHERE r.po_id=(SELECT po_id FROM maliks_pos_supplier_invoices WHERE id=NEW.invoice_id)
++         AND r.status='POSTED' AND rl.stock_master_id=NEW.stock_master_id),0)
++ THEN RAISE(ABORT,'INVOICE_EXCEEDS_POSTED_GRV')
++ END;
++END;
++CREATE TABLE IF NOT EXISTS maliks_pos_supplier_invoice_audit (
++ id INTEGER PRIMARY KEY AUTOINCREMENT,
++ request_id TEXT NOT NULL UNIQUE,
++ invoice_id INTEGER NOT NULL REFERENCES maliks_pos_supplier_invoices(id),
++ branch TEXT NOT NULL COLLATE NOCASE,
++ action TEXT NOT NULL CHECK(action IN ('CAPTURE','RECHECK','VERIFY','CANCEL')),
++ actor_email TEXT NOT NULL,
++ payload_hash TEXT NOT NULL,
++ before_json TEXT,
++ after_json TEXT NOT NULL,
++ created_at TEXT NOT NULL
++);
++CREATE INDEX IF NOT EXISTS idx_maliks_pos_supplier_invoice_audit ON maliks_pos_supplier_invoice_audit(branch,invoice_id,id DESC);
+diff --git a/maliks-operations/src/core.mjs b/maliks-operations/src/core.mjs
+index 0035c03..907585a 100644
+--- a/maliks-operations/src/core.mjs
++++ b/maliks-operations/src/core.mjs
+@@ -8,8 +8,9 @@ import {quoteId} from './quote-domain.mjs';
+ import {cashupPreviewStatement,cashupForClient,CASHUP_MODE} from './cashup-domain.mjs';
+ import {submitPayment,confirmSimpleCheckout,listPayments,verifyPayment,listDispatch,updateDispatch,getInvoice} from './payment-dispatch-domain.mjs';
+ import {validateEvidenceInput,evidenceListStatement,evidenceHistoryStatement,evidenceForClient,EVIDENCE_MODE} from './payment-evidence-domain.mjs';
+-import {listMasterRecords,listMasterAudit,listMasterCatalogue,saveMasterRecord,canUseMaster,MASTER_KINDS} from './master-domain.mjs';
++import {listMasterRecords,listMasterAudit,listMasterCatalogue,syncStockCatalogue,saveMasterRecord,canUseMaster,MASTER_KINDS} from './master-domain.mjs';
+ import {canUsePurchase,listPurchaseOrders,purchaseAudit,savePurchaseOrder,actionPurchaseOrder} from './purchase-domain.mjs';
++import {canUseSupplierInvoice,listSupplierInvoices,captureSupplierInvoice,supplierInvoiceAction} from './supplier-invoice-domain.mjs';
+ import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
+ 
+ const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
+@@ -454,6 +455,7 @@ export default {
+         app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
+         master_permissions:auth.app==='management'?Object.fromEntries(MASTER_KINDS.map(k=>[k,{read:canUseMaster(access.member,k),write:canUseMaster(access.member,k,true)}])):undefined,
+         purchase_permissions:auth.app==='management'?{read:canUsePurchase(access.member),write:canUsePurchase(access.member,'write'),approve:canUsePurchase(access.member,'approve')}:undefined,
++        supplier_invoice_permissions:auth.app==='management'?Object.fromEntries(['read','capture','verify'].map(k=>[k,canUseSupplierInvoice(access.member,k)])):undefined,
+         inventory_permissions:auth.app==='management'?Object.fromEntries(['read','count','verify','post','packCheck','transfer','approveTransfer'].map(k=>[k,canUseInventory(access.member,k)])):undefined,
+         mode:auth.app==='management'?'MASTER_FILES':auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
+       });
+@@ -461,6 +463,10 @@ export default {
+       if(path==='/v1/master/records'&&req.method==='POST')return await saveMasterRecord(req,env,context);
+       if(path==='/v1/master/audit'&&req.method==='GET')return await listMasterAudit(req,env,context);
+       if(path==='/v1/master/catalogue'&&req.method==='GET')return await listMasterCatalogue(req,env,context);
++      if(path==='/v1/master/catalogue/sync'&&req.method==='POST')return await syncStockCatalogue(req,env,context);
++      if(path==='/v1/supplier-invoices'&&req.method==='GET')return await listSupplierInvoices(req,env,context);
++      if(path==='/v1/supplier-invoices'&&req.method==='POST')return await captureSupplierInvoice(req,env,context);
++      if(path==='/v1/supplier-invoices/action'&&req.method==='POST')return await supplierInvoiceAction(req,env,context);
+       if(path==='/v1/purchase-orders'&&req.method==='GET')return await listPurchaseOrders(req,env,context);
+       if(path==='/v1/purchase-orders'&&req.method==='POST')return await savePurchaseOrder(req,env,context);
+       if(path==='/v1/purchase-orders/audit'&&req.method==='GET')return await purchaseAudit(req,env,context);
+diff --git a/maliks-operations/src/frontend.mjs b/maliks-operations/src/frontend.mjs
+index 2f99c1e..15d3b8d 100644
+--- a/maliks-operations/src/frontend.mjs
++++ b/maliks-operations/src/frontend.mjs
+@@ -1194,7 +1194,7 @@ function page(app){
+      const card=suiteButton('',id,'suite-card');card.append(h('span',symbol,'suite-card-icon'),h('strong',name),h('small',description));
+      card.append(h('span',status,'suite-card-status'+(status.startsWith('LIVE')?' live':'')));cards.append(card);
+    }
+-   root.append(cards,h('p','Purchase orders, receiving counts, GRV posting, stock-on-hand and inter-branch transfers are connected. Supplier invoices, VAT, accounting, sales stock deduction and returns are not yet posted.','suite-footnote'));
++   root.append(cards,h('p','Hub catalogue-linked stock, purchase orders, GRVs, transfers and supplier invoice matching are connected. AP, VAT, GL, sales stock deduction and returns are NOT posted.','suite-footnote'));
+  }
+  const MASTER_LABELS={stock:'Stock Master',supplier:'Suppliers Master',debtor:'Debtors Master'};
+  const MASTER_FIELDS={
+@@ -1205,6 +1205,7 @@ function page(app){
+  let masterPermissions={};
+  let purchasePermissions={};
+  let inventoryPermissions={};
++ let supplierInvoicePermissions={};
+  function suiteMasterView(kind,openAudit=false){
+    const detail=E('suite-feature-detail');if(!detail)return;
+    const selectedBranch=branch;detail.hidden=false;detail.className='suite-feature-detail suite-master-workspace';detail.replaceChildren();
+@@ -1212,14 +1213,14 @@ function page(app){
+    const tools=h('div',undefined,'suite-master-actions');
+    const search=h('input');search.type='search';search.placeholder='Search code or name';search.setAttribute('aria-label','Search '+MASTER_LABELS[kind]);
+    const searchButton=h('button','Search');searchButton.type='button';
+-   const newButton=h('button','New '+(kind==='stock'?'item':kind));newButton.type='button';
++   const newButton=h('button',kind==='stock'?'Link Hub catalogue to branch':'New '+kind);newButton.type='button';
+    const auditButton=h('button','Audit history','secondary');auditButton.type='button';
+    const refreshButton=h('button','Refresh','secondary');refreshButton.type='button';
+    const cancelButton=h('button','Back to list','secondary');cancelButton.type='button';
+    tools.append(search,searchButton,refreshButton,auditButton);
+    if(masterPermissions[kind]?.write)tools.append(newButton);
+    header.append(tools);detail.append(header);
+-   const notice=h('p','Branch: '+selectedBranch+' · These are master records only. No stock-on-hand, supplier balance, debtor balance, invoice, payment or GL posting occurs.','suite-master-note');detail.append(notice);
++   const notice=h('p',kind==='stock'?'Branch: '+selectedBranch+' · Products come directly from the Group Hub catalogue. Link once to enable purchasing, GRVs and transfers. Opening stock is NOT imported.':'Branch: '+selectedBranch+' · Master records do not post supplier/debtor balances, invoices or GL entries.','suite-master-note');detail.append(notice);
+    const feedback=h('div');feedback.setAttribute('role','status');detail.append(feedback);
+    const editor=h('section',undefined,'suite-master-editor');editor.hidden=true;detail.append(editor);
+    const listArea=h('div');detail.append(listArea);
+@@ -1227,17 +1228,19 @@ function page(app){
+    const valid=()=>branch===selectedBranch&&detail.isConnected;
+    const showMessage=(message,good=false)=>{feedback.textContent=message;feedback.className=good?'success':'error';feedback.hidden=!message;};
+    feedback.hidden=true;
+-   const displayValue=(v)=>v===null||v===undefined?'':String(v);
++   let masterPage=1;const displayValue=(v)=>v===null||v===undefined?'':String(v);
+    function openEditor(record){
+      if(!masterPermissions[kind]?.write){showMessage('This account has read-only access.');return;}
+      editor.hidden=false;editor.replaceChildren();auditArea.hidden=true;listArea.hidden=true;
+      const heading=h('h3',record?'Edit '+record.code:'New '+MASTER_LABELS[kind]+' record');editor.append(heading);
++     if(kind==='stock')editor.append(h('p','Code, description, department and selling price come from Hub Catalogue / Price Tag Studio. POS only edits branch stock settings.','muted'));
+      const form=h('form',undefined,'suite-master-form');const controls={};
+      const addField=(key,label,type,value)=>{
+        const wrap=h('label');wrap.append(h('span',label));const input=h('input');
+        input.name=key;input.type=type==='money'||type==='integer'?'number':type==='email'?'email':'text';
+        if(type==='money'){input.step='0.01';input.min='0';}else if(type==='integer'){input.step='1';input.min='0';}
+        input.value=displayValue(value);if(key==='code'||key==='name'||key==='unit')input.required=true;
++       if(kind==='stock'&&['code','name','category','selling_price_cents'].includes(key))input.readOnly=true;
+        wrap.append(input);form.append(wrap);controls[key]=input;
+      };
+      addField('code','Code','text',record?.code||'');addField('name','Description / name','text',record?.name||'');
+@@ -1279,20 +1282,23 @@ function page(app){
+    }
+    async function loadRecords(){
+      if(!valid())return;
+-     auditArea.hidden=true;listArea.hidden=false;listArea.replaceChildren(h('p','Loading branch master records…','muted'));
++     auditArea.hidden=true;listArea.hidden=false;listArea.replaceChildren(h('p','Loading '+(kind==='stock'?'Hub catalogue products':'branch master records')+'…','muted'));
+      try{
+-       const q=search.value.trim();const data=await api('/api/master/records?kind='+encodeURIComponent(kind)+'&branch='+encodeURIComponent(selectedBranch)+'&q='+encodeURIComponent(q));
++       const q=search.value.trim();const data=await api('/api/master/records?kind='+encodeURIComponent(kind)+'&branch='+encodeURIComponent(selectedBranch)+'&q='+encodeURIComponent(q)+'&page='+masterPage);
+        if(!valid())return;
+        listArea.replaceChildren();
+-       if(!data.records.length){listArea.append(h('p','No records found. Use New to add a branch master record.','empty'));return;}
++       if(!data.records.length){listArea.append(h('p',kind==='stock'?'No active Hub catalogue products match this search.':'No records found. Use New to add a branch master record.','empty'));return;}
++       if(kind==='stock')listArea.append(h('p',data.total+' active Hub catalogue items · Page '+data.page+' of '+data.pages+' · '+data.records.filter(r=>r.linked).length+' linked on this page.','muted'));
+        const table=h('table');const head=h('tr');for(const label of ['Code','Name','Status','Updated','Action'])cell(head,label,'th');
+        const thead=h('thead');thead.append(head);table.append(thead);const tbody=h('tbody');
+        for(const record of data.records){
+-         const tr=h('tr');cell(tr,record.code);cell(tr,record.name);cell(tr,record.active?'Active':'Inactive');cell(tr,showDate(record.updated_at));
+-         const actions=h('td');if(masterPermissions[kind]?.write){const edit=h('button','Edit','small-btn');edit.type='button';edit.addEventListener('click',()=>openEditor(record));actions.append(edit);}else actions.textContent='Read only';
++         const tr=h('tr');cell(tr,record.code);cell(tr,record.name);cell(tr,kind==='stock'?(record.linked?(record.active?'Linked / Active':'Linked / Inactive'):'Not yet linked'):record.active?'Active':'Inactive');cell(tr,showDate(record.updated_at));
++         const actions=h('td');if(masterPermissions[kind]?.write&&record.id){const edit=h('button',kind==='stock'?'Branch settings':'Edit','small-btn');edit.type='button';edit.addEventListener('click',()=>openEditor(record));actions.append(edit);}else actions.textContent=kind==='stock'&&!record.linked?'Link catalogue to enable':'Read only';
+          tr.append(actions);tbody.append(tr);
+        }
+        table.append(tbody);const scroller=h('div',undefined,'scroll');scroller.append(table);listArea.append(scroller);
++       if(kind==='stock'&&data.pages>1){const pager=h('div',undefined,'suite-master-actions');const prev=h('button','Previous','secondary small-btn');const next=h('button','Next','secondary small-btn');prev.disabled=masterPage<=1;next.disabled=masterPage>=data.pages;
++         prev.addEventListener('click',()=>{masterPage--;void loadRecords();});next.addEventListener('click',()=>{masterPage++;void loadRecords();});pager.append(prev,h('span','Page '+masterPage+' / '+data.pages),next);listArea.append(pager);}
+      }catch(e){if(valid())showMessage(e.message);}
+    }
+    async function loadAudit(){
+@@ -1307,30 +1313,18 @@ function page(app){
+        table.append(tbody);const scroller=h('div',undefined,'scroll');scroller.append(table);auditArea.append(scroller);
+      }catch(e){if(valid())showMessage(e.message);}
+    }
+-   searchButton.addEventListener('click',()=>{editor.hidden=true;void loadRecords();});
+-   search.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();editor.hidden=true;void loadRecords();}});
++   searchButton.addEventListener('click',()=>{masterPage=1;editor.hidden=true;void loadRecords();});
++   search.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();masterPage=1;editor.hidden=true;void loadRecords();}});
+    refreshButton.addEventListener('click',()=>{editor.hidden=true;void loadRecords();});
+-   newButton.addEventListener('click',()=>openEditor(null));
++   newButton.addEventListener('click',()=>{if(kind!=='stock'){openEditor(null);return;}
++     if(!window.confirm('Link all active Group Hub catalogue products to '+selectedBranch+'? Existing branch stock settings will not be overwritten. This does NOT import stock quantities.'))return;
++     newButton.disabled=true;showMessage('Linking catalogue products…');
++     void api('/api/master/catalogue/sync',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({branch:selectedBranch,request_id:crypto.randomUUID()})})
++       .then(async data=>{if(valid()){showMessage('Hub catalogue linked: '+data.linked+' stock items ('+data.newly_linked+' new). Stock-on-hand remains unchanged.',true);masterPage=1;await loadRecords();}})
++       .catch(e=>{if(valid())showMessage(e.message);}).finally(()=>{newButton.disabled=false;});
++   });
+    auditButton.addEventListener('click',()=>void loadAudit());
+    cancelButton.addEventListener('click',()=>{editor.hidden=true;void loadRecords();});
+-   if(kind==='stock'){
+-     const lookup=h('section',undefined,'suite-master-catalogue');lookup.append(h('h4','Existing product catalogue (read only)'));
+-     lookup.append(h('p','Search products already in the Group Hub catalogue. This does not create stock-on-hand or alter price tags.','muted'));
+-     const row=h('div',undefined,'suite-master-actions');const input=h('input');input.type='search';input.placeholder='Product code or name (2+ characters)';
+-     const button=h('button','Search catalogue','secondary');button.type='button';row.append(input,button);lookup.append(row);
+-     const results=h('div');lookup.append(results);detail.append(lookup);
+-     const doLookup=async()=>{
+-       if(input.value.trim().length<2){results.textContent='Enter at least two characters.';return;}
+-       results.textContent='Searching…';try{
+-         const data=await api('/api/master/catalogue?branch='+encodeURIComponent(selectedBranch)+'&q='+encodeURIComponent(input.value.trim()));
+-         if(!valid())return;results.replaceChildren();if(!data.products.length){results.append(h('p','No matching products.','empty'));return;}
+-         const table=h('table');const head=h('tr');for(const label of ['Code','Description','Category'])cell(head,label,'th');const thead=h('thead');thead.append(head);table.append(thead);
+-         const tbody=h('tbody');for(const p of data.products){const tr=h('tr');cell(tr,p.code);cell(tr,p.name);cell(tr,p.category||'—');tbody.append(tr);}table.append(tbody);
+-         const scroller=h('div',undefined,'scroll');scroller.append(table);results.append(scroller);
+-       }catch(e){results.textContent=e.message;}
+-     };
+-     button.addEventListener('click',()=>void doLookup());input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void doLookup();}});
+-   }
+    if(openAudit)void loadAudit();else void loadRecords();
+  }
+  // Phases 16–17: live purchasing and controlled stock operations, all server-authorised.
+@@ -1369,8 +1363,15 @@ function page(app){
+    const delivery=invField(controls,'Expected delivery','date');const notes=invField(controls,'Notes');
+    const lineSection=h('div');lineSection.style.gridColumn='1/-1';controls.append(lineSection);
+    const rows=[];let products=[];
++   const stockSearch=invField(controls,'Find linked Hub stock by code or description');
++   const findStock=invButton('Find stock',()=>void searchStock());controls.append(findStock);
++   async function searchStock(){try{const data=await api('/api/master/records?kind=stock&branch='+encodeURIComponent(branch)+'&q='+encodeURIComponent(stockSearch.value.trim()));
++     if(!w.valid())return;const found=data.records.filter(x=>x.active&&x.id);const byId=new Map(products.map(p=>[p.id,p]));for(const p of found)byId.set(p.id,p);products=[...byId.values()];
++     w.message(found.length+' linked stock items found. Click Add stock line to select one.',true);}
++     catch(e){w.message(e.message);}}
++   stockSearch.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void searchStock();}});
+    const addLine=()=>{
+-     if(!products.length){w.message('Create active Stock Master items before purchasing.');return;}
++     if(!products.length){w.message('Link the Group Hub catalogue to this branch, or search for a linked stock item.');return;}
+      const row=h('div',undefined,'suite-master-actions');
+      const product=invSelect(row,'Stock item',products,p=>p.id,p=>p.code+' · '+p.name);
+      const qty=invField(row,'Quantity','number','1');const cost=invField(row,'Unit cost (R)','number',String((products[0].details?.cost_cents||100)/100));cost.step='0.01';
+@@ -1381,7 +1382,7 @@ function page(app){
+    const add=invButton('Add stock line',addLine);const save=invButton('Save draft',()=>void savePO(),'suite-primary');actions.append(add,save);controls.append(actions);
+    async function loadMasters(){
+      try{const [s,p]=await Promise.all(['supplier','stock'].map(kind=>api('/api/master/records?kind='+kind+'&branch='+encodeURIComponent(branch))));
+-       if(!w.valid())return;products=p.records.filter(x=>x.active);supplierSelect.replaceChildren();
++       if(!w.valid())return;products=p.records.filter(x=>x.active&&x.id);supplierSelect.replaceChildren();
+        for(const item of s.records.filter(x=>x.active)){const o=h('option',item.code+' · '+item.name);o.value=item.id;supplierSelect.append(o);}
+        if(!rows.length)addLine();
+      }catch(e){w.message(e.message);}
+@@ -1523,10 +1524,66 @@ function page(app){
+    void loadInventory();void loadTransfers();
+  }
+ 
++ // Phase 18: supplier invoice capture + independent three-way verification only.
++ // This screen NEVER creates a creditor balance, tax claim, payment or GL journal.
++ function suiteSupplierInvoices(){
++   const w=invWorkspace('Supplier Invoices — Three-Way Match','Match approved PO + posted GRV + supplier invoice. VERIFIED means checked only; no AP/VAT/GL posting.');
++   const controls=h('div',undefined,'suite-master-form');w.form.append(h('h4','Capture supplier invoice'),controls);
++   const poSelect=invSelect(controls,'Approved purchase order',[],x=>x.id,x=>x.number+' · '+x.supplier_name);
++   const invoiceNumber=invField(controls,'Supplier invoice number');const invoiceDate=invField(controls,'Invoice date','date',new Date().toISOString().slice(0,10));
++   const vat=invField(controls,'Declared VAT (R)','number','0');vat.step='0.01';
++   const total=invField(controls,'Supplier invoice total incl VAT (R)','number','0');total.step='0.01';
++   const linesArea=h('div');linesArea.style.gridColumn='1/-1';controls.append(linesArea);
++   const submit=invButton('Capture and match invoice',()=>void capture(),'suite-primary');controls.append(submit);
++   const table=h('div');w.list.append(h('h4','Supplier invoice matching register'),table);
++   let orders=[];
++   function selectedOrder(){return orders.find(p=>p.id===Number(poSelect.value));}
++   function drawLines(){linesArea.replaceChildren();const po=selectedOrder();if(!po)return;
++     linesArea.append(h('p','Approved PO '+po.number+' · '+po.supplier_name+' · Enter invoiced quantities and unit costs. Quantities must be covered by posted GRVs.','muted'));
++     for(const line of po.lines){const row=h('div',undefined,'suite-master-actions');row.append(h('strong',line.stock_code+' · '+line.stock_name));
++       const qty=invField(row,'Invoiced quantity','number',String(line.quantity_milli/1000));const cost=invField(row,'Unit cost (R)','number',(line.unit_cost_cents/100).toFixed(2));cost.step='0.01';
++       row.dataset.stockId=String(line.stock_id);qty.dataset.invoiceQty='1';cost.dataset.invoiceCost='1';linesArea.append(row);}
++   }
++   poSelect.addEventListener('change',drawLines);
++   async function capture(){submit.disabled=true;w.message('');try{
++     const po=selectedOrder();if(!po)throw Error('Select an approved purchase order.');
++     const lines=[];for(const row of linesArea.querySelectorAll('[data-stock-id]')){
++       const qty=row.querySelector('[data-invoice-qty]');const cost=row.querySelector('[data-invoice-cost]');
++       if(!qty||!cost)continue;const n=Number(qty.value);if(n===0)continue;
++       lines.push({stock_id:Number(row.dataset.stockId),qty_milli:invNum(qty.value,'invoiced quantity'),unit_cost_cents:invMoney(cost.value)});
++     }
++     if(!lines.length)throw Error('Enter at least one invoice line.');
++     const v=Number(vat.value);if(!Number.isFinite(v)||v<0||Math.abs(v*100-Math.round(v*100))>0.00001)throw Error('Invalid declared VAT.');
++     const result=await invPost('/api/supplier-invoices',{branch,po_id:po.id,invoice_number:invoiceNumber.value,invoice_date:invoiceDate.value,
++       declared_vat_cents:Math.round(v*100),invoice_total_cents:Math.round(Number(total.value)*100),lines});
++     if(w.valid()){w.message(result.invoice.number+' captured: '+result.invoice.status+'. No creditor/VAT/GL posting occurred.',true);await load();}
++   }catch(e){w.message(e.message);}finally{submit.disabled=false;}}
++   async function act(invoice,action){if(!window.confirm(action+' '+invoice.number+'? This does not post accounting.'))return;
++     try{const result=await invPost('/api/supplier-invoices/action',{branch,id:invoice.id,version:invoice.version,action});
++       if(w.valid()){w.message(result.invoice.number+' → '+result.invoice.status+'.',true);await load();}}
++     catch(e){w.message(e.message);}}
++   async function load(){try{
++     const [poData,invData]=await Promise.all([api('/api/purchase-orders?branch='+encodeURIComponent(branch)),api('/api/supplier-invoices?branch='+encodeURIComponent(branch))]);
++     if(!w.valid())return;
++     orders=poData.orders.filter(p=>p.status==='APPROVED');poSelect.replaceChildren();for(const po of orders){const opt=h('option',po.number+' · '+po.supplier_name);opt.value=String(po.id);poSelect.append(opt);}drawLines();
++     invTable(table,['Invoice','Supplier / PO','Status','Net / VAT / Total','Exceptions','Actions'],invData.invoices.map(i=>{
++       const actions=h('div',undefined,'suite-master-actions');
++       if(supplierInvoicePermissions.capture&&i.status==='EXCEPTION')actions.append(invButton('Recheck',()=>void act(i,'RECHECK')));
++       if(supplierInvoicePermissions.verify&&i.status==='MATCHED')actions.append(invButton('Verify independently',()=>void act(i,'VERIFY')));
++       if(supplierInvoicePermissions.capture&&['MATCHED','EXCEPTION'].includes(i.status))actions.append(invButton('Cancel',()=>void act(i,'CANCEL')));
++       return [i.invoice_number,i.supplier_name+' / PO-'+String(i.po_id).padStart(6,'0'),i.status,
++         money(i.net_cents)+' / '+money(i.declared_vat_cents)+' / '+money(i.gross_cents),i.exceptions.join(' '),actions];
++     }));
++   }catch(e){if(w.valid())w.message(e.message);}}
++   if(!supplierInvoicePermissions.capture)w.form.hidden=true;
++   if(!supplierInvoicePermissions.read){w.message('Supplier invoice access denied.');return;}
++   void load();
++ }
++
+  function suiteModuleView(id){
+    const root=E('app-content');const name=SUITE_TITLES[id]||({tills:'Tills',cashoffice:'Cash Office'}[id])||'Module';
+    const isSeparate=['tills','cashoffice','dispatching'].includes(id);
+-   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':['stock','suppliers','debtors'].includes(id)?'Branch master files, purchasing and controlled stock operations are live. Supplier invoice and general ledger posting are not yet enabled.':'The menu inventory is a reference. Unbuilt operations remain disabled until their secure workflows are implemented.','suite-menu-intro'));
++   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':['stock','suppliers','debtors'].includes(id)?'Hub-linked stock master, purchasing and controlled stock operations are connected. Financial posting is not yet enabled.':'The menu inventory is a reference. Unbuilt operations remain disabled until their secure workflows are implemented.','suite-menu-intro'));
+    const menu=SUITE_MENU_TREE[id]||{};const grid=h('div',undefined,'suite-menu-grid');
+    for(const [section,items] of Object.entries(menu)){
+      const card=h('section',undefined,'suite-menu-card');card.append(h('h3',section));const list=h('div',undefined,'suite-menu-list');
+@@ -1536,6 +1593,7 @@ function page(app){
+          const masterKind=id==='stock'&&item==='Stock Master'?'stock':id==='suppliers'&&item==='Suppliers'?'supplier':id==='debtors'&&item==='Debtors'?'debtor':null;
+          if(masterKind){suiteMasterView(masterKind);return;}
+          if(item==='Purchase Orders'&&(id==='stock'||id==='suppliers')){suitePurchaseOrders();return;}
++         if(id==='suppliers'&&item==='Invoices and Debit Notes'){suiteSupplierInvoices();return;}
+          if(id==='stock'&&item==='Goods Received Vouchers (GRV)'){suiteReceiving();return;}
+          if(id==='stock'&&item==='Stock Transfers'){suiteTransfers();return;}
+          if(id==='stock'&&item==='Onhands'){suiteStockBalances();return;}
+@@ -1576,7 +1634,7 @@ function page(app){
+  }
+ 
+  try{
+-   const session=await api('/api/session');masterPermissions=session.master_permissions||{};purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};E('signed-in').textContent=session.user.name+' · '+session.user.role;
++   const session=await api('/api/session');masterPermissions=session.master_permissions||{};purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};E('signed-in').textContent=session.user.name+' · '+session.user.role;
+    E('access').textContent=session.branches.length+' assigned branch(es)'+(['pos','sales'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
+    for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=false;branch=select.value;select.addEventListener('change',selectBranch);
+    if(APP==='pos'){
+@@ -1598,15 +1656,15 @@ export default {
+    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
+      '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview',
+      '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
+-     '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue',
++     '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue','/api/master/catalogue/sync':'/v1/master/catalogue/sync',
+      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
+-     '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action'};
++     '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action','/api/supplier-invoices':'/v1/supplier-invoices','/api/supplier-invoices/action':'/v1/supplier-invoices/action'};
+    const path=pathMap[url.pathname];
+    if(!path)return Response.json({error:'Unknown API.'},{status:404});
+    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
+-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/transfers','/api/transfers/action'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
++   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+    // The Professional suite cannot submit Sales transactions through its old POS origin.
+-   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
++   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
+    // The dedicated Sales Worker may only access the quotation/catalogue APIs.
+    if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
+diff --git a/maliks-operations/src/master-domain.mjs b/maliks-operations/src/master-domain.mjs
+index d7a4b93..059d200 100644
+--- a/maliks-operations/src/master-domain.mjs
++++ b/maliks-operations/src/master-domain.mjs
+@@ -63,11 +63,12 @@ const detailsFor=(kind,raw)=>{
+ export function validateMasterInput(raw){
+   if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid master-file request.');
+   if(!MASTER_KINDS.includes(raw.kind))throw Error('Invalid master-file type.');
+-  const code=str(raw.code,'code',40,true).toUpperCase();
+-  if(!/^[A-Z0-9][A-Z0-9._/-]{0,39}$/.test(code))throw Error('Code must use letters, numbers, dash, slash, dot or underscore.');
++  const existingCatalogueStock=raw.kind==='stock'&&Number.isSafeInteger(raw.id)&&raw.id>0;
++  const code=str(raw.code,'code',existingCatalogueStock?160:40,true).toUpperCase();
++  if(!existingCatalogueStock&&!/^[A-Z0-9][A-Z0-9._/-]{0,39}$/.test(code))throw Error('Code must use letters, numbers, dash, slash, dot or underscore.');
+   if(typeof raw.active!=='boolean')throw Error('Active status must be selected.');
+   const data={kind:raw.kind,branch:str(raw.branch,'branch',150,true),code,
+-    name:str(raw.name,'name',160,true),active:raw.active?1:0,
++    name:str(raw.name,'name',existingCatalogueStock?255:160,true),active:raw.active?1:0,
+     details:detailsFor(raw.kind,raw.details),request_id:uuid(raw.request_id)};
+   if(raw.id!==undefined&&raw.id!==null){
+     if(!Number.isSafeInteger(raw.id)||raw.id<1)throw Error('Invalid record ID.');
+@@ -102,6 +103,31 @@ export async function listMasterRecords(req,env,context){
+   const q=limitSearch(params.get('q')||'');
+   if(q===null)return fail('Search is too long.');
+   const term=q.toLowerCase();
++  if(kind==='stock'){
++    // Hub catalogue is the one and only product list. The branch master is an overlay
++    // for operational settings and the stable stock_master_id used by PO/GRV/transfer.
++    const page=Math.min(10000,Math.max(1,Number.parseInt(params.get('page')||'1',10)||1));
++    const {total}=await env.DB.prepare(`SELECT COUNT(*) AS total FROM catalogue_products p WHERE p.active=1
++      AND (?='' OR instr(lower(p.code),?)>0 OR instr(lower(p.name),?)>0 OR instr(lower(p.category),?)>0)`)
++      .bind(term,term,term,term).first();
++    const tagTable=/buster\s*build/i.test(branch)?'busterbuild_price_tags':'powerbuild_price_tags';
++    const brand=/buster\s*build/i.test(branch)?'busterbuild':'powerbuild';
++    const {results}=await env.DB.prepare(`SELECT p.id AS catalogue_id,p.code,p.name,p.category,p.updated_at,
++      CASE WHEN t.product_id IS NULL THEN 0 ELSE COALESCE(bp.price_cents,t.price_cents,0) END AS hub_price_cents,COALESCE(t.unit,'EA') AS hub_unit,
++      m.id,m.kind,m.branch,m.active,m.details_json,m.version,m.updated_at AS master_updated_at
++      FROM catalogue_products p LEFT JOIN maliks_pos_master_records m
++        ON m.kind='stock' AND lower(m.branch)=lower(?) AND lower(m.code)=lower(p.code)
++      LEFT JOIN ${tagTable} t ON t.product_id=p.id AND t.published=1
++      LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
++      WHERE p.active=1 AND (?='' OR instr(lower(p.code),?)>0 OR instr(lower(p.name),?)>0 OR instr(lower(p.category),?)>0)
++      ORDER BY p.name,p.id LIMIT 100 OFFSET ?`).bind(branch,brand,branch,term,term,term,term,(page-1)*100).all();
++    const records=results.map(r=>({id:r.id??null,kind:'stock',branch,code:r.code,name:r.name,
++      active:r.id?Boolean(r.active):true,linked:Boolean(r.id),catalogue_id:r.catalogue_id,
++      category:r.category,details:{...(r.details_json?JSON.parse(r.details_json):{unit:r.hub_unit,barcode:'',cost_cents:0,reorder_min:0}),
++        category:r.category,selling_price_cents:Number(r.hub_price_cents)},
++      version:r.version||0,updated_at:r.master_updated_at||r.updated_at}));
++    return json({kind,branch,records,total:Number(total),page,page_size:100,pages:Math.max(1,Math.ceil(Number(total)/100)),catalogue_source:true});
++  }
+   const {results}=await env.DB.prepare(`SELECT id,kind,branch,code,name,active,details_json,version,updated_at
+     FROM maliks_pos_master_records WHERE kind=? AND lower(branch)=lower(?)
+     AND (?='' OR instr(lower(code),?)>0 OR instr(lower(name),?)>0)
+@@ -127,13 +153,53 @@ export async function listMasterCatalogue(req,env,context){
+   if(q===null)return fail('Search is too long.');
+   if(q.length<2)return json({branch,products:[],read_only:true});
+   const term=q.toLowerCase();
+-  const tagTable=/buster\s*build/i.test(branch)?'busterbuild_price_tags':'powerbuild_price_tags';
+   const {results}=await env.DB.prepare(`SELECT p.id,p.code,p.name,p.category FROM catalogue_products p
+-    JOIN ${tagTable} t ON t.product_id=p.id AND t.published=1
+     WHERE p.active=1 AND (instr(lower(p.code),?)>0 OR instr(lower(p.name),?)>0)
+-    ORDER BY p.name LIMIT 40`).bind(term,term).all();
++    ORDER BY p.name LIMIT 100`).bind(term,term).all();
+   return json({branch,products:results,read_only:true,stock_on_hand_available:false});
+ }
++// An explicit, audited branch activation. No new catalogue products are created;
++// existing branch records are never overwritten, and no stock balances are posted.
++export async function syncStockCatalogue(req,env,context){
++  if(context.app!=='management'||!canUseMaster(context.member,'stock',true))return fail('Stock master write permission denied.',403);
++  if(!req.headers.get('origin')||req.headers.get('origin')!==req.headers.get('x-maliks-original-origin'))return fail('Invalid request origin.',403);
++  let raw;try{const txt=await req.text();if(txt.length>2000)throw Error('Request too large.');raw=JSON.parse(txt);}catch{return fail('Invalid request.');}
++  let id;try{id=uuid(raw?.request_id);}catch(e){return fail(e.message);}
++  const branch=matchingBranch(context.branches,raw?.branch);
++  if(!branch)return fail('Branch access denied.',403);
++  const duplicate=await env.DB.prepare(`SELECT lower(code) AS code,COUNT(*) AS n FROM catalogue_products
++    WHERE active=1 GROUP BY lower(code) HAVING COUNT(*)>1 LIMIT 1`).first();
++  if(duplicate)return fail('Duplicate catalogue product code (case-insensitive): '+duplicate.code+'. Resolve duplicates in Hub before linking.',409);
++  const actor=context.member.email.toLowerCase(),now=new Date().toISOString();
++  const tagTable=/buster\s*build/i.test(branch)?'busterbuild_price_tags':'powerbuild_price_tags';
++  const before=await env.DB.prepare(`SELECT COUNT(*) AS n FROM maliks_pos_master_records WHERE kind='stock' AND lower(branch)=lower(?)`).bind(branch).first();
++  // Unique (kind,branch,code) and deterministic create_request_id make repeated
++  // activations safe, including concurrent attempts by different managers.
++  const keyPrefix='HUB-CATALOGUE:'+branch.toLowerCase()+':';
++  const hash='hub-catalogue-v1';
++  const brand=/buster\s*build/i.test(branch)?'busterbuild':'powerbuild';
++  try{await env.DB.batch([
++    env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_master_records
++      (kind,branch,code,name,active,details_json,version,created_by_email,updated_by_email,created_at,updated_at,create_request_id,create_payload_hash,last_request_id)
++      SELECT 'stock',?,p.code,p.name,1,
++      json_object('unit',COALESCE(t.unit,'EA'),'category',p.category,'barcode','',
++        'cost_cents',0,'selling_price_cents',CASE WHEN t.product_id IS NULL THEN 0 ELSE COALESCE(bp.price_cents,t.price_cents,0) END,'reorder_min',0),
++      1,?,?,?,?,?||p.id,?,?||p.id
++      FROM catalogue_products p LEFT JOIN ${tagTable} t ON t.product_id=p.id AND t.published=1
++      LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
++      WHERE p.active=1`).bind(branch,actor,actor,now,now,keyPrefix,hash,keyPrefix,brand,branch),
++    env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_master_audit
++      (request_id,kind,branch,record_id,action,actor_email,actor_name,payload_hash,before_json,after_json,created_at)
++      SELECT m.create_request_id,'stock',m.branch,m.id,'CREATE',m.created_by_email,?,m.create_payload_hash,NULL,
++      json_object('kind','stock','branch',m.branch,'code',m.code,'name',m.name,'active',1,
++        'details',json(m.details_json),'version',1),m.created_at
++      FROM maliks_pos_master_records m WHERE m.kind='stock' AND lower(m.branch)=lower(?)
++        AND m.create_request_id LIKE 'HUB-CATALOGUE:%'`).bind(context.member.name,branch)
++  ]);}catch(e){return fail('Catalogue activation failed. Check D1 migrations and catalogue tables: '+String(e.message||e).slice(0,160),409);}
++  const after=await env.DB.prepare(`SELECT COUNT(*) AS n FROM maliks_pos_master_records WHERE kind='stock' AND lower(branch)=lower(?)`).bind(branch).first();
++  return json({branch,linked:Number(after.n),newly_linked:Math.max(0,Number(after.n)-Number(before.n)),request_id:id,
++    note:'Hub catalogue linked to this branch. No stock quantities or financial entries were posted.'});
++}
+ export async function saveMasterRecord(req,env,context){
+   if(context.app!=='management')return fail('Management workspace required.',403);
+   if(!req.headers.get('origin')||req.headers.get('origin')!==req.headers.get('x-maliks-original-origin'))return fail('Invalid request origin.',403);
+@@ -145,6 +211,25 @@ export async function saveMasterRecord(req,env,context){
+   const branch=matchingBranch(context.branches,data.branch);
+   if(!branch)return fail('Branch access denied.',403);
+   data.branch=branch;
++  if(data.kind==='stock'){
++    // Never accept a new product identity from POS: Hub owns product codes,
++    // names and departments. POS may only maintain branch operational settings.
++    const product=await env.DB.prepare(`SELECT code,name,category FROM catalogue_products
++      WHERE lower(code)=lower(?) AND active=1 LIMIT 1`).bind(data.code).first();
++    if(!product)return fail('Stock item is not in the active Group Hub catalogue. Add it in Hub first.',409);
++    data.code=product.code;data.name=product.name;data.details.category=product.category;
++    const tagTable=/buster\s*build/i.test(branch)?'busterbuild_price_tags':'powerbuild_price_tags';
++    const brand=/buster\s*build/i.test(branch)?'busterbuild':'powerbuild';
++    const hubPrice=await env.DB.prepare(`SELECT CASE WHEN t.product_id IS NULL THEN 0 ELSE COALESCE(bp.price_cents,t.price_cents,0) END AS price_cents
++      FROM catalogue_products p LEFT JOIN ${tagTable} t ON t.product_id=p.id AND t.published=1
++      LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
++      WHERE lower(p.code)=lower(?) AND p.active=1 LIMIT 1`).bind(brand,branch,data.code).first();
++    data.details.selling_price_cents=Number(hubPrice?.price_cents||0);
++    if(data.id!==undefined){
++      const linked=await env.DB.prepare(`SELECT code FROM maliks_pos_master_records WHERE id=? AND kind='stock' AND lower(branch)=lower(?)`).bind(data.id,branch).first();
++      if(!linked||linked.code.toLowerCase()!==product.code.toLowerCase())return fail('Stock code cannot be changed. Edit the product in Group Hub.',409);
++    }
++  }
+   const actor=context.member.email.toLowerCase();
+   const actorName=context.member.name;
+   const now=new Date().toISOString();
+diff --git a/maliks-operations/src/supplier-invoice-domain.mjs b/maliks-operations/src/supplier-invoice-domain.mjs
+new file mode 100644
+index 0000000..f24d5f1
+--- /dev/null
++++ b/maliks-operations/src/supplier-invoice-domain.mjs
+@@ -0,0 +1,134 @@
++// Phase 18: supplier invoice matching and independent verification. NO financial posting.
++import {matchingBranch} from './policy.mjs';
++const CAPTURE=new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Finance Manager','Creditors Clerk']);
++const VERIFY=new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Finance Manager']);
++const READ=new Set([...CAPTURE,'Store Manager','Regional Manager','Purchasing Manager','Buyer','Executive / EXCO']);
++export function canUseSupplierInvoice(member,mode='read'){
++ if(!member||Number(member.active)!==1)return false;
++ if(mode==='capture')return CAPTURE.has(member.role);
++ if(mode==='verify')return VERIFY.has(member.role);
++ return READ.has(member.role)&&(member.role!=='Executive / EXCO'||member.access_scope==='Full company');
++}
++const ok=(data,status=200)=>Response.json(data,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
++const fail=(message,status=400)=>ok({error:message},status);
++const int=(v,name,min=1,max=2_000_000_000)=>{if(!Number.isSafeInteger(v)||v<min||v>max)throw Error('Invalid '+name+'.');return v;};
++const str=(v,name,max,required=false)=>{if(typeof v!=='string'||v.trim().length>max||(required&&!v.trim())||/[\u0000-\u001f\u007f]/.test(v))throw Error('Invalid '+name+'.');return v.trim();};
++const uuid=v=>{if(typeof v!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(v))throw Error('Invalid request ID.');return v.toLowerCase();};
++const date=v=>{const d=str(v,'invoice date',10,true);if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||Number.isNaN(Date.parse(d))||new Date(d).toISOString().slice(0,10)!==d)throw Error('Invalid invoice date.');return d;};
++const sha=async obj=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(obj)))),b=>b.toString(16).padStart(2,'0')).join('');
++const read=async req=>{const raw=await req.text();if(raw.length>20000)throw Error('Request too large.');try{return JSON.parse(raw);}catch{throw Error('Invalid JSON.');}};
++const originOK=req=>Boolean(req.headers.get('origin'))&&req.headers.get('origin')===req.headers.get('x-maliks-original-origin');
++const memberEmail=c=>c.member.email.toLowerCase();
++const authorised=(c,mode)=>c.app==='management'&&canUseSupplierInvoice(c.member,mode);
++export function validateSupplierInvoice(raw){
++ if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid supplier invoice.');
++ const branch=str(raw.branch,'branch',150,true),po_id=int(raw.po_id,'purchase order'),invoice_number=str(raw.invoice_number,'invoice number',90,true),invoice_date=date(raw.invoice_date),request_id=uuid(raw.request_id);
++ const declared_vat_cents=int(raw.declared_vat_cents,'declared VAT',0,3_000_000_000_000);
++ if(!Array.isArray(raw.lines)||raw.lines.length<1||raw.lines.length>30)throw Error('Invoice requires 1–30 lines.');
++ const seen=new Set();const lines=raw.lines.map(line=>{const stock_id=int(line?.stock_id,'stock ID'),qty_milli=int(line?.qty_milli,'quantity',1,1_000_000_000),unit_cost_cents=int(line?.unit_cost_cents,'unit cost',1,100_000_000_000);
++   if(seen.has(stock_id))throw Error('Duplicate invoice stock line.');seen.add(stock_id);
++   const amount_cents=Math.round(qty_milli*unit_cost_cents/1000);
++   if(!Number.isSafeInteger(amount_cents)||amount_cents<=0)throw Error('Invalid invoice line amount.');
++   return {stock_id,qty_milli,unit_cost_cents,amount_cents};});
++ const net_cents=lines.reduce((n,l)=>n+l.amount_cents,0);
++ if(!Number.isSafeInteger(net_cents)||net_cents>3_000_000_000_000)throw Error('Invoice total too large.');
++ const gross_cents=net_cents+declared_vat_cents;
++ if(!Number.isSafeInteger(raw.invoice_total_cents)||raw.invoice_total_cents!==gross_cents)throw Error('Supplier invoice total must equal line net amount plus declared VAT.');
++ if(!Number.isSafeInteger(gross_cents)||gross_cents>3_000_000_000_000)throw Error('Invoice total too large.');
++ if(declared_vat_cents>Math.ceil(net_cents*0.15))throw Error('Declared VAT exceeds the 15% standard-rate ceiling.');
++ return {branch,po_id,invoice_number,invoice_date,declared_vat_cents,net_cents,gross_cents,lines,request_id};
++}
++const view=r=>({...r,lines:JSON.parse(r.lines_json),exceptions:JSON.parse(r.exceptions_json),
++  lines_json:undefined,exceptions_json:undefined,number:'SIN-'+String(r.id).padStart(6,'0'),
++  ap_posted:false,vat_claimed:false,gl_posted:false});
++async function checkMatch(db,po,lines){
++ const ordered=new Map(JSON.parse(po.lines_json).map(l=>[l.stock_id,l]));
++ const issues=[];
++ for(const l of lines){
++  const p=ordered.get(l.stock_id);
++  if(!p){issues.push('Stock ID '+l.stock_id+' is not on the approved PO.');continue;}
++  if(l.unit_cost_cents!==p.unit_cost_cents)issues.push(p.stock_code+': invoice unit cost differs from approved PO.');
++  const posted=await db.prepare(`SELECT COALESCE(SUM(rl.accepted_milli),0) AS qty FROM maliks_pos_receipt_lines rl
++    JOIN maliks_pos_receipts r ON r.id=rl.receipt_id
++    WHERE r.po_id=? AND r.status='POSTED' AND rl.stock_master_id=?`).bind(po.id,l.stock_id).first();
++  const allocated=await db.prepare(`SELECT COALESCE(SUM(a.qty_milli),0) AS qty FROM maliks_pos_supplier_invoice_allocations a
++    JOIN maliks_pos_supplier_invoices i ON i.id=a.invoice_id
++    WHERE i.po_id=? AND a.stock_master_id=?`).bind(po.id,l.stock_id).first();
++  if(l.qty_milli>Number(posted?.qty||0)-Number(allocated?.qty||0))issues.push(p.stock_code+': invoiced quantity exceeds posted, unallocated GRV quantity.');
++ }
++ return issues;
++}
++export async function listSupplierInvoices(req,env,c){
++ if(!authorised(c,'read'))return fail('Supplier invoice access denied.',403);
++ const branch=matchingBranch(c.branches,new URL(req.url).searchParams.get('branch'));if(!branch)return fail('Branch access denied.',403);
++ const {results}=await env.DB.prepare(`SELECT * FROM maliks_pos_supplier_invoices WHERE lower(branch)=lower(?) ORDER BY id DESC LIMIT 100`).bind(branch).all();
++ return ok({branch,invoices:results.map(view),accounting_posted:false});
++}
++export async function captureSupplierInvoice(req,env,c){
++ if(!authorised(c,'capture'))return fail('Supplier invoice capture permission denied.',403);
++ if(!originOK(req))return fail('Invalid request origin.',403);
++ let v;try{v=validateSupplierInvoice(await read(req));}catch(e){return fail(e.message);}
++ const branch=matchingBranch(c.branches,v.branch);if(!branch)return fail('Branch access denied.',403);v.branch=branch;
++ const actor=memberEmail(c),hash=await sha(v),now=new Date().toISOString();
++ const existing=await env.DB.prepare('SELECT * FROM maliks_pos_supplier_invoices WHERE create_request_id=?').bind(v.request_id).first();
++ if(existing)return existing.create_payload_hash===hash&&existing.captured_by_email===actor?ok({invoice:view(existing),duplicate:true}):fail('Request ID already used.',409);
++ const po=await env.DB.prepare(`SELECT * FROM maliks_pos_purchase_orders WHERE id=? AND lower(branch)=lower(?) AND status='APPROVED'`).bind(v.po_id,branch).first();
++ if(!po)return fail('Approved purchase order not found.',409);
++ const supplier=await env.DB.prepare(`SELECT id,code,name FROM maliks_pos_master_records WHERE id=? AND kind='supplier' AND lower(branch)=lower(?)`).bind(po.supplier_master_id,branch).first();
++ if(!supplier)return fail('Supplier master record not found.',409);
++ const exceptions=await checkMatch(env.DB,po,v.lines),status=exceptions.length?'EXCEPTION':'MATCHED';
++ try{await env.DB.batch([
++  env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_supplier_invoices
++   (branch,po_id,supplier_master_id,supplier_code,supplier_name,invoice_number,invoice_date,lines_json,net_cents,declared_vat_cents,gross_cents,status,exceptions_json,version,captured_by_email,created_at,updated_at,create_request_id,create_payload_hash,last_request_id)
++   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?)`)
++   .bind(branch,po.id,supplier.id,supplier.code,supplier.name,v.invoice_number,v.invoice_date,JSON.stringify(v.lines),v.net_cents,v.declared_vat_cents,v.gross_cents,status,JSON.stringify(exceptions),actor,now,now,v.request_id,hash,v.request_id),
++  env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_supplier_invoice_audit
++   (request_id,invoice_id,branch,action,actor_email,payload_hash,before_json,after_json,created_at)
++   SELECT ?,id,branch,'CAPTURE',?,?,NULL,?,? FROM maliks_pos_supplier_invoices
++   WHERE create_request_id=? AND create_payload_hash=? AND captured_by_email=?`)
++   .bind(v.request_id,actor,hash,JSON.stringify({branch,po_id:v.po_id,invoice_number:v.invoice_number,status,exceptions,lines:v.lines}),now,v.request_id,hash,actor)
++ ]);}catch(e){return fail(/UNIQUE/.test(String(e))?'Supplier invoice number already exists for this supplier and branch.':'Supplier invoice could not be saved: '+String(e.message||e).slice(0,100),409);}
++ const saved=await env.DB.prepare('SELECT * FROM maliks_pos_supplier_invoices WHERE create_request_id=?').bind(v.request_id).first();
++ if(!saved||saved.create_payload_hash!==hash||saved.captured_by_email!==actor)return fail('Invoice number already exists or request changed.',409);
++ return ok({invoice:view(saved)});
++}
++export async function supplierInvoiceAction(req,env,c){
++ if(!originOK(req))return fail('Invalid request origin.',403);
++ let v;try{v=await read(req);v={id:int(v.id,'invoice ID'),version:int(v.version,'version'),branch:str(v.branch,'branch',150,true),action:str(v.action,'action',12,true).toUpperCase(),request_id:uuid(v.request_id)};
++   if(!['RECHECK','VERIFY','CANCEL'].includes(v.action))throw Error('Invalid action.');}catch(e){return fail(e.message);}
++ const mode=v.action==='VERIFY'?'verify':'capture';if(!authorised(c,mode))return fail('Supplier invoice permission denied.',403);
++ const branch=matchingBranch(c.branches,v.branch);if(!branch)return fail('Branch access denied.',403);v.branch=branch;
++ const actor=memberEmail(c),hash=await sha(v),now=new Date().toISOString();
++ const previous=await env.DB.prepare('SELECT * FROM maliks_pos_supplier_invoice_audit WHERE request_id=?').bind(v.request_id).first();
++ if(previous){if(previous.actor_email!==actor||previous.payload_hash!==hash)return fail('Request ID already used.',409);
++  const saved=await env.DB.prepare('SELECT * FROM maliks_pos_supplier_invoices WHERE id=?').bind(previous.invoice_id).first();return ok({invoice:view(saved),duplicate:true});}
++ const prior=await env.DB.prepare('SELECT * FROM maliks_pos_supplier_invoices WHERE id=? AND lower(branch)=lower(?)').bind(v.id,branch).first();
++ if(!prior)return fail('Supplier invoice not found.',404);
++ if(prior.version!==v.version)return fail('Invoice changed. Refresh.',409);
++ if(prior.status==='VERIFIED'||prior.status==='CANCELLED')return fail('Verified/cancelled invoice cannot be changed.',409);
++ if(v.action==='VERIFY'&&actor===prior.captured_by_email.toLowerCase())return fail('Independent Finance reviewer required.',403);
++ if(v.action==='VERIFY'&&prior.status!=='MATCHED')return fail('Resolve the three-way-match exceptions first.',409);
++ const po=await env.DB.prepare(`SELECT * FROM maliks_pos_purchase_orders WHERE id=? AND lower(branch)=lower(?) AND status='APPROVED'`).bind(prior.po_id,branch).first();
++ if(!po)return fail('Approved purchase order missing.',409);
++ const issues=v.action==='CANCEL'?JSON.parse(prior.exceptions_json):await checkMatch(env.DB,po,JSON.parse(prior.lines_json));
++ if(v.action==='VERIFY'&&issues.length)return fail('Three-way match no longer passes: '+issues.join(' '),409);
++ const status=v.action==='CANCEL'?'CANCELLED':v.action==='VERIFY'?'VERIFIED':issues.length?'EXCEPTION':'MATCHED';
++ const after={...view(prior),status,version:prior.version+1,exceptions:issues};
++ const steps=[env.DB.prepare(`UPDATE maliks_pos_supplier_invoices SET status=?,exceptions_json=?,version=version+1,updated_at=?,last_request_id=?,
++  verified_by_email=CASE WHEN ?='VERIFY' THEN ? ELSE verified_by_email END,
++  cancelled_by_email=CASE WHEN ?='CANCEL' THEN ? ELSE cancelled_by_email END
++  WHERE id=? AND lower(branch)=lower(?) AND status=? AND version=? AND NOT EXISTS(SELECT 1 FROM maliks_pos_supplier_invoice_audit WHERE request_id=?)`)
++  .bind(status,JSON.stringify(issues),now,v.request_id,v.action,actor,v.action,actor,v.id,branch,prior.status,v.version,v.request_id)];
++ if(v.action==='VERIFY')for(const line of JSON.parse(prior.lines_json))steps.push(env.DB.prepare(`INSERT INTO maliks_pos_supplier_invoice_allocations(invoice_id,stock_master_id,qty_milli)
++  SELECT id,?,? FROM maliks_pos_supplier_invoices WHERE id=? AND status='VERIFIED' AND version=? AND last_request_id=?`)
++  .bind(line.stock_id,line.qty_milli,v.id,v.version+1,v.request_id));
++ steps.push(env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_supplier_invoice_audit
++  (request_id,invoice_id,branch,action,actor_email,payload_hash,before_json,after_json,created_at)
++  SELECT ?,id,branch,?,?,?,?,?,? FROM maliks_pos_supplier_invoices
++  WHERE id=? AND lower(branch)=lower(?) AND version=? AND last_request_id=?`)
++  .bind(v.request_id,v.action,actor,hash,JSON.stringify(view(prior)),JSON.stringify(after),now,v.id,branch,v.version+1,v.request_id));
++ let outcomes;try{outcomes=await env.DB.batch(steps);}catch(e){return fail('Three-way verification failed; no allocation was posted: '+String(e.message||e).slice(0,130),409);}
++ if(Number(outcomes?.[0]?.meta?.changes)!==1)return fail('Invoice changed. Refresh.',409);
++ const saved=await env.DB.prepare('SELECT * FROM maliks_pos_supplier_invoices WHERE id=?').bind(v.id).first();
++ return ok({invoice:view(saved)});
++}
+diff --git a/maliks-operations/tests/phase13-suite.test.mjs b/maliks-operations/tests/phase13-suite.test.mjs
+index a9f092a..713cd1b 100644
+--- a/maliks-operations/tests/phase13-suite.test.mjs
++++ b/maliks-operations/tests/phase13-suite.test.mjs
+@@ -19,8 +19,8 @@ test('Maliks POS Professional suite retains navigation without Sales',async()=>{
+ test('Reference menus are visible but not falsely connected to financial APIs',async()=>{
+   const page=await html('pos');
+   for(const term of ['Staggered Invoices Dispatch','Branches Synchronization History','Stock Valuations','Till Cash-Up','Sales and Stock Month End','Debtors Invoicing Classifications','Invoices and Debit Notes'])assert.ok(page.includes(term),term);
+-  assert.match(page,/Branch master files, purchasing and controlled stock operations are live/);
+-  assert.match(page,/Supplier invoice and general ledger posting are not yet enabled/);
++  assert.match(page,/Hub-linked stock master, purchasing and controlled stock operations are connected/);
++  assert.match(page,/Financial posting is not yet enabled/);
+   assert.match(page,/separate secure department application/);
+   assert.match(page,/if\(APP==='pos'\)/);
+ });
+diff --git a/maliks-operations/tests/phase15-master-files.test.mjs b/maliks-operations/tests/phase15-master-files.test.mjs
+index 08d216b..f3613b4 100644
+--- a/maliks-operations/tests/phase15-master-files.test.mjs
++++ b/maliks-operations/tests/phase15-master-files.test.mjs
+@@ -21,8 +21,8 @@ const get=(path)=>new Request('https://pos.example'+path);
+ 
+ class LocalD1{
+   constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));
+-    this.sqlite.exec('CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT,name TEXT,category TEXT,active INTEGER);');
+-    this.sqlite.exec('CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER);CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER);');}
++    this.sqlite.exec(`CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT,name TEXT,category TEXT,active INTEGER,updated_at TEXT);INSERT INTO catalogue_products VALUES(10,'ABC123','Test Stock Item','General',1,'2026-11-13');`);
++    this.sqlite.exec('CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);CREATE TABLE price_tag_branch_prices(product_id INTEGER,brand TEXT,branch_name TEXT,price_cents INTEGER);');}
+   prepare(sql){
+     const sqlite=this.sqlite;let params=[];
+     return {bind(...v){params=v;return this;},first(){return sqlite.prepare(sql).get(...params)||null;},
+@@ -85,7 +85,7 @@ test('optimistic versioning and audit of updates; no stale overwrite',async()=>{
+   const audit=await response(await listMasterAudit(get('/v1/master/audit?kind=stock&branch=Branch%20A'),env,context()));
+   assert.equal(audit.body.audit.length,2);assert.equal(audit.body.audit[0].action,'UPDATE');assert.equal(audit.body.audit[0].before.name,'Test Stock Item');
+   const list=await response(await listMasterRecords(get('/v1/master/records?kind=stock&branch=Branch%20A'),env,context()));
+-  assert.equal(list.body.records[0].name,'Renamed Item');
++  assert.equal(list.body.records[0].name,'Test Stock Item');
+ });
+ test('supplier and debtor master files are independently branch scoped and role controlled',async()=>{
+   const env={DB:new LocalD1()};
+@@ -112,7 +112,7 @@ test('the same code is allowed in different branches but not duplicated within a
+   assert.equal(list.body.records.length,1);
+ });
+ test('catalogue is read-only and uses existing product records without inventing SOH',async()=>{
+-  const env={DB:new LocalD1()};env.DB.sqlite.exec("INSERT INTO catalogue_products VALUES(1,'P001','White Tile','Tiles',1),(2,'P002','Other Item','General',0);INSERT INTO powerbuild_price_tags VALUES(1,1),(2,1);");
++  const env={DB:new LocalD1()};env.DB.sqlite.exec("INSERT INTO catalogue_products VALUES(1,'P001','White Tile','Tiles',1,'2026-11-13'),(2,'P002','Other Item','General',0,'2026-11-13');INSERT INTO powerbuild_price_tags(product_id,published) VALUES(1,1),(2,1);");
+   const result=await response(await listMasterCatalogue(get('/v1/master/catalogue?branch=Branch%20A&q=tile'),env,context()));
+   assert.equal(result.status,200);assert.equal(result.body.products.length,1);assert.equal(result.body.read_only,true);assert.equal(result.body.stock_on_hand_available,false);
+ });
+diff --git a/maliks-operations/tests/phase18-stock-catalogue.test.mjs b/maliks-operations/tests/phase18-stock-catalogue.test.mjs
+new file mode 100644
+index 0000000..b41156e
+--- /dev/null
++++ b/maliks-operations/tests/phase18-stock-catalogue.test.mjs
+@@ -0,0 +1,62 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {readFileSync} from 'node:fs';
++import {DatabaseSync} from 'node:sqlite';
++import {listMasterRecords,syncStockCatalogue} from '../src/master-domain.mjs';
++import frontend from '../src/frontend.mjs';
++const owner={active:1,role:'Owner / Admin',email:'admin@example.com',name:'Admin',access_scope:'Full company'};
++const reader={...owner,role:'Executive / EXCO'};
++const ctx=(member=owner,branches=['Branch A'])=>({app:'management',member,branches});
++const get=q=>new Request('https://pos.example/v1/master/records?kind=stock&branch=Branch%20A'+q);
++const uuid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
++const write=(branch='Branch A',n=1)=>new Request('https://pos.example/v1/master/catalogue/sync',{method:'POST',headers:{origin:'https://pos.example','x-maliks-original-origin':'https://pos.example'},body:JSON.stringify({branch,request_id:uuid(n)})});
++class D1{
++ constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));
++  this.sqlite.exec(`CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT UNIQUE,name TEXT,category TEXT,active INTEGER,updated_at TEXT);
++   CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);
++   CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);
++   CREATE TABLE price_tag_branch_prices(product_id INTEGER,brand TEXT,branch_name TEXT,price_cents INTEGER);
++   INSERT INTO catalogue_products VALUES (1,'PAINT001','Blue Paint','Paints',1,'2026-11-13'),(2,'TILE001','Gloss Tile','Tiles',1,'2026-11-13'),(3,'OLD001','Retired Item','General',0,'2026-11-13');
++   INSERT INTO powerbuild_price_tags VALUES (1,1,'EA',20000);`);
++ }
++ prepare(sql){const db=this.sqlite;let args=[];return {bind(...v){args=v;return this;},first(){return db.prepare(sql).get(...args)||null;},all(){return {results:db.prepare(sql).all(...args)};},run(){const r=db.prepare(sql).run(...args);return {meta:{changes:Number(r.changes)}};}};}
++ batch(steps){this.sqlite.exec('BEGIN');try{const r=steps.map(x=>x.run());this.sqlite.exec('COMMIT');return r;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
++}
++const result=async r=>({status:r.status,data:await r.json()});
++test('stock master lists all active Hub catalogue items, including unpublished ones, without a manual master record',async()=>{
++ const env={DB:new D1()};const r=await result(await listMasterRecords(get(''),env,ctx()));assert.equal(r.status,200,JSON.stringify(r.data));
++ assert.equal(r.data.catalogue_source,true);assert.equal(r.data.total,2);assert.deepEqual(r.data.records.map(x=>x.code).sort(),['PAINT001','TILE001']);
++ assert.ok(r.data.records.every(x=>x.linked===false));
++ assert.equal(r.data.records.find(x=>x.code==='PAINT001').details.selling_price_cents,20000);
++ const search=await result(await listMasterRecords(get('&q=tile'),env,ctx()));assert.equal(search.data.records.length,1);assert.equal(search.data.records[0].code,'TILE001');
++});
++test('explicit sync links Hub products to branch master IDs, audits once, preserves Hub and no SOH posting',async()=>{
++ const env={DB:new D1()};const first=await result(await syncStockCatalogue(write(),env,ctx()));assert.equal(first.status,200,JSON.stringify(first.data));assert.equal(first.data.linked,2);
++ const second=await result(await syncStockCatalogue(write('Branch A',2),env,ctx()));assert.equal(second.status,200);assert.equal(second.data.newly_linked,0);
++ const list=await result(await listMasterRecords(get(''),env,ctx()));assert.equal(list.data.records.filter(x=>x.linked).length,2);
++ assert.equal(env.DB.sqlite.prepare("SELECT COUNT(*) n FROM maliks_pos_master_audit WHERE kind='stock'").get().n,2);
++ assert.equal(env.DB.sqlite.prepare("SELECT COUNT(*) n FROM maliks_pos_master_records WHERE branch='Branch A'").get().n,2);
++ assert.equal(env.DB.sqlite.prepare("SELECT name FROM catalogue_products WHERE id=1").get().name,'Blue Paint');
++});
++test('branch permissions and read-only users cannot link stock',async()=>{
++ const env={DB:new D1()};assert.equal((await result(await syncStockCatalogue(write(),env,ctx(reader)))).status,403);
++ assert.equal((await result(await syncStockCatalogue(write(),env,ctx(owner,['Branch B'])))).status,403);
++ assert.equal((await result(await syncStockCatalogue(write(),env,{...ctx(),app:'pos'}))).status,403);
++});
++test('POS frontend exposes link route but Sales frontend cannot access it',async()=>{
++ const env={APP_TYPE:'pos',CORE:{fetch:async()=>Response.json({ok:true})}};
++ const ok=await frontend.fetch(new Request('https://pos.example/api/master/catalogue/sync',{method:'POST',headers:{origin:'https://pos.example','cf-access-jwt-assertion':'test'},body:'{}'}),env);assert.equal(ok.status,200);
++ const denied=await frontend.fetch(new Request('https://sales.example/api/master/catalogue/sync',{method:'POST',headers:{origin:'https://sales.example','cf-access-jwt-assertion':'test'},body:'{}'}),{...env,APP_TYPE:'sales'});assert.equal(denied.status,403);
++});
++test('Hub branch price overrides are read live; POS does not change the catalogue',async()=>{
++ const env={DB:new D1()};env.DB.sqlite.exec("INSERT INTO price_tag_branch_prices VALUES(1,'powerbuild','Branch A',23000)");
++ const before=await result(await listMasterRecords(get('&q=PAINT'),env,ctx()));assert.equal(before.data.records[0].details.selling_price_cents,23000);
++ await syncStockCatalogue(write(),env,ctx());
++ env.DB.sqlite.exec("UPDATE price_tag_branch_prices SET price_cents=25000 WHERE product_id=1");
++ const after=await result(await listMasterRecords(get('&q=PAINT'),env,ctx()));assert.equal(after.data.records[0].details.selling_price_cents,25000);
++});
++test('duplicate Hub catalogue codes differing only by case block branch linking',async()=>{
++ const env={DB:new D1()};env.DB.sqlite.exec("INSERT INTO catalogue_products VALUES(4,'paint001','Duplicate Paint','Paints',1,'2026-11-13')");
++ const r=await result(await syncStockCatalogue(write(),env,ctx()));assert.equal(r.status,409);assert.match(r.data.error,/Duplicate catalogue product code/);
++ assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) n FROM maliks_pos_master_records').get().n,0);
++});
+diff --git a/maliks-operations/tests/phase18-supplier-invoices.test.mjs b/maliks-operations/tests/phase18-supplier-invoices.test.mjs
+new file mode 100644
+index 0000000..ffa7531
+--- /dev/null
++++ b/maliks-operations/tests/phase18-supplier-invoices.test.mjs
+@@ -0,0 +1,84 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {readFileSync} from 'node:fs';
++import {DatabaseSync} from 'node:sqlite';
++import {canUseSupplierInvoice,validateSupplierInvoice,captureSupplierInvoice,listSupplierInvoices,supplierInvoiceAction} from '../src/supplier-invoice-domain.mjs';
++const uuid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
++const finance={active:1,role:'Finance Manager',name:'Finance',email:'finance@example.com'};
++const clerk={active:1,role:'Creditors Clerk',name:'Creditor',email:'creditor@example.com'};
++const outsider={active:1,role:'Sales / Tills',name:'Sales',email:'sales@example.com'};
++const ctx=(member=clerk,branches=['Branch A'])=>({app:'management',member,branches});
++const get=()=>new Request('https://pos.example/v1/supplier-invoices?branch=Branch%20A');
++const write=(path,payload)=>new Request('https://pos.example'+path,{method:'POST',headers:{origin:'https://pos.example','x-maliks-original-origin':'https://pos.example'},body:JSON.stringify(payload)});
++const body=(n,qty=2000,cost=10000)=>({branch:'Branch A',po_id:1,invoice_number:'INV-'+n,invoice_date:'2026-11-13',declared_vat_cents:Math.round(qty*cost/1000*.15),invoice_total_cents:Math.round(qty*cost/1000*1.15),lines:[{stock_id:2,qty_milli:qty,unit_cost_cents:cost}],request_id:uuid(n)});
++const action=(n,id,version,op)=>({branch:'Branch A',id,version,action:op,request_id:uuid(n)});
++class D1{
++ constructor(){this.sqlite=new DatabaseSync(':memory:');
++  for(const name of ['phase15_master_files.sql','phase16_purchase_orders.sql','phase17_inventory_flow.sql','phase18_supplier_invoice_matching.sql'])this.sqlite.exec(readFileSync(new URL('../sql/'+name,import.meta.url),'utf8'));
++  this.sqlite.exec(`INSERT INTO maliks_pos_master_records(id,kind,branch,code,name,active,details_json,version,created_by_email,updated_by_email,created_at,updated_at,create_request_id,create_payload_hash,last_request_id)
++   VALUES (1,'supplier','Branch A','SUP1','Supplier 1',1,'{}',1,'x','x','x','x','a','a','a'),
++          (2,'stock','Branch A','STK1','Stock 1',1,'{"unit":"EA"}',1,'x','x','x','x','b','b','b');
++   INSERT INTO maliks_pos_purchase_orders(id,branch,supplier_master_id,supplier_code,supplier_name,lines_json,total_cents,notes,expected_date,status,version,created_by_email,created_by_name,created_at,updated_at,create_request_id,create_payload_hash,last_request_id)
++   VALUES(1,'Branch A',1,'SUP1','Supplier 1','[{"stock_id":2,"stock_code":"STK1","quantity_milli":5000,"unit_cost_cents":10000}]',50000,'','','APPROVED',3,'buyer@example.com','Buyer','x','x','p','p','p');
++   INSERT INTO maliks_pos_receipts(id,po_id,branch,delivery_note,status,version,counted_by_email,created_at,updated_at,create_request_id,create_hash,last_request_id)
++   VALUES(1,1,'Branch A','DN1','POSTED',3,'receiving@example.com','x','x','r','r','r');
++   INSERT INTO maliks_pos_receipt_lines VALUES(1,2,3000,0);`);
++ }
++ prepare(sql){const db=this.sqlite;let args=[];return {bind(...v){args=v;return this;},first(){return db.prepare(sql).get(...args)||null;},all(){return {results:db.prepare(sql).all(...args)};},run(){const r=db.prepare(sql).run(...args);return {meta:{changes:Number(r.changes)}};}};}
++ batch(steps){this.sqlite.exec('BEGIN');try{const r=steps.map(x=>x.run());this.sqlite.exec('COMMIT');return r;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
++}
++const res=async r=>({status:r.status,data:await r.json()});
++test('finance permissions and invoice validation',()=>{
++ assert.equal(canUseSupplierInvoice(clerk,'capture'),true);assert.equal(canUseSupplierInvoice(clerk,'verify'),false);assert.equal(canUseSupplierInvoice(finance,'verify'),true);
++ assert.equal(canUseSupplierInvoice(outsider),false);assert.equal(validateSupplierInvoice(body(1)).net_cents,20000);
++ assert.throws(()=>validateSupplierInvoice({...body(1),declared_vat_cents:999999}),/total|VAT/);
++ assert.throws(()=>validateSupplierInvoice({...body(1),invoice_total_cents:100}),/total/);
++ assert.throws(()=>validateSupplierInvoice({...body(1),lines:[...body(1).lines,...body(1).lines]}),/Duplicate/);
++});
++test('capture, independent verify and allocate once, with NO AP/VAT/GL posting',async()=>{
++ const env={DB:new D1()};const input=body(1);
++ const created=await res(await captureSupplierInvoice(write('/v1/supplier-invoices',input),env,ctx()));assert.equal(created.status,200,JSON.stringify(created.data));
++ assert.equal(created.data.invoice.status,'MATCHED');assert.equal(created.data.invoice.gross_cents,23000);
++ const replay=await res(await captureSupplierInvoice(write('/v1/supplier-invoices',input),env,ctx()));assert.equal(replay.data.duplicate,true);
++ const sameActor=await res(await supplierInvoiceAction(write('/v1/supplier-invoices/action',action(2,1,1,'VERIFY')),env,ctx(clerk)));assert.equal(sameActor.status,403);
++ const verified=await res(await supplierInvoiceAction(write('/v1/supplier-invoices/action',action(3,1,1,'VERIFY')),env,ctx(finance)));assert.equal(verified.status,200,JSON.stringify(verified.data));
++ assert.equal(verified.data.invoice.status,'VERIFIED');assert.equal(verified.data.invoice.ap_posted,false);assert.equal(verified.data.invoice.vat_claimed,false);
++ const repeated=await res(await supplierInvoiceAction(write('/v1/supplier-invoices/action',action(3,1,1,'VERIFY')),env,ctx(finance)));assert.equal(repeated.data.duplicate,true);
++ assert.equal(env.DB.sqlite.prepare('SELECT SUM(qty_milli) AS qty FROM maliks_pos_supplier_invoice_allocations').get().qty,2000);
++ assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM maliks_pos_supplier_invoice_audit').get().n,2);
++ const list=await res(await listSupplierInvoices(get(),env,ctx(finance)));assert.equal(list.data.invoices.length,1);
++});
++test('no GRV or price mismatch is an exception; recheck can pass after receipt is posted',async()=>{
++ const env={DB:new D1()};env.DB.sqlite.exec("UPDATE maliks_pos_receipts SET status='VERIFIED' WHERE id=1");
++ const created=await res(await captureSupplierInvoice(write('/v1/supplier-invoices',body(11,2000)),env,ctx()));assert.equal(created.data.invoice.status,'EXCEPTION');
++ const blocked=await res(await supplierInvoiceAction(write('/v1/supplier-invoices/action',action(12,1,1,'VERIFY')),env,ctx(finance)));assert.equal(blocked.status,409);
++ env.DB.sqlite.exec("UPDATE maliks_pos_receipts SET status='POSTED' WHERE id=1");
++ const rechecked=await res(await supplierInvoiceAction(write('/v1/supplier-invoices/action',action(13,1,1,'RECHECK')),env,ctx()));assert.equal(rechecked.status,200,JSON.stringify(rechecked.data));assert.equal(rechecked.data.invoice.status,'MATCHED');
++ const verified=await res(await supplierInvoiceAction(write('/v1/supplier-invoices/action',action(14,1,2,'VERIFY')),env,ctx(finance)));assert.equal(verified.status,200);
++ const mismatch=await res(await captureSupplierInvoice(write('/v1/supplier-invoices',body(15,1000,12000)),env,ctx()));assert.equal(mismatch.data.invoice.status,'EXCEPTION');
++});
++test('two invoices cannot allocate more than posted GRV and cancelled invoice number may be recaptured',async()=>{
++ const env={DB:new D1()};await captureSupplierInvoice(write('/v1/supplier-invoices',body(21,2000)),env,ctx());
++ await supplierInvoiceAction(write('/v1/supplier-invoices/action',action(22,1,1,'VERIFY')),env,ctx(finance));
++ const over=await res(await captureSupplierInvoice(write('/v1/supplier-invoices',body(23,2000)),env,ctx()));assert.equal(over.data.invoice.status,'EXCEPTION');
++ assert.equal((await res(await supplierInvoiceAction(write('/v1/supplier-invoices/action',action(24,2,1,'VERIFY')),env,ctx(finance)))).status,409);
++ const cancelled=await res(await supplierInvoiceAction(write('/v1/supplier-invoices/action',action(25,2,1,'CANCEL')),env,ctx()));assert.equal(cancelled.status,200);
++ const duplicateNumber=await res(await captureSupplierInvoice(write('/v1/supplier-invoices',{...body(26,1000),invoice_number:'INV-21'}),env,ctx()));assert.equal(duplicateNumber.status,409);
++ const recycled=await res(await captureSupplierInvoice(write('/v1/supplier-invoices',{...body(27,1000),invoice_number:'INV-23'}),env,ctx()));assert.equal(recycled.status,200);
++ assert.equal(recycled.data.invoice.status,'MATCHED');
++});
++test('supplier invoice writes are branch-scoped and management-only',async()=>{
++ const env={DB:new D1()};assert.equal((await res(await captureSupplierInvoice(write('/v1/supplier-invoices',body(31)),env,ctx(outsider)))).status,403);
++ assert.equal((await res(await captureSupplierInvoice(write('/v1/supplier-invoices',body(32)),env,ctx(clerk,['Branch B'])))).status,403);
++ assert.equal((await res(await captureSupplierInvoice(write('/v1/supplier-invoices',body(33)),env,{...ctx(),app:'pos'}))).status,403);
++ assert.equal((await res(await listSupplierInvoices(get(),env,ctx(clerk,['Branch B'])))).status,403);
++});
++test('verification rechecks quantities after another matched invoice is verified',async()=>{
++ const env={DB:new D1()};
++ const a=await res(await captureSupplierInvoice(write('/v1/supplier-invoices',body(41,2000)),env,ctx()));
++ const b=await res(await captureSupplierInvoice(write('/v1/supplier-invoices',body(42,2000)),env,ctx()));
++ assert.equal(a.data.invoice.status,'MATCHED');assert.equal(b.data.invoice.status,'MATCHED');
++ assert.equal((await res(await supplierInvoiceAction(write('/v1/supplier-invoices/action',action(43,1,1,'VERIFY')),env,ctx(finance)))).status,200);
++ assert.equal((await res(await supplierInvoiceAction(write('/v1/supplier-invoices/action',action(44,2,1,'VERIFY')),env,ctx(finance)))).status,409);
++ assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) n FROM maliks_pos_supplier_invoice_allocations').get().n,1);
++});
