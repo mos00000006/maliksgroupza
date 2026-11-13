@@ -12,12 +12,13 @@ import {listMasterRecords,listMasterAudit,listMasterCatalogue,syncStockCatalogue
 import {canUsePurchase,listPurchaseOrders,purchaseAudit,savePurchaseOrder,actionPurchaseOrder} from './purchase-domain.mjs';
 import {canUseSupplierInvoice,listSupplierInvoices,captureSupplierInvoice,supplierInvoiceAction} from './supplier-invoice-domain.mjs';
 import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
+import {canManageTeam,listTeam,changeTeam} from './team-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
 const result=(json,status=200)=>Response.json(json,{status,headers:HEADERS});
 const securityCache = new Map();
-const accessVars={pos:'ACCESS_AUD_POS',management:'ACCESS_AUD_POS',tills:'ACCESS_AUD_TILLS',cashoffice:'ACCESS_AUD_CASHOFFICE',dispatch:'ACCESS_AUD_DISPATCH'};
+const accessVars={pos:'ACCESS_AUD_POS',management:'ACCESS_AUD_POS',tills:'ACCESS_AUD_TILLS',cashoffice:'ACCESS_AUD_CASHOFFICE',dispatch:'ACCESS_AUD_DISPATCH',member:'ACCESS_AUD_MEMBER'};
 
 async function identity(request,env) {
   const app=request.headers.get('x-maliks-app');
@@ -40,7 +41,15 @@ async function memberAndBranches(env,email,app){
     FROM team_members WHERE lower(email)=? AND active=1 LIMIT 1`).bind(email).first();
   if(!canUseApp(member,app))return null;
   const {results}=await env.DB.prepare("SELECT name FROM workspaces WHERE type='Store' AND active=1 ORDER BY name").all();
-  const branches=allowedBranches(member,results.map(r=>r.name));
+  let branches=allowedBranches(member,results.map(r=>r.name));
+  // A store salesperson must never inherit access to other branches from a malformed Hub assignment.
+  if(app==='pos'&&!['Owner / Admin','Developer / Technical Admin','Store Manager','Regional Manager','Operations Manager'].includes(member.role)){
+    branches=branches.filter(b=>b.toLowerCase()===String(member.department||'').toLowerCase());
+  }
+  // A store manager's Member Team access is strictly limited to their own store.
+  if(app==='member'&&member.role==='Store Manager'){
+    branches=branches.filter(b=>b.toLowerCase()===String(member.department||'').toLowerCase());
+  }
   return branches.length ? {member,branches} : null;
 }
 
@@ -452,13 +461,16 @@ export default {
       if(!access)return denied('No active department and branch assignment.');
       const context={...access,app:auth.app};
       if(path==='/v1/session'&&req.method==='GET')return result({
-        app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
+        app:auth.app,user:{name:access.member.name,role:access.member.role,email:access.member.email},branches:access.branches,
+        team_permissions:auth.app==='member'?{manage:canManageTeam(access.member)}:undefined,
         master_permissions:auth.app==='management'?Object.fromEntries(MASTER_KINDS.map(k=>[k,{read:canUseMaster(access.member,k),write:canUseMaster(access.member,k,true)}])):undefined,
         purchase_permissions:auth.app==='management'?{read:canUsePurchase(access.member),write:canUsePurchase(access.member,'write'),approve:canUsePurchase(access.member,'approve')}:undefined,
         supplier_invoice_permissions:auth.app==='management'?Object.fromEntries(['read','capture','verify'].map(k=>[k,canUseSupplierInvoice(access.member,k)])):undefined,
         inventory_permissions:auth.app==='management'?Object.fromEntries(['read','count','verify','post','packCheck','transfer','approveTransfer'].map(k=>[k,canUseInventory(access.member,k)])):undefined,
-        mode:auth.app==='management'?'MASTER_FILES':auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
+        mode:auth.app==='member'?'MEMBER_TEAM':auth.app==='management'?'MASTER_FILES':auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
       });
+      if(path==='/v1/team'&&req.method==='GET')return await listTeam(req,env,context);
+      if(path==='/v1/team/change'&&req.method==='POST')return await changeTeam(req,env,context);
       if(path==='/v1/master/records'&&req.method==='GET')return await listMasterRecords(req,env,context);
       if(path==='/v1/master/records'&&req.method==='POST')return await saveMasterRecord(req,env,context);
       if(path==='/v1/master/audit'&&req.method==='GET')return await listMasterAudit(req,env,context);

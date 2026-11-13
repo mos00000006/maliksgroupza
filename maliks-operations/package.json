@@ -24,7 +24,9 @@
     "migrate:phase16": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase16_purchase_orders.sql --config .generated/core.json",
     "migrate:phase15": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase15_master_files.sql --config .generated/core.json",
     "migrate:phase9": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase9_paid_sales_dispatch.sql --config .generated/core.json",
-    "migrate:phase18": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase18_supplier_invoice_matching.sql --config .generated/core.json"
+    "migrate:phase18": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase18_supplier_invoice_matching.sql --config .generated/core.json",
+    "migrate:phase19": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase19_member_team.sql --config .generated/core.json",
+    "deploy:member": "wrangler deploy --config .generated/member.json"
   },
   "dependencies": {
     "jose": "^6.1.0"

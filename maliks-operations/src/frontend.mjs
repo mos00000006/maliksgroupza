@@ -7,6 +7,7 @@ const APPS={
   sales:{name:'Maliks Sales',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
   tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Cash or card: cashier confirms receipt and sends paid internal invoice directly to Dispatch. Bank/terminal integration remains separate.'},
   cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Audit cashier-confirmed Cash/Card payments and independently verify legacy or EFT payment requests.'},
+  member:{name:'Maliks Member Team',subtitle:'Employee Access & Store Assignments',hint:'Managers may add and deactivate employees only in their authorised stores. Access is audited.'},
   dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',hint:'Confirmed paid invoices appear in the dispatch queue. Picking and independent checking are recorded; stock posting, exit release and driver POD are not yet integrated.'},
 };
 // Phase 14: The Professional accounting suite and Sales are separate Workers.
@@ -80,7 +81,7 @@ function page(app){
  const d=APPS[app];
  const suiteShell=app==='pos';
  const salesShell=app==='sales';
- const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':salesShell?'SALES · QUOTATIONS':'ACCOUNTING & POS SOLUTIONS';
+ const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':app==='member'?'TEAM · STORE ACCESS':salesShell?'SALES · QUOTATIONS':'ACCOUNTING & POS SOLUTIONS';
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
  <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="#102a4b"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
@@ -215,6 +216,7 @@ function page(app){
  <div id="app-content"></div>
  </main></div><script type="module">
  const APP=${JSON.stringify(app)};
+ const MEMBER_TEAM_URL='https://maliks-member-team.moyanamoses006.workers.dev';
  const SUITE_NAV=${JSON.stringify(SUITE_NAV)};
  const SUITE_MENU_TREE=${JSON.stringify(SUITE_MENU_TREE)};
  const SUITE_TITLES=${JSON.stringify(SUITE_TITLES)};
@@ -228,7 +230,7 @@ function page(app){
  const showDate=value=>{if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?value:new Intl.DateTimeFormat('en-ZA',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Johannesburg'}).format(d);};
  const calcBasket=()=>{const total=basket.reduce((s,l)=>s+Math.round(l.product.price_cents*l.quantity),0);const vat=Math.round(total*15/115);return {total,vat,net:total-vat};};
  let branch='',basket=[],pendingQuote=null,recentQuotes=[],quoteRows=[],pendingShiftAction=null,pendingReviewAction=null,pendingTenderAction=null;
- let suiteView='home';
+ let suiteView='home',currentUserEmail='';
  let suiteSalesDraft={customer:'',contact:'',notes:''};
  function selectBranch(){
    const incoming=E('branch').value;
@@ -1590,6 +1592,7 @@ function page(app){
      for(const item of items){
        const b=h('button',item,'suite-menu-action');b.type='button';
        b.addEventListener('click',()=>{
+         if(id==='system'&&['User Permissions','Branch Access'].includes(item)){window.location.assign(MEMBER_TEAM_URL);return;}
          const masterKind=id==='stock'&&item==='Stock Master'?'stock':id==='suppliers'&&item==='Suppliers'?'supplier':id==='debtors'&&item==='Debtors'?'debtor':null;
          if(masterKind){suiteMasterView(masterKind);return;}
          if(item==='Purchase Orders'&&(id==='stock'||id==='suppliers')){suitePurchaseOrders();return;}
@@ -1625,18 +1628,72 @@ function page(app){
    if(!['home',...Object.keys(SUITE_MENU_TREE)].includes(id))return;
    suiteView=id;draw();window.scrollTo({top:0,behavior:'auto'});
  }
+ function teamView(){
+   const root=E('app-content');
+   const main=panel('Employees and store access');
+   main.append(h('p','Add staff to their correct branch, or deactivate staff who have left. Deactivation blocks Maliks department API access immediately.','muted'));
+   const toolbar=h('div',undefined,'bar');const refresh=h('button','Refresh employees','secondary');
+   refresh.addEventListener('click',()=>void loadTeam());toolbar.append(refresh);main.append(toolbar);
+   const form=h('form');form.autocomplete='off';const fields=h('div',undefined,'bar');
+   const field=(title,type)=>{const wrap=h('div');const lab=h('label',title);const inp=h('input');inp.type=type;inp.required=true;wrap.append(lab,inp);fields.append(wrap);return inp;};
+   const name=field('Employee full name','text');name.maxLength=120;
+   const email=field('Employee login email','email');email.maxLength=150;
+   const roleWrap=h('div');roleWrap.append(h('label','Department role'));const role=h('select');roleWrap.append(role);fields.append(roleWrap);
+   const save=h('button','Add employee');save.type='submit';form.append(fields,save);
+   form.addEventListener('submit',async e=>{
+     e.preventDefault();if(!window.confirm('Add '+name.value+' to '+branch+' with '+role.value+' access?'))return;
+     save.disabled=true;err('');
+     try{await api('/api/team/change',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'CREATE',branch,name:name.value,email:email.value,role:role.value,request_id:crypto.randomUUID()})});
+       name.value='';email.value='';await loadTeam();}
+     catch(ex){err(ex.message);}finally{save.disabled=false;}
+   });main.append(form);
+   const status=h('p','Loading employees…','muted');status.id='team-status';main.append(status);
+   const list=h('div');list.id='team-list';main.append(list);
+   const audit=h('div');audit.id='team-audit';main.append(audit);root.append(main);
+   async function loadTeam(){
+     const selected=branch;status.textContent='Loading employees…';
+     try{const data=await api('/api/team?branch='+encodeURIComponent(selected));if(branch!==selected||!E('team-list'))return;
+       role.replaceChildren();for(const r of data.can_assign_roles||[]){const o=h('option',r);o.value=r;role.append(o);}
+       list.replaceChildren();const tbl=h('table');const head=h('tr');for(const title of ['Name','Email','Role','Status','Action'])cell(head,title,'th');tbl.append(head);
+       for(const person of data.staff||[]){const row=h('tr');
+         for(const value of [person.name,person.email,person.role,person.active?'Active':'Inactive'])cell(row,value);
+         const action=h('td');
+         if(person.active&&person.email.toLowerCase()!==currentUserEmail){
+           const b=h('button','Deactivate','secondary small-btn');b.addEventListener('click',()=>void changeStatus(person,'DEACTIVATE',b));action.append(b);
+         }else if(!person.active&&data.can_reactivate){
+           const b=h('button','Reactivate','secondary small-btn');b.addEventListener('click',()=>void changeStatus(person,'REACTIVATE',b));action.append(b);
+         }
+         row.append(action);tbl.append(row);
+       }
+       const scroll=h('div',undefined,'scroll');scroll.append(tbl);list.append(scroll);
+       status.textContent=String((data.staff||[]).length)+' employee records · '+selected;
+       audit.replaceChildren(h('h3','Recent staff access changes'));
+       const a=h('ul');for(const event of data.audit||[])a.append(h('li',event.action+' · '+event.member_email+' · '+event.actor_email+' · '+showDate(event.created_at)));
+       audit.append(a);
+     }catch(ex){status.textContent='Could not load employees';err(ex.message);}
+   }
+   async function changeStatus(person,action,btn){
+     if(!window.confirm((action==='DEACTIVATE'?'Remove access for ':'Reactivate ')+person.name+' at '+branch+'?'))return;
+     btn.disabled=true;err('');try{
+       await api('/api/team/change',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,branch,member_id:person.id,request_id:crypto.randomUUID()})});
+       await loadTeam();
+     }catch(ex){err(ex.message);btn.disabled=false;}
+   }
+   void loadTeam();
+ }
  function draw(){
    E('app-content').replaceChildren();err('');
    if(APP==='pos'){
      if(suiteView==='home')suiteHome();else suiteModuleView(suiteView);
      updateSuiteUI();
-   }else if(APP==='sales')posView();else if(APP==='dispatch')dispatchView();else void quoteView();
+   }else if(APP==='member')teamView();else if(APP==='sales')posView();else if(APP==='dispatch')dispatchView();else void quoteView();
  }
 
  try{
-   const session=await api('/api/session');masterPermissions=session.master_permissions||{};purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};E('signed-in').textContent=session.user.name+' · '+session.user.role;
-   E('access').textContent=session.branches.length+' assigned branch(es)'+(['pos','sales'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
-   for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=false;branch=select.value;select.addEventListener('change',selectBranch);
+   const session=await api('/api/session');masterPermissions=session.master_permissions||{};purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};currentUserEmail=String(session.user.email||'').toLowerCase();E('signed-in').textContent=APP==='sales'?session.user.name:session.user.name+' · '+session.user.role;
+   E('access').textContent=APP==='sales'?session.branches.join(', '):session.branches.length+' assigned branch(es)'+(['pos','member'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
+   for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=APP==='sales'&&session.branches.length===1;branch=select.value;select.addEventListener('change',selectBranch);
+   if(APP==='sales'){E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;const label=document.querySelector('label[for=branch]');if(label)label.textContent='Store';}
    if(APP==='pos'){
      E('suite-user').textContent=session.user.name+' · '+session.user.role;
      for(const btn of E('suite-navigation').querySelectorAll('[data-suite-module]'))btn.addEventListener('click',()=>setSuiteView(btn.dataset.suiteModule));
@@ -1658,14 +1715,19 @@ export default {
      '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
      '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue','/api/master/catalogue/sync':'/v1/master/catalogue/sync',
      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
-     '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action','/api/supplier-invoices':'/v1/supplier-invoices','/api/supplier-invoices/action':'/v1/supplier-invoices/action'};
+     '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action','/api/supplier-invoices':'/v1/supplier-invoices','/api/supplier-invoices/action':'/v1/supplier-invoices/action',
+     '/api/team':'/v1/team','/api/team/change':'/v1/team/change'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if((path==='/v1/team'&&req.method!=='GET')||(path==='/v1/team/change'&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // The Professional suite cannot submit Sales transactions through its old POS origin.
    if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
+   // The Member Team Worker is isolated from POS, payments and sales.
+   if(kind==='member' && !['/v1/session','/v1/team','/v1/team/change'].includes(path))return Response.json({error:'Team app only.'},{status:403});
+   if(kind!=='member' && path.startsWith('/v1/team'))return Response.json({error:'Team app only.'},{status:403});
    // The dedicated Sales Worker may only access the quotation/catalogue APIs.
    if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
    // Department rules enforced here as an early deny and again by the private Core.

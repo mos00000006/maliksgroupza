@@ -28,7 +28,7 @@ const ctx=(app,user,branches=['Buster Build'])=>({app,member:{email:user,name:us
 const post=(route,body)=>new Request('https://tills.example.test'+route,{method:'POST',headers:{origin:'https://tills.example.test','x-maliks-original-origin':'https://tills.example.test'},body:JSON.stringify(body)});
 const get=(route)=>new Request('https://tills.example.test'+route);
 const data=async response=>({status:response.status,body:await response.json()});
-const payment={request_id:guid(1),branch:'Buster Build',quotation_number:'q000000001',shift_id:1,cash_cents:4000,cash_received_cents:5000,card_cents:3500,card_reference:'TERM-7850',eft_cents:2500,eft_reference:'EFT-4482'};
+const payment={request_id:guid(1),branch:'Buster Build',quotation_number:'Q-00000001',shift_id:1,cash_cents:4000,cash_received_cents:5000,card_cents:3500,card_reference:'TERM-7850',eft_cents:2500,eft_reference:'EFT-4482'};
 
 // Core validation tests
  test('valid split totals and references are required',()=>{

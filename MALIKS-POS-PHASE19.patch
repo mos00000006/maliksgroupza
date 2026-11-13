@@ -1,0 +1,610 @@
+diff --git a/.github/workflows/deploy-maliks-operations.yml b/.github/workflows/deploy-maliks-operations.yml
+index 5ff0222..f2d572b 100644
+--- a/.github/workflows/deploy-maliks-operations.yml
++++ b/.github/workflows/deploy-maliks-operations.yml
+@@ -25,6 +25,7 @@ jobs:
+       CF_ACCESS_AUD_TILLS: ${{ secrets.CF_ACCESS_AUD_TILLS }}
+       CF_ACCESS_AUD_CASHOFFICE: ${{ secrets.CF_ACCESS_AUD_CASHOFFICE }}
+       CF_ACCESS_AUD_DISPATCH: ${{ secrets.CF_ACCESS_AUD_DISPATCH }}
++      CF_ACCESS_AUD_MEMBER: ${{ secrets.CF_ACCESS_AUD_MEMBER }}
+       MALIKS_P9_APPROVAL_ENABLED: ${{ vars.MALIKS_P9_APPROVAL_ENABLED }}
+     defaults:
+       run:
+@@ -71,12 +72,16 @@ jobs:
+         run: npm run migrate:phase17
+       - name: Apply supplier invoice three-way matching schema (Phase 18)
+         run: npm run migrate:phase18
++      - name: Apply Member Team staff audit schema (Phase 19)
++        run: npm run migrate:phase19
+       - name: Deploy central API — private Worker
+         run: npm run deploy:core
+       - name: Deploy Maliks POS Professional (management suite)
+         run: npm run deploy:pos
+       - name: Deploy Maliks Sales (separate Worker)
+         run: npm run deploy:sales
++      - name: Deploy Maliks Member Team (separate Worker)
++        run: npm run deploy:member
+       - name: Deploy Tills
+         run: npm run deploy:tills
+       - name: Deploy Cash Office
+diff --git a/maliks-operations/package.json b/maliks-operations/package.json
+index 0c7352c..619b7da 100644
+--- a/maliks-operations/package.json
++++ b/maliks-operations/package.json
+@@ -24,7 +24,9 @@
+     "migrate:phase16": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase16_purchase_orders.sql --config .generated/core.json",
+     "migrate:phase15": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase15_master_files.sql --config .generated/core.json",
+     "migrate:phase9": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase9_paid_sales_dispatch.sql --config .generated/core.json",
+-    "migrate:phase18": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase18_supplier_invoice_matching.sql --config .generated/core.json"
++    "migrate:phase18": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase18_supplier_invoice_matching.sql --config .generated/core.json",
++    "migrate:phase19": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase19_member_team.sql --config .generated/core.json",
++    "deploy:member": "wrangler deploy --config .generated/member.json"
+   },
+   "dependencies": {
+     "jose": "^6.1.0"
+diff --git a/maliks-operations/scripts/make-config.mjs b/maliks-operations/scripts/make-config.mjs
+index ed498a9..7cc31d4 100644
+--- a/maliks-operations/scripts/make-config.mjs
++++ b/maliks-operations/scripts/make-config.mjs
+@@ -21,7 +21,7 @@ const issuer='https://'+normalizedHost;
+ console.log('Cloudflare Access Team domain validated (value hidden).');
+ // The separate Sales Worker reuses the existing POS Access audience.
+ // Add its hostname to the SAME Cloudflare Access application before deployment.
+-const apps={pos:'CF_ACCESS_AUD_POS',sales:'CF_ACCESS_AUD_POS',tills:'CF_ACCESS_AUD_TILLS',cashoffice:'CF_ACCESS_AUD_CASHOFFICE',dispatch:'CF_ACCESS_AUD_DISPATCH'};
++const apps={pos:'CF_ACCESS_AUD_POS',sales:'CF_ACCESS_AUD_POS',tills:'CF_ACCESS_AUD_TILLS',cashoffice:'CF_ACCESS_AUD_CASHOFFICE',dispatch:'CF_ACCESS_AUD_DISPATCH',member:'CF_ACCESS_AUD_MEMBER'};
+ if(!uuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid))throw Error('MALIKS_GROUP_D1_DATABASE_ID must be an existing D1 database UUID.');
+ for(const [app,key] of Object.entries(apps)){if(!process.env[key]?.trim())throw Error('Missing Cloudflare Access application AUD: '+key+' ('+app+')');}
+ const date='2026-11-09';
+@@ -31,12 +31,13 @@ const core={...common,name:'maliks-core-api',main:'../src/core.mjs',workers_dev:
+  vars:{CF_ACCESS_TEAM_DOMAIN:issuer,
+   ACCESS_AUD_POS:process.env.CF_ACCESS_AUD_POS.trim(),ACCESS_AUD_TILLS:process.env.CF_ACCESS_AUD_TILLS.trim(),
+   ACCESS_AUD_CASHOFFICE:process.env.CF_ACCESS_AUD_CASHOFFICE.trim(),ACCESS_AUD_DISPATCH:process.env.CF_ACCESS_AUD_DISPATCH.trim(),
++  ACCESS_AUD_MEMBER:process.env.CF_ACCESS_AUD_MEMBER.trim(),
+   P9_APPROVAL_ENABLED:process.env.MALIKS_P9_APPROVAL_ENABLED==='true'?'true':'false'},
+  d1_databases:[{binding:'DB',database_name:'maliks-group-hub-db',database_id:uuid}]};
+ await writeFile(path.join(out,'core.json'),JSON.stringify(core,null,2)+'\n',{mode:0o600});
+ for(const app of Object.keys(apps)){
+- const config={...common,name:'maliks-'+(app==='cashoffice'?'cash-office':app),main:'../src/frontend.mjs',workers_dev:true,
++ const config={...common,name:'maliks-'+(app==='cashoffice'?'cash-office':app==='member'?'member-team':app),main:'../src/frontend.mjs',workers_dev:true,
+    vars:{APP_TYPE:app},services:[{binding:'CORE',service:'maliks-core-api'}]};
+  await writeFile(path.join(out,app+'.json'),JSON.stringify(config,null,2)+'\n',{mode:0o600});
+ }
+-console.log('Created six deployment configurations. Run deploy:core first, then each department Worker.');
++console.log('Created seven deployment configurations. Run deploy:core first, then each department Worker.');
+diff --git a/maliks-operations/sql/phase19_member_team.sql b/maliks-operations/sql/phase19_member_team.sql
+new file mode 100644
+index 0000000..391bd52
+--- /dev/null
++++ b/maliks-operations/sql/phase19_member_team.sql
+@@ -0,0 +1,20 @@
++-- Phase 19: auditable, branch-scoped employee lifecycle.
++-- Existing Hub team_members and workspaces remain the source of truth.
++-- No deletion of staff or alterations to historical Hub records.
++CREATE TABLE IF NOT EXISTS maliks_member_team_audit (
++  id INTEGER PRIMARY KEY AUTOINCREMENT,
++  request_id TEXT NOT NULL UNIQUE,
++  payload_hash TEXT NOT NULL,
++  action TEXT NOT NULL CHECK(action IN ('CREATE','DEACTIVATE','REACTIVATE')),
++  member_id INTEGER NOT NULL,
++  member_email TEXT NOT NULL,
++  branch TEXT NOT NULL,
++  actor_email TEXT NOT NULL,
++  before_json TEXT NOT NULL,
++  after_json TEXT NOT NULL,
++  created_at TEXT NOT NULL
++);
++CREATE INDEX IF NOT EXISTS maliks_member_team_audit_branch_idx
++  ON maliks_member_team_audit(branch,created_at DESC);
++CREATE INDEX IF NOT EXISTS maliks_member_team_audit_member_idx
++  ON maliks_member_team_audit(member_id,created_at DESC);
+diff --git a/maliks-operations/src/core.mjs b/maliks-operations/src/core.mjs
+index 907585a..60a55a3 100644
+--- a/maliks-operations/src/core.mjs
++++ b/maliks-operations/src/core.mjs
+@@ -12,12 +12,13 @@ import {listMasterRecords,listMasterAudit,listMasterCatalogue,syncStockCatalogue
+ import {canUsePurchase,listPurchaseOrders,purchaseAudit,savePurchaseOrder,actionPurchaseOrder} from './purchase-domain.mjs';
+ import {canUseSupplierInvoice,listSupplierInvoices,captureSupplierInvoice,supplierInvoiceAction} from './supplier-invoice-domain.mjs';
+ import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
++import {canManageTeam,listTeam,changeTeam} from './team-domain.mjs';
+ 
+ const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
+ const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
+ const result=(json,status=200)=>Response.json(json,{status,headers:HEADERS});
+ const securityCache = new Map();
+-const accessVars={pos:'ACCESS_AUD_POS',management:'ACCESS_AUD_POS',tills:'ACCESS_AUD_TILLS',cashoffice:'ACCESS_AUD_CASHOFFICE',dispatch:'ACCESS_AUD_DISPATCH'};
++const accessVars={pos:'ACCESS_AUD_POS',management:'ACCESS_AUD_POS',tills:'ACCESS_AUD_TILLS',cashoffice:'ACCESS_AUD_CASHOFFICE',dispatch:'ACCESS_AUD_DISPATCH',member:'ACCESS_AUD_MEMBER'};
+ 
+ async function identity(request,env) {
+   const app=request.headers.get('x-maliks-app');
+@@ -40,7 +41,15 @@ async function memberAndBranches(env,email,app){
+     FROM team_members WHERE lower(email)=? AND active=1 LIMIT 1`).bind(email).first();
+   if(!canUseApp(member,app))return null;
+   const {results}=await env.DB.prepare("SELECT name FROM workspaces WHERE type='Store' AND active=1 ORDER BY name").all();
+-  const branches=allowedBranches(member,results.map(r=>r.name));
++  let branches=allowedBranches(member,results.map(r=>r.name));
++  // A store salesperson must never inherit access to other branches from a malformed Hub assignment.
++  if(app==='pos'&&!['Owner / Admin','Developer / Technical Admin','Store Manager','Regional Manager','Operations Manager'].includes(member.role)){
++    branches=branches.filter(b=>b.toLowerCase()===String(member.department||'').toLowerCase());
++  }
++  // A store manager's Member Team access is strictly limited to their own store.
++  if(app==='member'&&member.role==='Store Manager'){
++    branches=branches.filter(b=>b.toLowerCase()===String(member.department||'').toLowerCase());
++  }
+   return branches.length ? {member,branches} : null;
+ }
+ 
+@@ -452,13 +461,16 @@ export default {
+       if(!access)return denied('No active department and branch assignment.');
+       const context={...access,app:auth.app};
+       if(path==='/v1/session'&&req.method==='GET')return result({
+-        app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
++        app:auth.app,user:{name:access.member.name,role:access.member.role,email:access.member.email},branches:access.branches,
++        team_permissions:auth.app==='member'?{manage:canManageTeam(access.member)}:undefined,
+         master_permissions:auth.app==='management'?Object.fromEntries(MASTER_KINDS.map(k=>[k,{read:canUseMaster(access.member,k),write:canUseMaster(access.member,k,true)}])):undefined,
+         purchase_permissions:auth.app==='management'?{read:canUsePurchase(access.member),write:canUsePurchase(access.member,'write'),approve:canUsePurchase(access.member,'approve')}:undefined,
+         supplier_invoice_permissions:auth.app==='management'?Object.fromEntries(['read','capture','verify'].map(k=>[k,canUseSupplierInvoice(access.member,k)])):undefined,
+         inventory_permissions:auth.app==='management'?Object.fromEntries(['read','count','verify','post','packCheck','transfer','approveTransfer'].map(k=>[k,canUseInventory(access.member,k)])):undefined,
+-        mode:auth.app==='management'?'MASTER_FILES':auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
++        mode:auth.app==='member'?'MEMBER_TEAM':auth.app==='management'?'MASTER_FILES':auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
+       });
++      if(path==='/v1/team'&&req.method==='GET')return await listTeam(req,env,context);
++      if(path==='/v1/team/change'&&req.method==='POST')return await changeTeam(req,env,context);
+       if(path==='/v1/master/records'&&req.method==='GET')return await listMasterRecords(req,env,context);
+       if(path==='/v1/master/records'&&req.method==='POST')return await saveMasterRecord(req,env,context);
+       if(path==='/v1/master/audit'&&req.method==='GET')return await listMasterAudit(req,env,context);
+diff --git a/maliks-operations/src/frontend.mjs b/maliks-operations/src/frontend.mjs
+index 15d3b8d..7b5c25c 100644
+--- a/maliks-operations/src/frontend.mjs
++++ b/maliks-operations/src/frontend.mjs
+@@ -7,6 +7,7 @@ const APPS={
+   sales:{name:'Maliks Sales',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
+   tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Cash or card: cashier confirms receipt and sends paid internal invoice directly to Dispatch. Bank/terminal integration remains separate.'},
+   cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Audit cashier-confirmed Cash/Card payments and independently verify legacy or EFT payment requests.'},
++  member:{name:'Maliks Member Team',subtitle:'Employee Access & Store Assignments',hint:'Managers may add and deactivate employees only in their authorised stores. Access is audited.'},
+   dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',hint:'Confirmed paid invoices appear in the dispatch queue. Picking and independent checking are recorded; stock posting, exit release and driver POD are not yet integrated.'},
+ };
+ // Phase 14: The Professional accounting suite and Sales are separate Workers.
+@@ -80,7 +81,7 @@ function page(app){
+  const d=APPS[app];
+  const suiteShell=app==='pos';
+  const salesShell=app==='sales';
+- const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':salesShell?'SALES · QUOTATIONS':'ACCOUNTING & POS SOLUTIONS';
++ const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':app==='member'?'TEAM · STORE ACCESS':salesShell?'SALES · QUOTATIONS':'ACCOUNTING & POS SOLUTIONS';
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="#102a4b"/><style>
+  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
+@@ -215,6 +216,7 @@ function page(app){
+  <div id="app-content"></div>
+  </main></div><script type="module">
+  const APP=${JSON.stringify(app)};
++ const MEMBER_TEAM_URL='https://maliks-member-team.moyanamoses006.workers.dev';
+  const SUITE_NAV=${JSON.stringify(SUITE_NAV)};
+  const SUITE_MENU_TREE=${JSON.stringify(SUITE_MENU_TREE)};
+  const SUITE_TITLES=${JSON.stringify(SUITE_TITLES)};
+@@ -228,7 +230,7 @@ function page(app){
+  const showDate=value=>{if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?value:new Intl.DateTimeFormat('en-ZA',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Johannesburg'}).format(d);};
+  const calcBasket=()=>{const total=basket.reduce((s,l)=>s+Math.round(l.product.price_cents*l.quantity),0);const vat=Math.round(total*15/115);return {total,vat,net:total-vat};};
+  let branch='',basket=[],pendingQuote=null,recentQuotes=[],quoteRows=[],pendingShiftAction=null,pendingReviewAction=null,pendingTenderAction=null;
+- let suiteView='home';
++ let suiteView='home',currentUserEmail='';
+  let suiteSalesDraft={customer:'',contact:'',notes:''};
+  function selectBranch(){
+    const incoming=E('branch').value;
+@@ -1590,6 +1592,7 @@ function page(app){
+      for(const item of items){
+        const b=h('button',item,'suite-menu-action');b.type='button';
+        b.addEventListener('click',()=>{
++         if(id==='system'&&['User Permissions','Branch Access'].includes(item)){window.location.assign(MEMBER_TEAM_URL);return;}
+          const masterKind=id==='stock'&&item==='Stock Master'?'stock':id==='suppliers'&&item==='Suppliers'?'supplier':id==='debtors'&&item==='Debtors'?'debtor':null;
+          if(masterKind){suiteMasterView(masterKind);return;}
+          if(item==='Purchase Orders'&&(id==='stock'||id==='suppliers')){suitePurchaseOrders();return;}
+@@ -1625,18 +1628,72 @@ function page(app){
+    if(!['home',...Object.keys(SUITE_MENU_TREE)].includes(id))return;
+    suiteView=id;draw();window.scrollTo({top:0,behavior:'auto'});
+  }
++ function teamView(){
++   const root=E('app-content');
++   const main=panel('Employees and store access');
++   main.append(h('p','Add staff to their correct branch, or deactivate staff who have left. Deactivation blocks Maliks department API access immediately.','muted'));
++   const toolbar=h('div',undefined,'bar');const refresh=h('button','Refresh employees','secondary');
++   refresh.addEventListener('click',()=>void loadTeam());toolbar.append(refresh);main.append(toolbar);
++   const form=h('form');form.autocomplete='off';const fields=h('div',undefined,'bar');
++   const field=(title,type)=>{const wrap=h('div');const lab=h('label',title);const inp=h('input');inp.type=type;inp.required=true;wrap.append(lab,inp);fields.append(wrap);return inp;};
++   const name=field('Employee full name','text');name.maxLength=120;
++   const email=field('Employee login email','email');email.maxLength=150;
++   const roleWrap=h('div');roleWrap.append(h('label','Department role'));const role=h('select');roleWrap.append(role);fields.append(roleWrap);
++   const save=h('button','Add employee');save.type='submit';form.append(fields,save);
++   form.addEventListener('submit',async e=>{
++     e.preventDefault();if(!window.confirm('Add '+name.value+' to '+branch+' with '+role.value+' access?'))return;
++     save.disabled=true;err('');
++     try{await api('/api/team/change',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'CREATE',branch,name:name.value,email:email.value,role:role.value,request_id:crypto.randomUUID()})});
++       name.value='';email.value='';await loadTeam();}
++     catch(ex){err(ex.message);}finally{save.disabled=false;}
++   });main.append(form);
++   const status=h('p','Loading employees…','muted');status.id='team-status';main.append(status);
++   const list=h('div');list.id='team-list';main.append(list);
++   const audit=h('div');audit.id='team-audit';main.append(audit);root.append(main);
++   async function loadTeam(){
++     const selected=branch;status.textContent='Loading employees…';
++     try{const data=await api('/api/team?branch='+encodeURIComponent(selected));if(branch!==selected||!E('team-list'))return;
++       role.replaceChildren();for(const r of data.can_assign_roles||[]){const o=h('option',r);o.value=r;role.append(o);}
++       list.replaceChildren();const tbl=h('table');const head=h('tr');for(const title of ['Name','Email','Role','Status','Action'])cell(head,title,'th');tbl.append(head);
++       for(const person of data.staff||[]){const row=h('tr');
++         for(const value of [person.name,person.email,person.role,person.active?'Active':'Inactive'])cell(row,value);
++         const action=h('td');
++         if(person.active&&person.email.toLowerCase()!==currentUserEmail){
++           const b=h('button','Deactivate','secondary small-btn');b.addEventListener('click',()=>void changeStatus(person,'DEACTIVATE',b));action.append(b);
++         }else if(!person.active&&data.can_reactivate){
++           const b=h('button','Reactivate','secondary small-btn');b.addEventListener('click',()=>void changeStatus(person,'REACTIVATE',b));action.append(b);
++         }
++         row.append(action);tbl.append(row);
++       }
++       const scroll=h('div',undefined,'scroll');scroll.append(tbl);list.append(scroll);
++       status.textContent=String((data.staff||[]).length)+' employee records · '+selected;
++       audit.replaceChildren(h('h3','Recent staff access changes'));
++       const a=h('ul');for(const event of data.audit||[])a.append(h('li',event.action+' · '+event.member_email+' · '+event.actor_email+' · '+showDate(event.created_at)));
++       audit.append(a);
++     }catch(ex){status.textContent='Could not load employees';err(ex.message);}
++   }
++   async function changeStatus(person,action,btn){
++     if(!window.confirm((action==='DEACTIVATE'?'Remove access for ':'Reactivate ')+person.name+' at '+branch+'?'))return;
++     btn.disabled=true;err('');try{
++       await api('/api/team/change',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,branch,member_id:person.id,request_id:crypto.randomUUID()})});
++       await loadTeam();
++     }catch(ex){err(ex.message);btn.disabled=false;}
++   }
++   void loadTeam();
++ }
+  function draw(){
+    E('app-content').replaceChildren();err('');
+    if(APP==='pos'){
+      if(suiteView==='home')suiteHome();else suiteModuleView(suiteView);
+      updateSuiteUI();
+-   }else if(APP==='sales')posView();else if(APP==='dispatch')dispatchView();else void quoteView();
++   }else if(APP==='member')teamView();else if(APP==='sales')posView();else if(APP==='dispatch')dispatchView();else void quoteView();
+  }
+ 
+  try{
+-   const session=await api('/api/session');masterPermissions=session.master_permissions||{};purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};E('signed-in').textContent=session.user.name+' · '+session.user.role;
+-   E('access').textContent=session.branches.length+' assigned branch(es)'+(['pos','sales'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
+-   for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=false;branch=select.value;select.addEventListener('change',selectBranch);
++   const session=await api('/api/session');masterPermissions=session.master_permissions||{};purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};currentUserEmail=String(session.user.email||'').toLowerCase();E('signed-in').textContent=APP==='sales'?session.user.name:session.user.name+' · '+session.user.role;
++   E('access').textContent=APP==='sales'?session.branches.join(', '):session.branches.length+' assigned branch(es)'+(['pos','member'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
++   for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=APP==='sales'&&session.branches.length===1;branch=select.value;select.addEventListener('change',selectBranch);
++   if(APP==='sales'){E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;const label=document.querySelector('label[for=branch]');if(label)label.textContent='Store';}
+    if(APP==='pos'){
+      E('suite-user').textContent=session.user.name+' · '+session.user.role;
+      for(const btn of E('suite-navigation').querySelectorAll('[data-suite-module]'))btn.addEventListener('click',()=>setSuiteView(btn.dataset.suiteModule));
+@@ -1658,14 +1715,19 @@ export default {
+      '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
+      '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue','/api/master/catalogue/sync':'/v1/master/catalogue/sync',
+      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
+-     '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action','/api/supplier-invoices':'/v1/supplier-invoices','/api/supplier-invoices/action':'/v1/supplier-invoices/action'};
++     '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action','/api/supplier-invoices':'/v1/supplier-invoices','/api/supplier-invoices/action':'/v1/supplier-invoices/action',
++     '/api/team':'/v1/team','/api/team/change':'/v1/team/change'};
+    const path=pathMap[url.pathname];
+    if(!path)return Response.json({error:'Unknown API.'},{status:404});
+    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
+-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
++   if((path==='/v1/team'&&req.method!=='GET')||(path==='/v1/team/change'&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
++   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+    // The Professional suite cannot submit Sales transactions through its old POS origin.
+    if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
++   // The Member Team Worker is isolated from POS, payments and sales.
++   if(kind==='member' && !['/v1/session','/v1/team','/v1/team/change'].includes(path))return Response.json({error:'Team app only.'},{status:403});
++   if(kind!=='member' && path.startsWith('/v1/team'))return Response.json({error:'Team app only.'},{status:403});
+    // The dedicated Sales Worker may only access the quotation/catalogue APIs.
+    if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
+    // Department rules enforced here as an early deny and again by the private Core.
+diff --git a/maliks-operations/src/policy.mjs b/maliks-operations/src/policy.mjs
+index 96f06e0..094c399 100644
+--- a/maliks-operations/src/policy.mjs
++++ b/maliks-operations/src/policy.mjs
+@@ -6,10 +6,11 @@ const DEPARTMENT_ROLES = {
+   cashoffice: new Set(['Cash Office','Cash Office Clerk','Cash Office Manager','Cash Office Supervisor','Finance Manager']),
+   dispatch: new Set(['Dispatch','Dispatcher','Dispatch Head','Dispatch Manager','Checker','Driver']),
+ };
+-export const APPS = Object.freeze(['pos','tills','cashoffice','dispatch','management']);
++export const APPS = Object.freeze(['pos','tills','cashoffice','dispatch','management','member']);
+ const MANAGEMENT_ONLY = new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager','Stock Controller','Warehouse Manager','Warehouse Management','Purchasing Manager','Buyer','Finance Manager','Creditors Clerk','Debtors Clerk','Credit Controller','Receiving Clerk','Receiving Manager','Receiving Supervisor','Receiving','GRV Clerk']);
+ export function canUseApp(member, app) {
+   if (!APPS.includes(app) || !member || Number(member.active) !== 1) return false;
++  if (app === 'member') return ['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager'].includes(member.role);
+   if (app === 'management') return MANAGEMENT_ONLY.has(member.role) || (member.role === 'Executive / EXCO' && member.access_scope === 'Full company');
+   if (MANAGEMENT.has(member.role)) return true;
+   if (member.role === 'Executive / EXCO' && member.access_scope === 'Full company') return true;
+diff --git a/maliks-operations/src/team-domain.mjs b/maliks-operations/src/team-domain.mjs
+new file mode 100644
+index 0000000..bb2bfac
+--- /dev/null
++++ b/maliks-operations/src/team-domain.mjs
+@@ -0,0 +1,134 @@
++// Phase 19 — Maliks Member Team. Shared Hub team_members is authoritative.
++// Never remove historical employees: active=0 revokes Core API authorisation on every request.
++import { matchingBranch } from './policy.mjs';
++
++const ADMIN_ROLES = new Set(['Owner / Admin','Developer / Technical Admin']);
++const MANAGER_ROLES = new Set(['Store Manager','Regional Manager','Operations Manager']);
++export const STORE_STAFF_ROLES = Object.freeze([
++  'Sales / Tills','Sales','Floor Sales','Sales Manager','Cashier','Till Operator',
++  'Receiving Clerk','Receiving','GRV Clerk','Stock Controller',
++  'Dispatch','Dispatcher','Checker','Driver'
++]);
++export const ADMIN_ASSIGNABLE_ROLES = Object.freeze([
++  ...STORE_STAFF_ROLES,'Store Manager','Regional Manager','Operations Manager',
++  'Warehouse Manager','Warehouse Management','Receiving Manager','Receiving Supervisor',
++  'Purchasing Manager','Buyer','Cash Office','Cash Office Clerk','Cash Office Supervisor',
++  'Cash Office Manager','Finance Manager','Creditors Clerk','Debtors Clerk','Credit Controller',
++  'Dispatch Head','Dispatch Manager'
++]);
++const STORE_SET = new Set(STORE_STAFF_ROLES);
++const ADMIN_SET = new Set(ADMIN_ASSIGNABLE_ROLES);
++const HEADERS = {'cache-control':'no-store','x-content-type-options':'nosniff'};
++const json=(data,status=200)=>Response.json(data,{status,headers:HEADERS});
++const fail=(message,status=400)=>json({error:message},status);
++export const canManageTeam=member=>Boolean(member&&Number(member.active)===1&&(ADMIN_ROLES.has(member.role)||MANAGER_ROLES.has(member.role)));
++export const canAssignRole=(actor,role)=>ADMIN_ROLES.has(actor?.role)?ADMIN_SET.has(role):MANAGER_ROLES.has(actor?.role)&&STORE_SET.has(role);
++const text=(v,max,name)=>{
++  if(typeof v!=='string')throw Error('Invalid '+name+'.');
++  const s=v.trim();if(!s||s.length>max||/[\u0000-\u001f\u007f]/.test(s))throw Error('Invalid '+name+'.');
++  return s;
++};
++const email=v=>{const s=text(v,150,'email').toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s))throw Error('Invalid email.');return s;};
++const requestId=v=>{if(typeof v!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(v))throw Error('Invalid request ID.');return v.toLowerCase();};
++const snapshot=r=>({id:r.id,name:r.name,email:r.email,role:r.role,branch:r.department,active:Number(r.active)===1});
++const cleanActor=ctx=>String(ctx.member.email||'').toLowerCase();
++const isAdmin=ctx=>ADMIN_ROLES.has(ctx.member.role);
++const safeBranch=(ctx,b)=>matchingBranch(ctx.branches,b);
++const safeContext=ctx=>ctx?.app==='member'&&canManageTeam(ctx.member);
++const sha=async value=>{
++  const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(value)));
++  return Array.from(new Uint8Array(hash),v=>v.toString(16).padStart(2,'0')).join('');
++};
++const parseBody=async req=>{
++  if(!req.headers.get('origin')||req.headers.get('origin')!==req.headers.get('x-maliks-original-origin'))throw Error('Invalid request origin.');
++  const raw=await req.text();if(raw.length>3500)throw Error('Request too large.');
++  let data;try{data=JSON.parse(raw);}catch{throw Error('Invalid JSON.');}
++  if(!data||typeof data!=='object'||Array.isArray(data))throw Error('Invalid request.');
++  return data;
++};
++const view=r=>({...snapshot(r)});
++
++export async function listTeam(req,env,ctx){
++  if(!safeContext(ctx))return fail('Team management access denied.',403);
++  const branch=safeBranch(ctx,new URL(req.url).searchParams.get('branch'));
++  if(!branch)return fail('Select an authorised store.',403);
++  const {results}=await env.DB.prepare(`SELECT id,name,email,role,department,active
++    FROM team_members WHERE lower(department)=lower(?)
++    ORDER BY active DESC,name COLLATE NOCASE LIMIT 500`).bind(branch).all();
++  const {results:audits}=await env.DB.prepare(`SELECT action,member_email,actor_email,branch,created_at
++    FROM maliks_member_team_audit WHERE lower(branch)=lower(?) ORDER BY id DESC LIMIT 30`).bind(branch).all();
++  return json({branch,staff:results.map(view),audit:audits,can_assign_roles:isAdmin(ctx)?ADMIN_ASSIGNABLE_ROLES:STORE_STAFF_ROLES,can_reactivate:isAdmin(ctx)});
++}
++
++export async function changeTeam(req,env,ctx){
++  if(!safeContext(ctx))return fail('Team management access denied.',403);
++  let body,action,id,branch,normalized,hash;
++  try{
++    body=await parseBody(req);
++    action=text(body.action,15,'action').toUpperCase();
++    if(!['CREATE','DEACTIVATE','REACTIVATE'].includes(action))throw Error('Unsupported staff action.');
++    id=requestId(body.request_id);
++    branch=safeBranch(ctx,text(body.branch,150,'branch'));
++    if(!branch)return fail('Branch access denied.',403);
++    normalized={action,branch};
++    if(action==='CREATE'){
++      normalized.name=text(body.name,120,'employee name');normalized.email=email(body.email);
++      normalized.role=text(body.role,80,'role');
++      if(!canAssignRole(ctx.member,normalized.role))return fail('You cannot assign that role.',403);
++    }else{
++      if(!Number.isSafeInteger(body.member_id)||body.member_id<1)throw Error('Invalid employee ID.');
++      normalized.member_id=body.member_id;
++      if(action==='REACTIVATE'&&!isAdmin(ctx))return fail('Only an administrator may reactivate staff.',403);
++    }
++    hash=await sha(normalized);
++  }catch(e){return fail(e.message,400);}
++  const actor=cleanActor(ctx);
++  const existing=await env.DB.prepare('SELECT * FROM maliks_member_team_audit WHERE request_id=?').bind(id).first();
++  if(existing){
++    if(existing.actor_email!==actor||existing.payload_hash!==hash)return fail('Request ID already used for another action.',409);
++    return json({ok:true,duplicate:true,action:existing.action,member_id:existing.member_id});
++  }
++  const now=new Date().toISOString();
++  if(action==='CREATE'){
++    const prev=await env.DB.prepare('SELECT id FROM team_members WHERE lower(email)=lower(?) LIMIT 1').bind(normalized.email).first();
++    if(prev)return fail('This email already exists. Ask an administrator to reactivate a former employee.',409);
++    const after={name:normalized.name,email:normalized.email,role:normalized.role,branch,active:true};
++    try{
++      const batch=await env.DB.batch([
++        env.DB.prepare(`INSERT INTO team_members
++          (name,email,role,department,active,created_by,created_at,invite_status,invite_token,invite_sent_at,accepted_at,access_scope,workspace_access)
++          SELECT ?,?,?,?,1,?,?,'Active','','','','Assigned workspace',?
++          WHERE NOT EXISTS (SELECT 1 FROM team_members WHERE lower(email)=lower(?))`)
++          .bind(normalized.name,normalized.email,normalized.role,branch,actor,now,JSON.stringify([branch]),normalized.email),
++        env.DB.prepare(`INSERT INTO maliks_member_team_audit
++          (request_id,payload_hash,action,member_id,member_email,branch,actor_email,before_json,after_json,created_at)
++          SELECT ?,?,'CREATE',last_insert_rowid(),?,?,?,?,?,? WHERE changes()=1`)
++          .bind(id,hash,normalized.email,branch,actor,'{}',JSON.stringify(after),now)
++      ]);
++      if(Number(batch[0]?.meta?.changes)!==1)return fail('Email already exists. No employee created.',409);
++    }catch(e){if(/UNIQUE|constraint/i.test(e.message))return fail('Employee already exists or request was already submitted.',409);throw e;}
++  }else{
++    const target=await env.DB.prepare('SELECT id,name,email,role,department,active FROM team_members WHERE id=? LIMIT 1').bind(normalized.member_id).first();
++    if(!target||target.department.toLowerCase()!==branch.toLowerCase())return fail('Employee not found in this store.',404);
++    if(target.email.toLowerCase()===actor)return fail('You cannot deactivate or reactivate your own account.',403);
++    if(!isAdmin(ctx)&&!STORE_SET.has(target.role))return fail('Store managers cannot change management accounts.',403);
++    const desired=action==='DEACTIVATE'?0:1;
++    if(Number(target.active)===desired)return fail('Employee is already in that status.',409);
++    const before=snapshot(target),after={...before,active:desired===1};
++    const roleGuard=isAdmin(ctx)?'':` AND role IN (${STORE_STAFF_ROLES.map(()=>'?').join(',')})`;
++    const guardArgs=isAdmin(ctx)?[]:STORE_STAFF_ROLES;
++    const result=await env.DB.batch([
++      env.DB.prepare(`UPDATE team_members SET active=? WHERE id=? AND active=? AND lower(department)=lower(?)
++        AND lower(email)<>lower(?)${roleGuard}`)
++        .bind(desired,target.id,1-desired,branch,actor,...guardArgs),
++      env.DB.prepare(`INSERT INTO maliks_member_team_audit
++        (request_id,payload_hash,action,member_id,member_email,branch,actor_email,before_json,after_json,created_at)
++        SELECT ?,?,?,?,?,?,?,?,?,? WHERE changes()=1`)
++        .bind(id,hash,action,target.id,target.email,branch,actor,JSON.stringify(before),JSON.stringify(after),now)
++    ]);
++    if(Number(result[0]?.meta?.changes)!==1)return fail('Employee status changed. Refresh and retry.',409);
++  }
++  const saved=await env.DB.prepare('SELECT action,member_id,member_email FROM maliks_member_team_audit WHERE request_id=?').bind(id).first();
++  if(!saved)return fail('Staff action could not be confirmed.',503);
++  return json({ok:true,action:saved.action,member_id:saved.member_id,member_email:saved.member_email,branch});
++}
+diff --git a/maliks-operations/tests/phase10.test.mjs b/maliks-operations/tests/phase10.test.mjs
+index c333621..d8ff805 100644
+--- a/maliks-operations/tests/phase10.test.mjs
++++ b/maliks-operations/tests/phase10.test.mjs
+@@ -17,7 +17,7 @@ db.prepare('INSERT INTO till_quotation_submissions VALUES(?,?,?,?,?,?,?,?,?,?)')
+ db.prepare('INSERT INTO maliks_till_shift_register VALUES(?,?,?,?,?,?)').run(2,'Buster Build','TILL-01','cashier@example.com','Cashier','OPEN');
+ for(const file of ['phase9_paid_sales_dispatch.sql','phase10_simple_cashier_checkout.sql']){const sql=readFileSync(new URL('../sql/'+file,import.meta.url),'utf8');db.exec(sql);db.exec(sql);}
+ return {db,env:{DB:makeAdapter(db)}};}
+-const original={request_id:guid(1),branch:'Buster Build',quotation_number:'q000000008',shift_id:2,method:'CASH',amount_paid_cents:80000,attestation:'CASH_RECEIVED'};
++const original={request_id:guid(1),branch:'Buster Build',quotation_number:'Q-00000008',shift_id:2,method:'CASH',amount_paid_cents:80000,attestation:'CASH_RECEIVED'};
+ test('Cash/Card validation enforces exact card charge and cashier attestation',()=>{
+  assert.equal(checkSimpleCheckout(original,78000).received,80000);
+  assert.throws(()=>checkSimpleCheckout({...original,method:'CARD'},78000),/match|Confirm/);
+diff --git a/maliks-operations/tests/phase19-member-team.test.mjs b/maliks-operations/tests/phase19-member-team.test.mjs
+new file mode 100644
+index 0000000..d14b775
+--- /dev/null
++++ b/maliks-operations/tests/phase19-member-team.test.mjs
+@@ -0,0 +1,109 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {readFileSync} from 'node:fs';
++import {DatabaseSync} from 'node:sqlite';
++import {canUseApp,allowedBranches} from '../src/policy.mjs';
++import {canManageTeam,canAssignRole,changeTeam,listTeam} from '../src/team-domain.mjs';
++import frontend from '../src/frontend.mjs';
++const uuid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
++const owner={name:'Owner',email:'owner@example.com',role:'Owner / Admin',active:1,access_scope:'Full company'};
++const manager={name:'Manager',email:'manager@example.com',role:'Store Manager',active:1,department:'Buster Build Protea Glen',access_scope:'Assigned workspace',workspace_access:'["Buster Build Protea Glen"]'};
++const sales={name:'Sales',email:'sales@example.com',role:'Sales / Tills',active:1,department:'Buster Build Protea Glen',access_scope:'Assigned workspace',workspace_access:'["Buster Build Protea Glen"]'};
++const context=(member=manager,branches=['Buster Build Protea Glen'])=>({app:'member',member,branches});
++const post=(data,origin='https://member.example')=>new Request(origin+'/v1/team/change',{method:'POST',headers:{origin,'x-maliks-original-origin':origin},body:JSON.stringify(data)});
++const create=(n,other={})=>({request_id:uuid(n),action:'CREATE',branch:'Buster Build Protea Glen',name:'Test Employee',email:'newstaff@example.com',role:'Sales / Tills',...other});
++const get=(branch='Buster Build Protea Glen')=>new Request('https://member.example/v1/team?branch='+encodeURIComponent(branch));
++class D1{
++ constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(`CREATE TABLE team_members (
++   id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,
++   role TEXT NOT NULL DEFAULT 'Member',department TEXT NOT NULL DEFAULT 'Operations',
++   active INTEGER NOT NULL DEFAULT 1,created_by TEXT NOT NULL,created_at TEXT NOT NULL,
++   invite_status TEXT NOT NULL DEFAULT 'Active',invite_token TEXT NOT NULL DEFAULT '',
++   invite_sent_at TEXT NOT NULL DEFAULT '',accepted_at TEXT NOT NULL DEFAULT '',
++   access_scope TEXT NOT NULL DEFAULT 'Assigned workspace',workspace_access TEXT NOT NULL DEFAULT '[]');`);
++  this.sqlite.exec(readFileSync(new URL('../sql/phase19_member_team.sql',import.meta.url),'utf8'));
++  this.sqlite.prepare(`INSERT INTO team_members(name,email,role,department,active,created_by,created_at,workspace_access) VALUES (?,?,?,?,?,?,?,?)`).run('Store Manager',manager.email,manager.role,manager.department,1,'owner@example.com','2026-11-13',manager.workspace_access);
++  this.sqlite.prepare(`INSERT INTO team_members(name,email,role,department,active,created_by,created_at,workspace_access) VALUES (?,?,?,?,?,?,?,?)`).run('Regional Manager','regional@example.com','Regional Manager',manager.department,1,'owner@example.com','2026-11-13',manager.workspace_access);
++  this.sqlite.prepare(`INSERT INTO team_members(name,email,role,department,active,created_by,created_at,workspace_access) VALUES (?,?,?,?,?,?,?,?)`).run('Other Branch Sales','other@example.com','Sales / Tills','Maliks Chamdor',1,'owner@example.com','2026-11-13','["Maliks Chamdor"]');
++ }
++ prepare(sql){const sqlite=this.sqlite;let args=[];return {bind(...v){args=v;return this;},first(){return sqlite.prepare(sql).get(...args)||null;},all(){return {results:sqlite.prepare(sql).all(...args)};},run(){const r=sqlite.prepare(sql).run(...args);return {meta:{changes:Number(r.changes)}};}};}
++ batch(steps){this.sqlite.exec('BEGIN');try{const results=steps.map(s=>s.run());this.sqlite.exec('COMMIT');return results;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
++}
++const resp=async r=>({status:r.status,body:await r.json()});
++test('only authenticated management roles can access member team, store staff restricted',()=>{
++ assert.equal(canUseApp(manager,'member'),true);assert.equal(canUseApp(owner,'member'),true);
++ assert.equal(canUseApp(sales,'member'),false);assert.equal(canManageTeam({...manager,active:0}),false);
++ assert.equal(canAssignRole(manager,'Sales / Tills'),true);
++ assert.equal(canAssignRole(manager,'Store Manager'),false);assert.equal(canAssignRole(manager,'Finance Manager'),false);
++ assert.equal(canAssignRole(owner,'Store Manager'),true);assert.equal(canAssignRole(owner,'Owner / Admin'),false);
++ assert.deepEqual(allowedBranches(sales,['Buster Build Protea Glen','Maliks Chamdor']),['Buster Build Protea Glen']);
++});
++test('store manager can create staff, see own store and audit; retry is idempotent',async()=>{
++ const env={DB:new D1()};const first=await resp(await changeTeam(post(create(1)),env,context()));
++ assert.equal(first.status,200,JSON.stringify(first.body));assert.equal(first.body.action,'CREATE');
++ const db=env.DB.sqlite;
++ const row=db.prepare('SELECT * FROM team_members WHERE email=?').get('newstaff@example.com');
++ assert.equal(row.department,'Buster Build Protea Glen');assert.equal(row.workspace_access,'["Buster Build Protea Glen"]');
++ assert.equal(row.active,1);assert.equal(row.access_scope,'Assigned workspace');
++ const retry=await resp(await changeTeam(post(create(1)),env,context()));assert.equal(retry.status,200);assert.equal(retry.body.duplicate,true);
++ const list=await resp(await listTeam(get(),env,context()));assert.equal(list.status,200);assert.equal(list.body.staff.length,3);
++ assert.equal(list.body.audit.length,1);assert.equal(list.body.audit[0].actor_email,manager.email);
++ assert.equal(db.prepare('SELECT COUNT(*) n FROM maliks_member_team_audit').get().n,1);
++});
++test('store manager cannot create management accounts or another branch employee',async()=>{
++ const env={DB:new D1()};
++ assert.equal((await resp(await changeTeam(post(create(2,{role:'Store Manager'})),env,context()))).status,403);
++ assert.equal((await resp(await changeTeam(post(create(3,{role:'Owner / Admin'})),env,context()))).status,403);
++ assert.equal((await resp(await changeTeam(post(create(4,{branch:'Maliks Chamdor'})),env,context()))).status,403);
++ assert.equal((await resp(await listTeam(get('Maliks Chamdor'),env,context()))).status,403);
++ assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) n FROM maliks_member_team_audit').get().n,0);
++});
++test('store manager can deactivate staff, but not managers or self; owner can reactivate',async()=>{
++ const env={DB:new D1()};const c=await resp(await changeTeam(post(create(5)),env,context()));assert.equal(c.status,200);
++ const off={action:'DEACTIVATE',branch:'Buster Build Protea Glen',member_id:c.body.member_id,request_id:uuid(6)};
++ const stopped=await resp(await changeTeam(post(off),env,context()));assert.equal(stopped.status,200,JSON.stringify(stopped.body));
++ assert.equal(env.DB.sqlite.prepare('SELECT active FROM team_members WHERE id=?').get(c.body.member_id).active,0);
++ const repeat=await resp(await changeTeam(post(off),env,context()));assert.equal(repeat.status,200);assert.equal(repeat.body.duplicate,true);
++ assert.equal((await resp(await changeTeam(post({...off,request_id:uuid(7),member_id:2}),env,context()))).status,403);
++ assert.equal((await resp(await changeTeam(post({...off,request_id:uuid(8),member_id:1}),env,context()))).status,403);
++ assert.equal((await resp(await changeTeam(post({...off,request_id:uuid(9),member_id:3}),env,context()))).status,404);
++ const on={action:'REACTIVATE',branch:'Buster Build Protea Glen',member_id:c.body.member_id,request_id:uuid(10)};
++ assert.equal((await resp(await changeTeam(post(on),env,context()))).status,403);
++ const active=await resp(await changeTeam(post(on),env,context(owner)));
++ assert.equal(active.status,200,JSON.stringify(active.body));
++ assert.equal(env.DB.sqlite.prepare('SELECT active FROM team_members WHERE id=?').get(c.body.member_id).active,1);
++ assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) n FROM maliks_member_team_audit').get().n,3);
++});
++test('existing employee email cannot be silently re-created, and request IDs cannot be reused for different payloads',async()=>{
++ const env={DB:new D1()};assert.equal((await resp(await changeTeam(post(create(11)),env,context()))).status,200);
++ assert.equal((await resp(await changeTeam(post(create(12,{email:'NEWSTAFF@EXAMPLE.COM'})),env,context()))).status,409);
++ assert.equal((await resp(await changeTeam(post(create(11,{name:'Different'})),env,context()))).status,409);
++});
++test('team writes enforce origin, member role and validation',async()=>{
++ const env={DB:new D1()};const bad=post(create(13),'https://evil.example');
++ const badOrigin=new Request('https://member.example/v1/team/change',{method:'POST',headers:{origin:'https://evil.example','x-maliks-original-origin':'https://member.example'},body:JSON.stringify(create(13))});
++ assert.equal((await resp(await changeTeam(badOrigin,env,context()))).status,400);
++ assert.equal((await resp(await changeTeam(bad,env,{...context(),app:'management'}))).status,403);
++ assert.equal((await resp(await changeTeam(post(create(14,{email:'not an email'})),env,context()))).status,400);
++ assert.equal((await resp(await changeTeam(post(create(15,{request_id:'invalid'})),env,context()))).status,400);
++});
++test('separate Member Worker exposes only team API; Sales and POS cannot call team',async()=>{
++ const seen=[];const core={fetch:async req=>{seen.push(req);return Response.json({ok:true})}};
++ const token='dummy';
++ const make=(app,path,method='GET')=>frontend.fetch(new Request('https://app.example'+path,{method,headers:{'cf-access-jwt-assertion':token,...(method==='POST'?{origin:'https://app.example'}:{})},body:method==='POST'?'{}':undefined}),{APP_TYPE:app,CORE:core});
++ assert.equal((await make('member','/api/team')).status,200);
++ assert.equal(seen[0].headers.get('x-maliks-app'),'member');
++ assert.equal((await make('member','/api/quotes')).status,403);
++ assert.equal((await make('sales','/api/team')).status,403);
++ assert.equal((await make('pos','/api/team')).status,403);
++ assert.equal((await make('member','/api/team/change','POST')).status,200);
++ assert.equal((await make('member','/api/team/change')).status,405);
++ const salesHtml=await (await make('sales','/')).text();
++ assert.match(salesHtml,/APP==='sales'\?session\.user\.name/);
++ assert.match(salesHtml,/session\.branches\.join/);
++ assert.match(salesHtml,/label\.textContent='Store'/);
++});
++test('Phase 19 migration can be run again without clearing audit',async()=>{
++ const db=new D1();db.sqlite.exec(readFileSync(new URL('../sql/phase19_member_team.sql',import.meta.url),'utf8'));
++ assert.ok(db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='maliks_member_team_audit'").get());
++});
+diff --git a/maliks-operations/tests/phase9.test.mjs b/maliks-operations/tests/phase9.test.mjs
+index 991bed8..1f05e4a 100644
+--- a/maliks-operations/tests/phase9.test.mjs
++++ b/maliks-operations/tests/phase9.test.mjs
+@@ -28,7 +28,7 @@ const ctx=(app,user,branches=['Buster Build'])=>({app,member:{email:user,name:us
+ const post=(route,body)=>new Request('https://tills.example.test'+route,{method:'POST',headers:{origin:'https://tills.example.test','x-maliks-original-origin':'https://tills.example.test'},body:JSON.stringify(body)});
+ const get=(route)=>new Request('https://tills.example.test'+route);
+ const data=async response=>({status:response.status,body:await response.json()});
+-const payment={request_id:guid(1),branch:'Buster Build',quotation_number:'q000000001',shift_id:1,cash_cents:4000,cash_received_cents:5000,card_cents:3500,card_reference:'TERM-7850',eft_cents:2500,eft_reference:'EFT-4482'};
++const payment={request_id:guid(1),branch:'Buster Build',quotation_number:'Q-00000001',shift_id:1,cash_cents:4000,cash_received_cents:5000,card_cents:3500,card_reference:'TERM-7850',eft_cents:2500,eft_reference:'EFT-4482'};
+ 
+ // Core validation tests
+  test('valid split totals and references are required',()=>{
+diff --git a/maliks-operations/tests/policy.test.mjs b/maliks-operations/tests/policy.test.mjs
+index b861c01..20e459b 100644
+--- a/maliks-operations/tests/policy.test.mjs
++++ b/maliks-operations/tests/policy.test.mjs
+@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
+ import { APPS,canUseApp,allowedBranches,matchingBranch,limitSearch } from '../src/policy.mjs';
+ import {calculateQuote,validateQuoteLines} from '../src/quote-domain.mjs';
+ const base={active:1,role:'Sales / Tills',access_scope:'Assigned workspace',workspace_access:'["Buster Build"]',department:'Sales'};
+-test('independent department applications',()=>assert.deepEqual(APPS,['pos','tills','cashoffice','dispatch']));
++test('independent department applications',()=>assert.deepEqual(APPS,['pos','tills','cashoffice','dispatch','management','member']));
+ test('sales role cannot access cash office or dispatch',()=>{assert.equal(canUseApp(base,'pos'),true);assert.equal(canUseApp(base,'tills'),true);assert.equal(canUseApp(base,'cashoffice'),false);assert.equal(canUseApp(base,'dispatch'),false);});
+ test('inactive users blocked',()=>assert.equal(canUseApp({...base,active:0},'pos'),false));
+ test('store scope prevents cross-branch disclosure',()=>assert.deepEqual(allowedBranches(base,['Buster Build','Sungate PowerBuild']),['Buster Build']));

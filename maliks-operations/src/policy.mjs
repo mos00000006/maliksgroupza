@@ -6,10 +6,11 @@ const DEPARTMENT_ROLES = {
   cashoffice: new Set(['Cash Office','Cash Office Clerk','Cash Office Manager','Cash Office Supervisor','Finance Manager']),
   dispatch: new Set(['Dispatch','Dispatcher','Dispatch Head','Dispatch Manager','Checker','Driver']),
 };
-export const APPS = Object.freeze(['pos','tills','cashoffice','dispatch','management']);
-const MANAGEMENT_ONLY = new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager','Stock Controller','Warehouse Manager','Warehouse Management','Purchasing Manager','Buyer','Finance Manager','Creditors Clerk','Debtors Clerk','Credit Controller']);
+export const APPS = Object.freeze(['pos','tills','cashoffice','dispatch','management','member']);
+const MANAGEMENT_ONLY = new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager','Stock Controller','Warehouse Manager','Warehouse Management','Purchasing Manager','Buyer','Finance Manager','Creditors Clerk','Debtors Clerk','Credit Controller','Receiving Clerk','Receiving Manager','Receiving Supervisor','Receiving','GRV Clerk']);
 export function canUseApp(member, app) {
   if (!APPS.includes(app) || !member || Number(member.active) !== 1) return false;
+  if (app === 'member') return ['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager'].includes(member.role);
   if (app === 'management') return MANAGEMENT_ONLY.has(member.role) || (member.role === 'Executive / EXCO' && member.access_scope === 'Full company');
   if (MANAGEMENT.has(member.role)) return true;
   if (member.role === 'Executive / EXCO' && member.access_scope === 'Full company') return true;

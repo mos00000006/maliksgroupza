@@ -17,7 +17,7 @@ db.prepare('INSERT INTO till_quotation_submissions VALUES(?,?,?,?,?,?,?,?,?,?)')
 db.prepare('INSERT INTO maliks_till_shift_register VALUES(?,?,?,?,?,?)').run(2,'Buster Build','TILL-01','cashier@example.com','Cashier','OPEN');
 for(const file of ['phase9_paid_sales_dispatch.sql','phase10_simple_cashier_checkout.sql']){const sql=readFileSync(new URL('../sql/'+file,import.meta.url),'utf8');db.exec(sql);db.exec(sql);}
 return {db,env:{DB:makeAdapter(db)}};}
-const original={request_id:guid(1),branch:'Buster Build',quotation_number:'q000000008',shift_id:2,method:'CASH',amount_paid_cents:80000,attestation:'CASH_RECEIVED'};
+const original={request_id:guid(1),branch:'Buster Build',quotation_number:'Q-00000008',shift_id:2,method:'CASH',amount_paid_cents:80000,attestation:'CASH_RECEIVED'};
 test('Cash/Card validation enforces exact card charge and cashier attestation',()=>{
  assert.equal(checkSimpleCheckout(original,78000).received,80000);
  assert.throws(()=>checkSimpleCheckout({...original,method:'CARD'},78000),/match|Confirm/);

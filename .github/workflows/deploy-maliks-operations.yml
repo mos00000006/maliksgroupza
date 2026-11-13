@@ -25,6 +25,7 @@ jobs:
       CF_ACCESS_AUD_TILLS: ${{ secrets.CF_ACCESS_AUD_TILLS }}
       CF_ACCESS_AUD_CASHOFFICE: ${{ secrets.CF_ACCESS_AUD_CASHOFFICE }}
       CF_ACCESS_AUD_DISPATCH: ${{ secrets.CF_ACCESS_AUD_DISPATCH }}
+      CF_ACCESS_AUD_MEMBER: ${{ secrets.CF_ACCESS_AUD_MEMBER }}
       MALIKS_P9_APPROVAL_ENABLED: ${{ vars.MALIKS_P9_APPROVAL_ENABLED }}
     defaults:
       run:
@@ -71,12 +72,16 @@ jobs:
         run: npm run migrate:phase17
       - name: Apply supplier invoice three-way matching schema (Phase 18)
         run: npm run migrate:phase18
+      - name: Apply Member Team staff audit schema (Phase 19)
+        run: npm run migrate:phase19
       - name: Deploy central API — private Worker
         run: npm run deploy:core
       - name: Deploy Maliks POS Professional (management suite)
         run: npm run deploy:pos
       - name: Deploy Maliks Sales (separate Worker)
         run: npm run deploy:sales
+      - name: Deploy Maliks Member Team (separate Worker)
+        run: npm run deploy:member
       - name: Deploy Tills
         run: npm run deploy:tills
       - name: Deploy Cash Office
