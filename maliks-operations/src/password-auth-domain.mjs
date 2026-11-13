@@ -3,7 +3,11 @@
 import {matchingBranch,canUseApp} from './policy.mjs';
 import {canManageTeam,STORE_STAFF_ROLES} from './team-domain.mjs';
 
-const ITERATIONS=600000;
+// Cloudflare Workers WebCrypto rejects PBKDF2 calls above 100,000 iterations.
+// This is the maximum supported by the deployed runtime. Keep the stored
+// iteration count per credential for future algorithm upgrades.
+const ITERATIONS=100000;
+const MAX_WORKER_ITERATIONS=100000;
 const SESSION_MS=8*60*60*1000;
 const WINDOW_MS=15*60*1000;
 const enc=new TextEncoder();
@@ -16,12 +20,15 @@ const random=n=>b64(crypto.getRandomValues(new Uint8Array(n)));
 const digest=async value=>b64(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(value))));
 const keyFor=async password=>crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);
 export async function hashPassword(password,salt=random(18),iterations=ITERATIONS){
+  if(!Number.isInteger(iterations)||iterations<ITERATIONS||iterations>MAX_WORKER_ITERATIONS){
+    throw new RangeError('PBKDF2 iteration count is unsupported by this Cloudflare Worker.');
+  }
   const key=await keyFor(password);
   const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:unb64(salt),iterations,hash:'SHA-256'},key,256);
   return {salt,password_hash:b64(new Uint8Array(bits)),iterations};
 }
 export async function verifyPassword(password,credential){
-  if(!credential||!Number.isInteger(credential.iterations)||credential.iterations<ITERATIONS||credential.iterations>1000000)return false;
+  if(!credential||!Number.isInteger(credential.iterations)||credential.iterations<ITERATIONS||credential.iterations>MAX_WORKER_ITERATIONS)return false;
   const candidate=await hashPassword(password,credential.salt,credential.iterations);
   // Constant-time compare to reduce information leakage in password verification.
   const a=enc.encode(candidate.password_hash),b=enc.encode(credential.password_hash);
@@ -68,7 +75,7 @@ export async function loginPassword(req,env,app,ip=''){
   const now=Date.now(),userBucket=await rateBucket('user',userEmail),ipBucket=await rateBucket('ip',String(ip||'unknown').slice(0,100));
   if(await throttled(env.DB,userBucket,5,now)||await throttled(env.DB,ipBucket,30,now))return fail('Too many login attempts. Please try again later.',429);
   const record=await env.DB.prepare(`SELECT t.id,t.email,t.active,t.role,t.department,t.access_scope,t.workspace_access,c.salt,c.password_hash,c.iterations,c.auth_version,c.must_change
-    FROM team_members t LEFT JOIN maliks_pos_staff_credentials c ON c.member_id=t.id
+    FROM team_members t LEFT JOIN maliks_pos_staff_credentials_v2 c ON c.member_id=t.id
     WHERE lower(t.email)=? LIMIT 1`).bind(userEmail).first();
   // Run a PBKDF2 operation for unknown accounts too, reducing email enumeration.
   const credential=record?.password_hash?record:await hashPassword('dummy-password-for-constant-work');
@@ -87,7 +94,7 @@ export async function verifySession(env,app,token){
   if(!token||!/^[A-Za-z0-9_-]{43}$/.test(token))return null;
   const tokenHash=await digest(token);
   const row=await env.DB.prepare(`SELECT t.email,c.must_change FROM maliks_pos_staff_sessions s
-    JOIN maliks_pos_staff_credentials c ON c.member_id=s.member_id AND c.auth_version=s.auth_version
+    JOIN maliks_pos_staff_credentials_v2 c ON c.member_id=s.member_id AND c.auth_version=s.auth_version
     JOIN team_members t ON t.id=s.member_id AND t.active=1
     WHERE s.token_hash=? AND s.app=? AND s.expires_at>? LIMIT 1`)
     .bind(tokenHash,app,Date.now()).first();
@@ -102,12 +109,12 @@ export async function changeOwnPassword(req,env,auth){
   let data;try{data=await body(req);}catch(e){return fail(e.message);}
   if(!validPassword(data.new_password)||data.new_password===data.current_password)return fail('Choose a different password of at least 14 characters.',400);
   const row=await env.DB.prepare(`SELECT t.id,t.email,c.salt,c.password_hash,c.iterations,c.auth_version
-    FROM team_members t JOIN maliks_pos_staff_credentials c ON c.member_id=t.id
+    FROM team_members t JOIN maliks_pos_staff_credentials_v2 c ON c.member_id=t.id
     WHERE lower(t.email)=? AND t.active=1`).bind(auth.email).first();
   if(!row||typeof data.current_password!=='string'||!await verifyPassword(data.current_password,row))return fail('Current password incorrect.',403);
   const hashed=await hashPassword(data.new_password),now=new Date().toISOString();
   const steps=[
-    env.DB.prepare(`UPDATE maliks_pos_staff_credentials SET salt=?,password_hash=?,iterations=?,auth_version=auth_version+1,
+    env.DB.prepare(`UPDATE maliks_pos_staff_credentials_v2 SET salt=?,password_hash=?,iterations=?,auth_version=auth_version+1,
       must_change=0,updated_at=?,updated_by=? WHERE member_id=? AND auth_version=?`)
       .bind(hashed.salt,hashed.password_hash,hashed.iterations,now,auth.email,row.id,row.auth_version),
     env.DB.prepare('DELETE FROM maliks_pos_staff_sessions WHERE member_id=?').bind(row.id),
@@ -135,10 +142,10 @@ export async function issueTemporaryPassword(req,env,ctx){
   if(existing)return fail('This password issuance request was already processed. Issue a new password if necessary.',409);
   const temporary_password=random(18),hashed=await hashPassword(temporary_password),now=new Date().toISOString();
   const steps=[
-    env.DB.prepare(`INSERT INTO maliks_pos_staff_credentials(member_id,salt,password_hash,iterations,auth_version,must_change,updated_at,updated_by)
+    env.DB.prepare(`INSERT INTO maliks_pos_staff_credentials_v2(member_id,salt,password_hash,iterations,auth_version,must_change,updated_at,updated_by)
       VALUES (?,?,?,?,1,1,?,?) ON CONFLICT(member_id) DO UPDATE SET
       salt=excluded.salt,password_hash=excluded.password_hash,iterations=excluded.iterations,
-      auth_version=maliks_pos_staff_credentials.auth_version+1,must_change=1,
+      auth_version=maliks_pos_staff_credentials_v2.auth_version+1,must_change=1,
       updated_at=excluded.updated_at,updated_by=excluded.updated_by`)
       .bind(target.id,hashed.salt,hashed.password_hash,hashed.iterations,now,actor),
     env.DB.prepare('DELETE FROM maliks_pos_staff_sessions WHERE member_id=?').bind(target.id),
@@ -165,17 +172,17 @@ export async function bootstrapOwnPassword(req,env,auth){
     // A missing migration previously threw an uncaught Worker exception, which
     // returned an HTML 500 page and appeared as 'Unexpected service response'.
     const schema=await env.DB.prepare(`SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table'
-      AND name IN ('maliks_pos_staff_credentials','maliks_pos_staff_sessions','maliks_pos_password_audit')`).first();
-    if(Number(schema?.total)!==3)return fail('Phase 21 password tables are missing. Run the Phase 21 D1 migration and redeploy before setting an administrator password.',503);
+      AND name IN ('maliks_pos_staff_credentials_v2','maliks_pos_staff_sessions','maliks_pos_password_audit')`).first();
+    if(Number(schema?.total)!==3)return fail('Phase 21b password tables are missing. Run the Phase 21b D1 migration and redeploy before setting an administrator password.',503);
     const hashed=await hashPassword(data.new_password),now=new Date().toISOString();
     // Owner/Technical Admin accounts may have no store department. Audit must
     // never insert NULL into its required branch column.
     const auditBranch=String(actor.department||'').trim()||'Group Administration';
     await env.DB.batch([
-      env.DB.prepare(`INSERT INTO maliks_pos_staff_credentials(member_id,salt,password_hash,iterations,auth_version,must_change,updated_at,updated_by)
+      env.DB.prepare(`INSERT INTO maliks_pos_staff_credentials_v2(member_id,salt,password_hash,iterations,auth_version,must_change,updated_at,updated_by)
         VALUES (?,?,?,?,1,0,?,?) ON CONFLICT(member_id) DO UPDATE SET
         salt=excluded.salt,password_hash=excluded.password_hash,iterations=excluded.iterations,
-        auth_version=maliks_pos_staff_credentials.auth_version+1,must_change=0,
+        auth_version=maliks_pos_staff_credentials_v2.auth_version+1,must_change=0,
         updated_at=excluded.updated_at,updated_by=excluded.updated_by`)
         .bind(actor.id,hashed.salt,hashed.password_hash,hashed.iterations,now,actor.email),
       env.DB.prepare('DELETE FROM maliks_pos_staff_sessions WHERE member_id=?').bind(actor.id),
@@ -186,6 +193,6 @@ export async function bootstrapOwnPassword(req,env,auth){
     return response({ok:true,employee:actor.email,password_set:true,sign_in_again:true});
   }catch(e){
     console.error('Maliks administrator password setup failed:',String(e?.message||'Unknown error').slice(0,200));
-    return fail('Could not save administrator password. Check the Phase 21 D1 migration and Core Worker logs.',503);
+    return fail('Could not save administrator password. Check the Phase 21b D1 migration and Core Worker logs.',503);
   }
 }

@@ -28,7 +28,8 @@
     "migrate:phase19": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase19_member_team.sql --config .generated/core.json",
     "deploy:member": "wrangler deploy --config .generated/member.json",
     "migrate:phase20": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase20_stock_control.sql --config .generated/core.json",
-    "migrate:phase21": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase21_staff_password_login.sql --config .generated/core.json"
+    "migrate:phase21": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase21_staff_password_login.sql --config .generated/core.json",
+    "migrate:phase21b": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase21b_cloudflare_pbkdf2.sql --config .generated/core.json"
   },
   "dependencies": {
     "jose": "^6.1.0"

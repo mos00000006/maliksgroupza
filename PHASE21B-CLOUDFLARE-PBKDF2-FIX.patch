@@ -1,0 +1,258 @@
+--- a/maliks-operations/src/password-auth-domain.mjs
++++ b/maliks-operations/src/password-auth-domain.mjs
+@@ -3,7 +3,11 @@
+ import {matchingBranch,canUseApp} from './policy.mjs';
+ import {canManageTeam,STORE_STAFF_ROLES} from './team-domain.mjs';
+ 
+-const ITERATIONS=600000;
++// Cloudflare Workers WebCrypto rejects PBKDF2 calls above 100,000 iterations.
++// This is the maximum supported by the deployed runtime. Keep the stored
++// iteration count per credential for future algorithm upgrades.
++const ITERATIONS=100000;
++const MAX_WORKER_ITERATIONS=100000;
+ const SESSION_MS=8*60*60*1000;
+ const WINDOW_MS=15*60*1000;
+ const enc=new TextEncoder();
+@@ -16,12 +20,15 @@
+ const digest=async value=>b64(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(value))));
+ const keyFor=async password=>crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);
+ export async function hashPassword(password,salt=random(18),iterations=ITERATIONS){
++  if(!Number.isInteger(iterations)||iterations<ITERATIONS||iterations>MAX_WORKER_ITERATIONS){
++    throw new RangeError('PBKDF2 iteration count is unsupported by this Cloudflare Worker.');
++  }
+   const key=await keyFor(password);
+   const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:unb64(salt),iterations,hash:'SHA-256'},key,256);
+   return {salt,password_hash:b64(new Uint8Array(bits)),iterations};
+ }
+ export async function verifyPassword(password,credential){
+-  if(!credential||!Number.isInteger(credential.iterations)||credential.iterations<ITERATIONS||credential.iterations>1000000)return false;
++  if(!credential||!Number.isInteger(credential.iterations)||credential.iterations<ITERATIONS||credential.iterations>MAX_WORKER_ITERATIONS)return false;
+   const candidate=await hashPassword(password,credential.salt,credential.iterations);
+   // Constant-time compare to reduce information leakage in password verification.
+   const a=enc.encode(candidate.password_hash),b=enc.encode(credential.password_hash);
+@@ -68,7 +75,7 @@
+   const now=Date.now(),userBucket=await rateBucket('user',userEmail),ipBucket=await rateBucket('ip',String(ip||'unknown').slice(0,100));
+   if(await throttled(env.DB,userBucket,5,now)||await throttled(env.DB,ipBucket,30,now))return fail('Too many login attempts. Please try again later.',429);
+   const record=await env.DB.prepare(`SELECT t.id,t.email,t.active,t.role,t.department,t.access_scope,t.workspace_access,c.salt,c.password_hash,c.iterations,c.auth_version,c.must_change
+-    FROM team_members t LEFT JOIN maliks_pos_staff_credentials c ON c.member_id=t.id
++    FROM team_members t LEFT JOIN maliks_pos_staff_credentials_v2 c ON c.member_id=t.id
+     WHERE lower(t.email)=? LIMIT 1`).bind(userEmail).first();
+   // Run a PBKDF2 operation for unknown accounts too, reducing email enumeration.
+   const credential=record?.password_hash?record:await hashPassword('dummy-password-for-constant-work');
+@@ -87,7 +94,7 @@
+   if(!token||!/^[A-Za-z0-9_-]{43}$/.test(token))return null;
+   const tokenHash=await digest(token);
+   const row=await env.DB.prepare(`SELECT t.email,c.must_change FROM maliks_pos_staff_sessions s
+-    JOIN maliks_pos_staff_credentials c ON c.member_id=s.member_id AND c.auth_version=s.auth_version
++    JOIN maliks_pos_staff_credentials_v2 c ON c.member_id=s.member_id AND c.auth_version=s.auth_version
+     JOIN team_members t ON t.id=s.member_id AND t.active=1
+     WHERE s.token_hash=? AND s.app=? AND s.expires_at>? LIMIT 1`)
+     .bind(tokenHash,app,Date.now()).first();
+@@ -102,12 +109,12 @@
+   let data;try{data=await body(req);}catch(e){return fail(e.message);}
+   if(!validPassword(data.new_password)||data.new_password===data.current_password)return fail('Choose a different password of at least 14 characters.',400);
+   const row=await env.DB.prepare(`SELECT t.id,t.email,c.salt,c.password_hash,c.iterations,c.auth_version
+-    FROM team_members t JOIN maliks_pos_staff_credentials c ON c.member_id=t.id
++    FROM team_members t JOIN maliks_pos_staff_credentials_v2 c ON c.member_id=t.id
+     WHERE lower(t.email)=? AND t.active=1`).bind(auth.email).first();
+   if(!row||typeof data.current_password!=='string'||!await verifyPassword(data.current_password,row))return fail('Current password incorrect.',403);
+   const hashed=await hashPassword(data.new_password),now=new Date().toISOString();
+   const steps=[
+-    env.DB.prepare(`UPDATE maliks_pos_staff_credentials SET salt=?,password_hash=?,iterations=?,auth_version=auth_version+1,
++    env.DB.prepare(`UPDATE maliks_pos_staff_credentials_v2 SET salt=?,password_hash=?,iterations=?,auth_version=auth_version+1,
+       must_change=0,updated_at=?,updated_by=? WHERE member_id=? AND auth_version=?`)
+       .bind(hashed.salt,hashed.password_hash,hashed.iterations,now,auth.email,row.id,row.auth_version),
+     env.DB.prepare('DELETE FROM maliks_pos_staff_sessions WHERE member_id=?').bind(row.id),
+@@ -135,10 +142,10 @@
+   if(existing)return fail('This password issuance request was already processed. Issue a new password if necessary.',409);
+   const temporary_password=random(18),hashed=await hashPassword(temporary_password),now=new Date().toISOString();
+   const steps=[
+-    env.DB.prepare(`INSERT INTO maliks_pos_staff_credentials(member_id,salt,password_hash,iterations,auth_version,must_change,updated_at,updated_by)
++    env.DB.prepare(`INSERT INTO maliks_pos_staff_credentials_v2(member_id,salt,password_hash,iterations,auth_version,must_change,updated_at,updated_by)
+       VALUES (?,?,?,?,1,1,?,?) ON CONFLICT(member_id) DO UPDATE SET
+       salt=excluded.salt,password_hash=excluded.password_hash,iterations=excluded.iterations,
+-      auth_version=maliks_pos_staff_credentials.auth_version+1,must_change=1,
++      auth_version=maliks_pos_staff_credentials_v2.auth_version+1,must_change=1,
+       updated_at=excluded.updated_at,updated_by=excluded.updated_by`)
+       .bind(target.id,hashed.salt,hashed.password_hash,hashed.iterations,now,actor),
+     env.DB.prepare('DELETE FROM maliks_pos_staff_sessions WHERE member_id=?').bind(target.id),
+@@ -165,17 +172,17 @@
+     // A missing migration previously threw an uncaught Worker exception, which
+     // returned an HTML 500 page and appeared as 'Unexpected service response'.
+     const schema=await env.DB.prepare(`SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table'
+-      AND name IN ('maliks_pos_staff_credentials','maliks_pos_staff_sessions','maliks_pos_password_audit')`).first();
+-    if(Number(schema?.total)!==3)return fail('Phase 21 password tables are missing. Run the Phase 21 D1 migration and redeploy before setting an administrator password.',503);
++      AND name IN ('maliks_pos_staff_credentials_v2','maliks_pos_staff_sessions','maliks_pos_password_audit')`).first();
++    if(Number(schema?.total)!==3)return fail('Phase 21b password tables are missing. Run the Phase 21b D1 migration and redeploy before setting an administrator password.',503);
+     const hashed=await hashPassword(data.new_password),now=new Date().toISOString();
+     // Owner/Technical Admin accounts may have no store department. Audit must
+     // never insert NULL into its required branch column.
+     const auditBranch=String(actor.department||'').trim()||'Group Administration';
+     await env.DB.batch([
+-      env.DB.prepare(`INSERT INTO maliks_pos_staff_credentials(member_id,salt,password_hash,iterations,auth_version,must_change,updated_at,updated_by)
++      env.DB.prepare(`INSERT INTO maliks_pos_staff_credentials_v2(member_id,salt,password_hash,iterations,auth_version,must_change,updated_at,updated_by)
+         VALUES (?,?,?,?,1,0,?,?) ON CONFLICT(member_id) DO UPDATE SET
+         salt=excluded.salt,password_hash=excluded.password_hash,iterations=excluded.iterations,
+-        auth_version=maliks_pos_staff_credentials.auth_version+1,must_change=0,
++        auth_version=maliks_pos_staff_credentials_v2.auth_version+1,must_change=0,
+         updated_at=excluded.updated_at,updated_by=excluded.updated_by`)
+         .bind(actor.id,hashed.salt,hashed.password_hash,hashed.iterations,now,actor.email),
+       env.DB.prepare('DELETE FROM maliks_pos_staff_sessions WHERE member_id=?').bind(actor.id),
+@@ -186,6 +193,6 @@
+     return response({ok:true,employee:actor.email,password_set:true,sign_in_again:true});
+   }catch(e){
+     console.error('Maliks administrator password setup failed:',String(e?.message||'Unknown error').slice(0,200));
+-    return fail('Could not save administrator password. Check the Phase 21 D1 migration and Core Worker logs.',503);
++    return fail('Could not save administrator password. Check the Phase 21b D1 migration and Core Worker logs.',503);
+   }
+ }
+--- a/maliks-operations/tests/phase21-password-login.test.mjs
++++ b/maliks-operations/tests/phase21-password-login.test.mjs
+@@ -13,6 +13,7 @@
+ class D1{
+   constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(`CREATE TABLE team_members(id INTEGER PRIMARY KEY AUTOINCREMENT,email TEXT NOT NULL UNIQUE,name TEXT,role TEXT,department TEXT,access_scope TEXT DEFAULT 'Assigned workspace',workspace_access TEXT DEFAULT '[]',active INTEGER NOT NULL DEFAULT 1);`);
+     this.sqlite.exec(readFileSync(new URL('../sql/phase21_staff_password_login.sql',import.meta.url),'utf8'));
++    this.sqlite.exec(readFileSync(new URL('../sql/phase21b_cloudflare_pbkdf2.sql',import.meta.url),'utf8'));
+     this.sqlite.prepare('INSERT INTO team_members(id,email,name,role,department,active) VALUES (1,?,?,?,?,1)').run(owner.email,owner.name,owner.role,owner.department);
+     this.sqlite.prepare('INSERT INTO team_members(id,email,name,role,department,active) VALUES (2,?,?,?,?,1)').run(manager.email,manager.name,manager.role,manager.department);
+     this.sqlite.prepare('INSERT INTO team_members(id,email,name,role,department,active) VALUES (3,?,?,?,?,1)').run('sales@example.com','Sales','Sales / Tills',branch);
+@@ -25,14 +26,51 @@
+ const env=()=>({DB:new D1()});
+ test('PBKDF2 hash is salted, not plaintext; migration is repeatable',async()=>{
+  const p=await hashPassword('super-secure-test-password');const q=await hashPassword('super-secure-test-password');
+- assert.notEqual(p.salt,q.salt);assert.notEqual(p.password_hash,q.password_hash);assert.equal(p.iterations,600000);
++ assert.notEqual(p.salt,q.salt);assert.notEqual(p.password_hash,q.password_hash);assert.equal(p.iterations,100000);
+  assert.equal(await verifyPassword('super-secure-test-password',p),true);assert.equal(await verifyPassword('wrong',p),false);
+  const db=new D1();db.sqlite.exec(readFileSync(new URL('../sql/phase21_staff_password_login.sql',import.meta.url),'utf8'));
++ db.sqlite.exec(readFileSync(new URL('../sql/phase21b_cloudflare_pbkdf2.sql',import.meta.url),'utf8'));
++ assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name='maliks_pos_staff_credentials_v2'").get().n,1);
++});
++test('Cloudflare PBKDF2 100000-iteration ceiling permits admin setup and employee sign-in',async()=>{
++ const originalCrypto=globalThis.crypto;
++ const realSubtle=originalCrypto.subtle;
++ const wrappedSubtle=new Proxy(realSubtle,{
++   get(target,key){
++     if(key==='deriveBits')return async (algorithm,...args)=>{
++       if(algorithm?.name==='PBKDF2'&&algorithm.iterations>100000)throw new Error('Pbkdf2 failed: iteration counts above 100000 are not supported');
++       return target.deriveBits(algorithm,...args);
++     };
++     const v=Reflect.get(target,key,target);
++     return typeof v==='function'?v.bind(target):v;
++   }
++ });
++ Object.defineProperty(globalThis,'crypto',{configurable:true,value:{
++   subtle:wrappedSubtle,
++   getRandomValues:originalCrypto.getRandomValues.bind(originalCrypto),
++   randomUUID:originalCrypto.randomUUID.bind(originalCrypto)
++ }});
++ try{
++   const e=env();const password='Cloudflare-compatible-admin-passphrase!';
++   const setup=await data(await bootstrapOwnPassword(post('/v1/auth/bootstrap',{new_password:password,confirm_password:password}),e,{email:owner.email,app:'member',method:'access'}));
++   assert.equal(setup.status,200,JSON.stringify(setup.body));
++   assert.equal(e.DB.sqlite.prepare('SELECT iterations FROM maliks_pos_staff_credentials_v2 WHERE member_id=1').get().iterations,100000);
++   const adminLogin=await data(await loginPassword(post('/v1/auth/login',{email:owner.email,password}),e,'management','10.0.0.20'));
++   assert.equal(adminLogin.status,200,JSON.stringify(adminLogin.body));
++   const issued=await data(await issueTemporaryPassword(post('/v1/team/password-reset',{request_id:id(12),branch,member_id:3}),e,ctx()));
++   assert.equal(issued.status,200,JSON.stringify(issued.body));
++   const salesLogin=await data(await loginPassword(post('/v1/auth/login',{email:'sales@example.com',password:issued.body.temporary_password}),e,'pos','10.0.0.21'));
++   assert.equal(salesLogin.status,200,JSON.stringify(salesLogin.body));
++   assert.equal(await verifyPassword('old', {...e.DB.sqlite.prepare('SELECT * FROM maliks_pos_staff_credentials_v2 WHERE member_id=1').get(),iterations:600000}),false);
++   await assert.rejects(hashPassword('test','c2FsdA',600000),/unsupported by this Cloudflare Worker/);
++ }finally{
++   Object.defineProperty(globalThis,'crypto',{configurable:true,value:originalCrypto});
++ }
+ });
+ test('manager issues temporary password for own sales employee, not managers or other branches',async()=>{
+  const e=env();const created=await data(await issueTemporaryPassword(post('/v1/team/password-reset',{request_id:id(1),branch,member_id:3}),e,ctx()));
+  assert.equal(created.status,200,JSON.stringify(created.body));assert.ok(created.body.temporary_password.length>=20);
+- assert.equal(await verifyPassword(created.body.temporary_password,e.DB.sqlite.prepare('SELECT * FROM maliks_pos_staff_credentials WHERE member_id=3').get()),true);
++ assert.equal(await verifyPassword(created.body.temporary_password,e.DB.sqlite.prepare('SELECT * FROM maliks_pos_staff_credentials_v2 WHERE member_id=3').get()),true);
+  assert.equal((await data(await issueTemporaryPassword(post('/v1/team/password-reset',{request_id:id(2),branch,member_id:2}),e,ctx()))).status,403);
+  assert.equal((await data(await issueTemporaryPassword(post('/v1/team/password-reset',{request_id:id(3),branch,member_id:4}),e,ctx()))).status,404);
+  assert.equal((await data(await issueTemporaryPassword(post('/v1/team/password-reset',{request_id:id(1),branch,member_id:3}),e,ctx()))).status,409);
+@@ -77,7 +115,7 @@
+  const input={new_password:chosen,confirm_password:chosen};
+  const r=await data(await bootstrapOwnPassword(post('/v1/auth/bootstrap',input),e,{email:owner.email,app:'member',method:'access'}));
+  assert.equal(r.status,200,JSON.stringify(r.body));assert.equal(r.body.password_set,true);assert.equal(r.body.temporary_password,undefined);
+- const credential=e.DB.sqlite.prepare('SELECT * FROM maliks_pos_staff_credentials WHERE member_id=1').get();
++ const credential=e.DB.sqlite.prepare('SELECT * FROM maliks_pos_staff_credentials_v2 WHERE member_id=1').get();
+  assert.equal(await verifyPassword(chosen,credential),true);assert.equal(credential.must_change,0);
+  const audit=e.DB.sqlite.prepare('SELECT * FROM maliks_pos_password_audit WHERE member_id=1').get();
+  assert.equal(audit.branch,'Group Administration');assert.equal(audit.action,'CHANGE_PASSWORD');
+@@ -87,7 +125,7 @@
+  const next='A second secure administrator password!';
+  const reset=await data(await bootstrapOwnPassword(post('/v1/auth/bootstrap',{new_password:next,confirm_password:next}),e,{email:owner.email,app:'member',method:'access'}));
+  assert.equal(reset.status,200);assert.equal(await verifySession(e,'management',login.body.token),null);
+- assert.equal(await verifyPassword(next,e.DB.sqlite.prepare('SELECT * FROM maliks_pos_staff_credentials WHERE member_id=1').get()),true);
++ assert.equal(await verifyPassword(next,e.DB.sqlite.prepare('SELECT * FROM maliks_pos_staff_credentials_v2 WHERE member_id=1').get()),true);
+ });
+ test('administrator password setup is restricted to verified Member Team Access and validates password confirmation',async()=>{
+  const e=env();const input={new_password:'A very long private password',confirm_password:'A very long private password'};
+@@ -98,13 +136,13 @@
+  assert.equal((await data(await bootstrapOwnPassword(post('/v1/auth/bootstrap',{new_password:'short',confirm_password:'short'}),e,{email:owner.email,app:'member',method:'access'}))).status,400);
+  const bad=post('/v1/auth/bootstrap',input);bad.headers.set('origin','https://evil.example');
+  assert.equal((await data(await bootstrapOwnPassword(bad,e,{email:owner.email,app:'member',method:'access'}))).status,403);
+- assert.equal(e.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM maliks_pos_staff_credentials').get().n,0);
++ assert.equal(e.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM maliks_pos_staff_credentials_v2').get().n,0);
+ });
+ test('missing Phase 21 D1 tables returns useful JSON error rather than HTML Worker exception',async()=>{
+  const e=env();e.DB.sqlite.exec('DROP TABLE maliks_pos_password_audit');
+  const r=await bootstrapOwnPassword(post('/v1/auth/bootstrap',{new_password:'An administrator private password!',confirm_password:'An administrator private password!'}),e,{email:owner.email,app:'member',method:'access'});
+  assert.equal(r.status,503);assert.match(r.headers.get('content-type'),/application\/json/);
+- assert.match((await r.json()).error,/Phase 21 password tables are missing/);
++ assert.match((await r.json()).error,/Phase 21b password tables are missing/);
+ });
+ test('public Worker shows employee login, forwards only cookie session, and sets HttpOnly cookie',async()=>{
+  const seen=[];const core={fetch:async req=>{seen.push(req);return req.url.includes('/auth/login')?Response.json({ok:true,token:'A'.repeat(43),password_change_required:true}):Response.json({ok:true});}};
+@@ -142,4 +180,6 @@
+  const core=workflow.indexOf('npm run deploy:core');
+  const member=workflow.indexOf('npm run deploy:member');
+  assert.ok(migration>0&&core>migration&&member>core,'Phase 21 schema must exist before Core/Member Team deployment');
++ const compatibility=workflow.indexOf('npm run migrate:phase21b');
++ assert.ok(compatibility>migration&&compatibility<core,'Cloudflare PBKDF2 compatibility schema must exist before Core deployment');
+ });
+--- a/maliks-operations/package.json
++++ b/maliks-operations/package.json
+@@ -28,7 +28,8 @@
+     "migrate:phase19": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase19_member_team.sql --config .generated/core.json",
+     "deploy:member": "wrangler deploy --config .generated/member.json",
+     "migrate:phase20": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase20_stock_control.sql --config .generated/core.json",
+-    "migrate:phase21": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase21_staff_password_login.sql --config .generated/core.json"
++    "migrate:phase21": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase21_staff_password_login.sql --config .generated/core.json",
++    "migrate:phase21b": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase21b_cloudflare_pbkdf2.sql --config .generated/core.json"
+   },
+   "dependencies": {
+     "jose": "^6.1.0"
+--- a/.github/workflows/deploy-maliks-operations.yml
++++ b/.github/workflows/deploy-maliks-operations.yml
+@@ -79,6 +79,8 @@
+         run: npm run migrate:phase20
+       - name: Apply employee password and session schema (Phase 21)
+         run: npm run migrate:phase21
++      - name: Apply Cloudflare-compatible password schema (Phase 21b)
++        run: npm run migrate:phase21b
+       - name: Deploy central API — private Worker
+         run: npm run deploy:core
+       - name: Deploy Maliks POS Professional (management suite)
+--- /dev/null
++++ b/maliks-operations/sql/phase21b_cloudflare_pbkdf2.sql
+@@ -0,0 +1,19 @@
++-- Phase 21b: Cloudflare-compatible PBKDF2 credential storage.
++-- Cloudflare Workers limits a single WebCrypto PBKDF2 operation to 100,000
++-- iterations. The original Phase 21 table requires >=600,000, so it cannot
++-- store hashes produced by the Worker. This migration is ADDITIVE: keep the
++-- original credentials table untouched for audit/rollback; the Core Worker
++-- uses the new table exclusively.
++-- Existing 600,000-iteration hashes cannot be verified by the deployed Worker.
++-- Administrators must set their own password again; managers must reissue
++-- temporary passwords to affected employees.
++CREATE TABLE IF NOT EXISTS maliks_pos_staff_credentials_v2 (
++  member_id INTEGER PRIMARY KEY,
++  salt TEXT NOT NULL,
++  password_hash TEXT NOT NULL,
++  iterations INTEGER NOT NULL CHECK(iterations = 100000),
++  auth_version INTEGER NOT NULL DEFAULT 1,
++  must_change INTEGER NOT NULL DEFAULT 1 CHECK(must_change IN (0,1)),
++  updated_at TEXT NOT NULL,
++  updated_by TEXT NOT NULL
++);
