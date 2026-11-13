@@ -1,0 +1,201 @@
+// Phase 15: independent branch-scoped master-file administration.
+// These records do NOT post stock, payments, VAT, customer balances or GL journals.
+import { matchingBranch, limitSearch } from './policy.mjs';
+
+export const MASTER_KINDS = Object.freeze(['stock','supplier','debtor']);
+const MASTER_ROLES = Object.freeze({
+  stock: ['Stock Controller','Warehouse Manager','Warehouse Management','Purchasing Manager','Buyer'],
+  supplier: ['Purchasing Manager','Buyer','Finance Manager','Creditors Clerk'],
+  debtor: ['Finance Manager','Debtors Clerk','Credit Controller'],
+});
+const MANAGERS = new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager']);
+const HEADERS = {'cache-control':'no-store','x-content-type-options':'nosniff'};
+const json = (value,status=200)=>Response.json(value,{status,headers:HEADERS});
+const fail = (message,status=400)=>json({error:message},status);
+
+export function canUseManagement(member){
+  if(!member||Number(member.active)!==1)return false;
+  if(MANAGERS.has(member.role))return true;
+  if(member.role==='Executive / EXCO'&&member.access_scope==='Full company')return true;
+  return Object.values(MASTER_ROLES).some(roles=>roles.includes(member.role));
+}
+export function canUseMaster(member,kind,write=false){
+  if(!MASTER_KINDS.includes(kind)||!canUseManagement(member))return false;
+  if(MANAGERS.has(member.role))return true;
+  if(member.role==='Executive / EXCO'&&member.access_scope==='Full company')return !write;
+  return MASTER_ROLES[kind].includes(member.role);
+}
+const str=(value,name,max,required=false)=>{
+  if(typeof value!=='string')throw Error(name+' must be text.');
+  const s=value.trim();
+  if((required&&!s)||s.length>max||/[\u0000-\u001f\u007f]/.test(s))throw Error('Invalid '+name+'.');
+  return s;
+};
+const int=(value,name,max)=>{
+  if(!Number.isSafeInteger(value)||value<0||value>max)throw Error('Invalid '+name+'.');
+  return value;
+};
+const email=value=>{
+  const e=str(value,'email',150).toLowerCase();
+  if(e&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))throw Error('Invalid email address.');
+  return e;
+};
+const uuid=value=>{
+  if(typeof value!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value))throw Error('Invalid request ID.');
+  return value.toLowerCase();
+};
+const detailsFor=(kind,raw)=>{
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid master-file details.');
+  if(kind==='stock')return {
+    unit:str(raw.unit,'unit',24,true),category:str(raw.category,'category',80),barcode:str(raw.barcode,'barcode',64),
+    cost_cents:int(raw.cost_cents,'cost',100000000000),selling_price_cents:int(raw.selling_price_cents,'selling price',100000000000),
+    reorder_min:int(raw.reorder_min,'minimum stock level',100000000),
+  };
+  if(kind==='supplier')return {
+    contact_name:str(raw.contact_name,'contact',120),phone:str(raw.phone,'phone',40),email:email(raw.email),
+    vat_number:str(raw.vat_number,'VAT number',40),payment_terms_days:int(raw.payment_terms_days,'payment terms',365),
+  };
+  return {
+    contact_name:str(raw.contact_name,'contact',120),phone:str(raw.phone,'phone',40),email:email(raw.email),
+    credit_limit_cents:int(raw.credit_limit_cents,'credit limit',100000000000),payment_terms_days:int(raw.payment_terms_days,'payment terms',365),
+  };
+};
+export function validateMasterInput(raw){
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid master-file request.');
+  if(!MASTER_KINDS.includes(raw.kind))throw Error('Invalid master-file type.');
+  const code=str(raw.code,'code',40,true).toUpperCase();
+  if(!/^[A-Z0-9][A-Z0-9._/-]{0,39}$/.test(code))throw Error('Code must use letters, numbers, dash, slash, dot or underscore.');
+  if(typeof raw.active!=='boolean')throw Error('Active status must be selected.');
+  const data={kind:raw.kind,branch:str(raw.branch,'branch',150,true),code,
+    name:str(raw.name,'name',160,true),active:raw.active?1:0,
+    details:detailsFor(raw.kind,raw.details),request_id:uuid(raw.request_id)};
+  if(raw.id!==undefined&&raw.id!==null){
+    if(!Number.isSafeInteger(raw.id)||raw.id<1)throw Error('Invalid record ID.');
+    if(!Number.isSafeInteger(raw.version)||raw.version<1)throw Error('Invalid record version.');
+    data.id=raw.id;data.version=raw.version;
+  }
+  return data;
+}
+const snapshot=(r)=>({id:r.id,kind:r.kind,branch:r.branch,code:r.code,name:r.name,
+  active:Boolean(r.active),details:typeof r.details_json==='string'?JSON.parse(r.details_json):r.details,
+  version:r.version,updated_at:r.updated_at});
+const recordForClient=snapshot;
+const readKindAndBranch=(req,context)=>{
+  const p=new URL(req.url).searchParams;
+  const kind=p.get('kind');
+  if(!MASTER_KINDS.includes(kind))throw Error('Select a valid master file.');
+  const branch=matchingBranch(context.branches,p.get('branch'));
+  if(!branch)throw Error('Branch access denied.');
+  if(!canUseMaster(context.member,kind))throw Error('Master-file permission denied.');
+  return {kind,branch,params:p};
+};
+const hashPayload=async payload=>{
+  const raw=JSON.stringify(payload);
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw));
+  return Array.from(new Uint8Array(bytes),x=>x.toString(16).padStart(2,'0')).join('');
+};
+
+export async function listMasterRecords(req,env,context){
+  if(context.app!=='management')return fail('Management workspace required.',403);
+  let kind,branch,params;
+  try{({kind,branch,params}=readKindAndBranch(req,context));}catch(e){return fail(e.message,403);}
+  const q=limitSearch(params.get('q')||'');
+  if(q===null)return fail('Search is too long.');
+  const term=q.toLowerCase();
+  const {results}=await env.DB.prepare(`SELECT id,kind,branch,code,name,active,details_json,version,updated_at
+    FROM maliks_pos_master_records WHERE kind=? AND lower(branch)=lower(?)
+    AND (?='' OR instr(lower(code),?)>0 OR instr(lower(name),?)>0)
+    ORDER BY name LIMIT 100`).bind(kind,branch,term,term,term).all();
+  return json({kind,branch,records:results.map(recordForClient)});
+}
+export async function listMasterAudit(req,env,context){
+  if(context.app!=='management')return fail('Management workspace required.',403);
+  let kind,branch;
+  try{({kind,branch}=readKindAndBranch(req,context));}catch(e){return fail(e.message,403);}
+  const {results}=await env.DB.prepare(`SELECT id,record_id,kind,branch,action,actor_email,actor_name,created_at,before_json,after_json
+    FROM maliks_pos_master_audit WHERE kind=? AND lower(branch)=lower(?) ORDER BY id DESC LIMIT 50`)
+    .bind(kind,branch).all();
+  return json({kind,branch,audit:results.map(r=>({...r,before:r.before_json?JSON.parse(r.before_json):null,
+    after:r.after_json?JSON.parse(r.after_json):null,before_json:undefined,after_json:undefined}))});
+}
+export async function listMasterCatalogue(req,env,context){
+  if(context.app!=='management'||!canUseMaster(context.member,'stock'))return fail('Stock master access denied.',403);
+  const params=new URL(req.url).searchParams;
+  const branch=matchingBranch(context.branches,params.get('branch'));
+  if(!branch)return fail('Branch access denied.',403);
+  const q=limitSearch(params.get('q')||'');
+  if(q===null)return fail('Search is too long.');
+  if(q.length<2)return json({branch,products:[],read_only:true});
+  const term=q.toLowerCase();
+  const tagTable=/buster\s*build/i.test(branch)?'busterbuild_price_tags':'powerbuild_price_tags';
+  const {results}=await env.DB.prepare(`SELECT p.id,p.code,p.name,p.category FROM catalogue_products p
+    JOIN ${tagTable} t ON t.product_id=p.id AND t.published=1
+    WHERE p.active=1 AND (instr(lower(p.code),?)>0 OR instr(lower(p.name),?)>0)
+    ORDER BY p.name LIMIT 40`).bind(term,term).all();
+  return json({branch,products:results,read_only:true,stock_on_hand_available:false});
+}
+export async function saveMasterRecord(req,env,context){
+  if(context.app!=='management')return fail('Management workspace required.',403);
+  if(!req.headers.get('origin')||req.headers.get('origin')!==req.headers.get('x-maliks-original-origin'))return fail('Invalid request origin.',403);
+  const raw=await req.text();
+  if(raw.length>12000)return fail('Request too large.',413);
+  let data;
+  try{data=validateMasterInput(JSON.parse(raw));}catch(e){return fail(e.message);}
+  if(!canUseMaster(context.member,data.kind,true))return fail('You do not have write permission for this master file.',403);
+  const branch=matchingBranch(context.branches,data.branch);
+  if(!branch)return fail('Branch access denied.',403);
+  data.branch=branch;
+  const actor=context.member.email.toLowerCase();
+  const actorName=context.member.name;
+  const now=new Date().toISOString();
+  const hash=await hashPayload({kind:data.kind,branch:data.branch,code:data.code,name:data.name,
+    active:data.active,details:data.details,id:data.id??null,version:data.version??null});
+  const detailsJson=JSON.stringify(data.details);
+  if(data.id===undefined){
+    // INSERT and audit record commit atomically. Code and request IDs are unique.
+    await env.DB.batch([
+      env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_master_records
+        (kind,branch,code,name,active,details_json,version,created_by_email,updated_by_email,created_at,updated_at,create_request_id,create_payload_hash,last_request_id)
+        VALUES (?,?,?,?,?,?,1,?,?,?,?,?,?,?)`).bind(data.kind,branch,data.code,data.name,data.active,detailsJson,
+        actor,actor,now,now,data.request_id,hash,data.request_id),
+      env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_master_audit
+        (request_id,kind,branch,record_id,action,actor_email,actor_name,payload_hash,before_json,after_json,created_at)
+        SELECT ?,kind,branch,id,'CREATE',?,?,?,?,?,? FROM maliks_pos_master_records
+        WHERE create_request_id=? AND created_by_email=?`)
+        .bind(data.request_id,actor,actorName,hash,null,JSON.stringify({kind:data.kind,branch,code:data.code,name:data.name,active:Boolean(data.active),details:data.details,version:1}),now,data.request_id,actor),
+    ]);
+    const saved=await env.DB.prepare('SELECT * FROM maliks_pos_master_records WHERE create_request_id=?').bind(data.request_id).first();
+    if(!saved)return fail('Code already exists for this branch. Choose a unique code.',409);
+    if(saved.create_payload_hash!==hash||saved.created_by_email!==actor)return fail('Request ID has already been used.',409);
+    return json({record:recordForClient(saved)});
+  }
+  const prior=await env.DB.prepare('SELECT * FROM maliks_pos_master_records WHERE id=? AND kind=? AND lower(branch)=lower(?)')
+    .bind(data.id,data.kind,branch).first();
+  if(!prior)return fail('Record not found for this branch.',404);
+  const replay=await env.DB.prepare('SELECT * FROM maliks_pos_master_audit WHERE request_id=?').bind(data.request_id).first();
+  if(replay){
+    if(replay.record_id!==data.id||replay.actor_email!==actor||replay.payload_hash!==hash)return fail('Request ID already used.',409);
+    return json({record:JSON.parse(replay.after_json),duplicate:true});
+  }
+  if(prior.version!==data.version)return fail('This record changed. Refresh before saving.',409);
+  const after={id:data.id,kind:data.kind,branch,code:data.code,name:data.name,active:Boolean(data.active),
+    details:data.details,version:data.version+1,updated_at:now};
+  // The audit INSERT is conditional on last_request_id matching this successful UPDATE.
+  // D1 batch transactions roll back both statements if either fails.
+  let outcomes;try{outcomes=await env.DB.batch([
+    env.DB.prepare(`UPDATE maliks_pos_master_records SET code=?,name=?,active=?,details_json=?,version=version+1,
+      updated_by_email=?,updated_at=?,last_request_id=?
+      WHERE id=? AND kind=? AND lower(branch)=lower(?) AND version=?
+      AND NOT EXISTS(SELECT 1 FROM maliks_pos_master_audit WHERE request_id=?)`)
+      .bind(data.code,data.name,data.active,detailsJson,actor,now,data.request_id,
+        data.id,data.kind,branch,data.version,data.request_id),
+    env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_master_audit
+      (request_id,kind,branch,record_id,action,actor_email,actor_name,payload_hash,before_json,after_json,created_at)
+      SELECT ?,kind,branch,id,'UPDATE',?,?,?,?,?,? FROM maliks_pos_master_records
+      WHERE id=? AND kind=? AND lower(branch)=lower(?) AND version=? AND last_request_id=?`)
+      .bind(data.request_id,actor,actorName,hash,JSON.stringify(snapshot(prior)),JSON.stringify(after),now,
+        data.id,data.kind,branch,data.version+1,data.request_id),
+  ]);}catch(error){if(/UNIQUE constraint failed/i.test(String(error)))return fail('Code already exists for this branch.',409);throw error;}
+  if(Number(outcomes?.[0]?.meta?.changes)!==1)return fail('This record changed. Refresh before saving.',409);
+  return json({record:after});
+}

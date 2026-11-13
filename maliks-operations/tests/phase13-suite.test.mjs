@@ -19,7 +19,8 @@ test('Maliks POS Professional suite retains navigation without Sales',async()=>{
 test('Reference menus are visible but not falsely connected to financial APIs',async()=>{
   const page=await html('pos');
   for(const term of ['Staggered Invoices Dispatch','Branches Synchronization History','Stock Valuations','Till Cash-Up','Sales and Stock Month End','Debtors Invoicing Classifications','Invoices and Debit Notes'])assert.ok(page.includes(term),term);
-  assert.match(page,/not yet connected to live accounting or stock transactions/);
+  assert.match(page,/master files and their audit histories are live/);
+  assert.match(page,/Other transactions and financial postings are not enabled yet/);
   assert.match(page,/separately secured/);
   assert.match(page,/if\(APP==='pos'\)/);
 });

@@ -8,12 +8,13 @@ import {quoteId} from './quote-domain.mjs';
 import {cashupPreviewStatement,cashupForClient,CASHUP_MODE} from './cashup-domain.mjs';
 import {submitPayment,confirmSimpleCheckout,listPayments,verifyPayment,listDispatch,updateDispatch,getInvoice} from './payment-dispatch-domain.mjs';
 import {validateEvidenceInput,evidenceListStatement,evidenceHistoryStatement,evidenceForClient,EVIDENCE_MODE} from './payment-evidence-domain.mjs';
+import {listMasterRecords,listMasterAudit,listMasterCatalogue,saveMasterRecord,canUseMaster,MASTER_KINDS} from './master-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
 const result=(json,status=200)=>Response.json(json,{status,headers:HEADERS});
 const securityCache = new Map();
-const accessVars={pos:'ACCESS_AUD_POS',tills:'ACCESS_AUD_TILLS',cashoffice:'ACCESS_AUD_CASHOFFICE',dispatch:'ACCESS_AUD_DISPATCH'};
+const accessVars={pos:'ACCESS_AUD_POS',management:'ACCESS_AUD_POS',tills:'ACCESS_AUD_TILLS',cashoffice:'ACCESS_AUD_CASHOFFICE',dispatch:'ACCESS_AUD_DISPATCH'};
 
 async function identity(request,env) {
   const app=request.headers.get('x-maliks-app');
@@ -449,8 +450,13 @@ export default {
       const context={...access,app:auth.app};
       if(path==='/v1/session'&&req.method==='GET')return result({
         app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
-        mode:auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
+        master_permissions:auth.app==='management'?Object.fromEntries(MASTER_KINDS.map(k=>[k,{read:canUseMaster(access.member,k),write:canUseMaster(access.member,k,true)}])):undefined,
+        mode:auth.app==='management'?'MASTER_FILES':auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
       });
+      if(path==='/v1/master/records'&&req.method==='GET')return await listMasterRecords(req,env,context);
+      if(path==='/v1/master/records'&&req.method==='POST')return await saveMasterRecord(req,env,context);
+      if(path==='/v1/master/audit'&&req.method==='GET')return await listMasterAudit(req,env,context);
+      if(path==='/v1/master/catalogue'&&req.method==='GET')return await listMasterCatalogue(req,env,context);
       if(path==='/v1/catalogue'&&req.method==='GET')return await catalogue(req,env,context);
       if(path==='/v1/quotes'&&req.method==='GET')return await listQuotes(req,env,context);
       if(path==='/v1/quotes/find'&&req.method==='GET')return await findQuote(req,env,context);

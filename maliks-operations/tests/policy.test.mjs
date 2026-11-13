@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { APPS,canUseApp,allowedBranches,matchingBranch,limitSearch } from '../src/policy.mjs';
 import {calculateQuote,validateQuoteLines} from '../src/quote-domain.mjs';
 const base={active:1,role:'Sales / Tills',access_scope:'Assigned workspace',workspace_access:'["Buster Build"]',department:'Sales'};
-test('independent department applications',()=>assert.deepEqual(APPS,['pos','tills','cashoffice','dispatch']));
+test('independent department applications',()=>assert.deepEqual(APPS,['pos','tills','cashoffice','dispatch','management']));
 test('sales role cannot access cash office or dispatch',()=>{assert.equal(canUseApp(base,'pos'),true);assert.equal(canUseApp(base,'tills'),true);assert.equal(canUseApp(base,'cashoffice'),false);assert.equal(canUseApp(base,'dispatch'),false);});
 test('inactive users blocked',()=>assert.equal(canUseApp({...base,active:0},'pos'),false));
 test('store scope prevents cross-branch disclosure',()=>assert.deepEqual(allowedBranches(base,['Buster Build','Sungate PowerBuild']),['Buster Build']));

@@ -1,0 +1,735 @@
+diff --git a/.github/workflows/deploy-maliks-operations.yml b/.github/workflows/deploy-maliks-operations.yml
+index 13e52b0..1e51a8d 100644
+--- a/.github/workflows/deploy-maliks-operations.yml
++++ b/.github/workflows/deploy-maliks-operations.yml
+@@ -63,6 +63,8 @@ jobs:
+         run: npm run migrate:phase9
+       - name: Apply additive cashier-confirmation schema (Phase 10)
+         run: npm run migrate:phase10
++      - name: Apply additive POS master-file schema (Phase 15)
++        run: npm run migrate:phase15
+       - name: Deploy central API — private Worker
+         run: npm run deploy:core
+       - name: Deploy Maliks POS Professional (management suite)
+diff --git a/maliks-operations/package.json b/maliks-operations/package.json
+index 004f82a..3b5125d 100644
+--- a/maliks-operations/package.json
++++ b/maliks-operations/package.json
+@@ -20,6 +20,7 @@
+     "migrate:phase5": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase5_cash_office_reviews.sql --config .generated/core.json",
+     "migrate:phase8": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase8_payment_evidence.sql --config .generated/core.json",
+     "migrate:phase10": "wrangler d1 execute maliks-group-hub-db --remote --file sql/phase10_simple_cashier_checkout.sql --yes --config .generated/core.json",
++    "migrate:phase15": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase15_master_files.sql --config .generated/core.json",
+     "migrate:phase9": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase9_paid_sales_dispatch.sql --config .generated/core.json"
+   },
+   "dependencies": {
+diff --git a/maliks-operations/sql/phase15_master_files.sql b/maliks-operations/sql/phase15_master_files.sql
+new file mode 100644
+index 0000000..ed8356d
+--- /dev/null
++++ b/maliks-operations/sql/phase15_master_files.sql
+@@ -0,0 +1,36 @@
++-- Phase 15: additive, independent master-file register.
++-- NO stock-on-hand, customer balance, supplier balance, tax, payment or GL posting.
++CREATE TABLE IF NOT EXISTS maliks_pos_master_records (
++  id INTEGER PRIMARY KEY AUTOINCREMENT,
++  kind TEXT NOT NULL CHECK(kind IN ('stock','supplier','debtor')),
++  branch TEXT NOT NULL COLLATE NOCASE,
++  code TEXT NOT NULL COLLATE NOCASE,
++  name TEXT NOT NULL,
++  active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
++  details_json TEXT NOT NULL DEFAULT '{}',
++  version INTEGER NOT NULL DEFAULT 1 CHECK(version>=1),
++  created_by_email TEXT NOT NULL,
++  updated_by_email TEXT NOT NULL,
++  created_at TEXT NOT NULL,
++  updated_at TEXT NOT NULL,
++  create_request_id TEXT NOT NULL UNIQUE,
++  create_payload_hash TEXT NOT NULL,
++  last_request_id TEXT NOT NULL,
++  UNIQUE(kind,branch,code)
++);
++CREATE INDEX IF NOT EXISTS idx_maliks_pos_master_branch ON maliks_pos_master_records(kind,branch,name);
++CREATE TABLE IF NOT EXISTS maliks_pos_master_audit (
++  id INTEGER PRIMARY KEY AUTOINCREMENT,
++  request_id TEXT NOT NULL UNIQUE,
++  kind TEXT NOT NULL CHECK(kind IN ('stock','supplier','debtor')),
++  branch TEXT NOT NULL COLLATE NOCASE,
++  record_id INTEGER NOT NULL,
++  action TEXT NOT NULL CHECK(action IN ('CREATE','UPDATE')),
++  actor_email TEXT NOT NULL,
++  actor_name TEXT NOT NULL,
++  payload_hash TEXT NOT NULL,
++  before_json TEXT,
++  after_json TEXT NOT NULL,
++  created_at TEXT NOT NULL
++);
++CREATE INDEX IF NOT EXISTS idx_maliks_pos_audit_branch ON maliks_pos_master_audit(kind,branch,id DESC);
+diff --git a/maliks-operations/src/core.mjs b/maliks-operations/src/core.mjs
+index 7e8d335..d535b51 100644
+--- a/maliks-operations/src/core.mjs
++++ b/maliks-operations/src/core.mjs
+@@ -8,12 +8,13 @@ import {quoteId} from './quote-domain.mjs';
+ import {cashupPreviewStatement,cashupForClient,CASHUP_MODE} from './cashup-domain.mjs';
+ import {submitPayment,confirmSimpleCheckout,listPayments,verifyPayment,listDispatch,updateDispatch,getInvoice} from './payment-dispatch-domain.mjs';
+ import {validateEvidenceInput,evidenceListStatement,evidenceHistoryStatement,evidenceForClient,EVIDENCE_MODE} from './payment-evidence-domain.mjs';
++import {listMasterRecords,listMasterAudit,listMasterCatalogue,saveMasterRecord,canUseMaster,MASTER_KINDS} from './master-domain.mjs';
+ 
+ const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
+ const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
+ const result=(json,status=200)=>Response.json(json,{status,headers:HEADERS});
+ const securityCache = new Map();
+-const accessVars={pos:'ACCESS_AUD_POS',tills:'ACCESS_AUD_TILLS',cashoffice:'ACCESS_AUD_CASHOFFICE',dispatch:'ACCESS_AUD_DISPATCH'};
++const accessVars={pos:'ACCESS_AUD_POS',management:'ACCESS_AUD_POS',tills:'ACCESS_AUD_TILLS',cashoffice:'ACCESS_AUD_CASHOFFICE',dispatch:'ACCESS_AUD_DISPATCH'};
+ 
+ async function identity(request,env) {
+   const app=request.headers.get('x-maliks-app');
+@@ -449,8 +450,13 @@ export default {
+       const context={...access,app:auth.app};
+       if(path==='/v1/session'&&req.method==='GET')return result({
+         app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
+-        mode:auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
++        master_permissions:auth.app==='management'?Object.fromEntries(MASTER_KINDS.map(k=>[k,{read:canUseMaster(access.member,k),write:canUseMaster(access.member,k,true)}])):undefined,
++        mode:auth.app==='management'?'MASTER_FILES':auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
+       });
++      if(path==='/v1/master/records'&&req.method==='GET')return await listMasterRecords(req,env,context);
++      if(path==='/v1/master/records'&&req.method==='POST')return await saveMasterRecord(req,env,context);
++      if(path==='/v1/master/audit'&&req.method==='GET')return await listMasterAudit(req,env,context);
++      if(path==='/v1/master/catalogue'&&req.method==='GET')return await listMasterCatalogue(req,env,context);
+       if(path==='/v1/catalogue'&&req.method==='GET')return await catalogue(req,env,context);
+       if(path==='/v1/quotes'&&req.method==='GET')return await listQuotes(req,env,context);
+       if(path==='/v1/quotes/find'&&req.method==='GET')return await findQuote(req,env,context);
+diff --git a/maliks-operations/src/frontend.mjs b/maliks-operations/src/frontend.mjs
+index 7974bdc..7c9f529 100644
+--- a/maliks-operations/src/frontend.mjs
++++ b/maliks-operations/src/frontend.mjs
+@@ -135,6 +135,19 @@ function page(app){
+  .print-sheet .pick-signatures p{border-top:1px solid #345;padding-top:8px}
+  
+ 
++ /* Phase 15 master-file workspace */
++ .suite-feature-detail.suite-master-workspace{background:#fff;border:1px solid #dce5ed;color:#21334b;box-shadow:0 5px 20px #102a4b10}
++ .suite-master-header{display:flex;flex-direction:column;gap:10px}.suite-master-header h3{font-size:21px;color:#152f4a}
++ .suite-master-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:12px 0}
++ .suite-master-actions input{flex:2 1 230px;min-width:200px}.suite-master-actions button{flex:0 0 auto}
++ .suite-master-note{font-size:12px;color:#475f77;background:#f0f5fb;padding:12px;border-radius:7px}
++ .suite-master-editor{background:#f7faff;border:1px solid #cad9e8;padding:19px;border-radius:12px;margin:17px 0}
++ .suite-master-editor[hidden],.suite-master-catalogue[hidden]{display:none!important}
++ .suite-master-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
++ .suite-master-form label{font-size:12px;color:#425770}.suite-master-form label span{display:block;margin-bottom:6px}
++ .suite-master-form-buttons{grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap}
++ .suite-master-catalogue{margin-top:28px;padding:16px;border-top:2px solid #e1eaf4}
++ .suite-master-catalogue h4{margin:0 0 7px}
+  /* Maliks Professional suite: independent visual identity; existing branch receipts remain PowerBuild-branded. */
+  .maliks-professional{background:#edf2f7}
+  .maliks-sales-workstation aside{background:linear-gradient(150deg,#101e32,#1d4562)}
+@@ -1171,29 +1184,167 @@ function page(app){
+      ['tills','▤','Tills','Cashier checkout, cash/card confirmations and paid receipts.','SEPARATE WORKSTATION'],
+      ['cashoffice','◈','Cash Office','Payment verification, cash-up and internal finance controls.','SEPARATE WORKSTATION'],
+      ['dispatching','⇥','Dispatching','Paid-order picking, checking and delivery management.','SEPARATE WORKSTATION'],
+-     ['stock','▦','Stock','Stock master, receiving, transfers, valuations and stock take.','MENU INVENTORY'],
+-     ['debtors','◎','Debtors','Accounts, collections, statements and age analysis.','MENU INVENTORY'],
+-     ['suppliers','▤','Suppliers','Purchasing, invoices, claims and supplier accounts.','MENU INVENTORY'],
++     ['stock','▦','Stock','Branch stock master and existing product catalogue lookup.','LIVE MASTER FILES'],
++     ['debtors','◎','Debtors','Branch debtor master records and audit history.','LIVE MASTER FILES'],
++     ['suppliers','▤','Suppliers','Branch supplier master records and audit history.','LIVE MASTER FILES'],
+      ['backoffice','▥','Back Office','Tills, end-of-day, VAT, reporting and month-end controls.','MENU INVENTORY'],
+      ['headoffice','◇','Head Office','Branches, synchronization and group management.','MENU INVENTORY'],
+    ];
+    for(const [id,symbol,name,description,status] of definitions){
+      const card=suiteButton('',id,'suite-card');card.append(h('span',symbol,'suite-card-icon'),h('strong',name),h('small',description));
+-     card.append(h('span',status,'suite-card-status'+(status==='LIVE'?' live':'')));cards.append(card);
++     card.append(h('span',status,'suite-card-status'+(status.startsWith('LIVE')?' live':'')));cards.append(card);
+    }
+-   root.append(cards,h('p','Department transaction workstations remain separately secured. Reference menus are navigation previews until their own APIs, permissions and accounting controls are implemented.','suite-footnote'));
++   root.append(cards,h('p','Stock, Suppliers and Debtors master files are now database-backed. All other menu entries remain previews until their individual workflows are built and tested. Department transactions remain separately secured.','suite-footnote'));
++ }
++ const MASTER_LABELS={stock:'Stock Master',supplier:'Suppliers Master',debtor:'Debtors Master'};
++ const MASTER_FIELDS={
++   stock:[['unit','Unit','text'],['category','Category','text'],['barcode','Barcode','text'],['cost_cents','Cost price (R)','money'],['selling_price_cents','Selling price (R)','money'],['reorder_min','Minimum stock level','integer']],
++   supplier:[['contact_name','Contact person','text'],['phone','Phone','text'],['email','Email','email'],['vat_number','VAT number','text'],['payment_terms_days','Payment terms (days)','integer']],
++   debtor:[['contact_name','Contact person','text'],['phone','Phone','text'],['email','Email','email'],['credit_limit_cents','Credit limit (R)','money'],['payment_terms_days','Payment terms (days)','integer']]
++ };
++ let masterPermissions={};
++ function suiteMasterView(kind,openAudit=false){
++   const detail=E('suite-feature-detail');if(!detail)return;
++   const selectedBranch=branch;detail.hidden=false;detail.className='suite-feature-detail suite-master-workspace';detail.replaceChildren();
++   const header=h('div',undefined,'suite-master-header');header.append(h('h3',MASTER_LABELS[kind]));
++   const tools=h('div',undefined,'suite-master-actions');
++   const search=h('input');search.type='search';search.placeholder='Search code or name';search.setAttribute('aria-label','Search '+MASTER_LABELS[kind]);
++   const searchButton=h('button','Search');searchButton.type='button';
++   const newButton=h('button','New '+(kind==='stock'?'item':kind));newButton.type='button';
++   const auditButton=h('button','Audit history','secondary');auditButton.type='button';
++   const refreshButton=h('button','Refresh','secondary');refreshButton.type='button';
++   const cancelButton=h('button','Back to list','secondary');cancelButton.type='button';
++   tools.append(search,searchButton,refreshButton,auditButton);
++   if(masterPermissions[kind]?.write)tools.append(newButton);
++   header.append(tools);detail.append(header);
++   const notice=h('p','Branch: '+selectedBranch+' · These are master records only. No stock-on-hand, supplier balance, debtor balance, invoice, payment or GL posting occurs.','suite-master-note');detail.append(notice);
++   const feedback=h('div');feedback.setAttribute('role','status');detail.append(feedback);
++   const editor=h('section',undefined,'suite-master-editor');editor.hidden=true;detail.append(editor);
++   const listArea=h('div');detail.append(listArea);
++   const auditArea=h('div');auditArea.hidden=true;detail.append(auditArea);
++   const valid=()=>branch===selectedBranch&&detail.isConnected;
++   const showMessage=(message,good=false)=>{feedback.textContent=message;feedback.className=good?'success':'error';feedback.hidden=!message;};
++   feedback.hidden=true;
++   const displayValue=(v)=>v===null||v===undefined?'':String(v);
++   function openEditor(record){
++     if(!masterPermissions[kind]?.write){showMessage('This account has read-only access.');return;}
++     editor.hidden=false;editor.replaceChildren();auditArea.hidden=true;listArea.hidden=true;
++     const heading=h('h3',record?'Edit '+record.code:'New '+MASTER_LABELS[kind]+' record');editor.append(heading);
++     const form=h('form',undefined,'suite-master-form');const controls={};
++     const addField=(key,label,type,value)=>{
++       const wrap=h('label');wrap.append(h('span',label));const input=h('input');
++       input.name=key;input.type=type==='money'||type==='integer'?'number':type==='email'?'email':'text';
++       if(type==='money'){input.step='0.01';input.min='0';}else if(type==='integer'){input.step='1';input.min='0';}
++       input.value=displayValue(value);if(key==='code'||key==='name'||key==='unit')input.required=true;
++       wrap.append(input);form.append(wrap);controls[key]=input;
++     };
++     addField('code','Code','text',record?.code||'');addField('name','Description / name','text',record?.name||'');
++     for(const [key,label,type] of MASTER_FIELDS[kind]){
++       const fallback=key==='unit'?'each':type==='integer'||type==='money'?0:'';
++       const stored=record?.details?.[key]??fallback;
++       addField(key,label,type,type==='money'?Number(stored)/100:stored);
++     }
++     const activeLabel=h('label');activeLabel.append(h('span','Status'));const active=h('select');
++     for(const [value,label] of [['true','Active'],['false','Inactive']]){const option=h('option',label);option.value=value;active.append(option);}
++     active.value=record?.active===false?'false':'true';activeLabel.append(active);form.append(activeLabel);
++     const buttons=h('div',undefined,'suite-master-form-buttons');const save=h('button','Save master record');save.type='submit';
++     buttons.append(save,cancelButton);form.append(buttons);editor.append(form);
++     let pendingId=null;form.addEventListener('input',()=>{pendingId=null;});
++     form.addEventListener('submit',async event=>{
++       event.preventDefault();if(!valid()){showMessage('Branch changed. Reopen the master file.');return;}
++       const details={};
++       for(const [key,label,type] of MASTER_FIELDS[kind]){
++         const value=controls[key].value.trim();
++         if(type==='money'){
++           const n=Number(value);if(!Number.isFinite(n)||n<0||Math.abs(n*100-Math.round(n*100))>0.00001){showMessage(label+' must be a valid amount with two decimals.');return;}
++           details[key]=Math.round(n*100);
++         }else if(type==='integer'){
++           const n=Number(value);if(!Number.isSafeInteger(n)||n<0){showMessage(label+' must be a whole number.');return;}details[key]=n;
++         }else details[key]=value;
++       }
++       pendingId=pendingId||crypto.randomUUID();
++       const body={request_id:pendingId,kind,branch:selectedBranch,code:controls.code.value.trim(),
++         name:controls.name.value.trim(),active:active.value==='true',details};
++       if(record){body.id=record.id;body.version=record.version;}
++       save.disabled=true;showMessage('');
++       try{
++         const response=await api('/api/master/records',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
++         if(!valid())return;
++         showMessage('Saved '+response.record.code+' successfully. The change is recorded in the audit history.',true);
++         editor.hidden=true;listArea.hidden=false;pendingId=null;await loadRecords();
++       }catch(e){if(valid())showMessage(e.message);}finally{save.disabled=false;}
++     });
++   }
++   async function loadRecords(){
++     if(!valid())return;
++     auditArea.hidden=true;listArea.hidden=false;listArea.replaceChildren(h('p','Loading branch master records…','muted'));
++     try{
++       const q=search.value.trim();const data=await api('/api/master/records?kind='+encodeURIComponent(kind)+'&branch='+encodeURIComponent(selectedBranch)+'&q='+encodeURIComponent(q));
++       if(!valid())return;
++       listArea.replaceChildren();
++       if(!data.records.length){listArea.append(h('p','No records found. Use New to add a branch master record.','empty'));return;}
++       const table=h('table');const head=h('tr');for(const label of ['Code','Name','Status','Updated','Action'])cell(head,label,'th');
++       const thead=h('thead');thead.append(head);table.append(thead);const tbody=h('tbody');
++       for(const record of data.records){
++         const tr=h('tr');cell(tr,record.code);cell(tr,record.name);cell(tr,record.active?'Active':'Inactive');cell(tr,showDate(record.updated_at));
++         const actions=h('td');if(masterPermissions[kind]?.write){const edit=h('button','Edit','small-btn');edit.type='button';edit.addEventListener('click',()=>openEditor(record));actions.append(edit);}else actions.textContent='Read only';
++         tr.append(actions);tbody.append(tr);
++       }
++       table.append(tbody);const scroller=h('div',undefined,'scroll');scroller.append(table);listArea.append(scroller);
++     }catch(e){if(valid())showMessage(e.message);}
++   }
++   async function loadAudit(){
++     if(!valid())return;editor.hidden=true;listArea.hidden=true;auditArea.hidden=false;auditArea.replaceChildren(h('p','Loading audit history…','muted'));
++     try{
++       const data=await api('/api/master/audit?kind='+encodeURIComponent(kind)+'&branch='+encodeURIComponent(selectedBranch));
++       if(!valid())return;auditArea.replaceChildren(h('h4','Last 50 master-file changes'));
++       if(!data.audit.length){auditArea.append(h('p','No audit events yet.','empty'));return;}
++       const table=h('table');const head=h('tr');for(const label of ['Date','Action','Code','User','Change'])cell(head,label,'th');const thead=h('thead');thead.append(head);table.append(thead);
++       const tbody=h('tbody');for(const entry of data.audit){const tr=h('tr');cell(tr,showDate(entry.created_at));cell(tr,entry.action);cell(tr,entry.after?.code||'—');cell(tr,entry.actor_name+' ('+entry.actor_email+')');
++         const change=h('td');change.textContent=entry.before?'Version '+entry.before.version+' → '+entry.after.version:'Created';tr.append(change);tbody.append(tr);}
++       table.append(tbody);const scroller=h('div',undefined,'scroll');scroller.append(table);auditArea.append(scroller);
++     }catch(e){if(valid())showMessage(e.message);}
++   }
++   searchButton.addEventListener('click',()=>{editor.hidden=true;void loadRecords();});
++   search.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();editor.hidden=true;void loadRecords();}});
++   refreshButton.addEventListener('click',()=>{editor.hidden=true;void loadRecords();});
++   newButton.addEventListener('click',()=>openEditor(null));
++   auditButton.addEventListener('click',()=>void loadAudit());
++   cancelButton.addEventListener('click',()=>{editor.hidden=true;void loadRecords();});
++   if(kind==='stock'){
++     const lookup=h('section',undefined,'suite-master-catalogue');lookup.append(h('h4','Existing product catalogue (read only)'));
++     lookup.append(h('p','Search products already in the Group Hub catalogue. This does not create stock-on-hand or alter price tags.','muted'));
++     const row=h('div',undefined,'suite-master-actions');const input=h('input');input.type='search';input.placeholder='Product code or name (2+ characters)';
++     const button=h('button','Search catalogue','secondary');button.type='button';row.append(input,button);lookup.append(row);
++     const results=h('div');lookup.append(results);detail.append(lookup);
++     const doLookup=async()=>{
++       if(input.value.trim().length<2){results.textContent='Enter at least two characters.';return;}
++       results.textContent='Searching…';try{
++         const data=await api('/api/master/catalogue?branch='+encodeURIComponent(selectedBranch)+'&q='+encodeURIComponent(input.value.trim()));
++         if(!valid())return;results.replaceChildren();if(!data.products.length){results.append(h('p','No matching products.','empty'));return;}
++         const table=h('table');const head=h('tr');for(const label of ['Code','Description','Category'])cell(head,label,'th');const thead=h('thead');thead.append(head);table.append(thead);
++         const tbody=h('tbody');for(const p of data.products){const tr=h('tr');cell(tr,p.code);cell(tr,p.name);cell(tr,p.category||'—');tbody.append(tr);}table.append(tbody);
++         const scroller=h('div',undefined,'scroll');scroller.append(table);results.append(scroller);
++       }catch(e){results.textContent=e.message;}
++     };
++     button.addEventListener('click',()=>void doLookup());input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void doLookup();}});
++   }
++   if(openAudit)void loadAudit();else void loadRecords();
+  }
+  function suiteModuleView(id){
+    const root=E('app-content');const name=SUITE_TITLES[id]||({tills:'Tills',cashoffice:'Cash Office'}[id])||'Module';
+    const isSeparate=['tills','cashoffice','dispatching'].includes(id);
+-   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':'This menu inventory follows the supplied Touch365 screenshots, redesigned for Maliks Professional. Menu entries shown here are not yet connected to live accounting or stock transactions.','suite-menu-intro'));
++   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':['stock','suppliers','debtors'].includes(id)?'Branch master files and their audit histories are live. Other transactions and financial postings are not enabled yet.':'The menu inventory is a reference. Unbuilt operations remain disabled until their secure workflows are implemented.','suite-menu-intro'));
+    const menu=SUITE_MENU_TREE[id]||{};const grid=h('div',undefined,'suite-menu-grid');
+    for(const [section,items] of Object.entries(menu)){
+      const card=h('section',undefined,'suite-menu-card');card.append(h('h3',section));const list=h('div',undefined,'suite-menu-list');
+      for(const item of items){
+        const b=h('button',item,'suite-menu-action');b.type='button';
+        b.addEventListener('click',()=>{
+-         const detail=E('suite-feature-detail');detail.replaceChildren();
++         const masterKind=id==='stock'&&item==='Stock Master'?'stock':id==='suppliers'&&item==='Suppliers'?'supplier':id==='debtors'&&item==='Debtors'?'debtor':null;
++         if(masterKind){suiteMasterView(masterKind);return;}
++         if(item==='Audits'&&['stock','suppliers','debtors'].includes(id)){suiteMasterView(id==='suppliers'?'supplier':id==='debtors'?'debtor':'stock',true);return;}
++         const detail=E('suite-feature-detail');detail.className='suite-feature-detail';detail.replaceChildren();
+          detail.append(h('strong',name+'  /  '+section+'  /  '+item));
+          detail.append(h('p',isSeparate?'Open the authorised department workstation for operational access. This suite menu is a reference only.':'This function is in the module inventory but is not live yet. It requires a secure API, database workflow, branch permissions and audit logging before activation.'));
+          detail.hidden=false;detail.scrollIntoView({block:'nearest',behavior:'smooth'});
+@@ -1229,7 +1380,7 @@ function page(app){
+  }
+ 
+  try{
+-   const session=await api('/api/session');E('signed-in').textContent=session.user.name+' · '+session.user.role;
++   const session=await api('/api/session');masterPermissions=session.master_permissions||{};E('signed-in').textContent=session.user.name+' · '+session.user.role;
+    E('access').textContent=session.branches.length+' assigned branch(es)'+(['pos','sales'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
+    for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=false;branch=select.value;select.addEventListener('change',selectBranch);
+    if(APP==='pos'){
+@@ -1250,13 +1401,15 @@ export default {
+    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
+    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
+      '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview',
+-     '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action'};
++     '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
++     '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue'};
+    const path=pathMap[url.pathname];
+    if(!path)return Response.json({error:'Unknown API.'},{status:404});
+    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
+-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
++   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+    // The Professional suite cannot submit Sales transactions through its old POS origin.
+-   if(kind==='pos' && path!=='/v1/session')return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
++   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/master/'))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
++   if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
+    // The dedicated Sales Worker may only access the quotation/catalogue APIs.
+    if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
+    // Department rules enforced here as an early deny and again by the private Core.
+@@ -1279,7 +1432,7 @@ export default {
+    if(!token)return Response.json({error:'Cloudflare Access application login required.'},{status:401,headers:{'cache-control':'no-store'}});
+    // Both public Workers use the existing verified POS Access audience. Core receives
+    // 'pos' only for the dedicated Sales Worker, preserving its current Sales-only roles.
+-   const coreApp=kind==='sales'?'pos':kind;
++   const coreApp=kind==='sales'?'pos':kind==='pos'?'management':kind;
+    const headers=new Headers({'cf-access-jwt-assertion':token,'x-maliks-app':coreApp,'x-maliks-original-origin':url.origin});
+    if(req.method==='POST'){headers.set('content-type','application/json');headers.set('origin',url.origin);}
+    const target=new URL('https://maliks-core.internal'+path+url.search);
+diff --git a/maliks-operations/src/master-domain.mjs b/maliks-operations/src/master-domain.mjs
+new file mode 100644
+index 0000000..d7a4b93
+--- /dev/null
++++ b/maliks-operations/src/master-domain.mjs
+@@ -0,0 +1,201 @@
++// Phase 15: independent branch-scoped master-file administration.
++// These records do NOT post stock, payments, VAT, customer balances or GL journals.
++import { matchingBranch, limitSearch } from './policy.mjs';
++
++export const MASTER_KINDS = Object.freeze(['stock','supplier','debtor']);
++const MASTER_ROLES = Object.freeze({
++  stock: ['Stock Controller','Warehouse Manager','Warehouse Management','Purchasing Manager','Buyer'],
++  supplier: ['Purchasing Manager','Buyer','Finance Manager','Creditors Clerk'],
++  debtor: ['Finance Manager','Debtors Clerk','Credit Controller'],
++});
++const MANAGERS = new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager']);
++const HEADERS = {'cache-control':'no-store','x-content-type-options':'nosniff'};
++const json = (value,status=200)=>Response.json(value,{status,headers:HEADERS});
++const fail = (message,status=400)=>json({error:message},status);
++
++export function canUseManagement(member){
++  if(!member||Number(member.active)!==1)return false;
++  if(MANAGERS.has(member.role))return true;
++  if(member.role==='Executive / EXCO'&&member.access_scope==='Full company')return true;
++  return Object.values(MASTER_ROLES).some(roles=>roles.includes(member.role));
++}
++export function canUseMaster(member,kind,write=false){
++  if(!MASTER_KINDS.includes(kind)||!canUseManagement(member))return false;
++  if(MANAGERS.has(member.role))return true;
++  if(member.role==='Executive / EXCO'&&member.access_scope==='Full company')return !write;
++  return MASTER_ROLES[kind].includes(member.role);
++}
++const str=(value,name,max,required=false)=>{
++  if(typeof value!=='string')throw Error(name+' must be text.');
++  const s=value.trim();
++  if((required&&!s)||s.length>max||/[\u0000-\u001f\u007f]/.test(s))throw Error('Invalid '+name+'.');
++  return s;
++};
++const int=(value,name,max)=>{
++  if(!Number.isSafeInteger(value)||value<0||value>max)throw Error('Invalid '+name+'.');
++  return value;
++};
++const email=value=>{
++  const e=str(value,'email',150).toLowerCase();
++  if(e&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))throw Error('Invalid email address.');
++  return e;
++};
++const uuid=value=>{
++  if(typeof value!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value))throw Error('Invalid request ID.');
++  return value.toLowerCase();
++};
++const detailsFor=(kind,raw)=>{
++  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid master-file details.');
++  if(kind==='stock')return {
++    unit:str(raw.unit,'unit',24,true),category:str(raw.category,'category',80),barcode:str(raw.barcode,'barcode',64),
++    cost_cents:int(raw.cost_cents,'cost',100000000000),selling_price_cents:int(raw.selling_price_cents,'selling price',100000000000),
++    reorder_min:int(raw.reorder_min,'minimum stock level',100000000),
++  };
++  if(kind==='supplier')return {
++    contact_name:str(raw.contact_name,'contact',120),phone:str(raw.phone,'phone',40),email:email(raw.email),
++    vat_number:str(raw.vat_number,'VAT number',40),payment_terms_days:int(raw.payment_terms_days,'payment terms',365),
++  };
++  return {
++    contact_name:str(raw.contact_name,'contact',120),phone:str(raw.phone,'phone',40),email:email(raw.email),
++    credit_limit_cents:int(raw.credit_limit_cents,'credit limit',100000000000),payment_terms_days:int(raw.payment_terms_days,'payment terms',365),
++  };
++};
++export function validateMasterInput(raw){
++  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid master-file request.');
++  if(!MASTER_KINDS.includes(raw.kind))throw Error('Invalid master-file type.');
++  const code=str(raw.code,'code',40,true).toUpperCase();
++  if(!/^[A-Z0-9][A-Z0-9._/-]{0,39}$/.test(code))throw Error('Code must use letters, numbers, dash, slash, dot or underscore.');
++  if(typeof raw.active!=='boolean')throw Error('Active status must be selected.');
++  const data={kind:raw.kind,branch:str(raw.branch,'branch',150,true),code,
++    name:str(raw.name,'name',160,true),active:raw.active?1:0,
++    details:detailsFor(raw.kind,raw.details),request_id:uuid(raw.request_id)};
++  if(raw.id!==undefined&&raw.id!==null){
++    if(!Number.isSafeInteger(raw.id)||raw.id<1)throw Error('Invalid record ID.');
++    if(!Number.isSafeInteger(raw.version)||raw.version<1)throw Error('Invalid record version.');
++    data.id=raw.id;data.version=raw.version;
++  }
++  return data;
++}
++const snapshot=(r)=>({id:r.id,kind:r.kind,branch:r.branch,code:r.code,name:r.name,
++  active:Boolean(r.active),details:typeof r.details_json==='string'?JSON.parse(r.details_json):r.details,
++  version:r.version,updated_at:r.updated_at});
++const recordForClient=snapshot;
++const readKindAndBranch=(req,context)=>{
++  const p=new URL(req.url).searchParams;
++  const kind=p.get('kind');
++  if(!MASTER_KINDS.includes(kind))throw Error('Select a valid master file.');
++  const branch=matchingBranch(context.branches,p.get('branch'));
++  if(!branch)throw Error('Branch access denied.');
++  if(!canUseMaster(context.member,kind))throw Error('Master-file permission denied.');
++  return {kind,branch,params:p};
++};
++const hashPayload=async payload=>{
++  const raw=JSON.stringify(payload);
++  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw));
++  return Array.from(new Uint8Array(bytes),x=>x.toString(16).padStart(2,'0')).join('');
++};
++
++export async function listMasterRecords(req,env,context){
++  if(context.app!=='management')return fail('Management workspace required.',403);
++  let kind,branch,params;
++  try{({kind,branch,params}=readKindAndBranch(req,context));}catch(e){return fail(e.message,403);}
++  const q=limitSearch(params.get('q')||'');
++  if(q===null)return fail('Search is too long.');
++  const term=q.toLowerCase();
++  const {results}=await env.DB.prepare(`SELECT id,kind,branch,code,name,active,details_json,version,updated_at
++    FROM maliks_pos_master_records WHERE kind=? AND lower(branch)=lower(?)
++    AND (?='' OR instr(lower(code),?)>0 OR instr(lower(name),?)>0)
++    ORDER BY name LIMIT 100`).bind(kind,branch,term,term,term).all();
++  return json({kind,branch,records:results.map(recordForClient)});
++}
++export async function listMasterAudit(req,env,context){
++  if(context.app!=='management')return fail('Management workspace required.',403);
++  let kind,branch;
++  try{({kind,branch}=readKindAndBranch(req,context));}catch(e){return fail(e.message,403);}
++  const {results}=await env.DB.prepare(`SELECT id,record_id,kind,branch,action,actor_email,actor_name,created_at,before_json,after_json
++    FROM maliks_pos_master_audit WHERE kind=? AND lower(branch)=lower(?) ORDER BY id DESC LIMIT 50`)
++    .bind(kind,branch).all();
++  return json({kind,branch,audit:results.map(r=>({...r,before:r.before_json?JSON.parse(r.before_json):null,
++    after:r.after_json?JSON.parse(r.after_json):null,before_json:undefined,after_json:undefined}))});
++}
++export async function listMasterCatalogue(req,env,context){
++  if(context.app!=='management'||!canUseMaster(context.member,'stock'))return fail('Stock master access denied.',403);
++  const params=new URL(req.url).searchParams;
++  const branch=matchingBranch(context.branches,params.get('branch'));
++  if(!branch)return fail('Branch access denied.',403);
++  const q=limitSearch(params.get('q')||'');
++  if(q===null)return fail('Search is too long.');
++  if(q.length<2)return json({branch,products:[],read_only:true});
++  const term=q.toLowerCase();
++  const tagTable=/buster\s*build/i.test(branch)?'busterbuild_price_tags':'powerbuild_price_tags';
++  const {results}=await env.DB.prepare(`SELECT p.id,p.code,p.name,p.category FROM catalogue_products p
++    JOIN ${tagTable} t ON t.product_id=p.id AND t.published=1
++    WHERE p.active=1 AND (instr(lower(p.code),?)>0 OR instr(lower(p.name),?)>0)
++    ORDER BY p.name LIMIT 40`).bind(term,term).all();
++  return json({branch,products:results,read_only:true,stock_on_hand_available:false});
++}
++export async function saveMasterRecord(req,env,context){
++  if(context.app!=='management')return fail('Management workspace required.',403);
++  if(!req.headers.get('origin')||req.headers.get('origin')!==req.headers.get('x-maliks-original-origin'))return fail('Invalid request origin.',403);
++  const raw=await req.text();
++  if(raw.length>12000)return fail('Request too large.',413);
++  let data;
++  try{data=validateMasterInput(JSON.parse(raw));}catch(e){return fail(e.message);}
++  if(!canUseMaster(context.member,data.kind,true))return fail('You do not have write permission for this master file.',403);
++  const branch=matchingBranch(context.branches,data.branch);
++  if(!branch)return fail('Branch access denied.',403);
++  data.branch=branch;
++  const actor=context.member.email.toLowerCase();
++  const actorName=context.member.name;
++  const now=new Date().toISOString();
++  const hash=await hashPayload({kind:data.kind,branch:data.branch,code:data.code,name:data.name,
++    active:data.active,details:data.details,id:data.id??null,version:data.version??null});
++  const detailsJson=JSON.stringify(data.details);
++  if(data.id===undefined){
++    // INSERT and audit record commit atomically. Code and request IDs are unique.
++    await env.DB.batch([
++      env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_master_records
++        (kind,branch,code,name,active,details_json,version,created_by_email,updated_by_email,created_at,updated_at,create_request_id,create_payload_hash,last_request_id)
++        VALUES (?,?,?,?,?,?,1,?,?,?,?,?,?,?)`).bind(data.kind,branch,data.code,data.name,data.active,detailsJson,
++        actor,actor,now,now,data.request_id,hash,data.request_id),
++      env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_master_audit
++        (request_id,kind,branch,record_id,action,actor_email,actor_name,payload_hash,before_json,after_json,created_at)
++        SELECT ?,kind,branch,id,'CREATE',?,?,?,?,?,? FROM maliks_pos_master_records
++        WHERE create_request_id=? AND created_by_email=?`)
++        .bind(data.request_id,actor,actorName,hash,null,JSON.stringify({kind:data.kind,branch,code:data.code,name:data.name,active:Boolean(data.active),details:data.details,version:1}),now,data.request_id,actor),
++    ]);
++    const saved=await env.DB.prepare('SELECT * FROM maliks_pos_master_records WHERE create_request_id=?').bind(data.request_id).first();
++    if(!saved)return fail('Code already exists for this branch. Choose a unique code.',409);
++    if(saved.create_payload_hash!==hash||saved.created_by_email!==actor)return fail('Request ID has already been used.',409);
++    return json({record:recordForClient(saved)});
++  }
++  const prior=await env.DB.prepare('SELECT * FROM maliks_pos_master_records WHERE id=? AND kind=? AND lower(branch)=lower(?)')
++    .bind(data.id,data.kind,branch).first();
++  if(!prior)return fail('Record not found for this branch.',404);
++  const replay=await env.DB.prepare('SELECT * FROM maliks_pos_master_audit WHERE request_id=?').bind(data.request_id).first();
++  if(replay){
++    if(replay.record_id!==data.id||replay.actor_email!==actor||replay.payload_hash!==hash)return fail('Request ID already used.',409);
++    return json({record:JSON.parse(replay.after_json),duplicate:true});
++  }
++  if(prior.version!==data.version)return fail('This record changed. Refresh before saving.',409);
++  const after={id:data.id,kind:data.kind,branch,code:data.code,name:data.name,active:Boolean(data.active),
++    details:data.details,version:data.version+1,updated_at:now};
++  // The audit INSERT is conditional on last_request_id matching this successful UPDATE.
++  // D1 batch transactions roll back both statements if either fails.
++  let outcomes;try{outcomes=await env.DB.batch([
++    env.DB.prepare(`UPDATE maliks_pos_master_records SET code=?,name=?,active=?,details_json=?,version=version+1,
++      updated_by_email=?,updated_at=?,last_request_id=?
++      WHERE id=? AND kind=? AND lower(branch)=lower(?) AND version=?
++      AND NOT EXISTS(SELECT 1 FROM maliks_pos_master_audit WHERE request_id=?)`)
++      .bind(data.code,data.name,data.active,detailsJson,actor,now,data.request_id,
++        data.id,data.kind,branch,data.version,data.request_id),
++    env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_master_audit
++      (request_id,kind,branch,record_id,action,actor_email,actor_name,payload_hash,before_json,after_json,created_at)
++      SELECT ?,kind,branch,id,'UPDATE',?,?,?,?,?,? FROM maliks_pos_master_records
++      WHERE id=? AND kind=? AND lower(branch)=lower(?) AND version=? AND last_request_id=?`)
++      .bind(data.request_id,actor,actorName,hash,JSON.stringify(snapshot(prior)),JSON.stringify(after),now,
++        data.id,data.kind,branch,data.version+1,data.request_id),
++  ]);}catch(error){if(/UNIQUE constraint failed/i.test(String(error)))return fail('Code already exists for this branch.',409);throw error;}
++  if(Number(outcomes?.[0]?.meta?.changes)!==1)return fail('This record changed. Refresh before saving.',409);
++  return json({record:after});
++}
+diff --git a/maliks-operations/src/policy.mjs b/maliks-operations/src/policy.mjs
+index 7a750fd..7580678 100644
+--- a/maliks-operations/src/policy.mjs
++++ b/maliks-operations/src/policy.mjs
+@@ -6,9 +6,11 @@ const DEPARTMENT_ROLES = {
+   cashoffice: new Set(['Cash Office','Cash Office Clerk','Cash Office Manager','Cash Office Supervisor','Finance Manager']),
+   dispatch: new Set(['Dispatch','Dispatcher','Dispatch Head','Dispatch Manager','Checker','Driver']),
+ };
+-export const APPS = Object.freeze(['pos','tills','cashoffice','dispatch']);
++export const APPS = Object.freeze(['pos','tills','cashoffice','dispatch','management']);
++const MANAGEMENT_ONLY = new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager','Stock Controller','Warehouse Manager','Warehouse Management','Purchasing Manager','Buyer','Finance Manager','Creditors Clerk','Debtors Clerk','Credit Controller']);
+ export function canUseApp(member, app) {
+-  if (!DEPARTMENT_ROLES[app] || !member || Number(member.active) !== 1) return false;
++  if (!APPS.includes(app) || !member || Number(member.active) !== 1) return false;
++  if (app === 'management') return MANAGEMENT_ONLY.has(member.role) || (member.role === 'Executive / EXCO' && member.access_scope === 'Full company');
+   if (MANAGEMENT.has(member.role)) return true;
+   if (member.role === 'Executive / EXCO' && member.access_scope === 'Full company') return true;
+   return DEPARTMENT_ROLES[app].has(member.role);
+diff --git a/maliks-operations/tests/phase13-suite.test.mjs b/maliks-operations/tests/phase13-suite.test.mjs
+index 417d90f..3ce40ba 100644
+--- a/maliks-operations/tests/phase13-suite.test.mjs
++++ b/maliks-operations/tests/phase13-suite.test.mjs
+@@ -19,7 +19,8 @@ test('Maliks POS Professional suite retains navigation without Sales',async()=>{
+ test('Reference menus are visible but not falsely connected to financial APIs',async()=>{
+   const page=await html('pos');
+   for(const term of ['Staggered Invoices Dispatch','Branches Synchronization History','Stock Valuations','Till Cash-Up','Sales and Stock Month End','Debtors Invoicing Classifications','Invoices and Debit Notes'])assert.ok(page.includes(term),term);
+-  assert.match(page,/not yet connected to live accounting or stock transactions/);
++  assert.match(page,/master files and their audit histories are live/);
++  assert.match(page,/Other transactions and financial postings are not enabled yet/);
+   assert.match(page,/separately secured/);
+   assert.match(page,/if\(APP==='pos'\)/);
+ });
+diff --git a/maliks-operations/tests/phase15-master-files.test.mjs b/maliks-operations/tests/phase15-master-files.test.mjs
+new file mode 100644
+index 0000000..1dab924
+--- /dev/null
++++ b/maliks-operations/tests/phase15-master-files.test.mjs
+@@ -0,0 +1,140 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {readFileSync,writeFileSync,mkdtempSync,rmSync} from 'node:fs';
++import {tmpdir} from 'node:os';
++import {join} from 'node:path';
++import {execFileSync} from 'node:child_process';
++import {DatabaseSync} from 'node:sqlite';
++import {canUseApp} from '../src/policy.mjs';
++import {canUseManagement,canUseMaster,validateMasterInput,listMasterRecords,listMasterAudit,listMasterCatalogue,saveMasterRecord} from '../src/master-domain.mjs';
++import frontend from '../src/frontend.mjs';
++
++const uuid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
++const owner={active:1,role:'Owner / Admin',name:'Admin',email:'admin@example.com',access_scope:'Full company'};
++const stocker={active:1,role:'Stock Controller',name:'Stock Controller',email:'stock@example.com',access_scope:'Assigned workspace'};
++const sales={active:1,role:'Sales / Tills',name:'Sales',email:'sales@example.com',access_scope:'Assigned workspace'};
++const context=(member=owner,branches=['Branch A'])=>({app:'management',member,branches});
++const body=(requestId,overrides={})=>({request_id:uuid(requestId),kind:'stock',branch:'Branch A',code:'ABC123',name:'Test Stock Item',active:true,
++  details:{unit:'each',category:'General',barcode:'123456',cost_cents:10000,selling_price_cents:12000,reorder_min:3},...overrides});
++const write=(payload,origin='https://pos.example')=>new Request(origin+'/v1/master/records',{method:'POST',headers:{origin,'x-maliks-original-origin':origin,'content-type':'application/json'},body:JSON.stringify(payload)});
++const get=(path)=>new Request('https://pos.example'+path);
++
++class LocalD1{
++  constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));
++    this.sqlite.exec('CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT,name TEXT,category TEXT,active INTEGER);');
++    this.sqlite.exec('CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER);CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER);');}
++  prepare(sql){
++    const d=this;let params=[];
++    return {bind(...v){params=v;return this;},first(){return d.sqlite.prepare(sql).get(...params)||null;},
++      all(){return {results:d.sqlite.prepare(sql).all(...params)};},run(){const r=d.sqlite.prepare(sql).run(...params);return {meta:{changes:Number(r.changes)}};}};
++  }
++  batch(steps){this.sqlite.exec('BEGIN');try{const result=steps.map(s=>s.run());this.sqlite.exec('COMMIT');return result;}
++    catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
++}
++const response=async res=>({status:res.status,body:await res.json()});
++
++test('management is a separate server-side role and not the Sales app',()=>{
++  assert.equal(canUseApp(owner,'management'),true);
++  assert.equal(canUseApp(stocker,'management'),true);
++  assert.equal(canUseApp(sales,'management'),false);
++  assert.equal(canUseManagement(sales),false);
++  assert.equal(canUseMaster(stocker,'stock',true),true);
++  assert.equal(canUseMaster(stocker,'debtor'),false);
++  assert.equal(canUseMaster({...owner,role:'Executive / EXCO'},'stock'),true);
++  assert.equal(canUseMaster({...owner,role:'Executive / EXCO'},'stock',true),false);
++  assert.equal(canUseMaster({...owner,active:0},'stock'),false);
++});
++test('master input validates branch, code, prices and email',()=>{
++  const validated=validateMasterInput(body(1));assert.equal(validated.code,'ABC123');
++  assert.throws(()=>validateMasterInput(body(1,{code:'x ; DROP TABLE'})),/Code/);
++  assert.throws(()=>validateMasterInput(body(1,{details:{...body(1).details,cost_cents:-1}})),/cost/);
++  assert.throws(()=>validateMasterInput(body(1,{active:'yes'})),/Active/);
++  assert.throws(()=>validateMasterInput(body(1,{request_id:'wrong'})),/request ID/);
++  const supplier=validateMasterInput(body(2,{kind:'supplier',details:{contact_name:'X',phone:'123',email:'x@example.com',vat_number:'',payment_terms_days:30}}));
++  assert.equal(supplier.details.email,'x@example.com');
++  assert.throws(()=>validateMasterInput(body(2,{kind:'supplier',details:{...supplier.details,email:'not email'}})),/email/);
++});
++test('D1 migration is additive and repeatable',()=>{
++  const db=new LocalD1();db.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));
++  const names=db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'maliks_pos_%'").all();
++  assert.equal(names.length,2);
++});
++test('master record create, search, audit, idempotent retry and branch isolation',async()=>{
++  const env={DB:new LocalD1()};
++  const first=await response(await saveMasterRecord(write(body(1)),env,context()));assert.equal(first.status,200);assert.equal(first.body.record.version,1);
++  const replay=await response(await saveMasterRecord(write(body(1)),env,context()));assert.equal(replay.status,200);
++  const conflict=await response(await saveMasterRecord(write(body(2,{name:'Different'})),env,context()));assert.equal(conflict.status,409);
++  const list=await response(await listMasterRecords(get('/v1/master/records?kind=stock&branch=Branch%20A&q=ABC'),env,context()));
++  assert.equal(list.body.records.length,1);assert.equal(list.body.records[0].name,'Test Stock Item');
++  const audit=await response(await listMasterAudit(get('/v1/master/audit?kind=stock&branch=Branch%20A'),env,context()));
++  assert.equal(audit.body.audit.length,1);assert.equal(audit.body.audit[0].action,'CREATE');
++  const other=await response(await listMasterRecords(get('/v1/master/records?kind=stock&branch=Branch%20A'),env,context(owner,['Branch B'])));
++  assert.equal(other.status,403);
++  const otherUser=await response(await listMasterRecords(get('/v1/master/records?kind=debtor&branch=Branch%20A'),env,context(stocker)));
++  assert.equal(otherUser.status,403);
++  const deniedOrigin=await response(await saveMasterRecord(new Request('https://pos.example/v1/master/records',{method:'POST',headers:{origin:'https://evil.example','x-maliks-original-origin':'https://pos.example'},body:JSON.stringify(body(4))}),env,context()));
++  assert.equal(deniedOrigin.status,403);
++});
++test('optimistic versioning and audit of updates; no stale overwrite',async()=>{
++  const env={DB:new LocalD1()};
++  const created=await response(await saveMasterRecord(write(body(10)),env,context()));const record=created.body.record;
++  const update=body(11,{id:record.id,version:record.version,name:'Renamed Item'});
++  const updated=await response(await saveMasterRecord(write(update),env,context()));assert.equal(updated.status,200);assert.equal(updated.body.record.version,2);
++  const duplicate=await response(await saveMasterRecord(write(update),env,context()));assert.equal(duplicate.status,200);assert.equal(duplicate.body.duplicate,true);
++  const stale=await response(await saveMasterRecord(write(body(12,{id:record.id,version:1,name:'Stale'})),env,context()));assert.equal(stale.status,409);
++  const audit=await response(await listMasterAudit(get('/v1/master/audit?kind=stock&branch=Branch%20A'),env,context()));
++  assert.equal(audit.body.audit.length,2);assert.equal(audit.body.audit[0].action,'UPDATE');assert.equal(audit.body.audit[0].before.name,'Test Stock Item');
++  const list=await response(await listMasterRecords(get('/v1/master/records?kind=stock&branch=Branch%20A'),env,context()));
++  assert.equal(list.body.records[0].name,'Renamed Item');
++});
++test('supplier and debtor master files are independently branch scoped and role controlled',async()=>{
++  const env={DB:new LocalD1()};
++  const finance={...owner,role:'Finance Manager',name:'Finance',email:'finance@example.com'};
++  const clerk={...owner,role:'Debtors Clerk',name:'Debtors',email:'debtors@example.com'};
++  const supplier=body(30,{kind:'supplier',code:'SUP001',name:'Supplier One',details:{contact_name:'John',phone:'0111234567',email:'supplier@example.com',vat_number:'12345',payment_terms_days:30}});
++  const debtor=body(31,{kind:'debtor',code:'CUST001',name:'Customer One',details:{contact_name:'Jane',phone:'0111234567',email:'customer@example.com',credit_limit_cents:100000,payment_terms_days:30}});
++  assert.equal((await response(await saveMasterRecord(write(supplier),env,context(finance)))).status,200);
++  assert.equal((await response(await saveMasterRecord(write(debtor),env,context(clerk)))).status,200);
++  assert.equal((await response(await saveMasterRecord(write(supplier),env,context(clerk)))).status,403);
++  const suppliers=await response(await listMasterRecords(get('/v1/master/records?kind=supplier&branch=Branch%20A'),env,context(finance)));
++  assert.equal(suppliers.body.records.length,1);assert.equal(suppliers.body.records[0].details.vat_number,'12345');
++  const debtors=await response(await listMasterRecords(get('/v1/master/records?kind=debtor&branch=Branch%20A'),env,context(clerk)));
++  assert.equal(debtors.body.records.length,1);assert.equal(debtors.body.records[0].details.credit_limit_cents,100000);
++});
++test('the same code is allowed in different branches but not duplicated within a branch',async()=>{
++  const env={DB:new LocalD1()};
++  assert.equal((await response(await saveMasterRecord(write(body(40)),env,context()))).status,200);
++  const second=body(41,{branch:'Branch B'});
++  assert.equal((await response(await saveMasterRecord(write(second),env,context(owner,['Branch B'])))).status,200);
++  const duplicate=body(42,{branch:'Branch B'});
++  assert.equal((await response(await saveMasterRecord(write(duplicate),env,context(owner,['Branch B'])))).status,409);
++  const list=await response(await listMasterRecords(get('/v1/master/records?kind=stock&branch=Branch%20B'),env,context(owner,['Branch B'])));
++  assert.equal(list.body.records.length,1);
++});
++test('catalogue is read-only and uses existing product records without inventing SOH',async()=>{
++  const env={DB:new LocalD1()};env.DB.sqlite.exec("INSERT INTO catalogue_products VALUES(1,'P001','White Tile','Tiles',1),(2,'P002','Other Item','General',0);INSERT INTO powerbuild_price_tags VALUES(1,1),(2,1);");
++  const result=await response(await listMasterCatalogue(get('/v1/master/catalogue?branch=Branch%20A&q=tile'),env,context()));
++  assert.equal(result.status,200);assert.equal(result.body.products.length,1);assert.equal(result.body.read_only,true);assert.equal(result.body.stock_on_hand_available,false);
++});
++test('POS master routes use management identity, Sales remains separate, no financial route leakage',async()=>{
++  const forwarded=[];const env={APP_TYPE:'pos',CORE:{fetch:async req=>{forwarded.push(req);return Response.json({ok:true});}}};
++  const r=await frontend.fetch(new Request('https://pos.example/api/master/records?kind=stock&branch=A',{headers:{'cf-access-jwt-assertion':'test-jwt'}}),env);
++  assert.equal(r.status,200);assert.equal(forwarded[0].headers.get('x-maliks-app'),'management');
++  const denied=await frontend.fetch(new Request('https://pos.example/api/quotes',{headers:{'cf-access-jwt-assertion':'test-jwt'}}),env);
++  assert.equal(denied.status,403);
++  const wrong=await frontend.fetch(new Request('https://pos.example/api/master/records',{method:'POST',headers:{origin:'https://wrong.example','cf-access-jwt-assertion':'test-jwt'},body:'{}'}),env);
++  assert.equal(wrong.status,403);
++  const salesEnv={...env,APP_TYPE:'sales'};
++  const salesMaster=await frontend.fetch(new Request('https://sales.example/api/master/records',{headers:{'cf-access-jwt-assertion':'test-jwt'}}),salesEnv);
++  assert.equal(salesMaster.status,403);
++  assert.equal(forwarded.length,1);
++});
++test('generated POS inline script is valid JS and contains real master workflows',async()=>{
++  const page=await (await frontend.fetch(new Request('https://pos.example/'),{APP_TYPE:'pos'})).text();
++  assert.match(page,/function suiteMasterView\(kind,openAudit=false\)/);
++  assert.match(page,/api\('\/api\/master\/records'/);
++  const match=page.match(/<script type="module">([\s\S]*?)<\/script>/);assert.ok(match);
++  const dir=mkdtempSync(join(tmpdir(),'maliks-p15-'));
++  try{const file=join(dir,'script.mjs');writeFileSync(file,match[1]);execFileSync(process.execPath,['--check',file]);}
++  finally{rmSync(dir,{recursive:true,force:true});}
++});
+diff --git a/maliks-operations/tests/policy.test.mjs b/maliks-operations/tests/policy.test.mjs
+index b861c01..8b61467 100644
+--- a/maliks-operations/tests/policy.test.mjs
++++ b/maliks-operations/tests/policy.test.mjs
+@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
+ import { APPS,canUseApp,allowedBranches,matchingBranch,limitSearch } from '../src/policy.mjs';
+ import {calculateQuote,validateQuoteLines} from '../src/quote-domain.mjs';
+ const base={active:1,role:'Sales / Tills',access_scope:'Assigned workspace',workspace_access:'["Buster Build"]',department:'Sales'};
+-test('independent department applications',()=>assert.deepEqual(APPS,['pos','tills','cashoffice','dispatch']));
++test('independent department applications',()=>assert.deepEqual(APPS,['pos','tills','cashoffice','dispatch','management']));
+ test('sales role cannot access cash office or dispatch',()=>{assert.equal(canUseApp(base,'pos'),true);assert.equal(canUseApp(base,'tills'),true);assert.equal(canUseApp(base,'cashoffice'),false);assert.equal(canUseApp(base,'dispatch'),false);});
+ test('inactive users blocked',()=>assert.equal(canUseApp({...base,active:0},'pos'),false));
+ test('store scope prevents cross-branch disclosure',()=>assert.deepEqual(allowedBranches(base,['Buster Build','Sungate PowerBuild']),['Buster Build']));

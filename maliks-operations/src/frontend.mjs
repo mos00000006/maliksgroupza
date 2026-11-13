@@ -135,6 +135,19 @@ function page(app){
  .print-sheet .pick-signatures p{border-top:1px solid #345;padding-top:8px}
  
 
+ /* Phase 15 master-file workspace */
+ .suite-feature-detail.suite-master-workspace{background:#fff;border:1px solid #dce5ed;color:#21334b;box-shadow:0 5px 20px #102a4b10}
+ .suite-master-header{display:flex;flex-direction:column;gap:10px}.suite-master-header h3{font-size:21px;color:#152f4a}
+ .suite-master-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:12px 0}
+ .suite-master-actions input{flex:2 1 230px;min-width:200px}.suite-master-actions button{flex:0 0 auto}
+ .suite-master-note{font-size:12px;color:#475f77;background:#f0f5fb;padding:12px;border-radius:7px}
+ .suite-master-editor{background:#f7faff;border:1px solid #cad9e8;padding:19px;border-radius:12px;margin:17px 0}
+ .suite-master-editor[hidden],.suite-master-catalogue[hidden]{display:none!important}
+ .suite-master-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+ .suite-master-form label{font-size:12px;color:#425770}.suite-master-form label span{display:block;margin-bottom:6px}
+ .suite-master-form-buttons{grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap}
+ .suite-master-catalogue{margin-top:28px;padding:16px;border-top:2px solid #e1eaf4}
+ .suite-master-catalogue h4{margin:0 0 7px}
  /* Maliks Professional suite: independent visual identity; existing branch receipts remain PowerBuild-branded. */
  .maliks-professional{background:#edf2f7}
  .maliks-sales-workstation aside{background:linear-gradient(150deg,#101e32,#1d4562)}
@@ -1171,29 +1184,167 @@ function page(app){
      ['tills','▤','Tills','Cashier checkout, cash/card confirmations and paid receipts.','SEPARATE WORKSTATION'],
      ['cashoffice','◈','Cash Office','Payment verification, cash-up and internal finance controls.','SEPARATE WORKSTATION'],
      ['dispatching','⇥','Dispatching','Paid-order picking, checking and delivery management.','SEPARATE WORKSTATION'],
-     ['stock','▦','Stock','Stock master, receiving, transfers, valuations and stock take.','MENU INVENTORY'],
-     ['debtors','◎','Debtors','Accounts, collections, statements and age analysis.','MENU INVENTORY'],
-     ['suppliers','▤','Suppliers','Purchasing, invoices, claims and supplier accounts.','MENU INVENTORY'],
+     ['stock','▦','Stock','Branch stock master and existing product catalogue lookup.','LIVE MASTER FILES'],
+     ['debtors','◎','Debtors','Branch debtor master records and audit history.','LIVE MASTER FILES'],
+     ['suppliers','▤','Suppliers','Branch supplier master records and audit history.','LIVE MASTER FILES'],
      ['backoffice','▥','Back Office','Tills, end-of-day, VAT, reporting and month-end controls.','MENU INVENTORY'],
      ['headoffice','◇','Head Office','Branches, synchronization and group management.','MENU INVENTORY'],
    ];
    for(const [id,symbol,name,description,status] of definitions){
      const card=suiteButton('',id,'suite-card');card.append(h('span',symbol,'suite-card-icon'),h('strong',name),h('small',description));
-     card.append(h('span',status,'suite-card-status'+(status==='LIVE'?' live':'')));cards.append(card);
+     card.append(h('span',status,'suite-card-status'+(status.startsWith('LIVE')?' live':'')));cards.append(card);
    }
-   root.append(cards,h('p','Department transaction workstations remain separately secured. Reference menus are navigation previews until their own APIs, permissions and accounting controls are implemented.','suite-footnote'));
+   root.append(cards,h('p','Stock, Suppliers and Debtors master files are now database-backed. All other menu entries remain previews until their individual workflows are built and tested. Department transactions remain separately secured.','suite-footnote'));
+ }
+ const MASTER_LABELS={stock:'Stock Master',supplier:'Suppliers Master',debtor:'Debtors Master'};
+ const MASTER_FIELDS={
+   stock:[['unit','Unit','text'],['category','Category','text'],['barcode','Barcode','text'],['cost_cents','Cost price (R)','money'],['selling_price_cents','Selling price (R)','money'],['reorder_min','Minimum stock level','integer']],
+   supplier:[['contact_name','Contact person','text'],['phone','Phone','text'],['email','Email','email'],['vat_number','VAT number','text'],['payment_terms_days','Payment terms (days)','integer']],
+   debtor:[['contact_name','Contact person','text'],['phone','Phone','text'],['email','Email','email'],['credit_limit_cents','Credit limit (R)','money'],['payment_terms_days','Payment terms (days)','integer']]
+ };
+ let masterPermissions={};
+ function suiteMasterView(kind,openAudit=false){
+   const detail=E('suite-feature-detail');if(!detail)return;
+   const selectedBranch=branch;detail.hidden=false;detail.className='suite-feature-detail suite-master-workspace';detail.replaceChildren();
+   const header=h('div',undefined,'suite-master-header');header.append(h('h3',MASTER_LABELS[kind]));
+   const tools=h('div',undefined,'suite-master-actions');
+   const search=h('input');search.type='search';search.placeholder='Search code or name';search.setAttribute('aria-label','Search '+MASTER_LABELS[kind]);
+   const searchButton=h('button','Search');searchButton.type='button';
+   const newButton=h('button','New '+(kind==='stock'?'item':kind));newButton.type='button';
+   const auditButton=h('button','Audit history','secondary');auditButton.type='button';
+   const refreshButton=h('button','Refresh','secondary');refreshButton.type='button';
+   const cancelButton=h('button','Back to list','secondary');cancelButton.type='button';
+   tools.append(search,searchButton,refreshButton,auditButton);
+   if(masterPermissions[kind]?.write)tools.append(newButton);
+   header.append(tools);detail.append(header);
+   const notice=h('p','Branch: '+selectedBranch+' · These are master records only. No stock-on-hand, supplier balance, debtor balance, invoice, payment or GL posting occurs.','suite-master-note');detail.append(notice);
+   const feedback=h('div');feedback.setAttribute('role','status');detail.append(feedback);
+   const editor=h('section',undefined,'suite-master-editor');editor.hidden=true;detail.append(editor);
+   const listArea=h('div');detail.append(listArea);
+   const auditArea=h('div');auditArea.hidden=true;detail.append(auditArea);
+   const valid=()=>branch===selectedBranch&&detail.isConnected;
+   const showMessage=(message,good=false)=>{feedback.textContent=message;feedback.className=good?'success':'error';feedback.hidden=!message;};
+   feedback.hidden=true;
+   const displayValue=(v)=>v===null||v===undefined?'':String(v);
+   function openEditor(record){
+     if(!masterPermissions[kind]?.write){showMessage('This account has read-only access.');return;}
+     editor.hidden=false;editor.replaceChildren();auditArea.hidden=true;listArea.hidden=true;
+     const heading=h('h3',record?'Edit '+record.code:'New '+MASTER_LABELS[kind]+' record');editor.append(heading);
+     const form=h('form',undefined,'suite-master-form');const controls={};
+     const addField=(key,label,type,value)=>{
+       const wrap=h('label');wrap.append(h('span',label));const input=h('input');
+       input.name=key;input.type=type==='money'||type==='integer'?'number':type==='email'?'email':'text';
+       if(type==='money'){input.step='0.01';input.min='0';}else if(type==='integer'){input.step='1';input.min='0';}
+       input.value=displayValue(value);if(key==='code'||key==='name'||key==='unit')input.required=true;
+       wrap.append(input);form.append(wrap);controls[key]=input;
+     };
+     addField('code','Code','text',record?.code||'');addField('name','Description / name','text',record?.name||'');
+     for(const [key,label,type] of MASTER_FIELDS[kind]){
+       const fallback=key==='unit'?'each':type==='integer'||type==='money'?0:'';
+       const stored=record?.details?.[key]??fallback;
+       addField(key,label,type,type==='money'?Number(stored)/100:stored);
+     }
+     const activeLabel=h('label');activeLabel.append(h('span','Status'));const active=h('select');
+     for(const [value,label] of [['true','Active'],['false','Inactive']]){const option=h('option',label);option.value=value;active.append(option);}
+     active.value=record?.active===false?'false':'true';activeLabel.append(active);form.append(activeLabel);
+     const buttons=h('div',undefined,'suite-master-form-buttons');const save=h('button','Save master record');save.type='submit';
+     buttons.append(save,cancelButton);form.append(buttons);editor.append(form);
+     let pendingId=null;form.addEventListener('input',()=>{pendingId=null;});
+     form.addEventListener('submit',async event=>{
+       event.preventDefault();if(!valid()){showMessage('Branch changed. Reopen the master file.');return;}
+       const details={};
+       for(const [key,label,type] of MASTER_FIELDS[kind]){
+         const value=controls[key].value.trim();
+         if(type==='money'){
+           const n=Number(value);if(!Number.isFinite(n)||n<0||Math.abs(n*100-Math.round(n*100))>0.00001){showMessage(label+' must be a valid amount with two decimals.');return;}
+           details[key]=Math.round(n*100);
+         }else if(type==='integer'){
+           const n=Number(value);if(!Number.isSafeInteger(n)||n<0){showMessage(label+' must be a whole number.');return;}details[key]=n;
+         }else details[key]=value;
+       }
+       pendingId=pendingId||crypto.randomUUID();
+       const body={request_id:pendingId,kind,branch:selectedBranch,code:controls.code.value.trim(),
+         name:controls.name.value.trim(),active:active.value==='true',details};
+       if(record){body.id=record.id;body.version=record.version;}
+       save.disabled=true;showMessage('');
+       try{
+         const response=await api('/api/master/records',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+         if(!valid())return;
+         showMessage('Saved '+response.record.code+' successfully. The change is recorded in the audit history.',true);
+         editor.hidden=true;listArea.hidden=false;pendingId=null;await loadRecords();
+       }catch(e){if(valid())showMessage(e.message);}finally{save.disabled=false;}
+     });
+   }
+   async function loadRecords(){
+     if(!valid())return;
+     auditArea.hidden=true;listArea.hidden=false;listArea.replaceChildren(h('p','Loading branch master records…','muted'));
+     try{
+       const q=search.value.trim();const data=await api('/api/master/records?kind='+encodeURIComponent(kind)+'&branch='+encodeURIComponent(selectedBranch)+'&q='+encodeURIComponent(q));
+       if(!valid())return;
+       listArea.replaceChildren();
+       if(!data.records.length){listArea.append(h('p','No records found. Use New to add a branch master record.','empty'));return;}
+       const table=h('table');const head=h('tr');for(const label of ['Code','Name','Status','Updated','Action'])cell(head,label,'th');
+       const thead=h('thead');thead.append(head);table.append(thead);const tbody=h('tbody');
+       for(const record of data.records){
+         const tr=h('tr');cell(tr,record.code);cell(tr,record.name);cell(tr,record.active?'Active':'Inactive');cell(tr,showDate(record.updated_at));
+         const actions=h('td');if(masterPermissions[kind]?.write){const edit=h('button','Edit','small-btn');edit.type='button';edit.addEventListener('click',()=>openEditor(record));actions.append(edit);}else actions.textContent='Read only';
+         tr.append(actions);tbody.append(tr);
+       }
+       table.append(tbody);const scroller=h('div',undefined,'scroll');scroller.append(table);listArea.append(scroller);
+     }catch(e){if(valid())showMessage(e.message);}
+   }
+   async function loadAudit(){
+     if(!valid())return;editor.hidden=true;listArea.hidden=true;auditArea.hidden=false;auditArea.replaceChildren(h('p','Loading audit history…','muted'));
+     try{
+       const data=await api('/api/master/audit?kind='+encodeURIComponent(kind)+'&branch='+encodeURIComponent(selectedBranch));
+       if(!valid())return;auditArea.replaceChildren(h('h4','Last 50 master-file changes'));
+       if(!data.audit.length){auditArea.append(h('p','No audit events yet.','empty'));return;}
+       const table=h('table');const head=h('tr');for(const label of ['Date','Action','Code','User','Change'])cell(head,label,'th');const thead=h('thead');thead.append(head);table.append(thead);
+       const tbody=h('tbody');for(const entry of data.audit){const tr=h('tr');cell(tr,showDate(entry.created_at));cell(tr,entry.action);cell(tr,entry.after?.code||'—');cell(tr,entry.actor_name+' ('+entry.actor_email+')');
+         const change=h('td');change.textContent=entry.before?'Version '+entry.before.version+' → '+entry.after.version:'Created';tr.append(change);tbody.append(tr);}
+       table.append(tbody);const scroller=h('div',undefined,'scroll');scroller.append(table);auditArea.append(scroller);
+     }catch(e){if(valid())showMessage(e.message);}
+   }
+   searchButton.addEventListener('click',()=>{editor.hidden=true;void loadRecords();});
+   search.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();editor.hidden=true;void loadRecords();}});
+   refreshButton.addEventListener('click',()=>{editor.hidden=true;void loadRecords();});
+   newButton.addEventListener('click',()=>openEditor(null));
+   auditButton.addEventListener('click',()=>void loadAudit());
+   cancelButton.addEventListener('click',()=>{editor.hidden=true;void loadRecords();});
+   if(kind==='stock'){
+     const lookup=h('section',undefined,'suite-master-catalogue');lookup.append(h('h4','Existing product catalogue (read only)'));
+     lookup.append(h('p','Search products already in the Group Hub catalogue. This does not create stock-on-hand or alter price tags.','muted'));
+     const row=h('div',undefined,'suite-master-actions');const input=h('input');input.type='search';input.placeholder='Product code or name (2+ characters)';
+     const button=h('button','Search catalogue','secondary');button.type='button';row.append(input,button);lookup.append(row);
+     const results=h('div');lookup.append(results);detail.append(lookup);
+     const doLookup=async()=>{
+       if(input.value.trim().length<2){results.textContent='Enter at least two characters.';return;}
+       results.textContent='Searching…';try{
+         const data=await api('/api/master/catalogue?branch='+encodeURIComponent(selectedBranch)+'&q='+encodeURIComponent(input.value.trim()));
+         if(!valid())return;results.replaceChildren();if(!data.products.length){results.append(h('p','No matching products.','empty'));return;}
+         const table=h('table');const head=h('tr');for(const label of ['Code','Description','Category'])cell(head,label,'th');const thead=h('thead');thead.append(head);table.append(thead);
+         const tbody=h('tbody');for(const p of data.products){const tr=h('tr');cell(tr,p.code);cell(tr,p.name);cell(tr,p.category||'—');tbody.append(tr);}table.append(tbody);
+         const scroller=h('div',undefined,'scroll');scroller.append(table);results.append(scroller);
+       }catch(e){results.textContent=e.message;}
+     };
+     button.addEventListener('click',()=>void doLookup());input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void doLookup();}});
+   }
+   if(openAudit)void loadAudit();else void loadRecords();
  }
  function suiteModuleView(id){
    const root=E('app-content');const name=SUITE_TITLES[id]||({tills:'Tills',cashoffice:'Cash Office'}[id])||'Module';
    const isSeparate=['tills','cashoffice','dispatching'].includes(id);
-   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':'This menu inventory follows the supplied Touch365 screenshots, redesigned for Maliks Professional. Menu entries shown here are not yet connected to live accounting or stock transactions.','suite-menu-intro'));
+   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':['stock','suppliers','debtors'].includes(id)?'Branch master files and their audit histories are live. Other transactions and financial postings are not enabled yet.':'The menu inventory is a reference. Unbuilt operations remain disabled until their secure workflows are implemented.','suite-menu-intro'));
    const menu=SUITE_MENU_TREE[id]||{};const grid=h('div',undefined,'suite-menu-grid');
    for(const [section,items] of Object.entries(menu)){
      const card=h('section',undefined,'suite-menu-card');card.append(h('h3',section));const list=h('div',undefined,'suite-menu-list');
      for(const item of items){
        const b=h('button',item,'suite-menu-action');b.type='button';
        b.addEventListener('click',()=>{
-         const detail=E('suite-feature-detail');detail.replaceChildren();
+         const masterKind=id==='stock'&&item==='Stock Master'?'stock':id==='suppliers'&&item==='Suppliers'?'supplier':id==='debtors'&&item==='Debtors'?'debtor':null;
+         if(masterKind){suiteMasterView(masterKind);return;}
+         if(item==='Audits'&&['stock','suppliers','debtors'].includes(id)){suiteMasterView(id==='suppliers'?'supplier':id==='debtors'?'debtor':'stock',true);return;}
+         const detail=E('suite-feature-detail');detail.className='suite-feature-detail';detail.replaceChildren();
          detail.append(h('strong',name+'  /  '+section+'  /  '+item));
          detail.append(h('p',isSeparate?'Open the authorised department workstation for operational access. This suite menu is a reference only.':'This function is in the module inventory but is not live yet. It requires a secure API, database workflow, branch permissions and audit logging before activation.'));
          detail.hidden=false;detail.scrollIntoView({block:'nearest',behavior:'smooth'});
@@ -1229,7 +1380,7 @@ function page(app){
  }
 
  try{
-   const session=await api('/api/session');E('signed-in').textContent=session.user.name+' · '+session.user.role;
+   const session=await api('/api/session');masterPermissions=session.master_permissions||{};E('signed-in').textContent=session.user.name+' · '+session.user.role;
    E('access').textContent=session.branches.length+' assigned branch(es)'+(['pos','sales'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
    for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=false;branch=select.value;select.addEventListener('change',selectBranch);
    if(APP==='pos'){
@@ -1250,13 +1401,15 @@ export default {
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
      '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview',
-     '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action'};
+     '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
+     '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // The Professional suite cannot submit Sales transactions through its old POS origin.
-   if(kind==='pos' && path!=='/v1/session')return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/master/'))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+   if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
    // The dedicated Sales Worker may only access the quotation/catalogue APIs.
    if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
    // Department rules enforced here as an early deny and again by the private Core.
@@ -1279,7 +1432,7 @@ export default {
    if(!token)return Response.json({error:'Cloudflare Access application login required.'},{status:401,headers:{'cache-control':'no-store'}});
    // Both public Workers use the existing verified POS Access audience. Core receives
    // 'pos' only for the dedicated Sales Worker, preserving its current Sales-only roles.
-   const coreApp=kind==='sales'?'pos':kind;
+   const coreApp=kind==='sales'?'pos':kind==='pos'?'management':kind;
    const headers=new Headers({'cf-access-jwt-assertion':token,'x-maliks-app':coreApp,'x-maliks-original-origin':url.origin});
    if(req.method==='POST'){headers.set('content-type','application/json');headers.set('origin',url.origin);}
    const target=new URL('https://maliks-core.internal'+path+url.search);
