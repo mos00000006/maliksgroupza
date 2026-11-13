@@ -4,23 +4,22 @@ const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c =>
 const MALIKS_MARK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#142941"/><path d="M13 48V17h8l11 15 11-15h8v31h-9V31L32 44 22 31v17z" fill="#e9c46f"/></svg>';
 
 const APPS={
-  pos:{name:'Maliks Sales',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
+  pos:{name:'Maliks POS Professional',subtitle:'Accounting & POS Solutions',hint:'Professional management workspace. Department transactions remain in their own secured applications.'},
+  sales:{name:'Maliks Sales',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
   tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Cash or card: cashier confirms receipt and sends paid internal invoice directly to Dispatch. Bank/terminal integration remains separate.'},
   cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Audit cashier-confirmed Cash/Card payments and independently verify legacy or EFT payment requests.'},
   dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',hint:'Confirmed paid invoices appear in the dispatch queue. Picking and independent checking are recorded; stock posting, exit release and driver POD are not yet integrated.'},
 };
-// Phase 13: Touch365-inspired module hierarchy, with original Maliks visual identity.
-// This is a navigation inventory. Only the existing Sales workstation is connected
-// in this Worker; other department workflows remain separately secured applications.
+// Phase 14: The Professional accounting suite and Sales are separate Workers.
+// This is a navigation inventory; unbuilt functions remain previews, not live postings.
 const SUITE_NAV = [
-  ['home','Home','⌂'],['sales','Sales','▣'],['debtors','Debtors','◎'],
+  ['home','Home','⌂'],['debtors','Debtors','◎'],
   ['suppliers','Suppliers','▤'],['stock','Stock','▦'],['backoffice','Back Office','▥'],
   ['dispatching','Dispatching','⇥'],['headoffice','Head Office','◇'],
   ['system','System Settings','⚙'],['widget','Widget','◫'],
   ['help','Help','?'],['lock','Lock','♙'],['exit','Exit','⏻'],
 ];
 const SUITE_MENU_TREE = {
-  sales: {'Transactions':['Sales Quotations','Sales Orders'],'Utilities':['Reprint Documents'],'Reporting':['Sales Orders','Quotations']},
   debtors: {
     'Master Files':['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes'],
     'Transactions':['Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements'],
@@ -81,9 +80,10 @@ function suiteHeader(){
 function page(app){
  const d=APPS[app];
  const suiteShell=app==='pos';
- const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':'SALES · QUOTATIONS';
+ const salesShell=app==='sales';
+ const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':salesShell?'SALES · QUOTATIONS':'ACCOUNTING & POS SOLUTIONS';
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
- <title>${suiteShell?'Maliks POS Professional — ':''}${d.name}</title><link rel="icon" type="${suiteShell?'image/svg+xml':'image/png'}" href="${suiteShell?'/maliks-mark.svg':'/powerbuild-logo.png'}"/><meta name="theme-color" content="#102a4b"/><style>
+ <title>${d.name}</title><link rel="icon" type="${suiteShell||salesShell?'image/svg+xml':'image/png'}" href="${suiteShell||salesShell?'/maliks-mark.svg':'/powerbuild-logo.png'}"/><meta name="theme-color" content="#102a4b"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
  body{margin:0}.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
  aside{background:#102a4b;color:#fff;padding:28px 18px}aside h1{font-size:21px;margin:14px 0 5px}aside p{font-size:13px;color:#adbed0}
@@ -138,6 +138,10 @@ function page(app){
 
  /* Maliks Professional suite: independent visual identity; existing branch receipts remain PowerBuild-branded. */
  .maliks-professional{background:#edf2f7}
+ .maliks-sales-workstation aside{background:linear-gradient(150deg,#101e32,#1d4562)}
+ .maliks-sales-workstation aside h1{color:#f0c875;font-size:24px}
+ .maliks-sales-workstation aside .brand-logo{width:86px;height:86px;border-radius:18px;box-shadow:0 6px 20px #0003}
+ .maliks-sales-workstation aside .nav{background:#ffffff17;border-left:3px solid #e9c46f}
  .suite-header{position:sticky;top:0;z-index:200;background:#101e32;color:#f7fbff;box-shadow:0 5px 22px #0b1d3430}
  .suite-header[hidden]{display:none!important}
  .suite-brandbar{display:flex;align-items:center;gap:18px;padding:13px clamp(16px,3vw,42px);min-height:84px;background:linear-gradient(110deg,#101e32 0%,#193a59 66%,#12465a 100%)}
@@ -190,9 +194,9 @@ function page(app){
  @page{size:A4;margin:12mm}}
 
  @media(max-width:850px){.shell{grid-template-columns:1fr}aside{padding:15px 20px;display:flex;align-items:center;gap:14px}aside h1{margin:0;font-size:17px}aside .brand-logo{width:56px;height:56px;flex:0 0 56px}aside .nav,aside .foot,aside p{display:none}main{padding:23px 14px}.two{grid-template-columns:1fr}}
- </style></head><body class="${suiteShell?'maliks-professional':''}">
+ </style></head><body class="${suiteShell?'maliks-professional':salesShell?'maliks-sales-workstation':''}">
  ${suiteShell?suiteHeader():''}
- <div class="shell ${suiteShell?'suite-shell':''}"><aside><img class="brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
+ <div class="shell ${suiteShell?'suite-shell':''}"><aside><img class="brand-logo" src="${salesShell?'/maliks-mark.svg':'/powerbuild-logo.png'}" alt="${salesShell?'Maliks logo':'PowerBuild logo'}" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
  <main><div class="top"><div><h2 id="screen-heading">${d.name}</h2><div class="muted" id="signed-in">Checking approved user access…</div></div><span class="tag" id="workstation-tag">${releaseLabel}</span></div>
  <div class="notice" id="workstation-notice">${d.hint}</div><div id="error" role="alert" hidden></div>
  <div class="panel"><div class="bar"><div><label for="branch">Assigned branch</label><select id="branch" disabled><option>Authorising…</option></select></div><div><label>Application access</label><p class="muted" id="access">Verification in progress…</p></div></div></div>
@@ -422,7 +426,7 @@ function page(app){
  }
  function posView(){
    const root=E('app-content');
-   if(APP==='pos'){
+   if(APP==='sales'){
      const tools=h('div',undefined,'suite-sales-toolbar');tools.append(h('strong','Sales · Transactions'));
      const live=h('button','Quotations · LIVE','selected');live.type='button';tools.append(live);
      for(const item of ['Sales Orders','Reprint Documents','Reporting']){
@@ -450,7 +454,7 @@ function page(app){
    }
    for(const [id,label,placeholder] of [['customer','Customer name','Walk-in customer'],['contact','Customer contact','Optional'],['notes','Notes','Optional']]){
      const l=h('label',label);l.htmlFor=id;const inp=h('input');inp.id=id;inp.placeholder=placeholder;inp.maxLength=id==='notes'?400:id==='customer'?120:80;
-     if(APP==='pos'){inp.value=suiteSalesDraft[id]||'';inp.addEventListener('input',()=>{suiteSalesDraft[id]=inp.value;});}
+     if(APP==='sales'){inp.value=suiteSalesDraft[id]||'';inp.addEventListener('input',()=>{suiteSalesDraft[id]=inp.value;});}
      checkout.append(l,inp);
    }
    const send=h('button','Send quotation to Cash Office','widebutton');send.id='quote-btn';send.disabled=true;send.addEventListener('click',sendQuote);checkout.append(send);
@@ -1160,12 +1164,11 @@ function page(app){
    const hero=h('section',undefined,'suite-hero');
    hero.append(h('div','MALIKS PROFESSIONAL · SECURE RETAIL OPERATIONS','suite-eyebrow'));
    const title=h('div',undefined,'suite-hero-title');title.append(h('span','MALIKS '),document.createTextNode('POS'));hero.append(title);
-   hero.append(h('p','Accounting & POS Solutions Professional — one workspace for your sales, stock, debtors, suppliers, back office and multi-branch operations.','suite-hero-subtitle'));
-   hero.append(suiteButton('Open Sales workspace  →','sales','suite-primary'));root.append(hero);
+   hero.append(h('p','Accounting & POS Solutions Professional — stock, debtors, suppliers, back office and multi-branch operations in a dedicated management workspace.','suite-hero-subtitle'));
+   hero.append(suiteButton('Open Stock module  →','stock','suite-primary'));root.append(hero);
    const head=h('div',undefined,'suite-section-head');head.append(h('h3','Your workspaces'),h('small','Menus based on the supplied system reference'));root.append(head);
    const cards=h('div',undefined,'suite-card-grid');
    const definitions=[
-     ['sales','▣','Sales','Product search, VAT-inclusive quotations and 80mm quotation slips.','LIVE'],
      ['tills','▤','Tills','Cashier checkout, cash/card confirmations and paid receipts.','SEPARATE WORKSTATION'],
      ['cashoffice','◈','Cash Office','Payment verification, cash-up and internal finance controls.','SEPARATE WORKSTATION'],
      ['dispatching','⇥','Dispatching','Paid-order picking, checking and delivery management.','SEPARATE WORKSTATION'],
@@ -1179,7 +1182,7 @@ function page(app){
      const card=suiteButton('',id,'suite-card');card.append(h('span',symbol,'suite-card-icon'),h('strong',name),h('small',description));
      card.append(h('span',status,'suite-card-status'+(status==='LIVE'?' live':'')));cards.append(card);
    }
-   root.append(cards,h('p','Sales is connected in this application. Tills, Cash Office and Dispatch are separate secured Workers; other menus are navigation previews until their own APIs, permissions and accounting controls are implemented.','suite-footnote'));
+   root.append(cards,h('p','Department transaction workstations remain separately secured. Reference menus are navigation previews until their own APIs, permissions and accounting controls are implemented.','suite-footnote'));
  }
  function suiteModuleView(id){
    const root=E('app-content');const name=SUITE_TITLES[id]||({tills:'Tills',cashoffice:'Cash Office'}[id])||'Module';
@@ -1203,9 +1206,9 @@ function page(app){
  }
  function updateSuiteUI(){
    if(APP!=='pos')return;
-   const title=suiteView==='home'?'Maliks Professional':suiteView==='sales'?'Sales Workspace':SUITE_TITLES[suiteView]||({tills:'Tills',cashoffice:'Cash Office'}[suiteView])||'Maliks Professional';
+   const title=suiteView==='home'?'Maliks Professional':SUITE_TITLES[suiteView]||({tills:'Tills',cashoffice:'Cash Office'}[suiteView])||'Maliks Professional';
    E('screen-heading').textContent=title;
-   E('workstation-notice').hidden=suiteView!=='sales';E('workstation-tag').hidden=suiteView!=='sales';
+   E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;
    for(const b of document.querySelectorAll('[data-suite-module]')){
      if(b.classList.contains('suite-nav-button'))b.setAttribute('aria-pressed',String(b.dataset.suiteModule===suiteView));
    }
@@ -1213,23 +1216,22 @@ function page(app){
  function setSuiteView(id){
    if(APP!=='pos')return;
    if(id==='lock'||id==='exit'){
-     if((basket.length||pendingQuote||Object.values(suiteSalesDraft).some(Boolean))&&!window.confirm('Leave the workstation? Unsaved Sales work may be lost.'))return;
      window.location.assign('/cdn-cgi/access/logout');return;
    }
-   if(!['home','sales',...Object.keys(SUITE_MENU_TREE)].includes(id))return;
+   if(!['home',...Object.keys(SUITE_MENU_TREE)].includes(id))return;
    suiteView=id;draw();window.scrollTo({top:0,behavior:'auto'});
  }
  function draw(){
    E('app-content').replaceChildren();err('');
    if(APP==='pos'){
-     if(suiteView==='home')suiteHome();else if(suiteView==='sales')posView();else suiteModuleView(suiteView);
+     if(suiteView==='home')suiteHome();else suiteModuleView(suiteView);
      updateSuiteUI();
-   }else if(APP==='dispatch')dispatchView();else void quoteView();
+   }else if(APP==='sales')posView();else if(APP==='dispatch')dispatchView();else void quoteView();
  }
 
  try{
    const session=await api('/api/session');E('signed-in').textContent=session.user.name+' · '+session.user.role;
-   E('access').textContent=session.branches.length+' assigned branch(es)'+(APP==='pos'?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
+   E('access').textContent=session.branches.length+' assigned branch(es)'+(['pos','sales'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
    for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=false;branch=select.value;select.addEventListener('change',selectBranch);
    if(APP==='pos'){
      E('suite-user').textContent=session.user.name+' · '+session.user.role;
@@ -1245,7 +1247,7 @@ export default {
    const kind=String(env.APP_TYPE||'').toLowerCase();
    if(!APPS[kind])return new Response('Misconfigured application.',{status:503});
    const url=new URL(req.url);
-   if(url.pathname==='/maliks-mark.svg' && kind==='pos' && req.method==='GET')return new Response(MALIKS_MARK_SVG,{headers:{'content-type':'image/svg+xml; charset=utf-8','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
+   if(url.pathname==='/maliks-mark.svg' && ['pos','sales'].includes(kind) && req.method==='GET')return new Response(MALIKS_MARK_SVG,{headers:{'content-type':'image/svg+xml; charset=utf-8','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/powerbuild-logo.png' && req.method==='GET')return new Response(POWERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
@@ -1255,6 +1257,10 @@ export default {
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
    if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   // The Professional suite cannot submit Sales transactions through its old POS origin.
+   if(kind==='pos' && path!=='/v1/session')return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+   // The dedicated Sales Worker may only access the quotation/catalogue APIs.
+   if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
    // Department rules enforced here as an early deny and again by the private Core.
    if((url.pathname.startsWith('/api/dispatch-jobs') && kind!=='dispatch') ||
       (url.pathname==='/api/payments/verify' && kind!=='cashoffice') ||
@@ -1273,7 +1279,10 @@ export default {
    if(req.method==='POST' && req.headers.get('origin')!==url.origin)return Response.json({error:'Invalid request origin.'},{status:403});
    const token=req.headers.get('cf-access-jwt-assertion');
    if(!token)return Response.json({error:'Cloudflare Access application login required.'},{status:401,headers:{'cache-control':'no-store'}});
-   const headers=new Headers({'cf-access-jwt-assertion':token,'x-maliks-app':kind,'x-maliks-original-origin':url.origin});
+   // Both public Workers use the existing verified POS Access audience. Core receives
+   // 'pos' only for the dedicated Sales Worker, preserving its current Sales-only roles.
+   const coreApp=kind==='sales'?'pos':kind;
+   const headers=new Headers({'cf-access-jwt-assertion':token,'x-maliks-app':coreApp,'x-maliks-original-origin':url.origin});
    if(req.method==='POST'){headers.set('content-type','application/json');headers.set('origin',url.origin);}
    const target=new URL('https://maliks-core.internal'+path+url.search);
    const response=await env.CORE.fetch(new Request(target,{method:req.method,headers,body:req.method==='POST'?req.body:undefined,duplex:req.method==='POST'?'half':undefined}));

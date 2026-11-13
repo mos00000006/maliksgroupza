@@ -12,6 +12,7 @@
     "migrate:phase4": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase4_till_shift_register.sql --config .generated/core.json",
     "deploy:core": "wrangler deploy --config .generated/core.json",
     "deploy:pos": "wrangler deploy --config .generated/pos.json",
+    "deploy:sales": "wrangler deploy --config .generated/sales.json",
     "deploy:tills": "wrangler deploy --config .generated/tills.json",
     "deploy:cashoffice": "wrangler deploy --config .generated/cashoffice.json",
     "deploy:dispatch": "wrangler deploy --config .generated/dispatch.json",

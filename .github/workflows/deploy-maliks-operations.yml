@@ -65,8 +65,10 @@ jobs:
         run: npm run migrate:phase10
       - name: Deploy central API — private Worker
         run: npm run deploy:core
-      - name: Deploy Sales POS
+      - name: Deploy Maliks POS Professional (management suite)
         run: npm run deploy:pos
+      - name: Deploy Maliks Sales (separate Worker)
+        run: npm run deploy:sales
       - name: Deploy Tills
         run: npm run deploy:tills
       - name: Deploy Cash Office

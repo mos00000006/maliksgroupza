@@ -19,7 +19,9 @@ if(!/^[a-z0-9-]+\.cloudflareaccess\.com$/i.test(normalizedHost)){
 }
 const issuer='https://'+normalizedHost;
 console.log('Cloudflare Access Team domain validated (value hidden).');
-const apps={pos:'CF_ACCESS_AUD_POS',tills:'CF_ACCESS_AUD_TILLS',cashoffice:'CF_ACCESS_AUD_CASHOFFICE',dispatch:'CF_ACCESS_AUD_DISPATCH'};
+// The separate Sales Worker reuses the existing POS Access audience.
+// Add its hostname to the SAME Cloudflare Access application before deployment.
+const apps={pos:'CF_ACCESS_AUD_POS',sales:'CF_ACCESS_AUD_POS',tills:'CF_ACCESS_AUD_TILLS',cashoffice:'CF_ACCESS_AUD_CASHOFFICE',dispatch:'CF_ACCESS_AUD_DISPATCH'};
 if(!uuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid))throw Error('MALIKS_GROUP_D1_DATABASE_ID must be an existing D1 database UUID.');
 for(const [app,key] of Object.entries(apps)){if(!process.env[key]?.trim())throw Error('Missing Cloudflare Access application AUD: '+key+' ('+app+')');}
 const date='2026-11-09';
@@ -37,4 +39,4 @@ for(const app of Object.keys(apps)){
    vars:{APP_TYPE:app},services:[{binding:'CORE',service:'maliks-core-api'}]};
  await writeFile(path.join(out,app+'.json'),JSON.stringify(config,null,2)+'\n',{mode:0o600});
 }
-console.log('Created five deployment configurations. Run deploy:core first, then each department Worker.');
+console.log('Created six deployment configurations. Run deploy:core first, then each department Worker.');

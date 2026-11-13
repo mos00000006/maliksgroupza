@@ -3,28 +3,28 @@ import assert from 'node:assert/strict';
 import frontend from '../src/frontend.mjs';
 
 const html=async kind=>(await frontend.fetch(new Request('https://example.test/'),{APP_TYPE:kind})).text();
-test('Maliks POS becomes Maliks Sales workstation within Professional suite',async()=>{
+test('Maliks POS Professional suite retains navigation without Sales',async()=>{
   const page=await html('pos');
-  assert.match(page,/<title>Maliks POS Professional — Maliks Sales<\/title>/);
+  assert.match(page,/<title>Maliks POS Professional<\/title>/);
   assert.match(page,/id="suite-navigation" class="suite-header" hidden/);
-  assert.match(page,/data-suite-module="sales"/);
+  assert.doesNotMatch(page,/data-suite-module="sales"/);
   assert.match(page,/data-suite-module="stock"/);
   assert.match(page,/data-suite-module="headoffice"/);
   assert.match(page,/ACCOUNTING &amp; POS SOLUTIONS/);
   assert.match(page,/PROFESSIONAL/);
   assert.match(page,/suiteView='home'/);
-  assert.match(page,/Send quotation to Cash Office/);
-  assert.match(page,/Print 80mm quotation slip/);
+  assert.doesNotMatch(page,/Open Sales workspace/);
+  assert.match(page,/Open Stock module/);
 });
 test('Reference menus are visible but not falsely connected to financial APIs',async()=>{
   const page=await html('pos');
   for(const term of ['Staggered Invoices Dispatch','Branches Synchronization History','Stock Valuations','Till Cash-Up','Sales and Stock Month End','Debtors Invoicing Classifications','Invoices and Debit Notes'])assert.ok(page.includes(term),term);
   assert.match(page,/not yet connected to live accounting or stock transactions/);
-  assert.match(page,/separate secured Workers/);
+  assert.match(page,/separately secured/);
   assert.match(page,/if\(APP==='pos'\)/);
 });
 test('Other secured department applications do not expose the new POS suite menu',async()=>{
-  for(const kind of ['tills','cashoffice','dispatch']){
+  for(const kind of ['sales','tills','cashoffice','dispatch']){
     const page=await html(kind);
     assert.doesNotMatch(page,/id="suite-navigation"/);
     assert.match(page,/Restricted department workstation/);

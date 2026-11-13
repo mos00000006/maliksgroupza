@@ -50,7 +50,7 @@ test('Cash Office alone displays Phase 7, even if Tills remains Phase 6',async()
   for(const token of ['CASH OFFICE — VERIFICATION','Provisional cash-up & exceptions — NOT RECONCILED',
     '/api/cashup-preview','UNVERIFIED TENDER PREPARATIONS','Zero difference is NOT proof'])assert.ok(co.includes(token),token);
   assert.match(await html('tills'),/TILLS — PAYMENT WORKFLOW/);
-  assert.match(await html('pos'),/SALES · QUOTATIONS/);
+  assert.match(await html('sales'),/SALES · QUOTATIONS/);
   assert.match(await html('dispatch'),/PAID INVOICE DISPATCH QUEUE/);
 });
 test('POS, Tills, Dispatch cannot query the provisional cash-up',async()=>{
