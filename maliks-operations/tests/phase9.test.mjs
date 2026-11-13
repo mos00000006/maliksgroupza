@@ -84,7 +84,7 @@ const payment={request_id:guid(1),branch:'Buster Build',quotation_number:'q00000
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM maliks_p9_invoices').get().n,0);
  });
  test('deployed UI exposes cashier submit / cashoffice confirmation / Dispatch work queue but no stock posting',async()=>{
-  for(const [app,phrase] of [['tills','Payment — send straight to Dispatch'],['cashoffice','Payment Audit & Pending Verification'],['dispatch','Paid invoices — Dispatch work queue']]){
+  for(const [app,phrase] of [['tills','Payment — send straight to Dispatch'],['cashoffice','PAID Customer Invoices & Payment Audit'],['dispatch','PAID invoices — Dispatch picking queue']]){
    const html=await (await frontend.fetch(get('/'),{APP_TYPE:app})).text();
    assert.ok(html.includes(phrase),app);assert.match(html,/powerbuild-logo\.png/);
    assert.ok(!html.includes('POST STOCK DEDUCTION'),app);
