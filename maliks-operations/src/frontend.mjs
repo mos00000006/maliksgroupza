@@ -4,8 +4,8 @@ const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c =>
 
 const APPS={
   pos:{name:'Maliks POS',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
-  tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Cashier payment submission and independent Cash Office approval. A submitted payment is NOT PAID until Cash Office confirms actual funds. Pilot feature must be enabled by IT.'},
-  cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Review pending payments independently, check cash/terminal/bank evidence, then confirm or reject. Only confirmed payments create internal sales invoices and Dispatch jobs.'},
+  tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Cash or card: cashier confirms receipt and sends paid internal invoice directly to Dispatch. Bank/terminal integration remains separate.'},
+  cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Audit cashier-confirmed Cash/Card payments and independently verify legacy or EFT payment requests.'},
   dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',hint:'Confirmed paid invoices appear in the dispatch queue. Picking and independent checking are recorded; stock posting, exit release and driver POD are not yet integrated.'},
 };
 function page(app){
@@ -589,7 +589,7 @@ function page(app){
  }
  function tillShiftView(){
    const p=panel(APP==='tills'?'My Till Shift Register':'Cash Office — Shift Review & Exceptions');
-   p.append(h('p','OPEN/CLOSE REGISTER ONLY. Opening float and closing count are employee declarations, not reconciled takings. No sales, deposits, invoices or stock balances are posted.','training-warning'));
+   p.append(h('p',APP==='tills'?'Open your till shift before checkout. Closing cash count is your declaration; Cash Office handles reconciliation.':'OPEN/CLOSE REGISTER ONLY. Opening float and closing count are employee declarations, not reconciled takings. No sales, deposits, invoices or stock balances are posted.','training-warning'));
    const current=h('div');current.id='shift-current';p.append(current);
    const bar=h('div',undefined,'bar');const refresh=h('button','Refresh shift register','secondary');refresh.addEventListener('click',loadShifts);bar.append(refresh);p.append(bar);
    const history=h('div','Loading shifts…');history.id='shift-history';p.append(history);
@@ -600,10 +600,9 @@ function page(app){
 
  async function quoteView(){
    const root=E('app-content');
-   if(APP==='tills'||APP==='cashoffice'){root.append(tillShiftView());void loadShifts();}
-   if(APP==='tills'||APP==='cashoffice'){root.append(paymentQueuePanel());void loadPaymentQueue();}
+   if(APP==='cashoffice'){root.append(tillShiftView());void loadShifts();root.append(paymentQueuePanel());void loadPaymentQueue();}
    if(APP==='cashoffice'){root.append(cashupView());void loadCashupPreviews();root.append(evidenceView());void loadEvidence();}
-   if(APP==='tills'||APP==='cashoffice'){const preps=panel(APP==='tills'?'My tender preparations — NOT PAID':'Cash Office — Tender preparations (read-only)');preps.append(h('p','These are proposed cash/card/EFT splits, not verified receipts, tax invoices or approved payments. No stock or dispatch release.','training-warning'));const refresh=h('button','Refresh preparations','secondary');refresh.addEventListener('click',loadPreparations);preps.append(refresh);const list=h('div');list.id='tender-preparations';preps.append(list);root.append(preps);void loadPreparations();}
+   if(APP==='cashoffice'){const preps=panel('Cash Office — Tender preparations (read-only)');preps.append(h('p','These are proposed cash/card/EFT splits, not verified receipts, tax invoices or approved payments. No stock or dispatch release.','training-warning'));const refresh=h('button','Refresh preparations','secondary');refresh.addEventListener('click',loadPreparations);preps.append(refresh);const list=h('div');list.id='tender-preparations';preps.append(list);root.append(preps);void loadPreparations();}
    const lookup=panel('Find quotation by exact number');
    const lookupBar=h('div',undefined,'bar');const lookupField=h('div');
    const lookupLabel=h('label','Quotation number');lookupLabel.htmlFor='quote-number';
@@ -615,7 +614,8 @@ function page(app){
    const exactResult=h('div',undefined,'lookup-output');exactResult.id='exact-result';lookup.append(exactResult);
    lookup.append(h('p','Exact lookup can find older quotations that are no longer in the recent-50 list, but only for your assigned branch.','tiny'));
    root.append(lookup);
-   const queue=panel(APP==='tills'?'Recent quotations — training mode':'Cash Office — submitted quotations');
+   if(APP==='tills'){root.append(tillShiftView());void loadShifts();root.append(paymentQueuePanel());void loadPaymentQueue();const old=h('details');old.append(h('summary','Old preparation history (not payment)'));const preps=panel('My tender preparations — NOT PAID');preps.append(h('p','These are proposed cash/card/EFT splits, not verified receipts, tax invoices or approved payments. No stock or dispatch release.','training-warning'));const refresh=h('button','Refresh preparations','secondary');refresh.addEventListener('click',loadPreparations);preps.append(refresh);const list=h('div');list.id='tender-preparations';preps.append(list);old.append(preps);root.append(old);void loadPreparations();}
+   const queue=panel(APP==='tills'?'Recent quotations':'Cash Office — submitted quotations');
    const bar=h('div',undefined,'bar');const field=h('div');const label=h('label','Filter by quote number, customer or contact');label.htmlFor='quote-filter';const search=h('input');search.id='quote-filter';search.placeholder='Search the 50 most recent quotations';
    search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();renderQuotes('quotes',quoteRows.filter(x=>[x.number,x.customer_name,x.customer_contact,x.status].some(v=>String(v||'').toLowerCase().includes(q))));});
    field.append(label,search);const refresh=h('button','Refresh quotations','secondary');refresh.addEventListener('click',loadQuotes);bar.append(field,refresh);queue.append(bar);
@@ -628,67 +628,69 @@ function page(app){
      const q=E('quote-filter')?.value.trim().toLowerCase()||'';renderQuotes('quotes',quoteRows.filter(x=>[x.number,x.customer_name,x.customer_contact,x.status].some(v=>String(v||'').toLowerCase().includes(q))));}
    catch(e){if(selected!==branch)return;err(e.message);renderQuotes('quotes',[]);}
  }
- // Phase 9: actual payment submission and independently confirmed internal invoice workflow.
- // Cash/Card/EFT are NEVER marked paid merely because a cashier typed a reference.
+ // Phase 10: cashier-attested CASH/CARD checkout for immediate internal invoice and Dispatch queue.
+ // EFT and earlier split tenders still use the independent verification path.
+ // Cashier-operated Cash/Card checkout: method + amount + single confirm.
+ // Cashier must actually receive cash or see the terminal's APPROVED message.
+ // No bank/terminal integration; a cashier attestation is recorded for Cash Office audit.
  function paymentCapturePanel(quote){
-   const p=panel('Submit payment to Cash Office — CONFIRMATION REQUIRED');
-   p.append(h('p','This is a payment submission, not proof funds cleared. Only a different authorised Cash Office employee can confirm it. Until then it cannot reach Dispatch.','cashup-warning'));
+   const p=panel('Payment — send straight to Dispatch');
+   p.append(h('p','Confirm only after you have counted the cash or seen APPROVED on the card terminal. Your name and till shift are recorded.','notice'));
    p.append(h('p','Quotation '+quote.number+' · Total '+money(quote.total_cents),'price'));
-   const grid=h('div',undefined,'tender-rows');
-   const inputs={};
-   for(const [key,label,placeholder] of [['card','Card received (R)','0.00'],['cardref','Card terminal approval reference','Required if card used'],['eft','EFT received (R)','0.00'],['eftref','EFT bank reference','Required if EFT used'],['cash','Cash handed over (R)','0.00']]){
-     const field=h('div'),lab=h('label',label),inp=h('input');
-     inp.type='text';inp.autocomplete='off';inp.placeholder=placeholder;
-     if(['card','eft','cash'].includes(key))inp.inputMode='decimal';
-     lab.append(inp);field.append(lab);grid.append(field);inputs[key]=inp;
-   }
-   p.append(grid);
+   const row=h('div',undefined,'tender-rows');
+   const methodWrap=h('div'),methodLabel=h('label','Paid by'),method=h('select');
+   for(const [value,label] of [['CASH','Cash'],['CARD','Card']]){const option=h('option',label);option.value=value;method.append(option);}
+   methodLabel.append(method);methodWrap.append(methodLabel);row.append(methodWrap);
+   const amountWrap=h('div'),amountLabel=h('label','Amount received (R)'),amount=h('input');
+   amount.type='text';amount.inputMode='decimal';amount.autocomplete='off';amount.maxLength=14;
+   amount.value=(quote.total_cents/100).toFixed(2);amountLabel.append(amount);amountWrap.append(amountLabel);row.append(amountWrap);p.append(row);
    const estimate=h('p','','detail-total');p.append(estimate);
-   const status=h('p','Checking your till shift…','muted');p.append(status);
+   const status=h('p','Checking your open till shift…','muted');p.append(status);
    const feedback=h('div');feedback.setAttribute('aria-live','polite');p.append(feedback);
-   const submit=h('button','Submit for independent payment verification','widebutton');submit.disabled=true;p.append(submit);
-   let shift=null,pending=null,selectedBranch=branch;
-   function recompute(){
+   const submit=h('button','Confirm Paid & Send to Dispatch','widebutton');submit.disabled=true;p.append(submit);
+   let shift=null,pending=null,selectedBranch=branch,completed=false;
+   const compute=()=>{
      try{
-       const card=randToCents(inputs.card.value.trim()||'0');
-       const eft=randToCents(inputs.eft.value.trim()||'0');
-       const cashApplied=quote.total_cents-card-eft;
-       const cashReceived=randToCents(inputs.cash.value.trim()||'0');
-       if(cashApplied<0)throw Error('Card and EFT exceed the quotation amount.');
-       if(cashReceived<cashApplied || (cashApplied===0&&cashReceived>0))throw Error('Cash received does not cover the cash portion.');
-       if(card>0&&inputs.cardref.value.trim().length<3)throw Error('Enter the terminal approval reference.');
-       if(eft>0&&inputs.eftref.value.trim().length<3)throw Error('Enter the bank transfer reference.');
-       const values={cash_cents:cashApplied,cash_received_cents:cashReceived,card_cents:card,card_reference:inputs.cardref.value.trim(),eft_cents:eft,eft_reference:inputs.eftref.value.trim()};
-       estimate.textContent='Cash portion: '+money(cashApplied)+' · Change to return: '+money(cashReceived-cashApplied);
-       submit.disabled=!shift||!!pending;
-       return values;
+       const paid=randToCents(amount.value.trim());
+       if(method.value==='CARD'&&paid!==quote.total_cents)throw Error('Card amount must match the quotation total.');
+       if(method.value==='CASH'&&paid<quote.total_cents)throw Error('Cash is short by '+money(quote.total_cents-paid));
+       if(paid>1_000_000_000||paid-quote.total_cents>100_000_000)throw Error('Amount exceeds permitted limit.');
+       estimate.textContent=method.value==='CASH'?'Change to return: '+money(paid-quote.total_cents):'Card payment: '+money(paid);
+       submit.disabled=!shift||completed;
+       return paid;
      }catch(e){estimate.textContent=e.message;submit.disabled=true;return null;}
-   }
-   for(const input of Object.values(inputs))input.addEventListener('input',recompute);
-   inputs.cash.value=(quote.total_cents/100).toFixed(2);
+   };
+   method.addEventListener('change',()=>{if(!pending){amount.value=(quote.total_cents/100).toFixed(2);compute();}});
+   amount.addEventListener('input',()=>{if(!pending)compute();});
    submit.addEventListener('click',async()=>{
-     const values=recompute();if(!values||!shift)return;
-     if(!window.confirm('Have you received the stated cash and checked any card terminal approval? Submit to independent Cash Office verification?'))return;
-     const payload={request_id:crypto.randomUUID(),branch:selectedBranch,shift_id:shift.id,quotation_number:quote.number,...values};
-     pending=payload;submit.disabled=true;
+     const paid=compute();if(paid===null||!shift||completed)return;
+     if(!pending){pending={request_id:crypto.randomUUID(),branch:selectedBranch,shift_id:shift.id,quotation_number:quote.number,
+       method:method.value,amount_paid_cents:paid,attestation:method.value==='CASH'?'CASH_RECEIVED':'CARD_TERMINAL_APPROVED'};
+       method.disabled=true;amount.disabled=true;}
+     submit.disabled=true;submit.textContent='Confirming payment…';
      try{
-       const data=await api('/api/payments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
-       feedback.replaceChildren(h('p','Payment request #'+data.payment.id+' saved — AWAITING CASH OFFICE VERIFICATION. Not yet paid or released to Dispatch.','success'));
-       p.querySelector('.tender-rows').hidden=true;submit.remove();await loadPaymentQueue();
-     }catch(e){feedback.replaceChildren(h('p',e.message+' If the request may have saved, refresh your payment queue. Do not submit the same quotation again.','error'));pending=null;submit.disabled=true;}
+       const data=await api('/api/payments/quick-confirm',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(pending)});
+       completed=true;pending=null;
+       feedback.replaceChildren(h('p','PAID · '+data.invoice_number+' · Sent to Dispatch. '+(data.change_cents?'Change: '+money(data.change_cents):''),'success'));
+       status.textContent='Cashier confirmation recorded. Cash Office can audit this sale.';
+       submit.remove();await loadPaymentQueue();
+     }catch(e){
+       feedback.replaceChildren(h('p',e.message+' Check My payments before retrying. Retry keeps the same request ID.','error'));
+       submit.textContent='Retry same payment confirmation';submit.disabled=false;
+     }
    });
    (async()=>{try{
      const data=await api('/api/till-shifts?branch='+encodeURIComponent(selectedBranch));
      if(selectedBranch!==branch||!p.isConnected)return;
      shift=(data.shifts||[]).find(x=>x.status==='OPEN')||null;
-     status.textContent=shift?'Your open till: '+shift.till_code+' (shift #'+shift.id+')':'Open your own till shift above before submitting a payment.';
-     recompute();
+     status.textContent=shift?'Open till: '+shift.till_code+' (shift #'+shift.id+')':'Open your own till shift above first.';
+     compute();
    }catch(e){status.textContent='Cannot verify till shift: '+e.message;}})();
    return p;
  }
  function paymentQueuePanel(){
-   const p=panel(APP==='tills'?'My payments awaiting Cash Office verification':'Cash Office — Independent Payment Verification');
-   const note=APP==='tills'?'A submitted payment is not a paid invoice until Cash Office independently confirms receipt.':'Check physical cash handover, terminal approval or bank credit independently before confirming. Different employee required.';
+   const p=panel(APP==='tills'?'My payments and Dispatch status':'Cash Office — Payment Audit & Pending Verification');
+   const note=APP==='tills'?'Cash/Card confirmations go to Dispatch immediately. Legacy or EFT requests can still await independent verification.':'Audit cashier-confirmed Cash/Card sales here. Older/EFT submissions awaiting verification still require independent Cash Office confirmation.';
    p.append(h('p',note,'cashup-warning'));
    const refresh=h('button','Refresh payment queue','secondary');refresh.addEventListener('click',loadPaymentQueue);p.append(refresh);
    const list=h('div','Loading payment requests…');list.id='p9-payments';p.append(list);
@@ -718,6 +720,7 @@ function page(app){
        div.append(h('strong',payment.quotation_number+' — '+money(payment.total_cents)+' · '+payment.status));
        div.append(h('p','Cashier: '+payment.cashier_name+' · '+showDate(payment.created_at),'tiny'));
        div.append(h('p','Cash '+money(payment.cash_cents)+' / card '+money(payment.card_cents)+' / EFT '+money(payment.eft_cents),'tiny'));
+       if(payment.cashier_confirmed)div.append(h('p','Cashier-confirmed '+payment.confirmation_method+' · Subject to Cash Office audit (not bank/processor verified)','tiny'));
        if(payment.invoice_id){
          div.append(h('p','Internal invoice: '+payment.invoice_number+' · Dispatch queued','success'));
          const b=h('button','Print internal sales invoice','secondary small-btn');b.addEventListener('click',()=>void printInternalInvoice(payment.invoice_id).catch(e=>err(e.message)));div.append(b);
@@ -751,7 +754,7 @@ function page(app){
  }
  function dispatchQueuePanel(){
    const p=panel('Paid invoices — Dispatch work queue');
-   p.append(h('p','Only independently Cash-Office-confirmed payments appear here. Picking and checking are internal records; they do NOT deduct stock, release the vehicle at security or replace signed POD.','training-warning'));
+   p.append(h('p','Only confirmed transactions appear here, including cashier-confirmed Cash/Card sales. These records do NOT deduct stock, release the vehicle at security or replace signed POD.','training-warning'));
    const refresh=h('button','Refresh paid dispatch jobs','secondary');refresh.addEventListener('click',loadDispatchQueue);p.append(refresh);
    const list=h('div','Loading Dispatch jobs…');list.id='p9-dispatch';p.append(list);return p;
  }
@@ -801,14 +804,15 @@ export default {
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
      '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview',
-     '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action'};
+     '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/verify','/api/dispatch-jobs/action'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // Department rules enforced here as an early deny and again by the private Core.
    if((url.pathname.startsWith('/api/dispatch-jobs') && kind!=='dispatch') ||
       (url.pathname==='/api/payments/verify' && kind!=='cashoffice') ||
+      (url.pathname==='/api/payments/quick-confirm' && kind!=='tills') ||
       (url.pathname==='/api/payments' && !['tills','cashoffice'].includes(kind)) ||
       (url.pathname==='/api/payments' && req.method==='POST' && kind!=='tills') ||
       (url.pathname==='/api/invoices' && !['tills','cashoffice','dispatch'].includes(kind)) ||

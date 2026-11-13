@@ -61,6 +61,8 @@ jobs:
         run: npm run migrate:phase8
       - name: Apply additive verified-sales and dispatch schema (Phase 9)
         run: npm run migrate:phase9
+      - name: Apply additive cashier-confirmation schema (Phase 10)
+        run: npm run migrate:phase10
       - name: Deploy central API — private Worker
         run: npm run deploy:core
       - name: Deploy Sales POS

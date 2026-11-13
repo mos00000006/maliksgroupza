@@ -6,7 +6,7 @@ import {validateReviewDecision,validateReviewNote,latestReviewsStatement,reviewH
 import {validateTenderPreparation,tenderListStatement,tenderForClient} from './tender-domain.mjs';
 import {quoteId} from './quote-domain.mjs';
 import {cashupPreviewStatement,cashupForClient,CASHUP_MODE} from './cashup-domain.mjs';
-import {submitPayment,listPayments,verifyPayment,listDispatch,updateDispatch,getInvoice} from './payment-dispatch-domain.mjs';
+import {submitPayment,confirmSimpleCheckout,listPayments,verifyPayment,listDispatch,updateDispatch,getInvoice} from './payment-dispatch-domain.mjs';
 import {validateEvidenceInput,evidenceListStatement,evidenceHistoryStatement,evidenceForClient,EVIDENCE_MODE} from './payment-evidence-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
@@ -465,6 +465,7 @@ export default {
       if(path==='/v1/payment-evidence/history'&&req.method==='GET')return await paymentEvidenceHistory(req,env,context);
       if(path==='/v1/payment-evidence'&&req.method==='POST')return await recordPaymentEvidence(req,env,context);
       if(path==='/v1/payments'&&req.method==='GET')return await listPayments(req,env,context);
+      if(path==='/v1/payments/quick-confirm'&&req.method==='POST')return env.P9_APPROVAL_ENABLED==='true'?await confirmSimpleCheckout(req,env,context):denied('Cashier checkout is disabled. Enable MALIKS_P9_APPROVAL_ENABLED after testing.',503);
       if(path==='/v1/payments'&&req.method==='POST')return env.P9_APPROVAL_ENABLED==='true'?await submitPayment(req,env,context):denied('Paid-sales pilot is not enabled. Contact IT.',503);
       if(path==='/v1/payments/verify'&&req.method==='POST')return env.P9_APPROVAL_ENABLED==='true'?await verifyPayment(req,env,context):denied('Paid-sales pilot is not enabled. Contact IT.',503);
       if(path==='/v1/invoices'&&req.method==='GET')return await getInvoice(req,env,context);

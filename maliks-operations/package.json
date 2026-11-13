@@ -18,6 +18,7 @@
     "migrate:phase6": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase6_tender_preparations.sql --config .generated/core.json",
     "migrate:phase5": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase5_cash_office_reviews.sql --config .generated/core.json",
     "migrate:phase8": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase8_payment_evidence.sql --config .generated/core.json",
+    "migrate:phase10": "wrangler d1 execute maliks-group-hub-db --remote --file sql/phase10_simple_cashier_checkout.sql --yes --config .generated/core.json",
     "migrate:phase9": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase9_paid_sales_dispatch.sql --config .generated/core.json"
   },
   "dependencies": {

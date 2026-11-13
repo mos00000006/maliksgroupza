@@ -14,7 +14,7 @@ const originOk=(req)=>req.headers.get('origin') && req.headers.get('origin')===r
 const invoiceNumber=(id)=>'INV-'+String(id).padStart(9,'0');
 function toPayment(row){return {id:row.id,quotation_number:'Q-'+String(row.quotation_id).padStart(8,'0'),branch:row.branch,shift_id:row.shift_id,created_at:row.created_at,status:row.status,
  cashier_name:row.cashier_name,invoice_id:row.invoice_id||null,invoice_number:row.invoice_id?invoiceNumber(row.invoice_id):null,reviewer_name:row.reviewed_by_name||null,review_note:row.review_note||null,cash_cents:row.cash_cents,cash_received_cents:row.cash_received_cents,change_cents:row.cash_received_cents-row.cash_cents,
- card_cents:row.card_cents,card_reference:row.card_reference,eft_cents:row.eft_cents,eft_reference:row.eft_reference,total_cents:row.total_cents};}
+ card_cents:row.card_cents,card_reference:row.card_reference,eft_cents:row.eft_cents,eft_reference:row.eft_reference,total_cents:row.total_cents,cashier_confirmed:!!row.cashier_confirmation_method,confirmation_method:row.cashier_confirmation_method||null};}
 function toJob(row){return {id:row.id,branch:row.branch,status:row.status,invoice_number:invoiceNumber(row.invoice_id),quotation_number:'Q-'+String(row.quotation_id).padStart(8,'0'),customer_name:row.customer_name,
  customer_contact:row.customer_contact,created_at:row.created_at,lines:JSON.parse(row.lines_json),total_cents:row.total_cents,picker_name:row.picker_name,checker_name:row.checker_name,notes:row.notes};}
 const byBranch=(context,supplied)=>matchingBranch(context.branches,supplied);
@@ -31,6 +31,100 @@ export function checkTender(body,total){
  if(!Number.isSafeInteger(body.shift_id)||body.shift_id<=0)throw Error('Open till shift required.');
  return {request_id:body.request_id,shift_id:body.shift_id,cash,received,card,eft,cardRef:(body.card_reference||'').trim(),eftRef:(body.eft_reference||'').trim(),total};
 }
+// Phase 10: cashier-confirmed CASH or CARD checkout.
+// This is an accountable cashier declaration, not a bank/terminal API verification.
+// EFT and split tenders deliberately remain on the independent-review workflow.
+export function checkSimpleCheckout(body,total){
+ if(!uuid(body.request_id))throw Error('Invalid checkout request ID.');
+ if(!Number.isSafeInteger(body.shift_id)||body.shift_id<=0)throw Error('Open till shift required.');
+ const method=body.method;
+ if(!['CASH','CARD'].includes(method))throw Error('Choose Cash or Card.');
+ const amount=body.amount_paid_cents;
+ if(!num(total)||total<=0||!num(amount))throw Error('Invalid payment amount.');
+ if(method==='CARD' && amount!==total)throw Error('Card payment must match the quotation total.');
+ if(method==='CASH' && (amount<total||amount-total>100_000_000))throw Error('Cash received must cover the total; check the change.');
+ const attestation=method==='CASH'?'CASH_RECEIVED':'CARD_TERMINAL_APPROVED';
+ if(body.attestation!==attestation)throw Error('Confirm the actual cash receipt or approved card-terminal result.');
+ return {requestId:body.request_id,shiftId:body.shift_id,method,paid:amount,total,attestation,
+   cash:method==='CASH'?total:0,received:method==='CASH'?amount:0,card:method==='CARD'?total:0};
+}
+export async function confirmSimpleCheckout(req,env,context){
+ if(context.app!=='tills')return deny('Only authorised tills can confirm a payment.');
+ if(!originOk(req))return deny('Invalid request origin.');
+ let body;try{body=await getInput(req,1800);}catch{return deny('Invalid payment request.',400);}
+ const branch=byBranch(context,body.branch),quoteIdNumber=quoteId(body.quotation_number);
+ if(!branch||!quoteIdNumber)return deny('Invalid branch or quotation.',400);
+ const quote=await env.DB.prepare('SELECT id,total_cents,status FROM till_quotation_submissions WHERE id=? AND lower(branch)=lower(?)')
+   .bind(quoteIdNumber,branch).first();
+ if(!quote)return deny('Quotation not found for your branch.',404);
+ let v;try{v=checkSimpleCheckout(body,quote.total_cents);}catch(e){return deny(e.message,400);}
+ const cashier=email(context.member.email),time=now();
+ // All records are created in a single D1 transaction. Unique constraints on quotation_id,
+ // payment_id, invoice_id, and request_id prevent double sales and duplicate dispatch.
+ const statements=[
+  env.DB.prepare(`INSERT OR IGNORE INTO maliks_p9_payments
+   (request_id,quotation_id,branch,shift_id,cashier_email,cashier_name,cash_cents,cash_received_cents,
+    card_cents,card_reference,eft_cents,eft_reference,total_cents,status,created_at)
+   SELECT ?,q.id,q.branch,s.id,?,?,?,?,?,'',0,'',?,'CONFIRMED',?
+   FROM till_quotation_submissions q JOIN maliks_till_shift_register s
+    ON s.id=? AND lower(s.branch)=lower(q.branch) AND lower(s.opened_by_email)=lower(?) AND s.status='OPEN'
+   WHERE q.id=? AND lower(q.branch)=lower(?) AND q.total_cents=?`)
+    .bind(v.requestId,cashier,context.member.name,v.cash,v.received,v.card,v.total,time,v.shiftId,cashier,quoteIdNumber,branch,v.total),
+  env.DB.prepare(`INSERT OR IGNORE INTO maliks_p10_cashier_confirmations
+   (request_id,payment_id,branch,method,amount_received_cents,attestation,cashier_email,cashier_name,created_at)
+   SELECT ?,p.id,p.branch,?,?,?,?,?,? FROM maliks_p9_payments p
+   WHERE p.request_id=? AND p.quotation_id=? AND lower(p.branch)=lower(?) AND lower(p.cashier_email)=lower(?)
+    AND p.status='CONFIRMED' AND p.cash_received_cents=? AND p.card_cents=?`)
+    .bind(v.requestId,v.method,v.paid,v.attestation,cashier,context.member.name,time,
+      v.requestId,quoteIdNumber,branch,cashier,v.received,v.card),
+  env.DB.prepare(`INSERT OR IGNORE INTO maliks_p9_invoices (payment_id,quotation_id,branch,total_cents,net_cents,vat_cents,issued_at,issued_by_email)
+   SELECT p.id,p.quotation_id,p.branch,p.total_cents,q.net_cents,q.vat_cents,?,?
+   FROM maliks_p9_payments p JOIN till_quotation_submissions q ON q.id=p.quotation_id
+   JOIN maliks_p10_cashier_confirmations c ON c.payment_id=p.id
+   WHERE p.request_id=? AND c.request_id=? AND p.status='CONFIRMED'`)
+    .bind(time,cashier,v.requestId,v.requestId),
+  env.DB.prepare(`INSERT OR IGNORE INTO maliks_p9_dispatch_jobs (invoice_id,quotation_id,branch,created_at)
+   SELECT i.id,i.quotation_id,i.branch,? FROM maliks_p9_invoices i
+   JOIN maliks_p9_payments p ON p.id=i.payment_id
+   JOIN maliks_p10_cashier_confirmations c ON c.payment_id=p.id
+   WHERE p.request_id=? AND c.request_id=? AND p.status='CONFIRMED'`)
+    .bind(time,v.requestId,v.requestId),
+ ];
+ for(const [account,side,field] of [['CASH_CONTROL','DR','cash_cents'],['CARD_CLEARING','DR','card_cents']]){
+  statements.push(env.DB.prepare(`INSERT OR IGNORE INTO maliks_p9_journal_lines (invoice_id,account,side,amount_cents)
+    SELECT i.id,?,?,p.${field} FROM maliks_p9_invoices i
+    JOIN maliks_p9_payments p ON p.id=i.payment_id
+    JOIN maliks_p10_cashier_confirmations c ON c.payment_id=p.id
+    WHERE p.request_id=? AND c.request_id=? AND p.status='CONFIRMED' AND p.${field}>0`)
+   .bind(account,side,v.requestId,v.requestId));
+ }
+ for(const [account,field] of [['SALES_REVENUE','net_cents'],['OUTPUT_VAT','vat_cents']]){
+  statements.push(env.DB.prepare(`INSERT OR IGNORE INTO maliks_p9_journal_lines (invoice_id,account,side,amount_cents)
+    SELECT i.id,?,'CR',i.${field} FROM maliks_p9_invoices i
+    JOIN maliks_p9_payments p ON p.id=i.payment_id
+    JOIN maliks_p10_cashier_confirmations c ON c.payment_id=p.id
+    WHERE p.request_id=? AND c.request_id=? AND p.status='CONFIRMED' AND i.${field}>0`)
+   .bind(account,v.requestId,v.requestId));
+ }
+ await env.DB.batch(statements);
+ const record=await env.DB.prepare(`SELECT p.*,c.method AS checkout_method,c.amount_received_cents,c.attestation,
+    i.id AS invoice_id,j.id AS job_id FROM maliks_p9_payments p
+    JOIN maliks_p10_cashier_confirmations c ON c.payment_id=p.id
+    JOIN maliks_p9_invoices i ON i.payment_id=p.id
+    JOIN maliks_p9_dispatch_jobs j ON j.invoice_id=i.id
+    WHERE p.request_id=?`).bind(v.requestId).first();
+ if(!record){return deny('Checkout was not completed. Review this quotation in the payment queue before retrying.',409);}
+ if(record.quotation_id!==quoteIdNumber||email(record.cashier_email)!==cashier||record.branch.toLowerCase()!==branch.toLowerCase()||
+    record.shift_id!==v.shiftId||record.total_cents!==v.total||record.checkout_method!==v.method||
+    record.amount_received_cents!==v.paid||record.attestation!==v.attestation||record.cash_cents!==v.cash||
+    record.cash_received_cents!==v.received||record.card_cents!==v.card)
+    return deny('Checkout request ID already used with different data.',409);
+ return ok({status:'CONFIRMED',confirmation_source:'CASHIER_DECLARATION',payment_id:record.id,
+   invoice_id:record.invoice_id,invoice_number:invoiceNumber(record.invoice_id),dispatch_job_id:record.job_id,
+   dispatch_queued:true,change_cents:v.received-v.cash,
+   warning:'Cashier-recorded payment. No card processor confirmation, stock deduction, or compliant VAT tax invoice.'});
+}
+
 export async function submitPayment(req,env,context){
  if(context.app!=='tills')return deny('Tills only.');
  if(!originOk(req))return deny('Invalid request origin.');
@@ -58,7 +152,9 @@ export async function listPayments(req,env,context){
  if(!['tills','cashoffice'].includes(context.app))return deny('Department denied.');
  const branch=byBranch(context,new URL(req.url).searchParams.get('branch'));if(!branch)return deny('Branch denied.');
  const cashier=context.app==='tills'?email(context.member.email):null;
- const sql=`SELECT p.*,i.id AS invoice_id FROM maliks_p9_payments p LEFT JOIN maliks_p9_invoices i ON i.payment_id=p.id WHERE lower(p.branch)=lower(?) ${cashier?'AND lower(p.cashier_email)=lower(?)':''} ORDER BY p.id DESC LIMIT 80`;
+ const sql=`SELECT p.*,i.id AS invoice_id,c.method AS cashier_confirmation_method,c.attestation AS cashier_attestation
+ FROM maliks_p9_payments p LEFT JOIN maliks_p9_invoices i ON i.payment_id=p.id
+ LEFT JOIN maliks_p10_cashier_confirmations c ON c.payment_id=p.id WHERE lower(p.branch)=lower(?) ${cashier?'AND lower(p.cashier_email)=lower(?)':''} ORDER BY p.id DESC LIMIT 80`;
  const {results}=await env.DB.prepare(sql).bind(...(cashier?[branch,cashier]:[branch])).all();
  return ok({payments:results.map(toPayment)});
 }
