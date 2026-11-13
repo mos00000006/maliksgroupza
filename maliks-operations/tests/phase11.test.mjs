@@ -7,7 +7,7 @@ const html=async type=>(await frontend.fetch(get(),{APP_TYPE:type})).text();
 test('Cash Office exposes prominent paid invoice printing rather than creating new payments',async()=>{
  const page=await html('cashoffice');
  assert.match(page,/Cash Office — PAID Customer Invoices & Payment Audit/);
- assert.match(page,/Print PAID customer invoice/);
+ assert.match(page,/Print A4 PAID customer invoice/);
  assert.match(page,/PAID SALES INVOICE/);
  assert.match(page,/INTERNAL PAID SALES INVOICE/);
  assert.match(page,/VAT included \(15%\)/);

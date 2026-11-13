@@ -1,50 +1,63 @@
-# Maliks Operations — Phase 11: PAID Invoice Print + Dispatch Picker Slip
+# Maliks Operations — Phase 12: 80mm Thermal Printing
 
-## What changes
+## Purpose
 
-**Cash Office**
-- The payment queue is at the top of the Cash Office screen.
-- A confirmed paid record displays **PAID** and the button **Print PAID customer invoice**.
-- Printing fetches the paid invoice again from the authenticated Core API for the current branch; unconfirmed invoices will not print.
-- A clean A4 PowerBuild document shows PAID, invoice number, quotation, date, customer, items, prices, VAT, total, payment type, and balance due R0.00.
-- Invoice is labelled **INTERNAL** because the app does not yet hold all statutory tax invoice details.
+Use the Epson TM-T20III or comparable **80mm thermal receipt printer** at Sales and Tills instead of A4 paper.
 
-**Dispatch**
-- When Dispatch is open, it checks its confirmed, branch-limited invoice queue every 20 seconds.
-- A new **AWAITING_PICK** paid invoice causes a notification pop-up with **Print picking slip**.
-- The work queue also has **Print picking slip** on every job, for reprinting after dismissing the pop-up.
-- The A4 PowerBuild picking slip has customer name, invoice, dispatch number, quotation, SKU codes, product descriptions, pick quantities, and sign-off spaces.
-- Picker copy has NO product prices. Printing does not automatically mark the job picked, deduct stock, release goods or replace independent checking/POD.
+- **Sales / POS:** Print a PowerBuild-branded 80mm **QUOTATION — NOT PAID** immediately after saving a quotation; reprint from My Recent Quotations.
+- **Tills:** After confirming Cash/Card checkout, print a PowerBuild-branded 80mm **PAID INVOICE / RECEIPT**; reprint from My payments.
+- **Cash Office:** Keeps the existing A4 **internal paid invoice** for office use.
+- **Dispatch:** Keeps the existing A4 picking slip for warehouse staff. New paid-order alerts remain unchanged.
 
-**No changes** to payment confirmation, D1 migrations, database tables, Worker names, GitHub secrets, or main Hub.
+This is a **printing-only patch**. It does not post payments, change stock, update the database schema or modify the separate Maliks Group Hub. It builds directly on Phase 11 (Phase 10 checkout plus Phase 11 A4 invoice/Dispatch printing).
 
-## Upload these three files to GitHub
+## What to upload to GitHub
 
-Repository: `mos00000006/maliksgroupza` (branch `main`). Download and unzip this update, then upload the files with the **same paths**, replacing the old ones. Use GitHub Code → navigate to folder → Add file → Upload files (or edit/paste when replacing an existing file):
+Repository: `mos00000006/maliksgroupza`, branch `main`.
 
-1. `maliks-operations/src/frontend.mjs` **REPLACE**
-2. `maliks-operations/tests/phase9.test.mjs` **REPLACE** (only the display-label assertions change)
-3. `maliks-operations/tests/phase11.test.mjs` **ADD**
+Upload or replace these exact paths from the ZIP:
 
-Do NOT replace `src/core.mjs` or `src/payment-dispatch-domain.mjs`. Do NOT upload `START-HERE.md` to a code location unless you want it as documentation.
+1. `maliks-operations/src/frontend.mjs` — **REPLACE** (the Phase 11 version must be in the repo first)
+2. `maliks-operations/tests/phase11.test.mjs` — **REPLACE** (only label expectation updated)
+3. `maliks-operations/tests/phase12.test.mjs` — **ADD**
+
+Do not replace `src/core.mjs`, `src/payment-dispatch-domain.mjs`, `src/powerbuild-logo.mjs`, the deployment workflow or the database migrations. If your live repository has custom modifications after Phase 11, use the included Git patch as a **reviewable diff** and merge changes instead of overwriting them blindly.
 
 ## Deploy
 
-1. Ensure you are using the Phase 10 cashier checkout release shown in your screenshots. If GitHub contains later custom edits to `frontend.mjs`, MERGE these modifications rather than overwriting them.
-2. Commit the three files.
-3. GitHub Actions → **Deploy Maliks Department Applications** → **Run workflow** on `main`. Verify Worker names and tick the confirmation checkbox.
-4. Once the workflow succeeds, refresh Cash Office and Dispatch with Ctrl + Shift + R.
-5. Cash Office: for a **CONFIRMED** payment, click **Print PAID customer invoice** and check the A4 print preview.
-6. Dispatch: an outstanding paid job in AWAITING_PICK should trigger the notification. Click **Print picking slip** and check the picker copy. The same button is always available on the job card.
-7. To test a **new** pop-up, use a NEW test quotation, confirm a permitted test payment in Tills, and leave the Dispatch screen open. It checks every 20 seconds. The notification is not an OS notification; it works in the opened Dispatch webpage. Do not use real goods for a test.
+1. In GitHub, commit the three files to `main`.
+2. Open GitHub Actions → **Deploy Maliks Department Applications**.
+3. Start a **new** workflow run. Confirm the existing department Worker names after checking they refer to the intended applications.
+4. Wait for the successful run, then refresh POS and Tills with **Ctrl+Shift+R**.
+5. Sales/POS: create a **TEST** quotation; click **Print 80mm quotation slip**. You can also reprint a quotation from history.
+6. Tills: use an already confirmed **TEST** invoice and click **Reprint 80mm PAID receipt**. To test the immediate print button, use a controlled test checkout; do not submit actual payments or release real goods until your deployment is approved for production.
+7. Cash Office: ensure **Print A4 PAID customer invoice** remains available. Dispatch: ensure **Print picking slip** still uses A4.
 
-## Safety and accounting
+## Epson TM-T20III setup — EACH Sales/Tills PC
 
-- CASH/CARD fast checkout is still a **cashier declaration**, not independently verified card settlement.
-- This is a **paid internal invoice**, NOT a validated statutory South African VAT tax invoice. Add legal entity details, address, VAT number and tax invoice controls before using it as a SARS tax invoice.
-- Printed picker slip is **not** a goods release, proof of delivery, or inventory deduction.
-- No changes are made to the production database by this patch itself.
+The printer supports **80mm roll paper** with an approximately **72mm-wide printable area** (576 dots). Phase 12 uses a 72mm receipt layout and calculates the height dynamically to avoid a fixed-length A4 sheet.
 
-## Local verification
+In Windows, install/select the Epson printer driver, set **paper width 80mm**, and use the correct roll-paper/receipt paper profile. In Chrome/Edge's print dialog select:
 
-101 automated Node tests pass, including four new Phase 11 checks, and all four rendered browser scripts pass Node syntax checks. External browser preview was blocked by the test environment. The patch has not been deployed to live Cloudflare.
+- Destination: your Epson TM-T20III
+- Paper size: 80mm roll or the receipt-paper option provided by its driver
+- Scale: 100% (not “Fit to page”)
+- Margins: None
+- Headers and footers: Off
+- Print in grayscale/monochrome (standard thermal printing); logo is rendered in high-contrast grayscale
+
+The browser cannot reliably select the printer or cut paper automatically; use the installed printer/driver's settings. Print a single test receipt and adjust the driver paper profile if needed. For truly silent, direct ESC/POS printing, a separate local print agent/integration is required later.
+
+## Print safety and legal status
+
+- QUOTATION slips clearly say **NOT PAID**. They are not authorisation to collect goods.
+- Tills' PAID slips fetch the **confirmed** invoice from the authenticated, branch-restricted `/api/invoices` endpoint; an unconfirmed quotation cannot be printed as paid by changing screen text.
+- The paid receipt is an **INTERNAL PAID SALES RECEIPT**, not a statutory South African VAT tax invoice. Company registered details and VAT number must be added and reviewed before using this as an official tax invoice.
+- No cash/card settlement checks, stock deductions, paid-status changes or Dispatch release actions are performed by printing.
+
+## Verification
+
+- **106 Node tests passed**.
+- **Four generated browser scripts passed Node syntax checks**.
+- Automated live-browser printing was unavailable in the execution environment; a real Epson hardware print test and live Cloudflare deployment check are still needed.
+- No new Cloudflare secrets, D1 migrations or GitHub variables required.

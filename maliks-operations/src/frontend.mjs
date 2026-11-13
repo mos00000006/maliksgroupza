@@ -168,7 +168,10 @@ function page(app){
    try{
      const data=await api('/api/quotes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pendingQuote)});
      E('confirmation').className='success';
-     E('confirmation').textContent='Quotation '+data.quotation.number+' sent to Cash Office. It is NOT paid, invoiced or approved for dispatch.';
+     const confirm=E('confirmation');confirm.replaceChildren(h('p','Quotation '+data.quotation.number+' saved. NOT PAID — customer must pay at Tills.'));
+     const slip=h('button','Print 80mm quotation slip','secondary small-btn');slip.type='button';
+     slip.addEventListener('click',()=>void printQuote(data.quotation).catch(e=>err(e.message)));
+     confirm.append(slip);
      pendingQuote=null;basket=[];
      E('customer').value='';E('contact').value='';E('notes').value='';
      drawBasket();await loadOwnQuotes();
@@ -197,17 +200,90 @@ function page(app){
    wrapper.append(h('p','Quotation details are not payment confirmation. Check the payment queue for the actual status.','tiny'));
    return wrapper;
  }
+ // Phase 12: Compact Epson-compatible 80 mm thermal paper (72 mm printable content).
+ // The printer driver must be configured for 80 mm rolls, Scale 100%, no headers/footers.
+ function thermalDivider(sheet){sheet.append(h('div','--------------------------------','receipt-divider'));}
+ function thermalPair(sheet,label,value,cls=''){
+   const line=h('div',undefined,'receipt-pair'+(cls?' '+cls:''));
+   line.append(h('span',label),h('strong',value));sheet.append(line);
+ }
+ function thermalHeader(sheet,title,reference,docBranch){
+   const logo=h('img');logo.src='/powerbuild-logo.png';logo.alt='PowerBuild logo';logo.className='receipt-logo';sheet.append(logo);
+   sheet.append(h('div','POWERBUILD','receipt-brand'),h('div',docBranch,'receipt-branch'));
+   thermalDivider(sheet);
+   sheet.append(h('div',title,'receipt-title'),h('div',reference,'receipt-reference'));
+   thermalDivider(sheet);
+ }
+ function thermalItems(sheet,lines){
+   for(const item of lines||[]){
+     const block=h('div',undefined,'receipt-item');block.append(h('div',item.name,'receipt-item-name'));
+     block.append(h('div',String(item.code||'')+' · '+String(item.unit||'each'),'receipt-item-code'));
+     const q=h('div',undefined,'receipt-pair');
+     q.append(h('span',String(item.quantity)+' × '+money(item.price_cents)),h('strong',money(item.line_total_cents)));
+     block.append(q);sheet.append(block);
+   }
+ }
+ function thermalTotals(sheet,row,paid){
+   thermalDivider(sheet);
+   thermalPair(sheet,'Subtotal (excl. VAT)',money(row.net_cents));
+   thermalPair(sheet,'VAT included (15%)',money(row.vat_cents));
+   thermalPair(sheet,paid?'TOTAL PAID':'QUOTE TOTAL',money(row.total_cents),'receipt-grand');
+ }
+ function thermalFooter(sheet,lines){
+   thermalDivider(sheet);
+   for(const line of lines)sheet.append(h('div',line,'receipt-foot'));
+   sheet.append(h('div','Thank you for choosing PowerBuild','receipt-thanks'));
+ }
+ // Use a measured page length: CSS @page size:80mm auto is not valid in Chrome.
+ // Add a narrow print rule only for THIS job. A4 documents keep their original layout.
+ async function printThermalSheet(sheet){
+   E('print-sheet')?.remove();E('thermal-print-style')?.remove();
+   sheet.id='print-sheet';sheet.className='print-sheet thermal-sheet';
+   const css=h('style');css.id='thermal-print-style';
+   css.textContent=\`
+   .thermal-sheet{width:72mm!important;min-width:72mm!important;max-width:72mm!important;padding:1mm 1mm 4mm!important;margin:0!important;background:white!important;color:black!important;font:10pt/1.32 Arial,sans-serif!important;letter-spacing:0!important;box-shadow:none!important;overflow:visible!important}
+   .thermal-sheet *{box-sizing:border-box!important;color:black!important;background:transparent!important;text-align:left!important;overflow-wrap:anywhere!important}
+   .thermal-sheet .receipt-logo{display:block!important;max-width:44mm!important;max-height:27mm!important;width:auto!important;height:auto!important;margin:0 auto 1mm!important;filter:grayscale(1) contrast(2.1)!important}
+   .thermal-sheet .receipt-brand{text-align:center!important;font-size:13pt!important;font-weight:900!important;letter-spacing:.9px!important}
+   .thermal-sheet .receipt-branch{text-align:center!important;font-size:10pt!important;font-weight:700!important}
+   .thermal-sheet .receipt-title{text-align:center!important;font-weight:900!important;font-size:15pt!important;margin:1mm 0!important}
+   .thermal-sheet .receipt-reference{text-align:center!important;font-size:11pt!important;font-weight:800!important}
+   .thermal-sheet .receipt-divider{white-space:nowrap!important;overflow:hidden!important;font:10pt/1.2 monospace!important;letter-spacing:0!important;margin:2mm 0!important}
+   .thermal-sheet .receipt-field{font-size:9pt!important;margin:1mm 0!important;white-space:normal!important}
+   .thermal-sheet .receipt-item{border-bottom:1px dashed #666!important;padding:2mm 0!important;break-inside:avoid!important}
+   .thermal-sheet .receipt-item-name{font-weight:800!important;font-size:10pt!important;line-height:1.35!important}
+   .thermal-sheet .receipt-item-code{font-size:8pt!important;margin:.5mm 0!important}
+   .thermal-sheet .receipt-pair{display:flex!important;justify-content:space-between!important;gap:2mm!important;align-items:baseline!important;margin:1mm 0!important;font-size:9.5pt!important}
+   .thermal-sheet .receipt-pair span{flex:1 1 auto!important;min-width:0!important}
+   .thermal-sheet .receipt-pair strong{flex:0 0 auto!important;white-space:nowrap!important;font-size:10pt!important}
+   .thermal-sheet .receipt-grand{border-top:2px solid #000!important;border-bottom:2px solid #000!important;padding:2mm 0!important;margin:2mm 0!important;font-weight:900!important}
+   .thermal-sheet .receipt-grand strong,.thermal-sheet .receipt-grand span{font-size:13pt!important;font-weight:900!important}
+   .thermal-sheet .receipt-stamp{text-align:center!important;border:2px solid #000!important;font-size:15pt!important;font-weight:900!important;padding:2mm!important;margin:2mm 0!important}
+   .thermal-sheet .receipt-foot{text-align:center!important;font-size:8pt!important;line-height:1.4!important;margin:1mm 0!important}
+   .thermal-sheet .receipt-thanks{text-align:center!important;font-size:9pt!important;font-weight:800!important;margin:3mm 0 2mm!important}
+   @media screen{#print-sheet.thermal-sheet{display:block!important;position:absolute!important;left:-20000px!important;top:0!important;visibility:visible!important}}
+   @media print{body{margin:0!important;padding:0!important;background:#fff!important}.shell{display:none!important}#print-sheet.thermal-sheet{display:block!important;position:static!important;left:auto!important;top:auto!important;visibility:visible!important}}
+   \`;
+   document.head.append(css);document.body.append(sheet);
+   try{
+     await Promise.all(Array.from(sheet.querySelectorAll('img'),img=>img.decode().catch(()=>{})));
+     // CSS pixels are defined as 96 per inch. Add headroom for driver rounding/cutter feed.
+     const millimetres=Math.ceil(sheet.getBoundingClientRect().height*25.4/96+10);
+     const length=Math.min(3000,Math.max(70,millimetres));
+     css.textContent+='\\n@page{size:80mm '+length+'mm;margin:0}';
+     window.addEventListener('afterprint',()=>{sheet.remove();css.remove();},{once:true});
+     window.print();
+   }catch(error){sheet.remove();css.remove();throw error;}
+ }
  function printQuote(row){
-   E('print-sheet')?.remove();
-   const sheet=h('section',undefined,'print-sheet');sheet.id='print-sheet';
-   const img=h('img');img.src='/powerbuild-logo.png';img.alt='PowerBuild';img.className='print-logo';sheet.append(img);
-   sheet.append(h('h1','QUOTATION '+row.number));
-   sheet.append(h('p','Quotation only — NOT a tax invoice, paid receipt or dispatch instruction.','print-warning'));
-   for(const value of ['Branch: '+row.branch,'Customer: '+row.customer_name,
-      'Contact: '+(row.customer_contact||'—'),'Prepared by: '+(row.submitted_by_name||'—'),
-      'Submitted: '+showDate(row.created_at),'Status: '+row.status])sheet.append(h('p',value));
-   sheet.append(quoteDetails(row));document.body.append(sheet);
-   window.addEventListener('afterprint',()=>sheet.remove(),{once:true});window.print();
+   if(!row||row.branch!==branch||!Array.isArray(row.lines))throw Error('Only quotations for the selected branch can be printed.');
+   const sheet=h('section');thermalHeader(sheet,'QUOTATION',row.number,row.branch);
+   for(const value of ['Date: '+showDate(row.created_at),'Sales: '+(row.submitted_by_name||'—'),
+     'Customer: '+row.customer_name,'Contact: '+(row.customer_contact||'—')])sheet.append(h('div',value,'receipt-field'));
+   thermalDivider(sheet);thermalItems(sheet,row.lines);thermalTotals(sheet,row,false);
+   sheet.append(h('div','NOT PAID — QUOTATION ONLY','receipt-stamp'));
+   thermalFooter(sheet,['Present this quotation at Tills to make payment.','No goods may be collected using this quotation.']);
+   return printThermalSheet(sheet);
  }
  function renderQuotes(target,list){
    const body=E(target);if(!body)return;body.replaceChildren();
@@ -216,7 +292,7 @@ function page(app){
      const r=h('tr');for(const val of [row.number,row.customer_name,row.status,showDate(row.created_at),money(row.total_cents)])cell(r,val);
      const td=h('td',undefined,'row-actions');const view=h('button','Details','secondary small-btn');view.type='button';
      view.setAttribute('aria-expanded','false');
-     const print=h('button','Print','secondary small-btn');print.type='button';print.addEventListener('click',()=>printQuote(row));
+     const print=h('button','Print 80mm quote','secondary small-btn');print.type='button';print.addEventListener('click',()=>void printQuote(row).catch(e=>err(e.message)));
      td.append(view,print);r.append(td);body.append(r);
      const detailRow=h('tr');detailRow.hidden=true;const c=h('td');c.colSpan=6;c.append(quoteDetails(row));detailRow.append(c);body.append(detailRow);
      view.addEventListener('click',()=>{detailRow.hidden=!detailRow.hidden;view.setAttribute('aria-expanded',String(!detailRow.hidden));view.textContent=detailRow.hidden?'Details':'Hide';});
@@ -290,7 +366,7 @@ function page(app){
      const data=await api('/api/quotes/find?branch='+encodeURIComponent(selected)+'&number='+encodeURIComponent(number));
      if(selected!==branch)return;output.replaceChildren();const row=data.quotation;
      output.append(h('h3','Quotation '+row.number),quoteDetails(row));
-     const print=h('button','Print quotation','secondary small-btn');print.addEventListener('click',()=>printQuote(row));output.append(print);
+     const print=h('button','Print 80mm quotation','secondary small-btn');print.addEventListener('click',()=>void printQuote(row).catch(e=>err(e.message)));output.append(print);
      if(APP==='tills'){output.append(paymentCapturePanel(row));const legacy=h('details');legacy.append(h('summary','Old tender-preparation training tools (not payment)'));legacy.append(tenderPreview(row),tenderPreparationPanel(row));output.append(legacy);}
    }catch(error){if(selected!==branch)return;output.replaceChildren(h('div',error.message,'error'));}
  }
@@ -697,6 +773,14 @@ function page(app){
        const data=await api('/api/payments/quick-confirm',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(pending)});
        completed=true;pending=null;
        feedback.replaceChildren(h('p','PAID · '+data.invoice_number+' · Sent to Dispatch. '+(data.change_cents?'Change: '+money(data.change_cents):''),'success'));
+       const printReceipt=h('button','Print 80mm PAID receipt','widebutton');printReceipt.type='button';
+       printReceipt.addEventListener('click',()=>void printThermalPaidInvoice(data.invoice_id,{
+         quotation_number:quote.number,cashier_name:E('signed-in')?.textContent.split(' · ')[0],
+         cash_cents:method.value==='CASH'?quote.total_cents:0,
+         cash_received_cents:method.value==='CASH'?paid:0,
+         card_cents:method.value==='CARD'?quote.total_cents:0,eft_cents:0
+       }).catch(e=>err(e.message)));
+       feedback.append(printReceipt);
        status.textContent='Cashier confirmation recorded. Cash Office can audit this sale.';
        submit.remove();await loadPaymentQueue();
      }catch(e){
@@ -723,6 +807,7 @@ function page(app){
  }
  // Print only confirmed, branch-authorised invoices returned by the private Core API.
  function printDocument(sheet){
+   E('thermal-print-style')?.remove();
    E('print-sheet')?.remove();sheet.id='print-sheet';document.body.append(sheet);
    window.addEventListener('afterprint',()=>{if(sheet.isConnected)sheet.remove();},{once:true});
    window.print();
@@ -773,6 +858,30 @@ function page(app){
    foot.append(h('p','INTERNAL PAID SALES INVOICE. This is not a statutory VAT tax invoice. Card status reflects staff-recorded confirmation; it is not independent bank settlement. No automatic stock deduction or gate release.'));
    sheet.append(foot);printDocument(sheet);
  }
+ // Paid receipts: the authenticated Core must return a CONFIRMED invoice for this branch.
+ // Unlike Cash Office's A4 internal invoice, Tills prints an 80 mm monochrome slip.
+ async function printThermalPaidInvoice(id,payment){
+   const selected=branch;
+   const data=await api('/api/invoices?branch='+encodeURIComponent(selected)+'&id='+encodeURIComponent(id));
+   if(selected!==branch)throw Error('Branch changed while loading the paid receipt.');
+   const invoice=data.invoice;
+   if(!invoice||invoice.id!==id||invoice.branch!==selected||!Array.isArray(invoice.lines))throw Error('No confirmed paid invoice available for this branch.');
+   const sheet=h('section');thermalHeader(sheet,'PAID INVOICE / RECEIPT',invoice.number,invoice.branch);
+   for(const value of ['Date: '+showDate(invoice.issued_at),'Quotation: '+(payment?.quotation_number||'—'),
+     'Customer: '+invoice.customer_name,'Cashier: '+(payment?.cashier_name||E('signed-in')?.textContent.split(' · ')[0]||'—')])
+     sheet.append(h('div',value,'receipt-field'));
+   thermalDivider(sheet);thermalItems(sheet,invoice.lines);thermalTotals(sheet,invoice,true);
+   const cash=Number(payment?.cash_cents||0),card=Number(payment?.card_cents||0),eft=Number(payment?.eft_cents||0);
+   thermalPair(sheet,'Payment method',[cash?'CASH':'',card?'CARD':'',eft?'EFT':''].filter(Boolean).join(' + ')||'Confirmed');
+   if(cash){thermalPair(sheet,'Cash received',money(Number(payment?.cash_received_cents||cash)));thermalPair(sheet,'Change',money(Math.max(0,Number(payment?.cash_received_cents||cash)-cash)));}
+   if(card)thermalPair(sheet,'Card',money(card));
+   if(eft)thermalPair(sheet,'EFT',money(eft));
+   thermalPair(sheet,'Balance due',money(0));
+   sheet.append(h('div','PAID','receipt-stamp'));
+   thermalFooter(sheet,['INTERNAL PAID SALES RECEIPT — not a statutory VAT tax invoice.',
+     'Cash/Card confirmation is cashier-recorded. Keep this slip for enquiries and collection.']);
+   return printThermalSheet(sheet);
+ }
  // Picker copy is intentionally separate from the priced customer invoice.
  function printPickingSlip(job){
    if(job.branch!==branch)throw Error('Change back to the correct branch before printing.');
@@ -801,7 +910,9 @@ function page(app){
        if(payment.cashier_confirmed)div.append(h('p','Cashier-confirmed '+payment.confirmation_method+' · Subject to Cash Office audit (not bank/processor verified)','tiny'));
        if(payment.invoice_id){
          div.append(h('p','PAID · '+payment.invoice_number+' · Dispatch notified','success'));
-         const b=h('button','Print PAID customer invoice','small-btn');b.addEventListener('click',()=>void printInternalInvoice(payment.invoice_id,payment).catch(e=>err(e.message)));div.append(b);
+         const b=h('button',APP==='tills'?'Reprint 80mm PAID receipt':'Print A4 PAID customer invoice','small-btn');
+         b.addEventListener('click',()=>void (APP==='tills'?printThermalPaidInvoice(payment.invoice_id,payment):printInternalInvoice(payment.invoice_id,payment)).catch(e=>err(e.message)));
+         div.append(b);
        }
        if(APP==='cashoffice'&&payment.status==='AWAITING_VERIFICATION'){
          const methods=[];
