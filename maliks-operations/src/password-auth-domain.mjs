@@ -149,24 +149,43 @@ export async function issueTemporaryPassword(req,env,ctx){
   return response({ok:true,employee:target.email,temporary_password,must_change_password:true});
 }
 
-// One-time migration path for the initial Owner/Technical Admin. Requires a
-// verified Cloudflare Access identity; NEVER exposed to password-only sessions.
+// Cloudflare Access-only Owner/Technical Admin self-service password setup.
+// Never accept a requested email or role from the browser: the verified Access
+// identity selects the account. A password-only session cannot call this route.
 export async function bootstrapOwnPassword(req,env,auth){
-  if(!sameOrigin(req)||auth?.method!=='access')return fail('Cloudflare Access administrator login required.',403);
-  const actor=await env.DB.prepare(`SELECT id,email,role,department,active FROM team_members WHERE lower(email)=? LIMIT 1`)
-    .bind(auth.email).first();
-  if(!actor||Number(actor.active)!==1||!['Owner / Admin','Developer / Technical Admin'].includes(actor.role))return fail('Administrator access required.',403);
-  const temporary_password=random(18),hashed=await hashPassword(temporary_password),now=new Date().toISOString();
-  await env.DB.batch([
-    env.DB.prepare(`INSERT INTO maliks_pos_staff_credentials(member_id,salt,password_hash,iterations,auth_version,must_change,updated_at,updated_by)
-      VALUES (?,?,?,?,1,1,?,?) ON CONFLICT(member_id) DO UPDATE SET
-      salt=excluded.salt,password_hash=excluded.password_hash,iterations=excluded.iterations,
-      auth_version=maliks_pos_staff_credentials.auth_version+1,must_change=1,
-      updated_at=excluded.updated_at,updated_by=excluded.updated_by`)
-      .bind(actor.id,hashed.salt,hashed.password_hash,hashed.iterations,now,auth.email),
-    env.DB.prepare('DELETE FROM maliks_pos_staff_sessions WHERE member_id=?').bind(actor.id),
-    env.DB.prepare(`INSERT INTO maliks_pos_password_audit(request_id,member_id,member_email,branch,actor_email,action,created_at)
-      VALUES (?,?,?,?,?,'ISSUE_TEMPORARY',?)`).bind(crypto.randomUUID(),actor.id,actor.email,actor.department,auth.email,now)
-  ]);
-  return response({ok:true,employee:actor.email,temporary_password,must_change_password:true});
+  if(!sameOrigin(req)||auth?.method!=='access'||auth?.app!=='member')return fail('Sign in to Member Team through Cloudflare Access as Owner or Technical Admin.',403);
+  let data;
+  try{data=await body(req);}catch(e){return fail(e.message,400);}
+  if(!validPassword(data.new_password))return fail('Use a password of at least 14 characters (maximum 128).',400);
+  if(data.new_password!==data.confirm_password)return fail('The two passwords do not match.',400);
+  try{
+    const actor=await env.DB.prepare(`SELECT id,email,role,department,active FROM team_members WHERE lower(email)=? LIMIT 1`)
+      .bind(String(auth.email||'').trim().toLowerCase()).first();
+    if(!actor||Number(actor.active)!==1||!['Owner / Admin','Developer / Technical Admin'].includes(actor.role))return fail('Your signed-in account is not an active Owner / Technical Admin. Check the Hub role assignment.',403);
+    // A missing migration previously threw an uncaught Worker exception, which
+    // returned an HTML 500 page and appeared as 'Unexpected service response'.
+    const schema=await env.DB.prepare(`SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table'
+      AND name IN ('maliks_pos_staff_credentials','maliks_pos_staff_sessions','maliks_pos_password_audit')`).first();
+    if(Number(schema?.total)!==3)return fail('Phase 21 password tables are missing. Run the Phase 21 D1 migration and redeploy before setting an administrator password.',503);
+    const hashed=await hashPassword(data.new_password),now=new Date().toISOString();
+    // Owner/Technical Admin accounts may have no store department. Audit must
+    // never insert NULL into its required branch column.
+    const auditBranch=String(actor.department||'').trim()||'Group Administration';
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO maliks_pos_staff_credentials(member_id,salt,password_hash,iterations,auth_version,must_change,updated_at,updated_by)
+        VALUES (?,?,?,?,1,0,?,?) ON CONFLICT(member_id) DO UPDATE SET
+        salt=excluded.salt,password_hash=excluded.password_hash,iterations=excluded.iterations,
+        auth_version=maliks_pos_staff_credentials.auth_version+1,must_change=0,
+        updated_at=excluded.updated_at,updated_by=excluded.updated_by`)
+        .bind(actor.id,hashed.salt,hashed.password_hash,hashed.iterations,now,actor.email),
+      env.DB.prepare('DELETE FROM maliks_pos_staff_sessions WHERE member_id=?').bind(actor.id),
+      env.DB.prepare(`INSERT INTO maliks_pos_password_audit(request_id,member_id,member_email,branch,actor_email,action,created_at)
+        VALUES (?,?,?,?,?,'CHANGE_PASSWORD',?)`).bind(crypto.randomUUID(),actor.id,actor.email,auditBranch,actor.email,now)
+    ]);
+    // No plaintext or temporary password is ever returned to the browser.
+    return response({ok:true,employee:actor.email,password_set:true,sign_in_again:true});
+  }catch(e){
+    console.error('Maliks administrator password setup failed:',String(e?.message||'Unknown error').slice(0,200));
+    return fail('Could not save administrator password. Check the Phase 21 D1 migration and Core Worker logs.',503);
+  }
 }

@@ -224,7 +224,7 @@ function page(app){
  const SUITE_TITLES=${JSON.stringify(SUITE_TITLES)};
  const E=id=>document.getElementById(id);
  const h=(tag,text='',cls='')=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=String(text);if(cls)el.className=cls;return el;};
- const api=async (url,opts)=>{const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});let data;try{data=await r.json();}catch{throw Error('Unexpected service response.');}if(!r.ok){const e=Error(data.error||'Request failed');e.status=r.status;throw e;}return data;};
+ const api=async (url,opts)=>{const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});let data;try{data=await r.json();}catch{const e=Error('The service returned a non-JSON response (HTTP '+r.status+'). Check the Core Worker, Phase 21 D1 migration and Cloudflare Access session.');e.status=r.status;throw e;}if(!r.ok){const e=Error(data.error||'Request failed (HTTP '+r.status+').');e.status=r.status;throw e;}return data;};
  const money=c=>new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR'}).format(c/100);
  const err=message=>{const e=E('error');e.hidden=!message;e.textContent=message||'';e.className='error';};
  const panel=title=>{const p=h('section',undefined,'panel');p.append(h('h3',title));return p;};
@@ -1724,12 +1724,27 @@ function page(app){
    const toolbar=h('div',undefined,'bar');const refresh=h('button','Refresh employees','secondary');
    refresh.addEventListener('click',()=>void loadTeam());toolbar.append(refresh);main.append(toolbar);
    if(currentUserRole==='Owner / Admin'||currentUserRole==='Developer / Technical Admin'){
-     const bootstrap=h('button','Create / reset my own employee login','secondary');bootstrap.type='button';
-     bootstrap.addEventListener('click',async()=>{
-       if(!window.confirm('Create a temporary login for your administrator account? You must be signed in through Cloudflare Access.'))return;
-       bootstrap.disabled=true;try{showTemporaryPassword(await api('/api/auth/bootstrap',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}));}
-       catch(ex){err(ex.message);}finally{bootstrap.disabled=false;}
-     });main.append(bootstrap);
+     const admin=panel('Set my administrator password');
+     admin.append(h('p','Use your own permanent password. Your current verified Cloudflare Access administrator identity is used; you cannot set another administrator account password.','muted'));
+     const f=h('form');f.autocomplete='off';
+     const pw=h('input');pw.type='password';pw.required=true;pw.minLength=14;pw.maxLength=128;pw.autocomplete='new-password';pw.placeholder='At least 14 characters';
+     const confirm=h('input');confirm.type='password';confirm.required=true;confirm.minLength=14;confirm.maxLength=128;confirm.autocomplete='new-password';confirm.placeholder='Repeat your password';
+     const set=h('button','Set administrator password');set.type='submit';
+     const status=h('p','','muted');status.setAttribute('role','status');
+     f.append(h('label','New administrator password'),pw,h('label','Confirm administrator password'),confirm,set,status);
+     f.addEventListener('submit',async event=>{
+       event.preventDefault();err('');status.textContent='';
+       if(pw.value!==confirm.value){err('The two passwords do not match.');return;}
+       if(pw.value.length<14){err('Use a password of at least 14 characters.');return;}
+       if(!window.confirm('Set or reset your administrator password? Existing employee-password sessions for your account will be revoked.'))return;
+       set.disabled=true;
+       try{
+         const saved=await api('/api/auth/bootstrap',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({new_password:pw.value,confirm_password:confirm.value})});
+         if(!saved.password_set)throw Error('Administrator password was not confirmed.');
+         status.textContent='Administrator password saved for '+saved.employee+'. You can now sign in to Maliks POS Professional using this email and your chosen password.';
+       }catch(ex){err(ex.message);}finally{pw.value='';confirm.value='';set.disabled=false;}
+     });
+     admin.append(f);main.append(admin);
    }
    const form=h('form');form.autocomplete='off';const fields=h('div',undefined,'bar');
    const field=(title,type)=>{const wrap=h('div');const lab=h('label',title);const inp=h('input');inp.type=type;inp.required=true;wrap.append(lab,inp);fields.append(wrap);return inp;};
@@ -1912,7 +1927,12 @@ export default {
    if(path==='/v1/auth/login')headers.set('x-maliks-client-ip',req.headers.get('cf-connecting-ip')||'unknown');
    if(req.method==='POST'){headers.set('content-type','application/json');headers.set('origin',url.origin);}
    const target=new URL('https://maliks-core.internal'+path+url.search);
-   const response=await env.CORE.fetch(new Request(target,{method:req.method,headers,body:req.method==='POST'?req.body:undefined,duplex:req.method==='POST'?'half':undefined}));
+   let response;
+   try{response=await env.CORE.fetch(new Request(target,{method:req.method,headers,body:req.method==='POST'?req.body:undefined,duplex:req.method==='POST'?'half':undefined}));}
+   catch(error){
+     console.error('Maliks Core service binding failed:',String(error?.message||'Unknown error').slice(0,200));
+     return Response.json({error:'Core service unavailable. Check the private Core Worker deployment and logs.'},{status:503,headers:{'cache-control':'no-store'}});
+   }
    const h=new Headers({'cache-control':'no-store','x-content-type-options':'nosniff','content-type':'application/json'});
    if(path==='/v1/auth/login'&&response.ok){
      const data=await response.json();

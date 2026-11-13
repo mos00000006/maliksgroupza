@@ -472,7 +472,13 @@ export default {
     const auth=await identity(req,env);
     if(!auth)return denied('Sign in with your employee credentials.',401);
     if(path==='/v1/auth/change-password'&&req.method==='POST')return changeOwnPassword(req,env,auth);
-    if(path==='/v1/auth/bootstrap'&&req.method==='POST')return bootstrapOwnPassword(req,env,auth);
+    if(path==='/v1/auth/bootstrap'&&req.method==='POST'){
+      try{return await bootstrapOwnPassword(req,env,auth);}
+      catch(error){
+        console.error('Administrator password endpoint failed:',String(error?.message||'Unknown error').slice(0,200));
+        return denied('Administrator password service failed. Check Phase 21 D1 migration and Core logs.',503);
+      }
+    }
     if(auth.method==='password'&&auth.must_change_password&&path!=='/v1/session')return denied('Password change required.',428);
     try{
       const access=await memberAndBranches(env,auth.email,auth.app);

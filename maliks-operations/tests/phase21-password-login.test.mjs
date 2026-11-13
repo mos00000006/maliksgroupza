@@ -71,11 +71,40 @@ test('login rejects bad origins and rate-limits repeated failed credentials',asy
  for(let i=0;i<5;i++)assert.equal((await data(await wrong())).status,401);
  assert.equal((await data(await wrong())).status,429);
 });
-test('Cloudflare Access administrator may bootstrap their own login; password login cannot',async()=>{
- const e=env();const r=await data(await bootstrapOwnPassword(post('/v1/auth/bootstrap',{}),e,{email:owner.email,method:'access'}));
- assert.equal(r.status,200);assert.ok(r.body.temporary_password);
- assert.equal((await data(await bootstrapOwnPassword(post('/v1/auth/bootstrap',{}),e,{email:owner.email,method:'password'}))).status,403);
- assert.equal((await data(await bootstrapOwnPassword(post('/v1/auth/bootstrap',{}),e,{email:manager.email,method:'access'}))).status,403);
+test('verified Access Owner sets own permanent password directly, no temporary secret; missing department uses safe audit branch',async()=>{
+ const e=env();e.DB.sqlite.exec('UPDATE team_members SET department=NULL WHERE id=1');
+ const chosen='My new administrator password 2026!';
+ const input={new_password:chosen,confirm_password:chosen};
+ const r=await data(await bootstrapOwnPassword(post('/v1/auth/bootstrap',input),e,{email:owner.email,app:'member',method:'access'}));
+ assert.equal(r.status,200,JSON.stringify(r.body));assert.equal(r.body.password_set,true);assert.equal(r.body.temporary_password,undefined);
+ const credential=e.DB.sqlite.prepare('SELECT * FROM maliks_pos_staff_credentials WHERE member_id=1').get();
+ assert.equal(await verifyPassword(chosen,credential),true);assert.equal(credential.must_change,0);
+ const audit=e.DB.sqlite.prepare('SELECT * FROM maliks_pos_password_audit WHERE member_id=1').get();
+ assert.equal(audit.branch,'Group Administration');assert.equal(audit.action,'CHANGE_PASSWORD');
+ assert.ok(!JSON.stringify(audit).includes(chosen));
+ const login=await data(await loginPassword(post('/v1/auth/login',{email:owner.email,password:chosen}),e,'management','10.0.0.42'));
+ assert.equal(login.status,200,JSON.stringify(login.body));assert.equal(login.body.password_change_required,false);
+ const next='A second secure administrator password!';
+ const reset=await data(await bootstrapOwnPassword(post('/v1/auth/bootstrap',{new_password:next,confirm_password:next}),e,{email:owner.email,app:'member',method:'access'}));
+ assert.equal(reset.status,200);assert.equal(await verifySession(e,'management',login.body.token),null);
+ assert.equal(await verifyPassword(next,e.DB.sqlite.prepare('SELECT * FROM maliks_pos_staff_credentials WHERE member_id=1').get()),true);
+});
+test('administrator password setup is restricted to verified Member Team Access and validates password confirmation',async()=>{
+ const e=env();const input={new_password:'A very long private password',confirm_password:'A very long private password'};
+ for(const auth of [{email:owner.email,app:'member',method:'password'},{email:owner.email,app:'management',method:'access'},{email:manager.email,app:'member',method:'access'}]){
+   assert.equal((await data(await bootstrapOwnPassword(post('/v1/auth/bootstrap',input),e,auth))).status,403);
+ }
+ assert.equal((await data(await bootstrapOwnPassword(post('/v1/auth/bootstrap',{...input,confirm_password:'wrong'}),e,{email:owner.email,app:'member',method:'access'}))).status,400);
+ assert.equal((await data(await bootstrapOwnPassword(post('/v1/auth/bootstrap',{new_password:'short',confirm_password:'short'}),e,{email:owner.email,app:'member',method:'access'}))).status,400);
+ const bad=post('/v1/auth/bootstrap',input);bad.headers.set('origin','https://evil.example');
+ assert.equal((await data(await bootstrapOwnPassword(bad,e,{email:owner.email,app:'member',method:'access'}))).status,403);
+ assert.equal(e.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM maliks_pos_staff_credentials').get().n,0);
+});
+test('missing Phase 21 D1 tables returns useful JSON error rather than HTML Worker exception',async()=>{
+ const e=env();e.DB.sqlite.exec('DROP TABLE maliks_pos_password_audit');
+ const r=await bootstrapOwnPassword(post('/v1/auth/bootstrap',{new_password:'An administrator private password!',confirm_password:'An administrator private password!'}),e,{email:owner.email,app:'member',method:'access'});
+ assert.equal(r.status,503);assert.match(r.headers.get('content-type'),/application\/json/);
+ assert.match((await r.json()).error,/Phase 21 password tables are missing/);
 });
 test('public Worker shows employee login, forwards only cookie session, and sets HttpOnly cookie',async()=>{
  const seen=[];const core={fetch:async req=>{seen.push(req);return req.url.includes('/auth/login')?Response.json({ok:true,token:'A'.repeat(43),password_change_required:true}):Response.json({ok:true});}};
@@ -84,7 +113,7 @@ test('public Worker shows employee login, forwards only cookie session, and sets
  const session=await frontend.fetch(new Request('https://pos.example/api/session',{headers:{cookie:'__Host-maliks_session='+('A'.repeat(43))}}),{APP_TYPE:'pos',CORE:core});
  assert.equal(session.status,200);assert.equal(seen[1].headers.get('x-maliks-session'),'A'.repeat(43));
  const html=await (await frontend.fetch(new Request('https://pos.example/'),{APP_TYPE:'pos',CORE:core})).text();
- assert.match(html,/Sign in to/);assert.match(html,/Create your own password/);
+ assert.match(html,/Sign in to/);assert.match(html,/Create your own password/);assert.match(html,/Set my administrator password/);
  assert.equal((await frontend.fetch(new Request('https://pos.example/api/team/password-reset',{method:'POST',headers:{origin:'https://pos.example',cookie:'__Host-maliks_session='+('A'.repeat(43))},body:'{}'}),{APP_TYPE:'pos',CORE:core})).status,403);
 });
 
@@ -98,4 +127,19 @@ test('native-only rollout flag is configured separately from Cloudflare Access b
  const config=readFileSync(new URL('../scripts/make-config.mjs',import.meta.url),'utf8');
  assert.match(core,/env\.NATIVE_LOGIN_APPS/);
  assert.match(config,/MALIKS_NATIVE_LOGIN_APPS/);
+});
+
+test('public Member Team Worker converts private Core failure into JSON rather than unexpected HTML',async()=>{
+ const core={fetch:async()=>{throw Error('Private Core unavailable');}};
+ const req=post('/api/auth/bootstrap',{new_password:'long and secure password!',confirm_password:'long and secure password!'},'https://member.example');req.headers.set('cf-access-jwt-assertion','verified-test-assertion');
+ const res=await frontend.fetch(req,{APP_TYPE:'member',CORE:core});
+ assert.equal(res.status,503);assert.match(res.headers.get('content-type'),/application\/json/);
+ assert.match((await res.json()).error,/Core service unavailable/);
+});
+test('deployment applies Phase 21 migration before deploying Core and Member Team',()=>{
+ const workflow=readFileSync(new URL('../../.github/workflows/deploy-maliks-operations.yml',import.meta.url),'utf8');
+ const migration=workflow.indexOf('npm run migrate:phase21');
+ const core=workflow.indexOf('npm run deploy:core');
+ const member=workflow.indexOf('npm run deploy:member');
+ assert.ok(migration>0&&core>migration&&member>core,'Phase 21 schema must exist before Core/Member Team deployment');
 });
