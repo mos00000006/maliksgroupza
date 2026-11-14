@@ -1,4 +1,5 @@
 import { POWERBUILD_LOGO_BASE64 } from './powerbuild-logo.mjs';
+import { SUITE_INSIGHTS_CLIENT_SCRIPT } from './suite-insights.mjs';
 
 const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c => c.charCodeAt(0));
 
@@ -1649,11 +1650,14 @@ function page(app){
    void load();
  }
 
+ ${SUITE_INSIGHTS_CLIENT_SCRIPT}
  function isConnectedSuiteAction(id,item){
-   if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Audits'].includes(item);
-   if(id==='suppliers')return ['Suppliers','Purchase Orders','Invoices and Debit Notes','Audits'].includes(item);
-   if(id==='debtors')return ['Debtors','Audits'].includes(item);
+   if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
+   if(id==='suppliers')return ['Suppliers','Purchase Orders','Invoices and Debit Notes','Audits','Supplier Master CSV File Export'].includes(item);
+   if(id==='debtors')return ['Debtors','Audits','Debtors Master CSV/Text File Export'].includes(item);
    if(id==='system')return ['User Permissions','Branch Access'].includes(item);
+   if(id==='widget')return ['Management Dashboard','Branch Dashboard','Stock Overview'].includes(item);
+   if(id==='help')return true;
    return false;
  }
  function suiteModuleView(id){
@@ -1670,6 +1674,12 @@ function page(app){
          b.setAttribute('aria-label',item+' — not available');list.append(b);continue;
        }
        b.addEventListener('click',()=>{
+         if(id==='widget'&&['Management Dashboard','Branch Dashboard'].includes(item)){suiteOperationalDashboard(item==='Management Dashboard'?'management':'branch');return;}
+         if(id==='widget'&&item==='Stock Overview'){suiteStockBalances();return;}
+         if(id==='help'){suiteHelpView(item);return;}
+         if(id==='stock'&&item==='Stock Master CSV/Text File Export'){suiteMasterExport('stock');return;}
+         if(id==='suppliers'&&item==='Supplier Master CSV File Export'){suiteMasterExport('supplier');return;}
+         if(id==='debtors'&&item==='Debtors Master CSV/Text File Export'){suiteMasterExport('debtor');return;}
          if(id==='system'&&['User Permissions','Branch Access'].includes(item)){window.location.assign(MEMBER_TEAM_URL);return;}
          const masterKind=id==='stock'&&item==='Stock Master'?'stock':id==='suppliers'&&item==='Suppliers'?'supplier':id==='debtors'&&item==='Debtors'?'debtor':null;
          if(masterKind){suiteMasterView(masterKind);return;}
