@@ -46,23 +46,23 @@ export async function GET(req:Request){
     const existing=new Set(tables.results.map(r=>r.name));
     const placeholders=branches.map(()=>'?').join(',');
     const summaries=[];
-    for(const module of modules){
-      if(!existing.has(module.table)){
-        summaries.push({key:module.key,name:module.name,source:module.source,configured:false,error:false,
-          total:0,by_status:{},last_at:null,note:module.note});
+    for(const moduleDef of modules){
+      if(!existing.has(moduleDef.table)){
+        summaries.push({key:moduleDef.key,name:moduleDef.name,source:moduleDef.source,configured:false,error:false,
+          total:0,by_status:{},last_at:null,note:moduleDef.note});
         continue;
       }
       try{
-        const query=`SELECT ${module.status} AS status,COUNT(*) AS n,MAX(${module.updated}) AS last_at
-          FROM ${module.table} WHERE lower(${module.branch}) IN (${placeholders}) ${module.filter?`AND ${module.filter}`:''}
-          GROUP BY ${module.status}`;
+        const query=`SELECT ${moduleDef.status} AS status,COUNT(*) AS n,MAX(${moduleDef.updated}) AS last_at
+          FROM ${moduleDef.table} WHERE lower(${moduleDef.branch}) IN (${placeholders}) ${moduleDef.filter?`AND ${moduleDef.filter}`:''}
+          GROUP BY ${moduleDef.status}`;
         const rows=await env.DB.prepare(query).bind(...branches.map(b=>b.toLowerCase())).all<ModuleRow>();
-        summaries.push({key:module.key,name:module.name,source:module.source,configured:true,error:false,
-          ...operationsOverviewCounts(rows.results),note:module.note});
+        summaries.push({key:moduleDef.key,name:moduleDef.name,source:moduleDef.source,configured:true,error:false,
+          ...operationsOverviewCounts(rows.results),note:moduleDef.note});
       }catch{
         // Fail closed: a broken migration/query must not be disguised as zero business activity.
-        summaries.push({key:module.key,name:module.name,source:module.source,configured:true,error:true,
-          total:0,by_status:{},last_at:null,note:`${module.note}. Schema verification required.`});
+        summaries.push({key:moduleDef.key,name:moduleDef.name,source:moduleDef.source,configured:true,error:true,
+          total:0,by_status:{},last_at:null,note:`${moduleDef.note}. Schema verification required.`});
       }
     }
     return Response.json({read_only:true,as_of:new Date().toISOString(),branch:branch||null,

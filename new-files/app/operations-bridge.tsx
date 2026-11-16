@@ -1,5 +1,5 @@
 'use client';
-import {useCallback,useEffect,useState} from 'react';
+import {useEffect,useState} from 'react';
 import styles from './operations-bridge.module.css';
 
 type ModuleSummary={key:string;name:string;source:'Maliks Operations'|'Hub';configured:boolean;error:boolean;total:number;by_status:Record<string,number>;last_at:string|null;note:string};
@@ -22,20 +22,42 @@ function keySort(entries:[string,number][]):[string,number][]{
 export default function OperationsBridge(){
   const [branch,setBranch]=useState('');
   const [data,setData]=useState<BridgeData|null>(null);
-  const [busy,setBusy]=useState(false);
+  const [busy,setBusy]=useState(true);
   const [error,setError]=useState('');
-  const load=useCallback(async(selected:string)=>{
-    setBusy(true);setError('');
-    try{
-      const url='/api/operations-bridge'+(selected?'?branch='+encodeURIComponent(selected):'');
-      const response=await fetch(url,{cache:'no-store'});
-      const json=await response.json() as BridgeData&{error?:string};
-      if(!response.ok)throw new Error(json.error||'Could not load operations');
-      setData(json);
-    }catch(err){setError(err instanceof Error?err.message:'Could not load operations');}
-    finally{setBusy(false);}
-  },[]);
-  useEffect(()=>{void load(branch);},[branch,load]);
+  const [refreshVersion,setRefreshVersion]=useState(0);
+
+  // Fetch asynchronously and discard responses from superseded/aborted requests.
+  // All setState calls are in promise callbacks, not synchronous effect execution.
+  useEffect(()=>{
+    const controller=new AbortController();
+    const url='/api/operations-bridge'+(branch?'?branch='+encodeURIComponent(branch):'');
+    void fetch(url,{cache:'no-store',signal:controller.signal})
+      .then(async response=>{
+        const json=await response.json() as BridgeData&{error?:string};
+        if(!response.ok)throw new Error(json.error||'Could not load operations');
+        return json;
+      })
+      .then(json=>{
+        if(!controller.signal.aborted){setData(json);setError('');}
+      })
+      .catch(err=>{
+        if(!controller.signal.aborted){
+          setData(null);
+          setError(err instanceof Error?err.message:'Could not load operations');
+        }
+      })
+      .finally(()=>{
+        if(!controller.signal.aborted)setBusy(false);
+      });
+    return ()=>controller.abort();
+  },[branch,refreshVersion]);
+
+  function selectBranch(value:string){
+    setBusy(true);setError('');setBranch(value);
+  }
+  function refreshActivity(){
+    setBusy(true);setError('');setRefreshVersion(current=>current+1);
+  }
   return <div className={styles.wrapper}>
     <div className={styles.top}>
       <div>
@@ -45,11 +67,11 @@ export default function OperationsBridge(){
       </div>
       <div className={styles.controls}>
         <label htmlFor="operations-branch">Branch / company scope</label>
-        <select id="operations-branch" value={branch} onChange={event=>setBranch(event.target.value)}>
+        <select id="operations-branch" value={branch} onChange={event=>selectBranch(event.target.value)}>
           <option value="">All my assigned branches</option>
           {(data?.branches||[]).map(b=><option key={b} value={b}>{b}</option>)}
         </select>
-        <button type="button" onClick={()=>void load(branch)} disabled={busy}>{busy?'Updating…':'Refresh activity'}</button>
+        <button type="button" onClick={refreshActivity} disabled={busy}>{busy?'Updating…':'Refresh activity'}</button>
       </div>
     </div>
     <p className={styles.readOnly}>READ-ONLY MANAGEMENT VIEW · No payment, stock, invoice or dispatch posting is performed here.</p>
