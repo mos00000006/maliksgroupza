@@ -20,10 +20,10 @@ test('Professional top navigation and home shortcuts do not expose Sales',async(
 test('Sales runs as its own branded standalone workstation',async()=>{
   const page=await html('sales');
   assert.match(page,/<title>Maliks Sales<\/title>/);
-  assert.match(page,/class="maliks-sales-workstation"/);
+  assert.match(page,/class="maliks-department"/);
   assert.match(page,/src="\/powerbuild-logo\.png" alt="PowerBuild logo"/);
   assert.doesNotMatch(page,/id="suite-navigation"/);
-  assert.match(page,/else if\(APP==='sales'\)posView\(\)/);
+  assert.match(page,/if\(APP==='sales'\)posView\(departmentView/);
   for(const term of ['Send quotation to Cash Office','Print 80mm quotation slip','NOT PAID — QUOTATION ONLY'])assert.ok(page.includes(term),term);
   const logo=await frontend.fetch(new Request('https://test.example/powerbuild-logo.png'),{APP_TYPE:'sales'});
   assert.equal(logo.status,200);

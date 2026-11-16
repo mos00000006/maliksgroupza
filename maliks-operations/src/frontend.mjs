@@ -3,6 +3,7 @@ import { SUITE_INSIGHTS_CLIENT_SCRIPT } from './suite-insights.mjs';
 import { LUCIDE_ICON_MARKUP } from './pos-lucide-icons.mjs';
 import { POS_PREMIUM_CSS } from './pos-premium-theme.mjs';
 import { POS_PREMIUM_CLIENT_SCRIPT } from './pos-premium-screens.mjs';
+import { DEPARTMENT_PREMIUM_CSS, DEPARTMENT_PREMIUM_CLIENT_SCRIPT } from './department-premium.mjs';
 
 const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c => c.charCodeAt(0));
 
@@ -81,13 +82,24 @@ function suiteHeader(){
     <nav class="suite-navbar" aria-label="Maliks Professional modules">${buttons}</nav>
   </header>`;
 }
+const DEPARTMENT_NAV={
+ sales:[['home','Home','house'],['new','New Quotation','shopping-cart'],['history','My Quotations','receipt']],
+ tills:[['home','Home','house'],['checkout','Checkout','credit-card'],['shifts','Till Shifts','clock'],['payments','Paid Invoices','receipt'],['quotes','Quotations','clipboard-list'],['preparations','Preparations','wallet']],
+ cashoffice:[['home','Home','house'],['paid','Paid Invoices','receipt'],['shifts','Shift Reviews','users'],['cashup','Cash-Up','wallet'],['evidence','Evidence','file-text'],['preparations','Preparations','clipboard-list'],['quotes','Quotations','search']],
+ dispatch:[['home','Home','house'],['queue','Dispatch Queue','truck']]
+};
+function departmentHeader(app){
+  const actions=DEPARTMENT_NAV[app].map(([id,label,icon])=>`<button type="button" class="department-nav-button" data-department-view="${id}" aria-pressed="false"><span aria-hidden="true" class="department-nav-icon">${LUCIDE_ICON_MARKUP[icon]}</span><span>${label}</span></button>`).join('');
+  return `<header id="department-navigation" class="department-header" hidden><div class="department-brandbar"><button class="department-brand" type="button" data-department-view="home"><img class="department-brand-logo" alt="PowerBuild logo" src="/powerbuild-logo.png" width="66" height="66"/><span><strong>MALIKS <em>POS</em></strong><small>ACCOUNTING &amp; POS SOLUTIONS <b>PROFESSIONAL</b></small></span></button><span class="department-secure"><i aria-hidden="true"></i>SECURE WORKSPACE</span><span id="department-user" class="department-user">Signed in</span></div><nav class="department-navbar" aria-label="Department workspaces">${actions}</nav></header>`;
+}
 function page(app){
  const d=APPS[app];
  const suiteShell=app==='pos';
+ const departmentShell=Object.prototype.hasOwnProperty.call(DEPARTMENT_NAV,app);
  const salesShell=app==='sales';
  const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':app==='member'?'TEAM · STORE ACCESS':salesShell?'SALES · QUOTATIONS':'ACCOUNTING & POS SOLUTIONS';
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
- <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="${suiteShell?'#0A2A3F':'#102a4b'}"/><style>
+ <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="${suiteShell||departmentShell?'#0A2A3F':'#102a4b'}"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
  body{margin:0}.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
  aside{background:#102a4b;color:#fff;padding:28px 18px}aside h1{font-size:21px;margin:14px 0 5px}aside p{font-size:13px;color:#adbed0}
@@ -213,9 +225,11 @@ function page(app){
 
  @media(max-width:850px){.shell{grid-template-columns:1fr}aside{padding:15px 20px;display:flex;align-items:center;gap:14px}aside h1{margin:0;font-size:17px}aside .brand-logo{width:56px;height:56px;flex:0 0 56px}aside .nav,aside .foot,aside p{display:none}main{padding:23px 14px}.two{grid-template-columns:1fr}}
  ${POS_PREMIUM_CSS}
- </style></head><body class="${suiteShell?'maliks-professional':salesShell?'maliks-sales-workstation':''}">
+ ${DEPARTMENT_PREMIUM_CSS}
+ </style></head><body class="${suiteShell?'maliks-professional':departmentShell?'maliks-department':''}">
  ${suiteShell?suiteHeader():''}
- <div class="shell ${suiteShell?'suite-shell':''}"><aside><img class="brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
+ ${departmentShell?departmentHeader(app):''}
+ <div class="shell ${suiteShell?'suite-shell':departmentShell?'department-shell':''}"><aside><img class="brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
  <main><div class="top"><div><h2 id="screen-heading">${d.name}</h2><div class="muted" id="signed-in">Checking approved user access…</div></div><span class="tag" id="workstation-tag">${releaseLabel}</span></div>
  <div class="notice" id="workstation-notice">${d.hint}</div><div id="error" role="alert" hidden></div>
  <div class="panel" id="branch-panel"><div class="bar"><div><label for="branch">Assigned branch</label><select id="branch" disabled><option>Authorising…</option></select></div><div><label>Application access</label><p class="muted" id="access">Verification in progress…</p></div></div></div>
@@ -227,6 +241,7 @@ function page(app){
  const SUITE_NAV=${JSON.stringify(SUITE_NAV)};
  const SUITE_MENU_TREE=${JSON.stringify(SUITE_MENU_TREE)};
  const SUITE_TITLES=${JSON.stringify(SUITE_TITLES)};
+ const DEPARTMENT_NAV=${JSON.stringify(DEPARTMENT_NAV)};
  const SUITE_PREMIUM_ICONS=${JSON.stringify(LUCIDE_ICON_MARKUP)};
  const E=id=>document.getElementById(id);
  const h=(tag,text='',cls='')=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=String(text);if(cls)el.className=cls;return el;};
@@ -238,7 +253,7 @@ function page(app){
  const showDate=value=>{if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?value:new Intl.DateTimeFormat('en-ZA',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Johannesburg'}).format(d);};
  const calcBasket=()=>{const total=basket.reduce((s,l)=>s+Math.round(l.product.price_cents*l.quantity),0);const vat=Math.round(total*15/115);return {total,vat,net:total-vat};};
  let branch='',basket=[],pendingQuote=null,recentQuotes=[],quoteRows=[],pendingShiftAction=null,pendingReviewAction=null,pendingTenderAction=null;
- let suiteView='home',currentUserEmail='';
+ let suiteView='home',departmentView='home',currentUserEmail='';
  let suiteSalesDraft={customer:'',contact:'',notes:''};
  function selectBranch(){
    const incoming=E('branch').value;
@@ -446,9 +461,9 @@ function page(app){
      view.addEventListener('click',()=>{detailRow.hidden=!detailRow.hidden;view.setAttribute('aria-expanded',String(!detailRow.hidden));view.textContent=detailRow.hidden?'Details':'Hide';});
    }
  }
- function posView(){
+ function posView(mode='new'){
    const root=E('app-content');
-   if(APP==='sales'){
+   if(APP==='sales' && mode==='legacy'){
      const tools=h('div',undefined,'suite-sales-toolbar');tools.append(h('strong','Sales · Transactions'));
      const live=h('button','Quotations · LIVE','selected');live.type='button';tools.append(live);
      for(const item of ['Sales Orders','Reprint Documents','Reporting']){
@@ -458,6 +473,9 @@ function page(app){
        });tools.append(b);
      }
      root.append(tools);
+   }
+   if(mode==='history'){
+     const recent=panel('My recent quotations');const controls=h('div',undefined,'bar');const refresh=h('button','Refresh my quotations','secondary');refresh.type='button';refresh.addEventListener('click',loadOwnQuotes);controls.append(refresh);recent.append(controls);recent.append(makeQuoteTable('own-quotes'));recent.append(h('p','Showing quotations for this signed-in account and branch only.','tiny'));root.append(recent);void loadOwnQuotes();return;
    }
    const two=h('div',undefined,'two');const lookup=panel('Product catalogue');
    const bar=h('div',undefined,'bar');const field=h('div');const l=h('label','Search products');l.htmlFor='search';field.append(l);
@@ -483,9 +501,7 @@ function page(app){
    const release=h('button','Release pending request (after checking quotations)','secondary widebutton');release.id='release-pending';release.type='button';release.hidden=true;release.addEventListener('click',releasePending);checkout.append(release);
    checkout.append(h('p','This action only submits a quotation. No payment, tax invoice, stock deduction or dispatch release occurs.','tiny'));
    const confirmation=h('div');confirmation.id='confirmation';checkout.append(confirmation);two.append(lookup,checkout);root.append(two);
-   const recent=panel('My recent quotations');const controls2=h('div',undefined,'bar');const refresh=h('button','Refresh my quotations','secondary');refresh.addEventListener('click',loadOwnQuotes);controls2.append(refresh);recent.append(controls2);
-   recent.append(makeQuoteTable('own-quotes'));recent.append(h('p','Only quotations submitted by your current signed-in account and selected branch are shown.','tiny'));root.append(recent);
-   drawBasket();void loadOwnQuotes();
+   drawBasket();
  }
  async function loadOwnQuotes(){
    const body=E('own-quotes');if(!body)return;const selected=branch;body.replaceChildren();const row=h('tr');const c=h('td','Loading quotations…');c.colSpan=6;row.append(c);body.append(row);
@@ -861,29 +877,38 @@ function page(app){
    return p;
  }
 
- async function quoteView(){
+ async function quoteView(mode='quotes'){
    const root=E('app-content');
-   if(APP==='cashoffice'){root.append(paymentQueuePanel());void loadPaymentQueue();root.append(tillShiftView());void loadShifts();}
-   if(APP==='cashoffice'){root.append(cashupView());void loadCashupPreviews();root.append(evidenceView());void loadEvidence();}
-   if(APP==='cashoffice'){const preps=panel('Cash Office — Tender preparations (read-only)');preps.append(h('p','These are proposed cash/card/EFT splits, not verified receipts, tax invoices or approved payments. No stock or dispatch release.','training-warning'));const refresh=h('button','Refresh preparations','secondary');refresh.addEventListener('click',loadPreparations);preps.append(refresh);const list=h('div');list.id='tender-preparations';preps.append(list);root.append(preps);void loadPreparations();}
-   const lookup=panel('Find quotation by exact number');
-   const lookupBar=h('div',undefined,'bar');const lookupField=h('div');
-   const lookupLabel=h('label','Quotation number');lookupLabel.htmlFor='quote-number';
-   const lookupInput=h('input');lookupInput.id='quote-number';lookupInput.placeholder='Q-00000001';lookupInput.maxLength=14;
-   lookupInput.addEventListener('keydown',ev=>{if(ev.key==='Enter')void exactLookup();});
-   lookupField.append(lookupLabel,lookupInput);
-   const lookupButton=h('button','Find quotation');lookupButton.type='button';lookupButton.addEventListener('click',exactLookup);
-   lookupBar.append(lookupField,lookupButton);lookup.append(lookupBar);
-   const exactResult=h('div',undefined,'lookup-output');exactResult.id='exact-result';lookup.append(exactResult);
-   lookup.append(h('p','Exact lookup can find older quotations that are no longer in the recent-50 list, but only for your assigned branch.','tiny'));
-   root.append(lookup);
-   if(APP==='tills'){root.append(tillShiftView());void loadShifts();root.append(paymentQueuePanel());void loadPaymentQueue();const old=h('details');old.append(h('summary','Old preparation history (not payment)'));const preps=panel('My tender preparations — NOT PAID');preps.append(h('p','These are proposed cash/card/EFT splits, not verified receipts, tax invoices or approved payments. No stock or dispatch release.','training-warning'));const refresh=h('button','Refresh preparations','secondary');refresh.addEventListener('click',loadPreparations);preps.append(refresh);const list=h('div');list.id='tender-preparations';preps.append(list);old.append(preps);root.append(old);void loadPreparations();}
-   const queue=panel(APP==='tills'?'Recent quotations':'Cash Office — submitted quotations');
-   const bar=h('div',undefined,'bar');const field=h('div');const label=h('label','Filter by quote number, customer or contact');label.htmlFor='quote-filter';const search=h('input');search.id='quote-filter';search.placeholder='Search the 50 most recent quotations';
-   search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();renderQuotes('quotes',quoteRows.filter(x=>[x.number,x.customer_name,x.customer_contact,x.status].some(v=>String(v||'').toLowerCase().includes(q))));});
-   field.append(label,search);const refresh=h('button','Refresh quotations','secondary');refresh.addEventListener('click',loadQuotes);bar.append(field,refresh);queue.append(bar);
-   queue.append(makeQuoteTable('quotes'));
-   queue.append(h('p','Quotation records alone are not payment evidence. Check the payment verification queue for confirmed internal invoices and Dispatch release.','tiny'));root.append(queue);await loadQuotes();
+   if(mode==='paid'||mode==='payments'){root.append(paymentQueuePanel());void loadPaymentQueue();return;}
+   if(mode==='shifts'){root.append(tillShiftView());void loadShifts();return;}
+   if(mode==='cashup'&&APP==='cashoffice'){root.append(cashupView());void loadCashupPreviews();return;}
+   if(mode==='evidence'&&APP==='cashoffice'){root.append(evidenceView());void loadEvidence();return;}
+   if(mode==='preparations'){
+     const p=panel(APP==='cashoffice'?'Cash Office — Tender preparations (read-only)':'My tender preparations — NOT PAID');
+     p.append(h('p','These are proposed cash/card/EFT splits, not verified receipts, tax invoices or approved payments. No stock or dispatch release.','training-warning'));
+     const refresh=h('button','Refresh preparations','secondary');refresh.type='button';refresh.addEventListener('click',loadPreparations);p.append(refresh);
+     const list=h('div','Loading preparations…');list.id='tender-preparations';p.append(list);root.append(p);void loadPreparations();return;
+   }
+   if(mode==='checkout'||mode==='quotes'){
+     const lookup=panel('Find quotation by exact number');
+     const lookupBar=h('div',undefined,'bar');const lookupField=h('div');
+     const lookupLabel=h('label','Quotation number');lookupLabel.htmlFor='quote-number';
+     const lookupInput=h('input');lookupInput.id='quote-number';lookupInput.placeholder='Q-00000001';lookupInput.maxLength=14;
+     lookupInput.addEventListener('keydown',ev=>{if(ev.key==='Enter')void exactLookup();});
+     lookupField.append(lookupLabel,lookupInput);
+     const lookupButton=h('button','Find quotation');lookupButton.type='button';lookupButton.addEventListener('click',exactLookup);
+     lookupBar.append(lookupField,lookupButton);lookup.append(lookupBar);
+     const exactResult=h('div',undefined,'lookup-output');exactResult.id='exact-result';lookup.append(exactResult);
+     lookup.append(h('p',APP==='tills'?'Enter an approved quotation number to open Cash/Card payment. A current till shift is required.':'Exact lookup can find older quotations that are no longer in the recent-50 list, but only for your assigned branch.','tiny'));root.append(lookup);
+     if(mode==='checkout')return;
+     const queue=panel(APP==='tills'?'Recent quotations':'Cash Office — submitted quotations');
+     const bar=h('div',undefined,'bar');const field=h('div');const label=h('label','Filter by quote number, customer or contact');label.htmlFor='quote-filter';
+     const search=h('input');search.id='quote-filter';search.placeholder='Search the 50 most recent quotations';
+     search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();renderQuotes('quotes',quoteRows.filter(x=>[x.number,x.customer_name,x.customer_contact,x.status].some(v=>String(v||'').toLowerCase().includes(q))));});
+     field.append(label,search);const refresh=h('button','Refresh quotations','secondary');refresh.type='button';refresh.addEventListener('click',loadQuotes);bar.append(field,refresh);queue.append(bar);
+     queue.append(makeQuoteTable('quotes'));
+     queue.append(h('p','Quotation records alone are not payment evidence. Check a confirmed paid invoice before dispatch.','tiny'));root.append(queue);await loadQuotes();return;
+   }
  }
  async function loadQuotes(){
    err('');const body=E('quotes');if(!body)return;const selected=branch;quoteRows=[];renderQuotes('quotes',[]);
@@ -1182,6 +1207,7 @@ function page(app){
    const b=h('button',text,cls);b.type='button';b.addEventListener('click',()=>setSuiteView(module));return b;
  }
  ${POS_PREMIUM_CLIENT_SCRIPT}
+ ${DEPARTMENT_PREMIUM_CLIENT_SCRIPT}
  function suiteHome(){posPremiumDashboard();}
  const MASTER_LABELS={stock:'Stock Master',supplier:'Suppliers Master',debtor:'Debtors Master'};
  const MASTER_FIELDS={
@@ -1642,6 +1668,14 @@ function page(app){
    if(id==='help')return true;
    return false;
  }
+ function suiteWorkspaceStart(title){
+   const root=E('app-content');root.replaceChildren();
+   const bar=h('div',undefined,'suite-workspace-bar');
+   const back=h('button','Back to '+(SUITE_TITLES[suiteView]||'Menu'),'suite-workspace-back');back.type='button';back.addEventListener('click',()=>setSuiteView(suiteView));
+   const path=h('div',undefined,'suite-workspace-path');path.append(h('small',(SUITE_TITLES[suiteView]||'Menu')+' / Workspace'),h('h2',title));bar.append(back,path);root.append(bar);
+   const detail=h('section',undefined,'suite-feature-detail suite-master-workspace');detail.id='suite-feature-detail';detail.hidden=true;root.append(detail);
+   window.scrollTo({top:0,behavior:'instant'});
+ }
  function suiteModuleView(id){
    const root=E('app-content');const name=SUITE_TITLES[id]||({tills:'Tills',cashoffice:'Cash Office'}[id])||'Module';
    const isSeparate=['tills','cashoffice','dispatching'].includes(id);
@@ -1656,6 +1690,7 @@ function page(app){
          b.setAttribute('aria-label',item+' — not available');list.append(b);continue;
        }
        b.addEventListener('click',()=>{
+         suiteWorkspaceStart(item);
          if(id==='widget'&&['Management Dashboard','Branch Dashboard'].includes(item)){suiteOperationalDashboard(item==='Management Dashboard'?'management':'branch');return;}
          if(id==='widget'&&item==='Stock Overview'){suiteStockBalances();return;}
          if(id==='help'){suiteHelpView(item);return;}
@@ -1685,7 +1720,7 @@ function page(app){
          const detail=E('suite-feature-detail');detail.className='suite-feature-detail';detail.replaceChildren();
          detail.append(h('strong',name+'  /  '+section+'  /  '+item));
          detail.append(h('p',isSeparate?'Open the authorised department workstation for operational access. This suite menu is a reference only.':'This menu has no configured action. Contact the system administrator.'));
-         detail.hidden=false;detail.scrollIntoView({block:'nearest',behavior:'smooth'});
+         detail.hidden=false;
        });list.append(b);
      }
      card.append(list);grid.append(card);
@@ -1808,7 +1843,7 @@ function page(app){
    if(APP==='pos'){
      if(suiteView==='home')suiteHome();else if(suiteView==='checkout')posPremiumCheckout();else suiteModuleView(suiteView);
      updateSuiteUI();
-   }else if(APP==='member')teamView();else if(APP==='sales')posView();else if(APP==='dispatch')dispatchView();else void quoteView();
+   }else if(APP==='member')teamView();else if(DEPARTMENT_NAV[APP])departmentDraw();else if(APP==='dispatch')dispatchView();else void quoteView();
  }
 
 
@@ -1852,6 +1887,12 @@ function page(app){
      E('access').textContent=APP==='sales'?session.branches.join(', '):session.branches.length+' assigned branch(es)'+(['pos','member'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
      for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=APP==='sales'&&session.branches.length===1;branch=select.value;select.addEventListener('change',selectBranch);
      if(APP==='sales'){E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;const label=document.querySelector('label[for=branch]');if(label)label.textContent='Store';}
+     if(DEPARTMENT_NAV[APP]){
+       E('department-user').textContent=session.user.name+' · '+session.user.role;
+       for(const btn of E('department-navigation').querySelectorAll('[data-department-view]'))btn.addEventListener('click',()=>setDepartmentView(btn.dataset.departmentView));
+       E('department-navigation').hidden=false;
+       E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;
+     }
      if(APP==='pos'){
        E('suite-user').textContent=session.user.name+' · '+session.user.role;
        for(const btn of E('suite-navigation').querySelectorAll('[data-suite-module]'))btn.addEventListener('click',()=>setSuiteView(btn.dataset.suiteModule));
