@@ -1,0 +1,150 @@
+--- a/maliks-operations/src/master-domain.mjs
++++ b/maliks-operations/src/master-domain.mjs
+@@ -114,16 +114,21 @@
+     const brand=/buster\s*build/i.test(branch)?'busterbuild':'powerbuild';
+     const {results}=await env.DB.prepare(`SELECT p.id AS catalogue_id,p.code,p.name,p.category,p.updated_at,
+       CASE WHEN t.product_id IS NULL THEN 0 ELSE COALESCE(bp.price_cents,t.price_cents,0) END AS hub_price_cents,COALESCE(t.unit,'EA') AS hub_unit,
+-      m.id,m.kind,m.branch,m.active,m.details_json,m.version,m.updated_at AS master_updated_at
++      m.id,m.kind,m.branch,m.active,m.details_json,m.version,m.updated_at AS master_updated_at,
++      CASE WHEN m.id IS NULL THEN NULL ELSE COALESCE(b.qty_milli,0) END AS on_hand_milli,
++      CASE WHEN t.product_id IS NULL THEN 0 ELSE 1 END AS price_available
+       FROM catalogue_products p LEFT JOIN maliks_pos_master_records m
+         ON m.kind='stock' AND lower(m.branch)=lower(?) AND lower(m.code)=lower(p.code)
++      LEFT JOIN maliks_pos_stock_balances b ON b.stock_master_id=m.id AND lower(b.branch)=lower(m.branch)
+       LEFT JOIN ${tagTable} t ON t.product_id=p.id AND t.published=1
+       LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
+       WHERE p.active=1 AND (?='' OR instr(lower(p.code),?)>0 OR instr(lower(p.name),?)>0 OR instr(lower(p.category),?)>0)
+       ORDER BY p.name,p.id LIMIT 100 OFFSET ?`).bind(branch,brand,branch,term,term,term,term,(page-1)*100).all();
+     const records=results.map(r=>({id:r.id??null,kind:'stock',branch,code:r.code,name:r.name,
+       active:r.id?Boolean(r.active):true,linked:Boolean(r.id),catalogue_id:r.catalogue_id,
+-      category:r.category,details:{...(r.details_json?JSON.parse(r.details_json):{unit:r.hub_unit,barcode:'',cost_cents:0,reorder_min:0}),
++      category:r.category,on_hand_milli:r.on_hand_milli===null?null:Number(r.on_hand_milli),
++      on_hand_source:'posted_pos_stock_ledger',price_available:Boolean(r.price_available),
++      details:{...(r.details_json?JSON.parse(r.details_json):{unit:r.hub_unit,barcode:'',cost_cents:0,reorder_min:0}),
+         category:r.category,selling_price_cents:Number(r.hub_price_cents)},
+       version:r.version||0,updated_at:r.master_updated_at||r.updated_at}));
+     return json({kind,branch,records,total:Number(total),page,page_size:100,pages:Math.max(1,Math.ceil(Number(total)/100)),catalogue_source:true});
+--- a/maliks-operations/src/frontend.mjs
++++ b/maliks-operations/src/frontend.mjs
+@@ -224,6 +224,20 @@
+  @page{size:A4;margin:12mm}}
+ 
+  @media(max-width:850px){.shell{grid-template-columns:1fr}aside{padding:15px 20px;display:flex;align-items:center;gap:14px}aside h1{margin:0;font-size:17px}aside .brand-logo{width:56px;height:56px;flex:0 0 56px}aside .nav,aside .foot,aside p{display:none}main{padding:23px 14px}.two{grid-template-columns:1fr}}
++ /* Stock Master: branch-specific, high-density product register; ledger quantities remain read only. */
++ .stock-master-table{width:100%;min-width:1090px;border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}
++ .stock-master-table th{position:sticky;top:0;background:#F0F2F3;color:#0A2A3F;font-weight:800;padding:14px 12px;z-index:1}
++ .stock-master-table td{padding:13px 12px;color:#0A2A3F;border-bottom:1px solid #E3E5E7}
++ .stock-master-table td:first-child{font-weight:800;white-space:nowrap}
++ .stock-master-table td:nth-child(2){min-width:230px}
++ .stock-master-table .stock-master-number{white-space:nowrap;text-align:right;font-weight:750}
++ .stock-master-table th:nth-child(4),.stock-master-table th:nth-child(5){text-align:right}
++ .stock-master-table .stock-master-editable{cursor:pointer}
++ .stock-master-table .stock-master-editable:hover,.stock-master-table .stock-master-editable:focus-visible{background:#F0F2F3;outline:2px solid #D4A017;outline-offset:-2px}
++ .stock-master-editor-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:13px 0}
++ .stock-master-editor-fact{border:1px solid #E3E5E7;border-left:3px solid #D4A017;background:#FFFFFF;border-radius:10px;padding:13px 15px;display:grid;gap:7px}
++ .stock-master-editor-fact small{color:#0A2A3F;font-size:12px}
++ .stock-master-editor-fact strong{color:#0A2A3F;font-size:19px}
+  ${POS_PREMIUM_CSS}
+  ${DEPARTMENT_PREMIUM_CSS}
+  </style></head><body class="${suiteShell?'maliks-professional':departmentShell?'maliks-department':''}">
+@@ -1233,7 +1247,7 @@
+    tools.append(search,searchButton,refreshButton,auditButton);
+    if(masterPermissions[kind]?.write)tools.append(newButton);
+    header.append(tools);detail.append(header);
+-   const notice=h('p',kind==='stock'?'Branch: '+selectedBranch+' · Products come directly from the Group Hub catalogue. Link once to enable purchasing, GRVs and transfers. Opening stock is NOT imported.':'Branch: '+selectedBranch+' · Master records do not post supplier/debtor balances, invoices or GL entries.','suite-master-note');detail.append(notice);
++   const notice=h('p',kind==='stock'?'Branch: '+selectedBranch+' · Selling prices and descriptions come from Group Hub. On-hand reflects posted POS stock movements only (GRVs, transfers and approved stock controls); sales deductions are not yet integrated. Double-click a linked item to edit branch settings.':'Branch: '+selectedBranch+' · Master records do not post supplier/debtor balances, invoices or GL entries.','suite-master-note');detail.append(notice);
+    const feedback=h('div');feedback.setAttribute('role','status');detail.append(feedback);
+    const editor=h('section',undefined,'suite-master-editor');editor.hidden=true;detail.append(editor);
+    const listArea=h('div');detail.append(listArea);
+@@ -1242,11 +1256,26 @@
+    const showMessage=(message,good=false)=>{feedback.textContent=message;feedback.className=good?'success':'error';feedback.hidden=!message;};
+    feedback.hidden=true;
+    let masterPage=1;const displayValue=(v)=>v===null||v===undefined?'':String(v);
++   const formatMoney=cents=>'R '+new Intl.NumberFormat('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(cents||0)/100);
++   const formatQty=milli=>new Intl.NumberFormat('en-GB',{maximumFractionDigits:3}).format(Number(milli||0)/1000);
+    function openEditor(record){
+      if(!masterPermissions[kind]?.write){showMessage('This account has read-only access.');return;}
+      editor.hidden=false;editor.replaceChildren();auditArea.hidden=true;listArea.hidden=true;
+-     const heading=h('h3',record?'Edit '+record.code:'New '+MASTER_LABELS[kind]+' record');editor.append(heading);
+-     if(kind==='stock')editor.append(h('p','Code, description, department and selling price come from Hub Catalogue / Price Tag Studio. POS only edits branch stock settings.','muted'));
++     const heading=h('h3',record?(kind==='stock'?'Branch settings · ':'Edit ')+record.code:'New '+MASTER_LABELS[kind]+' record');editor.append(heading);
++     if(kind==='stock'){
++       const facts=h('div',undefined,'stock-master-editor-facts');
++       for(const [label,value] of [
++         ['Branch',selectedBranch],
++         ['Selling price',record?.price_available?formatMoney(record.details?.selling_price_cents):'Not published'],
++         ['Recorded on hand',record?.linked?formatQty(record.on_hand_milli)+' '+(record.details?.unit||'EA'):'Not linked']
++       ]){const fact=h('div',undefined,'stock-master-editor-fact');fact.append(h('small',label),h('strong',value));facts.append(fact);}
++       editor.append(facts);
++       editor.append(h('p','Description and selling price are controlled by Group Hub / Price Tag Studio. Recorded on-hand cannot be changed here: use an approved stock adjustment or stock take.','muted'));
++       if(inventoryPermissions.transfer||inventoryPermissions.count){
++         const stockAction=h('button','Open Stock Adjustment / Stock Take','secondary');stockAction.type='button';
++         stockAction.addEventListener('click',()=>{suiteWorkspaceStart('Stock Control');suiteStockControl(inventoryPermissions.transfer?'ADJUSTMENT':'STOCKTAKE');});editor.append(stockAction);
++       }
++     }
+      const form=h('form',undefined,'suite-master-form');const controls={};
+      const addField=(key,label,type,value)=>{
+        const wrap=h('label');wrap.append(h('span',label));const input=h('input');
+@@ -1302,11 +1331,28 @@
+        listArea.replaceChildren();
+        if(!data.records.length){listArea.append(h('p',kind==='stock'?'No active Hub catalogue products match this search.':'No records found. Use New to add a branch master record.','empty'));return;}
+        if(kind==='stock')listArea.append(h('p',data.total+' active Hub catalogue items · Page '+data.page+' of '+data.pages+' · '+data.records.filter(r=>r.linked).length+' linked on this page.','muted'));
+-       const table=h('table');const head=h('tr');for(const label of ['Code','Name','Status','Updated','Action'])cell(head,label,'th');
++       const table=h('table');if(kind==='stock')table.className='stock-master-table';
++       const head=h('tr');for(const label of kind==='stock'?['Code','Description','Category','Selling price','On hand','Unit','Status','Action']:['Code','Name','Status','Updated','Action'])cell(head,label,'th');
+        const thead=h('thead');thead.append(head);table.append(thead);const tbody=h('tbody');
+        for(const record of data.records){
+-         const tr=h('tr');cell(tr,record.code);cell(tr,record.name);cell(tr,kind==='stock'?(record.linked?(record.active?'Linked / Active':'Linked / Inactive'):'Not yet linked'):record.active?'Active':'Inactive');cell(tr,showDate(record.updated_at));
+-         const actions=h('td');if(masterPermissions[kind]?.write&&record.id){const edit=h('button',kind==='stock'?'Branch settings':'Edit','small-btn');edit.type='button';edit.addEventListener('click',()=>openEditor(record));actions.append(edit);}else actions.textContent=kind==='stock'&&!record.linked?'Link catalogue to enable':'Read only';
++         const tr=h('tr');
++         if(kind==='stock'){
++           cell(tr,record.code);cell(tr,record.name);cell(tr,record.category||record.details?.category||'—');
++           const price=h('td',record.price_available?formatMoney(record.details?.selling_price_cents):'Not published','stock-master-number');tr.append(price);
++           const onHand=h('td',record.linked?formatQty(record.on_hand_milli):'—','stock-master-number');tr.append(onHand);
++           cell(tr,record.details?.unit||'EA');
++           cell(tr,record.linked?(record.active?'Linked / Active':'Linked / Inactive'):'Not linked');
++           if(record.id&&masterPermissions.stock?.write){
++             tr.classList.add('stock-master-editable');tr.tabIndex=0;tr.title='Double-click to edit branch settings for '+record.code;
++             tr.setAttribute('aria-label',record.code+' · '+record.name+' · Double-click or press Enter to edit branch settings');
++             const open=()=>{openEditor(record);window.scrollTo({top:0,behavior:'instant'});};
++             tr.addEventListener('dblclick',open);
++             tr.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();open();}});
++           }
++         }else{
++           cell(tr,record.code);cell(tr,record.name);cell(tr,record.active?'Active':'Inactive');cell(tr,showDate(record.updated_at));
++         }
++         const actions=h('td');if(masterPermissions[kind]?.write&&record.id){const edit=h('button',kind==='stock'?'Edit settings':'Edit','small-btn');edit.type='button';edit.addEventListener('click',()=>{openEditor(record);window.scrollTo({top:0,behavior:'instant'});});actions.append(edit);}else actions.textContent=kind==='stock'&&!record.linked?'Link catalogue first':'Read only';
+          tr.append(actions);tbody.append(tr);
+        }
+        table.append(tbody);const scroller=h('div',undefined,'scroll');scroller.append(table);listArea.append(scroller);
+--- a/maliks-operations/tests/phase15-master-files.test.mjs
++++ b/maliks-operations/tests/phase15-master-files.test.mjs
+@@ -20,7 +20,7 @@
+ const get=(path)=>new Request('https://pos.example'+path);
+ 
+ class LocalD1{
+-  constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));
++  constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));this.sqlite.exec(`CREATE TABLE IF NOT EXISTS maliks_pos_stock_balances (branch TEXT NOT NULL COLLATE NOCASE,stock_master_id INTEGER NOT NULL,qty_milli INTEGER NOT NULL DEFAULT 0,version INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,PRIMARY KEY(branch,stock_master_id));`);
+     this.sqlite.exec(`CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT,name TEXT,category TEXT,active INTEGER,updated_at TEXT);INSERT INTO catalogue_products VALUES(10,'ABC123','Test Stock Item','General',1,'2026-11-13');`);
+     this.sqlite.exec('CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);CREATE TABLE price_tag_branch_prices(product_id INTEGER,brand TEXT,branch_name TEXT,price_cents INTEGER);');}
+   prepare(sql){
+@@ -57,7 +57,7 @@
+ test('D1 migration is additive and repeatable',()=>{
+   const db=new LocalD1();db.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));
+   const names=db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'maliks_pos_%'").all();
+-  assert.equal(names.length,2);
++  assert.equal(names.filter(x=>x.name!=='maliks_pos_stock_balances').length,2);
+ });
+ test('master record create, search, audit, idempotent retry and branch isolation',async()=>{
+   const env={DB:new LocalD1()};
+--- a/maliks-operations/tests/phase18-stock-catalogue.test.mjs
++++ b/maliks-operations/tests/phase18-stock-catalogue.test.mjs
+@@ -11,7 +11,7 @@
+ const uuid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
+ const write=(branch='Branch A',n=1)=>new Request('https://pos.example/v1/master/catalogue/sync',{method:'POST',headers:{origin:'https://pos.example','x-maliks-original-origin':'https://pos.example'},body:JSON.stringify({branch,request_id:uuid(n)})});
+ class D1{
+- constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));
++ constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));this.sqlite.exec(`CREATE TABLE IF NOT EXISTS maliks_pos_stock_balances (branch TEXT NOT NULL COLLATE NOCASE,stock_master_id INTEGER NOT NULL,qty_milli INTEGER NOT NULL DEFAULT 0,version INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,PRIMARY KEY(branch,stock_master_id));`);
+   this.sqlite.exec(`CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT UNIQUE,name TEXT,category TEXT,active INTEGER,updated_at TEXT);
+    CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);
+    CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);

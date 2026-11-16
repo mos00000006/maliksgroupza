@@ -224,6 +224,20 @@ function page(app){
  @page{size:A4;margin:12mm}}
 
  @media(max-width:850px){.shell{grid-template-columns:1fr}aside{padding:15px 20px;display:flex;align-items:center;gap:14px}aside h1{margin:0;font-size:17px}aside .brand-logo{width:56px;height:56px;flex:0 0 56px}aside .nav,aside .foot,aside p{display:none}main{padding:23px 14px}.two{grid-template-columns:1fr}}
+ /* Stock Master: branch-specific, high-density product register; ledger quantities remain read only. */
+ .stock-master-table{width:100%;min-width:1090px;border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}
+ .stock-master-table th{position:sticky;top:0;background:#F0F2F3;color:#0A2A3F;font-weight:800;padding:14px 12px;z-index:1}
+ .stock-master-table td{padding:13px 12px;color:#0A2A3F;border-bottom:1px solid #E3E5E7}
+ .stock-master-table td:first-child{font-weight:800;white-space:nowrap}
+ .stock-master-table td:nth-child(2){min-width:230px}
+ .stock-master-table .stock-master-number{white-space:nowrap;text-align:right;font-weight:750}
+ .stock-master-table th:nth-child(4),.stock-master-table th:nth-child(5){text-align:right}
+ .stock-master-table .stock-master-editable{cursor:pointer}
+ .stock-master-table .stock-master-editable:hover,.stock-master-table .stock-master-editable:focus-visible{background:#F0F2F3;outline:2px solid #D4A017;outline-offset:-2px}
+ .stock-master-editor-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:13px 0}
+ .stock-master-editor-fact{border:1px solid #E3E5E7;border-left:3px solid #D4A017;background:#FFFFFF;border-radius:10px;padding:13px 15px;display:grid;gap:7px}
+ .stock-master-editor-fact small{color:#0A2A3F;font-size:12px}
+ .stock-master-editor-fact strong{color:#0A2A3F;font-size:19px}
  ${POS_PREMIUM_CSS}
  ${DEPARTMENT_PREMIUM_CSS}
  </style></head><body class="${suiteShell?'maliks-professional':departmentShell?'maliks-department':''}">
@@ -1233,7 +1247,7 @@ function page(app){
    tools.append(search,searchButton,refreshButton,auditButton);
    if(masterPermissions[kind]?.write)tools.append(newButton);
    header.append(tools);detail.append(header);
-   const notice=h('p',kind==='stock'?'Branch: '+selectedBranch+' · Products come directly from the Group Hub catalogue. Link once to enable purchasing, GRVs and transfers. Opening stock is NOT imported.':'Branch: '+selectedBranch+' · Master records do not post supplier/debtor balances, invoices or GL entries.','suite-master-note');detail.append(notice);
+   const notice=h('p',kind==='stock'?'Branch: '+selectedBranch+' · Selling prices and descriptions come from Group Hub. On-hand reflects posted POS stock movements only (GRVs, transfers and approved stock controls); sales deductions are not yet integrated. Double-click a linked item to edit branch settings.':'Branch: '+selectedBranch+' · Master records do not post supplier/debtor balances, invoices or GL entries.','suite-master-note');detail.append(notice);
    const feedback=h('div');feedback.setAttribute('role','status');detail.append(feedback);
    const editor=h('section',undefined,'suite-master-editor');editor.hidden=true;detail.append(editor);
    const listArea=h('div');detail.append(listArea);
@@ -1242,11 +1256,26 @@ function page(app){
    const showMessage=(message,good=false)=>{feedback.textContent=message;feedback.className=good?'success':'error';feedback.hidden=!message;};
    feedback.hidden=true;
    let masterPage=1;const displayValue=(v)=>v===null||v===undefined?'':String(v);
+   const formatMoney=cents=>'R '+new Intl.NumberFormat('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(cents||0)/100);
+   const formatQty=milli=>new Intl.NumberFormat('en-GB',{maximumFractionDigits:3}).format(Number(milli||0)/1000);
    function openEditor(record){
      if(!masterPermissions[kind]?.write){showMessage('This account has read-only access.');return;}
      editor.hidden=false;editor.replaceChildren();auditArea.hidden=true;listArea.hidden=true;
-     const heading=h('h3',record?'Edit '+record.code:'New '+MASTER_LABELS[kind]+' record');editor.append(heading);
-     if(kind==='stock')editor.append(h('p','Code, description, department and selling price come from Hub Catalogue / Price Tag Studio. POS only edits branch stock settings.','muted'));
+     const heading=h('h3',record?(kind==='stock'?'Branch settings · ':'Edit ')+record.code:'New '+MASTER_LABELS[kind]+' record');editor.append(heading);
+     if(kind==='stock'){
+       const facts=h('div',undefined,'stock-master-editor-facts');
+       for(const [label,value] of [
+         ['Branch',selectedBranch],
+         ['Selling price',record?.price_available?formatMoney(record.details?.selling_price_cents):'Not published'],
+         ['Recorded on hand',record?.linked?formatQty(record.on_hand_milli)+' '+(record.details?.unit||'EA'):'Not linked']
+       ]){const fact=h('div',undefined,'stock-master-editor-fact');fact.append(h('small',label),h('strong',value));facts.append(fact);}
+       editor.append(facts);
+       editor.append(h('p','Description and selling price are controlled by Group Hub / Price Tag Studio. Recorded on-hand cannot be changed here: use an approved stock adjustment or stock take.','muted'));
+       if(inventoryPermissions.transfer||inventoryPermissions.count){
+         const stockAction=h('button','Open Stock Adjustment / Stock Take','secondary');stockAction.type='button';
+         stockAction.addEventListener('click',()=>{suiteWorkspaceStart('Stock Control');suiteStockControl(inventoryPermissions.transfer?'ADJUSTMENT':'STOCKTAKE');});editor.append(stockAction);
+       }
+     }
      const form=h('form',undefined,'suite-master-form');const controls={};
      const addField=(key,label,type,value)=>{
        const wrap=h('label');wrap.append(h('span',label));const input=h('input');
@@ -1302,11 +1331,28 @@ function page(app){
        listArea.replaceChildren();
        if(!data.records.length){listArea.append(h('p',kind==='stock'?'No active Hub catalogue products match this search.':'No records found. Use New to add a branch master record.','empty'));return;}
        if(kind==='stock')listArea.append(h('p',data.total+' active Hub catalogue items · Page '+data.page+' of '+data.pages+' · '+data.records.filter(r=>r.linked).length+' linked on this page.','muted'));
-       const table=h('table');const head=h('tr');for(const label of ['Code','Name','Status','Updated','Action'])cell(head,label,'th');
+       const table=h('table');if(kind==='stock')table.className='stock-master-table';
+       const head=h('tr');for(const label of kind==='stock'?['Code','Description','Category','Selling price','On hand','Unit','Status','Action']:['Code','Name','Status','Updated','Action'])cell(head,label,'th');
        const thead=h('thead');thead.append(head);table.append(thead);const tbody=h('tbody');
        for(const record of data.records){
-         const tr=h('tr');cell(tr,record.code);cell(tr,record.name);cell(tr,kind==='stock'?(record.linked?(record.active?'Linked / Active':'Linked / Inactive'):'Not yet linked'):record.active?'Active':'Inactive');cell(tr,showDate(record.updated_at));
-         const actions=h('td');if(masterPermissions[kind]?.write&&record.id){const edit=h('button',kind==='stock'?'Branch settings':'Edit','small-btn');edit.type='button';edit.addEventListener('click',()=>openEditor(record));actions.append(edit);}else actions.textContent=kind==='stock'&&!record.linked?'Link catalogue to enable':'Read only';
+         const tr=h('tr');
+         if(kind==='stock'){
+           cell(tr,record.code);cell(tr,record.name);cell(tr,record.category||record.details?.category||'—');
+           const price=h('td',record.price_available?formatMoney(record.details?.selling_price_cents):'Not published','stock-master-number');tr.append(price);
+           const onHand=h('td',record.linked?formatQty(record.on_hand_milli):'—','stock-master-number');tr.append(onHand);
+           cell(tr,record.details?.unit||'EA');
+           cell(tr,record.linked?(record.active?'Linked / Active':'Linked / Inactive'):'Not linked');
+           if(record.id&&masterPermissions.stock?.write){
+             tr.classList.add('stock-master-editable');tr.tabIndex=0;tr.title='Double-click to edit branch settings for '+record.code;
+             tr.setAttribute('aria-label',record.code+' · '+record.name+' · Double-click or press Enter to edit branch settings');
+             const open=()=>{openEditor(record);window.scrollTo({top:0,behavior:'instant'});};
+             tr.addEventListener('dblclick',open);
+             tr.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();open();}});
+           }
+         }else{
+           cell(tr,record.code);cell(tr,record.name);cell(tr,record.active?'Active':'Inactive');cell(tr,showDate(record.updated_at));
+         }
+         const actions=h('td');if(masterPermissions[kind]?.write&&record.id){const edit=h('button',kind==='stock'?'Edit settings':'Edit','small-btn');edit.type='button';edit.addEventListener('click',()=>{openEditor(record);window.scrollTo({top:0,behavior:'instant'});});actions.append(edit);}else actions.textContent=kind==='stock'&&!record.linked?'Link catalogue first':'Read only';
          tr.append(actions);tbody.append(tr);
        }
        table.append(tbody);const scroller=h('div',undefined,'scroll');scroller.append(table);listArea.append(scroller);

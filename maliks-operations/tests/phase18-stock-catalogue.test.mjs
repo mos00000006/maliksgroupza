@@ -11,7 +11,7 @@ const get=q=>new Request('https://pos.example/v1/master/records?kind=stock&branc
 const uuid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
 const write=(branch='Branch A',n=1)=>new Request('https://pos.example/v1/master/catalogue/sync',{method:'POST',headers:{origin:'https://pos.example','x-maliks-original-origin':'https://pos.example'},body:JSON.stringify({branch,request_id:uuid(n)})});
 class D1{
- constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));
+ constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));this.sqlite.exec(`CREATE TABLE IF NOT EXISTS maliks_pos_stock_balances (branch TEXT NOT NULL COLLATE NOCASE,stock_master_id INTEGER NOT NULL,qty_milli INTEGER NOT NULL DEFAULT 0,version INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,PRIMARY KEY(branch,stock_master_id));`);
   this.sqlite.exec(`CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT UNIQUE,name TEXT,category TEXT,active INTEGER,updated_at TEXT);
    CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);
    CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);

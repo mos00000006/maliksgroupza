@@ -114,16 +114,21 @@ export async function listMasterRecords(req,env,context){
     const brand=/buster\s*build/i.test(branch)?'busterbuild':'powerbuild';
     const {results}=await env.DB.prepare(`SELECT p.id AS catalogue_id,p.code,p.name,p.category,p.updated_at,
       CASE WHEN t.product_id IS NULL THEN 0 ELSE COALESCE(bp.price_cents,t.price_cents,0) END AS hub_price_cents,COALESCE(t.unit,'EA') AS hub_unit,
-      m.id,m.kind,m.branch,m.active,m.details_json,m.version,m.updated_at AS master_updated_at
+      m.id,m.kind,m.branch,m.active,m.details_json,m.version,m.updated_at AS master_updated_at,
+      CASE WHEN m.id IS NULL THEN NULL ELSE COALESCE(b.qty_milli,0) END AS on_hand_milli,
+      CASE WHEN t.product_id IS NULL THEN 0 ELSE 1 END AS price_available
       FROM catalogue_products p LEFT JOIN maliks_pos_master_records m
         ON m.kind='stock' AND lower(m.branch)=lower(?) AND lower(m.code)=lower(p.code)
+      LEFT JOIN maliks_pos_stock_balances b ON b.stock_master_id=m.id AND lower(b.branch)=lower(m.branch)
       LEFT JOIN ${tagTable} t ON t.product_id=p.id AND t.published=1
       LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
       WHERE p.active=1 AND (?='' OR instr(lower(p.code),?)>0 OR instr(lower(p.name),?)>0 OR instr(lower(p.category),?)>0)
       ORDER BY p.name,p.id LIMIT 100 OFFSET ?`).bind(branch,brand,branch,term,term,term,term,(page-1)*100).all();
     const records=results.map(r=>({id:r.id??null,kind:'stock',branch,code:r.code,name:r.name,
       active:r.id?Boolean(r.active):true,linked:Boolean(r.id),catalogue_id:r.catalogue_id,
-      category:r.category,details:{...(r.details_json?JSON.parse(r.details_json):{unit:r.hub_unit,barcode:'',cost_cents:0,reorder_min:0}),
+      category:r.category,on_hand_milli:r.on_hand_milli===null?null:Number(r.on_hand_milli),
+      on_hand_source:'posted_pos_stock_ledger',price_available:Boolean(r.price_available),
+      details:{...(r.details_json?JSON.parse(r.details_json):{unit:r.hub_unit,barcode:'',cost_cents:0,reorder_min:0}),
         category:r.category,selling_price_cents:Number(r.hub_price_cents)},
       version:r.version||0,updated_at:r.master_updated_at||r.updated_at}));
     return json({kind,branch,records,total:Number(total),page,page_size:100,pages:Math.max(1,Math.ceil(Number(total)/100)),catalogue_source:true});

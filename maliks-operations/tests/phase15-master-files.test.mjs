@@ -20,7 +20,7 @@ const write=(payload,origin='https://pos.example')=>new Request(origin+'/v1/mast
 const get=(path)=>new Request('https://pos.example'+path);
 
 class LocalD1{
-  constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));
+  constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));this.sqlite.exec(`CREATE TABLE IF NOT EXISTS maliks_pos_stock_balances (branch TEXT NOT NULL COLLATE NOCASE,stock_master_id INTEGER NOT NULL,qty_milli INTEGER NOT NULL DEFAULT 0,version INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,PRIMARY KEY(branch,stock_master_id));`);
     this.sqlite.exec(`CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT,name TEXT,category TEXT,active INTEGER,updated_at TEXT);INSERT INTO catalogue_products VALUES(10,'ABC123','Test Stock Item','General',1,'2026-11-13');`);
     this.sqlite.exec('CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);CREATE TABLE price_tag_branch_prices(product_id INTEGER,brand TEXT,branch_name TEXT,price_cents INTEGER);');}
   prepare(sql){
@@ -57,7 +57,7 @@ test('master input validates branch, code, prices and email',()=>{
 test('D1 migration is additive and repeatable',()=>{
   const db=new LocalD1();db.sqlite.exec(readFileSync(new URL('../sql/phase15_master_files.sql',import.meta.url),'utf8'));
   const names=db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'maliks_pos_%'").all();
-  assert.equal(names.length,2);
+  assert.equal(names.filter(x=>x.name!=='maliks_pos_stock_balances').length,2);
 });
 test('master record create, search, audit, idempotent retry and branch isolation',async()=>{
   const env={DB:new LocalD1()};
