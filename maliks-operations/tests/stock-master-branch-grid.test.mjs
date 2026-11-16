@@ -55,7 +55,7 @@ test('Branch Stock Master shows catalogue description, branch price and only its
  assert.equal((await listMasterRecords(request('Branch B'),env,context('Branch A'))).status,403,'a user cannot request another branch');
 });
 
-test('POS stock list includes selling price, recorded on-hand, double-click and keyboard edit; edits preserve Hub authority',async()=>{
+test('POS stock list includes selling price, recorded on-hand, double-click and role-controlled price editing',async()=>{
  const page=await (await frontend.fetch(new Request('https://pos.test/'),{APP_TYPE:'pos'})).text();
  assert.match(page,/\['Code','Description','Category','Selling price','On hand','Unit','Status','Action'\]/);
  assert.match(page,/tr\.addEventListener\('dblclick',open\)/);
@@ -65,6 +65,8 @@ test('POS stock list includes selling price, recorded on-hand, double-click and 
  assert.match(page,/record\.linked\?formatQty/);
  assert.match(page,/Record(?:ed)? on hand|Recorded on hand/);
  assert.match(page,/Stock Adjustment \/ Stock Take/);
- assert.match(page,/selling_price_cents'\]\.includes\(key\)\)input\.readOnly=true/);
+ assert.match(page,/stockPricePermission/);
+ assert.match(page,/price_update=true/);
+ assert.match(page,/expected_selling_price_cents/);
  assert.match(page,/sales deductions are not yet integrated/);
 });

@@ -6,9 +6,10 @@ import {validateReviewDecision,validateReviewNote,latestReviewsStatement,reviewH
 import {validateTenderPreparation,tenderListStatement,tenderForClient} from './tender-domain.mjs';
 import {quoteId} from './quote-domain.mjs';
 import {cashupPreviewStatement,cashupForClient,CASHUP_MODE} from './cashup-domain.mjs';
+import {listCashupReconciliations,reviewCashupReconciliation} from './cashup-reconciliation-domain.mjs';
 import {submitPayment,confirmSimpleCheckout,listPayments,verifyPayment,listDispatch,updateDispatch,getInvoice} from './payment-dispatch-domain.mjs';
 import {validateEvidenceInput,evidenceListStatement,evidenceHistoryStatement,evidenceForClient,EVIDENCE_MODE} from './payment-evidence-domain.mjs';
-import {listMasterRecords,listMasterAudit,listMasterCatalogue,syncStockCatalogue,saveMasterRecord,canUseMaster,MASTER_KINDS} from './master-domain.mjs';
+import {listMasterRecords,listMasterAudit,listMasterCatalogue,syncStockCatalogue,saveMasterRecord,canUseMaster,canEditStockPrice,MASTER_KINDS} from './master-domain.mjs';
 import {canUsePurchase,listPurchaseOrders,purchaseAudit,savePurchaseOrder,actionPurchaseOrder} from './purchase-domain.mjs';
 import {canUseSupplierInvoice,listSupplierInvoices,captureSupplierInvoice,supplierInvoiceAction} from './supplier-invoice-domain.mjs';
 import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
@@ -77,7 +78,7 @@ async function catalogue(req,env,context){
     COALESCE(bp.price_cents,t.price_cents) AS price_cents,
     COALESCE(t.unit,'each') AS unit,COALESCE(t.coverage_per_box,0) AS coverage_per_box
     FROM catalogue_products p
-    JOIN ${table} t ON t.product_id=p.id AND t.published=1
+    LEFT JOIN ${table} t ON t.product_id=p.id AND t.published=1
     LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
     WHERE p.active=1 AND COALESCE(bp.price_cents,t.price_cents)>0
     AND (lower(p.code)=lower(?) OR lower(p.code) LIKE ? ESCAPE '\\' OR lower(p.name) LIKE ? ESCAPE '\\')
@@ -156,7 +157,7 @@ async function createQuote(req,env,context){
   const brand=brandFor(branch), table=tagTableFor(branch), ids=lines.map(x=>x.product_id);
   const marks=ids.map(()=>'?').join(',');
   const {results}=await env.DB.prepare(`SELECT p.id,p.code,p.name,COALESCE(t.unit,'each') AS unit,
-    CASE WHEN t.product_id IS NOT NULL THEN COALESCE(bp.price_cents,t.price_cents,0) ELSE 0 END AS price_cents
+    COALESCE(bp.price_cents,t.price_cents,0) AS price_cents
     FROM catalogue_products p
     LEFT JOIN ${table} t ON t.product_id=p.id AND t.published=1
     LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
@@ -488,6 +489,7 @@ export default {
         app:auth.app,user:{name:access.member.name,role:access.member.role,email:access.member.email},branches:access.branches,
         password_change_required:auth.method==='password'&&auth.must_change_password,
         team_permissions:auth.app==='member'?{manage:canManageTeam(access.member)}:undefined,
+        stock_price_permission:auth.app==='management'?canEditStockPrice(access.member):false,
         master_permissions:auth.app==='management'?Object.fromEntries(MASTER_KINDS.map(k=>[k,{read:canUseMaster(access.member,k),write:canUseMaster(access.member,k,true)}])):undefined,
         purchase_permissions:auth.app==='management'?{read:canUsePurchase(access.member),write:canUsePurchase(access.member,'write'),approve:canUsePurchase(access.member,'approve')}:undefined,
         supplier_invoice_permissions:auth.app==='management'?Object.fromEntries(['read','capture','verify'].map(k=>[k,canUseSupplierInvoice(access.member,k)])):undefined,
@@ -529,6 +531,8 @@ export default {
       if(path==='/v1/till-reviews'&&req.method==='GET')return await reviewHistory(req,env,context);
       if(path==='/v1/till-reviews'&&req.method==='POST')return await recordShiftReview(req,env,context);
       if(path==='/v1/cashup-preview'&&req.method==='GET')return await listCashupPreviews(req,env,context);
+      if(path==='/v1/cashup-reconciliation'&&req.method==='GET')return await listCashupReconciliations(req,env,context);
+      if(path==='/v1/cashup-reconciliation/review'&&req.method==='POST')return await reviewCashupReconciliation(req,env,context);
       if(path==='/v1/payment-evidence'&&req.method==='GET')return await listPaymentEvidence(req,env,context);
       if(path==='/v1/payment-evidence/history'&&req.method==='GET')return await paymentEvidenceHistory(req,env,context);
       if(path==='/v1/payment-evidence'&&req.method==='POST')return await recordPaymentEvidence(req,env,context);

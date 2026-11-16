@@ -25,6 +25,10 @@ export function canUseMaster(member,kind,write=false){
   if(member.role==='Executive / EXCO'&&member.access_scope==='Full company')return !write;
   return MASTER_ROLES[kind].includes(member.role);
 }
+// Price amendments are a branch-manager privilege, separate from stock master write access.
+export function canEditStockPrice(member){
+  return !!member&&Number(member.active)===1&&MANAGERS.has(member.role);
+}
 const str=(value,name,max,required=false)=>{
   if(typeof value!=='string')throw Error(name+' must be text.');
   const s=value.trim();
@@ -75,6 +79,14 @@ export function validateMasterInput(raw){
     if(!Number.isSafeInteger(raw.version)||raw.version<1)throw Error('Invalid record version.');
     data.id=raw.id;data.version=raw.version;
   }
+  if(raw.price_update!==undefined){
+    if(raw.kind!=='stock'||typeof raw.price_update!=='boolean')throw Error('Invalid price update instruction.');
+    if(raw.price_update){
+      if(data.id===undefined)throw Error('Link the product to this branch before editing its price.');
+      data.price_update=true;
+      data.expected_selling_price_cents=int(raw.expected_selling_price_cents,'previous selling price',100000000000);
+    }
+  }
   return data;
 }
 const snapshot=(r)=>({id:r.id,kind:r.kind,branch:r.branch,code:r.code,name:r.name,
@@ -113,10 +125,10 @@ export async function listMasterRecords(req,env,context){
     const tagTable=/buster\s*build/i.test(branch)?'busterbuild_price_tags':'powerbuild_price_tags';
     const brand=/buster\s*build/i.test(branch)?'busterbuild':'powerbuild';
     const {results}=await env.DB.prepare(`SELECT p.id AS catalogue_id,p.code,p.name,p.category,p.updated_at,
-      CASE WHEN t.product_id IS NULL THEN 0 ELSE COALESCE(bp.price_cents,t.price_cents,0) END AS hub_price_cents,COALESCE(t.unit,'EA') AS hub_unit,
+      COALESCE(bp.price_cents,t.price_cents,0) AS hub_price_cents,COALESCE(t.unit,'EA') AS hub_unit,
       m.id,m.kind,m.branch,m.active,m.details_json,m.version,m.updated_at AS master_updated_at,
       CASE WHEN m.id IS NULL THEN NULL ELSE COALESCE(b.qty_milli,0) END AS on_hand_milli,
-      CASE WHEN t.product_id IS NULL THEN 0 ELSE 1 END AS price_available
+      CASE WHEN COALESCE(bp.price_cents,t.price_cents,0)>0 THEN 1 ELSE 0 END AS price_available
       FROM catalogue_products p LEFT JOIN maliks_pos_master_records m
         ON m.kind='stock' AND lower(m.branch)=lower(?) AND lower(m.code)=lower(p.code)
       LEFT JOIN maliks_pos_stock_balances b ON b.stock_master_id=m.id AND lower(b.branch)=lower(m.branch)
@@ -195,7 +207,7 @@ export async function syncStockCatalogue(req,env,context){
       (kind,branch,code,name,active,details_json,version,created_by_email,updated_by_email,created_at,updated_at,create_request_id,create_payload_hash,last_request_id)
       SELECT 'stock',?,p.code,p.name,1,
       json_object('unit',COALESCE(t.unit,'EA'),'category',p.category,'barcode','',
-        'cost_cents',0,'selling_price_cents',CASE WHEN t.product_id IS NULL THEN 0 ELSE COALESCE(bp.price_cents,t.price_cents,0) END,'reorder_min',0),
+        'cost_cents',0,'selling_price_cents',COALESCE(bp.price_cents,t.price_cents,0),'reorder_min',0),
       1,?,?,?,?,?||p.id,?,?||p.id
       FROM catalogue_products p LEFT JOIN ${tagTable} t ON t.product_id=p.id AND t.published=1
       LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
@@ -223,20 +235,30 @@ export async function saveMasterRecord(req,env,context){
   const branch=matchingBranch(context.branches,data.branch);
   if(!branch)return fail('Branch access denied.',403);
   data.branch=branch;
+  let stockProductId=null,stockPriceBrand='',currentStockPriceCents=null;
   if(data.kind==='stock'){
     // Never accept a new product identity from POS: Hub owns product codes,
     // names and departments. POS may only maintain branch operational settings.
-    const product=await env.DB.prepare(`SELECT code,name,category FROM catalogue_products
+    const product=await env.DB.prepare(`SELECT id,code,name,category FROM catalogue_products
       WHERE lower(code)=lower(?) AND active=1 LIMIT 1`).bind(data.code).first();
     if(!product)return fail('Stock item is not in the active Group Hub catalogue. Add it in Hub first.',409);
     data.code=product.code;data.name=product.name;data.details.category=product.category;
+    stockProductId=product.id;
     const tagTable=/buster\s*build/i.test(branch)?'busterbuild_price_tags':'powerbuild_price_tags';
     const brand=/buster\s*build/i.test(branch)?'busterbuild':'powerbuild';
-    const hubPrice=await env.DB.prepare(`SELECT CASE WHEN t.product_id IS NULL THEN 0 ELSE COALESCE(bp.price_cents,t.price_cents,0) END AS price_cents
+    stockPriceBrand=brand;
+    const hubPrice=await env.DB.prepare(`SELECT COALESCE(bp.price_cents,t.price_cents,0) AS price_cents
       FROM catalogue_products p LEFT JOIN ${tagTable} t ON t.product_id=p.id AND t.published=1
       LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
       WHERE lower(p.code)=lower(?) AND p.active=1 LIMIT 1`).bind(brand,branch,data.code).first();
-    data.details.selling_price_cents=Number(hubPrice?.price_cents||0);
+    currentStockPriceCents=Number(hubPrice?.price_cents||0);
+    if(data.price_update){
+      if(!canEditStockPrice(context.member))return fail('Only branch managers can amend selling prices.',403);
+      if(data.details.selling_price_cents<1)return fail('Selling price must be greater than R0.00.',400);
+    }else{
+      // All other stock edits retain the current published effective branch price.
+      data.details.selling_price_cents=currentStockPriceCents;
+    }
     if(data.id!==undefined){
       const linked=await env.DB.prepare(`SELECT code FROM maliks_pos_master_records WHERE id=? AND kind='stock' AND lower(branch)=lower(?)`).bind(data.id,branch).first();
       if(!linked||linked.code.toLowerCase()!==product.code.toLowerCase())return fail('Stock code cannot be changed. Edit the product in Group Hub.',409);
@@ -275,24 +297,42 @@ export async function saveMasterRecord(req,env,context){
     return json({record:JSON.parse(replay.after_json),duplicate:true});
   }
   if(prior.version!==data.version)return fail('This record changed. Refresh before saving.',409);
+  if(data.price_update&&currentStockPriceCents!==data.expected_selling_price_cents)
+    return fail('Selling price changed in another workspace. Refresh before saving.',409);
   const after={id:data.id,kind:data.kind,branch,code:data.code,name:data.name,active:Boolean(data.active),
     details:data.details,version:data.version+1,updated_at:now};
   // The audit INSERT is conditional on last_request_id matching this successful UPDATE.
   // D1 batch transactions roll back both statements if either fails.
-  let outcomes;try{outcomes=await env.DB.batch([
+  const statements=[
     env.DB.prepare(`UPDATE maliks_pos_master_records SET code=?,name=?,active=?,details_json=?,version=version+1,
       updated_by_email=?,updated_at=?,last_request_id=?
       WHERE id=? AND kind=? AND lower(branch)=lower(?) AND version=?
       AND NOT EXISTS(SELECT 1 FROM maliks_pos_master_audit WHERE request_id=?)`)
       .bind(data.code,data.name,data.active,detailsJson,actor,now,data.request_id,
         data.id,data.kind,branch,data.version,data.request_id),
+  ];
+  if(data.kind==='stock'&&data.price_update&&data.details.selling_price_cents!==currentStockPriceCents){
+    // Publish the branch override only if the optimistic master update succeeded.
+    // Both changes and their audit are committed in the same D1 transaction.
+    statements.push(env.DB.prepare(`INSERT INTO price_tag_branch_prices
+      (brand,product_id,branch_name,price_cents,updated_by,updated_at)
+      SELECT ?,?,?,?,?,? WHERE EXISTS(
+        SELECT 1 FROM maliks_pos_master_records
+        WHERE id=? AND kind='stock' AND lower(branch)=lower(?) AND version=? AND last_request_id=?)
+      ON CONFLICT(brand,product_id,branch_name) DO UPDATE
+      SET price_cents=excluded.price_cents,updated_by=excluded.updated_by,updated_at=excluded.updated_at`)
+      .bind(stockPriceBrand,stockProductId,branch,data.details.selling_price_cents,actor,now,
+        data.id,branch,data.version+1,data.request_id));
+  }
+  statements.push(
     env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_master_audit
       (request_id,kind,branch,record_id,action,actor_email,actor_name,payload_hash,before_json,after_json,created_at)
       SELECT ?,kind,branch,id,'UPDATE',?,?,?,?,?,? FROM maliks_pos_master_records
       WHERE id=? AND kind=? AND lower(branch)=lower(?) AND version=? AND last_request_id=?`)
       .bind(data.request_id,actor,actorName,hash,JSON.stringify(snapshot(prior)),JSON.stringify(after),now,
         data.id,data.kind,branch,data.version+1,data.request_id),
-  ]);}catch(error){if(/UNIQUE constraint failed/i.test(String(error)))return fail('Code already exists for this branch.',409);throw error;}
+  );
+  let outcomes;try{outcomes=await env.DB.batch(statements);}catch(error){if(/UNIQUE constraint failed/i.test(String(error)))return fail('Code already exists for this branch.',409);throw error;}
   if(Number(outcomes?.[0]?.meta?.changes)!==1)return fail('This record changed. Refresh before saving.',409);
   return json({record:after});
 }

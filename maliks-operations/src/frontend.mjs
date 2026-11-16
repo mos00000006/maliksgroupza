@@ -84,7 +84,7 @@ function suiteHeader(){
 }
 const DEPARTMENT_NAV={
  sales:[['home','Home','house'],['new','New Quotation','shopping-cart'],['history','My Quotations','receipt']],
- tills:[['home','Home','house'],['checkout','Checkout','credit-card'],['shifts','Till Shifts','clock'],['payments','Paid Invoices','receipt'],['quotes','Quotations','clipboard-list'],['preparations','Preparations','wallet']],
+ tills:[['home','Home','house'],['checkout','Checkout','credit-card'],['shifts','Till Shifts','clock'],['cashup','Close / Cash-Up','wallet'],['payments','Paid Invoices','receipt'],['quotes','Quotations','clipboard-list'],['preparations','Preparations','wallet']],
  cashoffice:[['home','Home','house'],['paid','Paid Invoices','receipt'],['shifts','Shift Reviews','users'],['cashup','Cash-Up','wallet'],['evidence','Evidence','file-text'],['preparations','Preparations','clipboard-list'],['quotes','Quotations','search']],
  dispatch:[['home','Home','house'],['queue','Dispatch Queue','truck']]
 };
@@ -251,6 +251,7 @@ function page(app){
  </main></div><script type="module">
  const APP=${JSON.stringify(app)};
  const MEMBER_TEAM_URL='https://maliks-member-team.moyanamoses006.workers.dev';
+ const CASH_OFFICE_URL='https://maliks-cash-office.moyanamoses006.workers.dev/';
  let currentUserRole='';
  const SUITE_NAV=${JSON.stringify(SUITE_NAV)};
  const SUITE_MENU_TREE=${JSON.stringify(SUITE_MENU_TREE)};
@@ -680,7 +681,92 @@ function page(app){
      target.append(h('p','* Provisional projected cash = opening float + cash applied in saved preparations. Difference = cashier-declared closing count minus projected cash. Card/EFT amounts are also UNVERIFIED. These totals are not financial balances.','tiny'));
    }catch(error){if(branch===selected)target.replaceChildren(h('p','Provisional worksheet unavailable: '+error.message,'error'));}
  }
- // Phase 8: independent Cash Office observations of card/bank documents only.
+   // Phase 22: real recorded shift CASH figures + independent Cash Office count review.
+  // This is NOT a bank reconciliation or a Hub financial posting.
+  function cashupReconciliationView(){
+    const p=panel('Cash-Up Reconciliation — Cash Office');
+    p.append(h('p','This register calculates expected cash using the opening float PLUS CASH sales confirmed against the cashier shift. Tender preparations are excluded. Card amounts are cashier-confirmed, not bank-settled. A cash-count review does not post a deposit, journal or stock deduction.','cashup-warning'));
+    const toolbar=h('div',undefined,'bar');
+    const refresh=h('button','Refresh cash-ups','secondary');refresh.type='button';refresh.addEventListener('click',loadCashupReconciliations);
+    toolbar.append(refresh);p.append(toolbar);
+    const stats=h('div',undefined,'cashup-stats');stats.id='cashup-reconciliation-stats';p.append(stats);
+    const body=h('div','Loading cash-up register…');body.id='cashup-reconciliation-list';p.append(body);
+    const review=h('section',undefined,'suite-master-editor');review.id='cashup-reconciliation-review';review.hidden=true;p.append(review);
+    return p;
+  }
+  async function loadCashupReconciliations(){
+    const target=E('cashup-reconciliation-list'),stats=E('cashup-reconciliation-stats'),review=E('cashup-reconciliation-review');
+    if(!target||!stats)return;
+    const selected=branch;target.replaceChildren(h('p','Loading confirmed shift cash figures…','muted'));stats.replaceChildren();if(review){review.hidden=true;review.replaceChildren();}
+    try{
+      const data=await api('/api/cashup-reconciliation?branch='+encodeURIComponent(selected));
+      if(branch!==selected||!target.isConnected)return;
+      if(data.mode!=='CASHIER_CONFIRMED_SHIFT_PAYMENTS')throw Error('Unexpected Cash-Up source. Refresh the application.');
+      const rows=data.records||[];target.replaceChildren();
+      if(!rows.length){target.append(h('p','No till shifts found for the selected branch.','empty'));return;}
+      const closed=rows.filter(x=>x.status==='CLOSED');
+      const flagged=closed.filter(x=>x.variance_cents!==0||x.pending_payment_count>0).length;
+      const checked=closed.filter(x=>x.review_status==='CASH_COUNT_CHECKED').length;
+      for(const summary of [rows.length+' shifts',closed.length+' closed',checked+' cash counts checked',flagged+' exceptions'])
+        stats.append(h('span',summary));
+      const table=h('table');table.className='cashup-table';
+      const th=h('tr');for(const title of ['Shift / Till','Cashier','Status','Opening float','Confirmed cash','Expected cash','Counted cash','Difference','Card*','Pending','Cash Office review','Action'])cell(th,title,'th');
+      const head=h('thead');head.append(th);table.append(head);
+      const body=h('tbody');
+      for(const record of rows){
+        const tr=h('tr');for(const val of [
+          '#'+record.shift_id+' / '+record.till_code,record.cashier_name,record.status,
+          money(record.opening_float_cents),money(record.confirmed_cash_sales_cents),money(record.expected_cash_cents),
+          record.counted_cash_cents===null?'—':money(record.counted_cash_cents),
+          record.variance_cents===null?'—':money(record.variance_cents),
+          money(record.confirmed_card_sales_cents),String(record.pending_payment_count),
+          record.review_status==='CASH_COUNT_CHECKED'?'Cash count checked':record.review_status==='FLAGGED'?'Flagged for follow-up':'Awaiting Cash Office review'
+        ])cell(tr,val);
+        const varianceCells=tr.querySelectorAll('td');if(record.variance_cents!==null)varianceCells[7].className=record.variance_cents===0?'cashup-zero':'cashup-diff';
+        const actions=h('td');
+        if(record.status==='CLOSED'&&record.review_status!=='CASH_COUNT_CHECKED'){
+          const open=h('button','Review','secondary small-btn');open.type='button';
+          open.addEventListener('click',()=>openCashupReview(record));actions.append(open);
+        }else{actions.textContent=record.status==='OPEN'?'Close shift first':'Recorded';}
+        tr.append(actions);body.append(tr);
+      }
+      table.append(body);const scroll=h('div',undefined,'scroll');scroll.append(table);target.append(scroll);
+      target.append(h('p','Expected cash = opening float + confirmed cash sales (net of change). Cash count is the cashier’s declared closing amount. *Card sales are not proof of settlement. Pending/unverified payments are excluded and must be investigated. Cash Office reviews are audit records only.','tiny'));
+    }catch(error){if(branch===selected&&target.isConnected)target.replaceChildren(h('p','Cash-Up unavailable: '+error.message+'. Check Phase 22 database migration and Core deployment.','error'));}
+  }
+  function openCashupReview(record){
+    const review=E('cashup-reconciliation-review');if(!review)return;
+    review.hidden=false;review.replaceChildren(h('h3','Review shift #'+record.shift_id+' · '+record.till_code));
+    review.append(h('p',record.cashier_name+' · Opening '+money(record.opening_float_cents)+' + Cash '+money(record.confirmed_cash_sales_cents)+' = Expected '+money(record.expected_cash_cents)+' · Declared '+money(record.counted_cash_cents)+' · Difference '+money(record.variance_cents),'muted'));
+    if(record.pending_payment_count)review.append(h('p',record.pending_payment_count+' payment(s) awaiting verification. Investigate before completing a cash-count check.','cashup-warning'));
+    const form=h('form');const fields=h('div',undefined,'shift-form');
+    const decisionLabel=h('label');decisionLabel.append(h('span','Cash Office outcome'));const decision=h('select');
+    const exact=record.variance_cents===0&&record.pending_payment_count===0;
+    const choices=exact?[['CASH_COUNT_CHECKED','Cash count checked (NOT bank reconciled)'],['FLAGGED','Flag for follow-up']]:[['FLAGGED','Flag for investigation']];
+    for(const [value,label] of choices){const o=h('option',label);o.value=value;decision.append(o);}decisionLabel.append(decision);fields.append(decisionLabel);
+    const noteLabel=h('label');noteLabel.append(h('span','Count evidence / exception note'));
+    const note=h('textarea');note.required=true;note.maxLength=400;note.rows=3;note.placeholder='Record who counted the drawer and the evidence, or describe any difference (minimum 10 characters for flags).';
+    noteLabel.append(note);fields.append(noteLabel);
+    const submit=h('button','Record independent review');submit.type='submit';fields.append(submit);
+    form.append(fields);review.append(form);
+    const status=h('div');status.setAttribute('role','status');review.append(status);
+    let pending=null;
+    const reset=()=>{pending=null;};decision.addEventListener('change',reset);note.addEventListener('input',reset);
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();status.replaceChildren();
+      if(branch!==record.branch){status.append(h('p','The selected branch changed. Reopen Cash-Up.','error'));return;}
+      if(!pending)pending={request_id:crypto.randomUUID(),branch:record.branch,shift_id:record.shift_id,decision:decision.value,
+        note:note.value.trim(),expected_cash_cents:record.expected_cash_cents,counted_cash_cents:record.counted_cash_cents};
+      submit.disabled=true;
+      try{
+        const result=await api('/api/cashup-reconciliation/review',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(pending)});
+        pending=null;status.replaceChildren(h('p','Cash Office review recorded: '+result.decision+'. No deposit or financial posting occurred.','success'));
+        await loadCashupReconciliations();
+      }catch(error){status.replaceChildren(h('p',error.message+'. Retry uses the same review request ID.','error'));submit.disabled=false;}
+    });
+    review.scrollIntoView({block:'start',behavior:'smooth'});
+  }
+// Phase 8: independent Cash Office observations of card/bank documents only.
  // These records are NOT actual receipts, processor confirmations, paid orders,
  // financial journal entries or instructions to dispatch.
  function evidenceView(){
@@ -881,7 +967,7 @@ function page(app){
    }catch(error){if(branch!==selected)return;container.replaceChildren(h('p','Could not load shifts: '+error.message,'error'));}
  }
  function tillShiftView(){
-   const p=panel(APP==='tills'?'My Till Shift Register':'Cash Office — Shift Review & Exceptions');
+   const p=panel(APP==='tills'?'My Till Shift Register / Close & Cash-Up':'Cash Office — Shift Review & Exceptions');
    p.append(h('p',APP==='tills'?'Open your till shift before checkout. Closing cash count is your declaration; Cash Office handles reconciliation.':'OPEN/CLOSE REGISTER ONLY. Opening float and closing count are employee declarations, not reconciled takings. No sales, deposits, invoices or stock balances are posted.','training-warning'));
    const current=h('div');current.id='shift-current';p.append(current);
    const bar=h('div',undefined,'bar');const refresh=h('button','Refresh shift register','secondary');refresh.addEventListener('click',loadShifts);bar.append(refresh);p.append(bar);
@@ -895,7 +981,8 @@ function page(app){
    const root=E('app-content');
    if(mode==='paid'||mode==='payments'){root.append(paymentQueuePanel());void loadPaymentQueue();return;}
    if(mode==='shifts'){root.append(tillShiftView());void loadShifts();return;}
-   if(mode==='cashup'&&APP==='cashoffice'){root.append(cashupView());void loadCashupPreviews();return;}
+   if(mode==='cashup'&&APP==='cashoffice'){root.append(cashupReconciliationView());void loadCashupReconciliations();return;}
+   if(mode==='cashup'&&APP==='tills'){root.append(tillShiftView());void loadShifts();return;}
    if(mode==='evidence'&&APP==='cashoffice'){root.append(evidenceView());void loadEvidence();return;}
    if(mode==='preparations'){
      const p=panel(APP==='cashoffice'?'Cash Office — Tender preparations (read-only)':'My tender preparations — NOT PAID');
@@ -1230,6 +1317,7 @@ function page(app){
    debtor:[['contact_name','Contact person','text'],['phone','Phone','text'],['email','Email','email'],['credit_limit_cents','Credit limit (R)','money'],['payment_terms_days','Payment terms (days)','integer']]
  };
  let masterPermissions={};
+ let stockPricePermission=false;
  let purchasePermissions={};
  let inventoryPermissions={};
  let supplierInvoicePermissions={};
@@ -1247,7 +1335,7 @@ function page(app){
    tools.append(search,searchButton,refreshButton,auditButton);
    if(masterPermissions[kind]?.write)tools.append(newButton);
    header.append(tools);detail.append(header);
-   const notice=h('p',kind==='stock'?'Branch: '+selectedBranch+' · Selling prices and descriptions come from Group Hub. On-hand reflects posted POS stock movements only (GRVs, transfers and approved stock controls); sales deductions are not yet integrated. Double-click a linked item to edit branch settings.':'Branch: '+selectedBranch+' · Master records do not post supplier/debtor balances, invoices or GL entries.','suite-master-note');detail.append(notice);
+   const notice=h('p',kind==='stock'?'Branch: '+selectedBranch+' · Selling price is branch-specific and editable by authorised managers. Descriptions are controlled in Group Hub. On-hand reflects posted POS movements (GRVs, transfers and approved stock controls); sales deductions are not yet integrated. Double-click a linked item to edit branch settings.':'Branch: '+selectedBranch+' · Master records do not post supplier/debtor balances, invoices or GL entries.','suite-master-note');detail.append(notice);
    const feedback=h('div');feedback.setAttribute('role','status');detail.append(feedback);
    const editor=h('section',undefined,'suite-master-editor');editor.hidden=true;detail.append(editor);
    const listArea=h('div');detail.append(listArea);
@@ -1270,7 +1358,7 @@ function page(app){
          ['Recorded on hand',record?.linked?formatQty(record.on_hand_milli)+' '+(record.details?.unit||'EA'):'Not linked']
        ]){const fact=h('div',undefined,'stock-master-editor-fact');fact.append(h('small',label),h('strong',value));facts.append(fact);}
        editor.append(facts);
-       editor.append(h('p','Description and selling price are controlled by Group Hub / Price Tag Studio. Recorded on-hand cannot be changed here: use an approved stock adjustment or stock take.','muted'));
+       editor.append(h('p',stockPricePermission?'Selling price changes here are saved to the selected branch and used in POS search and quotations. Description remains managed in the Group Hub. Recorded on-hand must be changed via an approved stock adjustment or stock take.':'Selling price may be changed only by an authorised branch manager. Description is controlled by the Group Hub. Recorded on-hand requires an approved adjustment or stock take.','muted'));
        if(inventoryPermissions.transfer||inventoryPermissions.count){
          const stockAction=h('button','Open Stock Adjustment / Stock Take','secondary');stockAction.type='button';
          stockAction.addEventListener('click',()=>{suiteWorkspaceStart('Stock Control');suiteStockControl(inventoryPermissions.transfer?'ADJUSTMENT':'STOCKTAKE');});editor.append(stockAction);
@@ -1282,7 +1370,7 @@ function page(app){
        input.name=key;input.type=type==='money'||type==='integer'?'number':type==='email'?'email':'text';
        if(type==='money'){input.step='0.01';input.min='0';}else if(type==='integer'){input.step='1';input.min='0';}
        input.value=displayValue(value);if(key==='code'||key==='name'||key==='unit')input.required=true;
-       if(kind==='stock'&&['code','name','category','selling_price_cents'].includes(key))input.readOnly=true;
+       if(kind==='stock'&&(['code','name','category'].includes(key)||(key==='selling_price_cents'&&!stockPricePermission)))input.readOnly=true;
        wrap.append(input);form.append(wrap);controls[key]=input;
      };
      addField('code','Code','text',record?.code||'');addField('name','Description / name','text',record?.name||'');
@@ -1313,6 +1401,14 @@ function page(app){
        const body={request_id:pendingId,kind,branch:selectedBranch,code:controls.code.value.trim(),
          name:controls.name.value.trim(),active:active.value==='true',details};
        if(record){body.id=record.id;body.version=record.version;}
+       if(kind==='stock'){
+         const previous=Number(record?.details?.selling_price_cents||0);
+         if(details.selling_price_cents!==previous){
+           if(!stockPricePermission){showMessage('You are not authorised to amend the selling price.');return;}
+           if(details.selling_price_cents<=0){showMessage('Selling price must be greater than R0.00.');return;}
+           body.price_update=true;body.expected_selling_price_cents=previous;
+         }
+       }
        save.disabled=true;showMessage('');
        try{
          const response=await api('/api/master/records',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
@@ -1709,6 +1805,7 @@ function page(app){
    if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
    if(id==='suppliers')return ['Suppliers','Purchase Orders','Invoices and Debit Notes','Audits','Supplier Master CSV File Export'].includes(item);
    if(id==='debtors')return ['Debtors','Audits','Debtors Master CSV/Text File Export'].includes(item);
+   if(id==='backoffice')return item==='Till Cash-Up';
    if(id==='system')return ['User Permissions','Branch Access'].includes(item);
    if(id==='widget')return ['Management Dashboard','Branch Dashboard','Stock Overview'].includes(item);
    if(id==='help')return true;
@@ -1736,6 +1833,9 @@ function page(app){
          b.setAttribute('aria-label',item+' — not available');list.append(b);continue;
        }
        b.addEventListener('click',()=>{
+         if(id==='backoffice'&&item==='Till Cash-Up'){
+           window.location.assign(CASH_OFFICE_URL+'?view=cashup&branch='+encodeURIComponent(branch));return;
+         }
          suiteWorkspaceStart(item);
          if(id==='widget'&&['Management Dashboard','Branch Dashboard'].includes(item)){suiteOperationalDashboard(item==='Management Dashboard'?'management':'branch');return;}
          if(id==='widget'&&item==='Stock Overview'){suiteStockBalances();return;}
@@ -1929,9 +2029,16 @@ function page(app){
    const session=await api('/api/session');
    if(session.password_change_required){changePasswordView();}
    else{
-     masterPermissions=session.master_permissions||{};purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};currentUserEmail=String(session.user.email||'').toLowerCase();currentUserRole=session.user.role;E('signed-in').textContent=APP==='sales'?session.user.name:session.user.name+' · '+session.user.role;
+     masterPermissions=session.master_permissions||{};stockPricePermission=session.stock_price_permission===true;purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};currentUserEmail=String(session.user.email||'').toLowerCase();currentUserRole=session.user.role;E('signed-in').textContent=APP==='sales'?session.user.name:session.user.name+' · '+session.user.role;
      E('access').textContent=APP==='sales'?session.branches.join(', '):session.branches.length+' assigned branch(es)'+(['pos','member'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
-     for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=APP==='sales'&&session.branches.length===1;branch=select.value;select.addEventListener('change',selectBranch);
+     for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=APP==='sales'&&session.branches.length===1;branch=select.value;
+     if(APP==='cashoffice'){
+       const linkParams=new URLSearchParams(window.location.search);
+       const requestedBranch=linkParams.get('branch');
+       if(requestedBranch&&session.branches.includes(requestedBranch)){branch=requestedBranch;select.value=requestedBranch;}
+       if(linkParams.get('view')==='cashup')departmentView='cashup';
+     }
+     select.addEventListener('change',selectBranch);
      if(APP==='sales'){E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;const label=document.querySelector('label[for=branch]');if(label)label.textContent='Store';}
      if(DEPARTMENT_NAV[APP]){
        E('department-user').textContent=session.user.name+' · '+session.user.role;
@@ -1958,6 +2065,7 @@ export default {
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
      '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview',
+     '/api/cashup-reconciliation':'/v1/cashup-reconciliation','/api/cashup-reconciliation/review':'/v1/cashup-reconciliation/review',
      '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
      '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue','/api/master/catalogue/sync':'/v1/master/catalogue/sync',
      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
@@ -1969,7 +2077,7 @@ export default {
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
    if((path==='/v1/team'&&req.method!=='GET')||(['/v1/team/change','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path)&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/cashup-reconciliation/review','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // The Professional suite cannot submit Sales transactions through its old POS origin.
    if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
@@ -1988,6 +2096,9 @@ export default {
       (url.pathname==='/api/till-reviews' && kind!=='cashoffice') ||
       (url.pathname.startsWith('/api/payment-evidence') && kind!=='cashoffice') ||
       (url.pathname==='/api/cashup-preview' && kind!=='cashoffice') ||
+      (url.pathname.startsWith('/api/cashup-reconciliation') && kind!=='cashoffice') ||
+      (url.pathname==='/api/cashup-reconciliation' && req.method!=='GET') ||
+      (url.pathname==='/api/cashup-reconciliation/review' && req.method!=='POST') ||
       (url.pathname==='/api/tender-preparations' && !['tills','cashoffice'].includes(kind)) ||
       (url.pathname==='/api/tender-preparations' && req.method==='POST' && kind!=='tills') ||
       (url.pathname.startsWith('/api/till-shifts') && req.method==='POST' && kind!=='tills'))
