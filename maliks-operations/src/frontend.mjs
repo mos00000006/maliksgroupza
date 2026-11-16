@@ -1,5 +1,6 @@
 import { POWERBUILD_LOGO_BASE64 } from './powerbuild-logo.mjs';
 import { SUITE_INSIGHTS_CLIENT_SCRIPT } from './suite-insights.mjs';
+import { suiteIconMarkup } from './suite-icons.mjs';
 
 const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c => c.charCodeAt(0));
 
@@ -14,11 +15,11 @@ const APPS={
 // Phase 14: The Professional accounting suite and Sales are separate Workers.
 // This is a navigation inventory; unbuilt functions remain previews, not live postings.
 const SUITE_NAV = [
-  ['home','Home','⌂'],['debtors','Debtors','◎'],
-  ['suppliers','Suppliers','▤'],['stock','Stock','▦'],['backoffice','Back Office','▥'],
-  ['dispatching','Dispatching','⇥'],['headoffice','Head Office','◇'],
-  ['system','System Settings','⚙'],['widget','Widget','◫'],
-  ['help','Help','?'],['lock','Lock','♙'],['exit','Exit','⏻'],
+  ['home','Home'],['debtors','Debtors'],
+  ['suppliers','Suppliers'],['stock','Stock'],['backoffice','Back Office'],
+  ['dispatching','Dispatching'],['headoffice','Head Office'],
+  ['system','System Settings'],['widget','Widget'],
+  ['help','Help'],['lock','Lock'],['exit','Exit'],
 ];
 const SUITE_MENU_TREE = {
   debtors: {
@@ -72,7 +73,7 @@ const SUITE_MENU_TREE = {
 };
 const SUITE_TITLES = Object.fromEntries(SUITE_NAV.map(([id,label])=>[id,label]));
 function suiteHeader(){
-  const buttons=SUITE_NAV.map(([id,label,symbol])=>`<button type="button" data-suite-module="${id}" class="suite-nav-button" aria-pressed="false"><span class="suite-nav-icon" aria-hidden="true">${symbol}</span><span>${label}</span></button>`).join('');
+  const buttons=SUITE_NAV.map(([id,label])=>`<button type="button" data-suite-module="${id}" class="suite-nav-button" aria-pressed="false"><span class="suite-nav-icon" aria-hidden="true">${suiteIconMarkup(id)}</span><span>${label}</span></button>`).join('');
   return `<header id="suite-navigation" class="suite-header" hidden>
     <div class="suite-brandbar"><button type="button" class="suite-brand" data-suite-module="home" aria-label="Maliks Professional home"><img class="suite-brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="66" height="66"/><span class="suite-brand-text"><strong>MALIKS <span>POS</span></strong><small>ACCOUNTING &amp; POS SOLUTIONS <em>PROFESSIONAL</em></small></span></button><span class="suite-system-status">● SECURE WORKSPACE</span><span id="suite-user" class="suite-user">Signed in</span></div>
     <nav class="suite-navbar" aria-label="Maliks Professional modules">${buttons}</nav>
@@ -169,7 +170,7 @@ function page(app){
  .suite-navbar{display:flex;align-items:stretch;overflow-x:auto;scrollbar-width:thin;background:#182e47;padding:0 20px;gap:2px}
  .suite-nav-button{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;min-width:91px;min-height:76px;border:0;border-radius:0;background:transparent;color:#b8cde1;font-size:11px;font-weight:700;padding:10px 13px;white-space:nowrap;border-bottom:3px solid transparent;transition:background .18s,color .18s}
  .suite-nav-button:hover{background:#ffffff12;color:#fff}.suite-nav-button[aria-pressed="true"]{background:#ffffff13;color:#fff;border-bottom-color:#e9c66f}
- .suite-nav-icon{font-size:23px;line-height:1;font-weight:700;color:#e4bb66}.suite-nav-button:focus-visible{outline:2px solid #f4d78c;outline-offset:-4px}
+ .suite-nav-icon{display:flex;align-items:center;justify-content:center;width:28px;height:28px;color:#e4bb66}.suite-nav-icon svg{display:block;width:26px;height:26px;stroke:currentColor}.suite-nav-button:focus-visible{outline:2px solid #f4d78c;outline-offset:-4px}
  .suite-shell{display:block;min-height:calc(100vh - 160px)}.suite-shell>aside{display:none}.suite-shell>main{max-width:1480px;padding:30px clamp(16px,3vw,46px) 60px}
  .suite-shell .top{margin-bottom:16px}.suite-shell .top h2{font-size:25px;color:#152a44}.suite-shell .top .tag{background:#e8f3fa;color:#24607e;border:1px solid #c6dbe9}
  .suite-shell .panel{border-radius:13px;box-shadow:0 4px 16px #102a4b0b}
