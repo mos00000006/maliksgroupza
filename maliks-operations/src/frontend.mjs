@@ -463,6 +463,23 @@ function page(app){
    thermalFooter(sheet,['Present this quotation at Tills to make payment.','No goods may be collected using this quotation.']);
    return printThermalSheet(sheet);
  }
+ function printA4Quote(row){
+   if(!row||row.branch!==branch||!Array.isArray(row.lines))throw Error('Select the matching branch before printing.');
+   const sheet=h('section',undefined,'print-sheet');
+   printHeader(sheet,'CUSTOMER QUOTATION',row.number,'MALIKS SALES · NOT PAID');
+   printMetadata(sheet,[['Branch',row.branch],['Quotation',row.number],['Date',showDate(row.created_at)],
+     ['Salesperson',row.submitted_by_name||'—'],['Customer',row.customer_name],['Contact',row.customer_contact||'—'],
+     ['Payment status','NOT PAID · QUOTATION ONLY']]);
+   printItems(sheet,row.lines,true);
+   const totals=h('div',undefined,'doc-totals');
+   for(const [label,amount,isGrand] of [['Total excluding VAT',row.net_cents,false],['VAT included (15%)',row.vat_cents,false],['Total quotation',row.total_cents,true]]){
+     const line=h('p');line.append(h(isGrand?'strong':'span',label),h(isGrand?'strong':'span',money(amount)));totals.append(line);
+   }
+   sheet.append(totals);
+   const foot=h('div',undefined,'doc-foot');
+   foot.append(h('p','NOT PAID — QUOTATION ONLY. No stock is reserved, no invoice issued and no goods may be released using this quotation. Confirm price and stock availability before payment.'));
+   sheet.append(foot);printDocument(sheet);
+ }
  function renderQuotes(target,list){
    const body=E(target);if(!body)return;body.replaceChildren();
    if(!list.length){const r=h('tr');const c=h('td','No quotations found.','empty');c.colSpan=6;r.append(c);body.append(r);return;}
@@ -471,7 +488,8 @@ function page(app){
      const td=h('td',undefined,'row-actions');const view=h('button','Details','secondary small-btn');view.type='button';
      view.setAttribute('aria-expanded','false');
      const print=h('button','Print 80mm quote','secondary small-btn');print.type='button';print.addEventListener('click',()=>void printQuote(row).catch(e=>err(e.message)));
-     td.append(view,print);r.append(td);body.append(r);
+     const a4=h('button','Print A4 quotation','secondary small-btn');a4.type='button';a4.addEventListener('click',()=>{try{printA4Quote(row);}catch(e){err(e.message);}});
+     td.append(view,print,a4);r.append(td);body.append(r);
      const detailRow=h('tr');detailRow.hidden=true;const c=h('td');c.colSpan=6;c.append(quoteDetails(row));detailRow.append(c);body.append(detailRow);
      view.addEventListener('click',()=>{detailRow.hidden=!detailRow.hidden;view.setAttribute('aria-expanded',String(!detailRow.hidden));view.textContent=detailRow.hidden?'Details':'Hide';});
    }
@@ -490,7 +508,12 @@ function page(app){
      root.append(tools);
    }
    if(mode==='history'){
-     const recent=panel('My recent quotations');const controls=h('div',undefined,'bar');const refresh=h('button','Refresh my quotations','secondary');refresh.type='button';refresh.addEventListener('click',loadOwnQuotes);controls.append(refresh);recent.append(controls);recent.append(makeQuoteTable('own-quotes'));recent.append(h('p','Showing quotations for this signed-in account and branch only.','tiny'));root.append(recent);void loadOwnQuotes();return;
+     const recent=panel('My recent quotations');const controls=h('div',undefined,'bar');const refresh=h('button','Refresh my quotations','secondary');refresh.type='button';refresh.addEventListener('click',loadOwnQuotes);controls.append(refresh);recent.append(controls);recent.append(makeQuoteTable('own-quotes'));recent.append(h('p','Showing quotations for this signed-in account and branch.','tiny'));root.append(recent);
+     const shared=panel('Branch quotation print queue · Mobile + PC');const bar=h('div',undefined,'bar');const search=h('input');search.id='branch-quote-filter';search.placeholder='Search number, customer or salesperson';search.maxLength=100;
+     const filter=h('button','Find quotation','secondary');filter.type='button';filter.addEventListener('click',loadBranchQuoteQueue);bar.append(search,filter);shared.append(bar);
+     const hint=h('p','Sales staff at this branch can print a quotation saved on Maliks Quote mobile. No payment or stock posting happens here.','tiny');shared.append(hint);
+     shared.append(makeQuoteTable('branch-quote-rows'));root.append(shared);
+     void loadOwnQuotes();void loadBranchQuoteQueue();return;
    }
    const two=h('div',undefined,'two');const lookup=panel('Product catalogue');
    const bar=h('div',undefined,'bar');const field=h('div');const l=h('label','Search products');l.htmlFor='search';field.append(l);
@@ -517,6 +540,14 @@ function page(app){
    checkout.append(h('p','This action only submits a quotation. No payment, tax invoice, stock deduction or dispatch release occurs.','tiny'));
    const confirmation=h('div');confirmation.id='confirmation';checkout.append(confirmation);two.append(lookup,checkout);root.append(two);
    drawBasket();
+ }
+ async function loadBranchQuoteQueue(){
+   const target=E('branch-quote-rows');if(!target)return;const branchAtStart=branch;
+   target.replaceChildren();const tr=h('tr'),td=h('td','Loading branch quotations…');td.colSpan=6;tr.append(td);target.append(tr);
+   try{const input=E('branch-quote-filter')?.value.trim()||'';const data=await api('/api/quote/branch-queue?'+new URLSearchParams({branch:branchAtStart,q:input}));
+     if(branch!==branchAtStart||!target.isConnected)return;
+     renderQuotes('branch-quote-rows',data.quotes||[]);
+   }catch(e){if(branch===branchAtStart&&target.isConnected){target.replaceChildren();const error=h('tr'),cell=h('td','Branch print queue unavailable: '+e.message);cell.colSpan=6;error.append(cell);target.append(error);}}
  }
  async function loadOwnQuotes(){
    const body=E('own-quotes');if(!body)return;const selected=branch;body.replaceChildren();const row=h('tr');const c=h('td','Loading quotations…');c.colSpan=6;row.append(c);body.append(row);
@@ -2063,7 +2094,7 @@ export default {
    const url=new URL(req.url);
    if(url.pathname==='/powerbuild-logo.png' && req.method==='GET')return new Response(POWERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
-   const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
+   const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find','/api/quote/branch-queue':'/v1/quote/branch-queue',
      '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview',
      '/api/cashup-reconciliation':'/v1/cashup-reconciliation','/api/cashup-reconciliation/review':'/v1/cashup-reconciliation/review',
      '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
@@ -2085,7 +2116,7 @@ export default {
    if(kind==='member' && !['/v1/session','/v1/team','/v1/team/change','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Team app only.'},{status:403});
    if(kind!=='member' && path.startsWith('/v1/team'))return Response.json({error:'Team app only.'},{status:403});
    // The dedicated Sales Worker may only access the quotation/catalogue APIs.
-   if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
+   if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find','/v1/quote/branch-queue','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
    // Department rules enforced here as an early deny and again by the private Core.
    if((url.pathname.startsWith('/api/dispatch-jobs') && kind!=='dispatch') ||
       (url.pathname==='/api/payments/verify' && kind!=='cashoffice') ||

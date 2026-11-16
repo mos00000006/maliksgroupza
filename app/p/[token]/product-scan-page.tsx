@@ -35,6 +35,12 @@ export default function ProductScanPage({ token, branch = "", initialProduct = n
         <div className={styles.productInfo}><div className={styles.code}>PRODUCT CODE · {product.code}</div>{product.branch_name && product.branch_name.trim().toLowerCase() !== ALL_BRANCHES.toLowerCase() && <div className={styles.branchPrice}>PRICE FOR {product.branch_name.toUpperCase()}</div>}<h1>{product.name}</h1>{product.colour && <p>Colour: <b>{product.colour}</b></p>}<div className={styles.price}>{money(product.price_cents)}<span>{product.unit === "M2" ? "per m²" : product.unit === "BOX" ? "per box" : "each"}</span></div><p className={styles.vat}>Price includes VAT</p>
           {product.is_tile && <div className={styles.packs}><span><b>{product.coverage_per_box} m²</b>per box</span>{product.pieces_per_box > 0 && <span><b>{product.pieces_per_box} {Number(product.pieces_per_box) === 1 ? "tile" : "tiles"}</b>per box</span>}{product.tile_width_mm > 0 && product.tile_length_mm > 0 && <span><b>{product.tile_width_mm} × {product.tile_length_mm}</b>mm per tile</span>}</div>}
           {product.kind === "combo" && <div className={styles.comboIncludes}><h2>{product.includes_title || "This combo includes"}</h2><ul>{product.includes_text?.split("\n").filter(line=>line.trim()).map((line,index)=><li key={index}>{line}</li>)}</ul></div>}
+          {product.kind !== "combo" && <div style={{ marginTop: 16, borderRadius: 12, border: "1px solid #D4A017", background: "#FFFFFF", padding: 12 }}>
+            <a href={`https://maliks-quote.moyanamoses006.workers.dev/?tag=${encodeURIComponent(token)}${branch ? `&branch=${encodeURIComponent(branch)}&tag_branch=${encodeURIComponent(branch)}` : ""}`}
+              style={{ display: "block", padding: "14px 16px", borderRadius: 9, background: "#0A2A3F", color: "#FFFFFF", textAlign: "center", fontWeight: 800, textDecoration: "none" }}>
+              Staff · Add to Maliks Quote
+            </a><small style={{ display: "block", textAlign: "center", marginTop: 7, color: "#0A2A3F" }}>Sales employee login required. Prices are checked again for your selected branch.</small>
+          </div>}
           <p className={styles.note}>While stocks last. Confirm availability with our team.</p></div>
       </section>
       {product.is_tile && <section className={styles.measure} aria-label="Tile smart measure"><header><div><span>LESS GUESSWORK. THE RIGHT QUANTITY.</span><h2>Smart Measure</h2><p>Plan your space and see how many full boxes you need.</p></div><div className={styles.measureMark}>m²</div></header>
