@@ -128,11 +128,18 @@ export async function listMasterRecords(req,env,context){
       version:r.version||0,updated_at:r.master_updated_at||r.updated_at}));
     return json({kind,branch,records,total:Number(total),page,page_size:100,pages:Math.max(1,Math.ceil(Number(total)/100)),catalogue_source:true});
   }
+  const pageRaw=Number(params.get('page')||1);
+  if(!Number.isSafeInteger(pageRaw)||pageRaw<1||pageRaw>10000)return fail('Invalid page.');
+  const {total}=await env.DB.prepare(`SELECT COUNT(*) AS total FROM maliks_pos_master_records
+    WHERE kind=? AND lower(branch)=lower(?)
+    AND (?='' OR instr(lower(code),?)>0 OR instr(lower(name),?)>0)`)
+    .bind(kind,branch,term,term,term).first();
   const {results}=await env.DB.prepare(`SELECT id,kind,branch,code,name,active,details_json,version,updated_at
     FROM maliks_pos_master_records WHERE kind=? AND lower(branch)=lower(?)
     AND (?='' OR instr(lower(code),?)>0 OR instr(lower(name),?)>0)
-    ORDER BY name LIMIT 100`).bind(kind,branch,term,term,term).all();
-  return json({kind,branch,records:results.map(recordForClient)});
+    ORDER BY name,id LIMIT 100 OFFSET ?`).bind(kind,branch,term,term,term,(pageRaw-1)*100).all();
+  return json({kind,branch,records:results.map(recordForClient),total:Number(total),page:pageRaw,page_size:100,
+    pages:Math.max(1,Math.ceil(Number(total)/100))});
 }
 export async function listMasterAudit(req,env,context){
   if(context.app!=='management')return fail('Management workspace required.',403);
