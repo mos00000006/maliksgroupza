@@ -14,6 +14,12 @@ export async function GET(req: Request) {
   const pageSize = Math.min(48, Math.max(6, requestedSize));
   const q = (url.searchParams.get("q") || "").trim().toLowerCase();
   const category = (url.searchParams.get("category") || "").trim();
+  // Catalogue storefront only: other consumers (buyers, POS and stock orders)
+  // intentionally retain access to SKUs that have no marketing photograph.
+  const photosOnly = url.searchParams.get("photosOnly") === "1";
+  const photoFilterSql = photosOnly
+    ? " AND length(trim(coalesce(image_key, ''))) > 0 AND lower(trim(image_key)) NOT IN ('static:', 'external:', 'none', 'null', 'undefined')"
+    : "";
   // Display true window blinds under their dedicated department without accidentally
   // hiding blind rivets, flanges, plugs, caps, or nuts from their normal categories.
   // All matching expressions are constants; the category remains a bound parameter.
@@ -35,7 +41,7 @@ export async function GET(req: Request) {
   const count = q && category
     ? await env.DB.prepare(
         `SELECT COUNT(*) AS total FROM catalogue_products
-         WHERE active=1 AND ${categorySql} AND (
+         WHERE active=1${photoFilterSql} AND ${categorySql} AND (
            lower(name) LIKE ? OR lower(code) LIKE ? OR lower(description) LIKE ? OR lower(category) LIKE ?
          )`,
       )
@@ -43,19 +49,19 @@ export async function GET(req: Request) {
         .first<{ total: number }>()
     : category
       ? await env.DB.prepare(
-          `SELECT COUNT(*) AS total FROM catalogue_products WHERE active=1 AND ${categorySql}`,
+          `SELECT COUNT(*) AS total FROM catalogue_products WHERE active=1${photoFilterSql} AND ${categorySql}`,
         ).bind(...filterBind).first<{ total: number }>()
       : q
     ? await env.DB.prepare(
         `SELECT COUNT(*) AS total FROM catalogue_products
-         WHERE active=1 AND (
+         WHERE active=1${photoFilterSql} AND (
            lower(name) LIKE ? OR lower(code) LIKE ? OR lower(description) LIKE ? OR lower(category) LIKE ?
          )`,
       )
         .bind(like, like, like, like)
         .first<{ total: number }>()
     : await env.DB.prepare(
-        "SELECT COUNT(*) AS total FROM catalogue_products WHERE active=1",
+        `SELECT COUNT(*) AS total FROM catalogue_products WHERE active=1${photoFilterSql}`,
       ).first<{ total: number }>();
 
   const total = Number(count?.total || 0);
@@ -66,25 +72,25 @@ export async function GET(req: Request) {
   const query = q && category
     ? env.DB.prepare(
         `SELECT * FROM catalogue_products
-         WHERE active=1 AND ${categorySql} AND (
+         WHERE active=1${photoFilterSql} AND ${categorySql} AND (
            lower(name) LIKE ? OR lower(code) LIKE ? OR lower(description) LIKE ? OR lower(category) LIKE ?
          )
          ORDER BY id DESC LIMIT ? OFFSET ?`,
       ).bind(...filterBind, like, like, like, like, pageSize, offset)
     : category
       ? env.DB.prepare(
-          `SELECT * FROM catalogue_products WHERE active=1 AND ${categorySql} ORDER BY id DESC LIMIT ? OFFSET ?`,
+          `SELECT * FROM catalogue_products WHERE active=1${photoFilterSql} AND ${categorySql} ORDER BY id DESC LIMIT ? OFFSET ?`,
         ).bind(...filterBind, pageSize, offset)
       : q
         ? env.DB.prepare(
             `SELECT * FROM catalogue_products
-             WHERE active=1 AND (
+             WHERE active=1${photoFilterSql} AND (
                lower(name) LIKE ? OR lower(code) LIKE ? OR lower(description) LIKE ? OR lower(category) LIKE ?
              )
              ORDER BY id DESC LIMIT ? OFFSET ?`,
           ).bind(like, like, like, like, pageSize, offset)
         : env.DB.prepare(
-            "SELECT * FROM catalogue_products WHERE active=1 ORDER BY id DESC LIMIT ? OFFSET ?",
+            `SELECT * FROM catalogue_products WHERE active=1${photoFilterSql} ORDER BY id DESC LIMIT ? OFFSET ?`,
           ).bind(pageSize, offset);
 
   const { results } = await query.all<Record<string, unknown>>();
@@ -121,6 +127,10 @@ export async function POST(req: Request) {
       { error: "Product code and product name are required." },
       { status: 400 },
     );
+
+  // The public catalogue now requires a photograph for new entries.
+  if (!(image instanceof File) || image.size === 0)
+    return Response.json({ error: "A product picture is required for the catalogue." }, { status: 400 });
 
   let imageKey = "";
   let imageName = "";

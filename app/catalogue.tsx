@@ -235,6 +235,12 @@ const CATALOGUE_CATEGORIES = [
 
 export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?: string }) {
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
+  const [brokenPhotoIds, setBrokenPhotoIds] = useState<Set<number>>(() => new Set());
+  // Even a stale R2/external image link must never leave a blank product card.
+  const visibleProducts = useMemo(
+    () => products.filter((product) => Boolean(product.image_url?.trim()) && !brokenPhotoIds.has(product.id)),
+    [products, brokenPhotoIds],
+  );
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -287,6 +293,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       const params = new URLSearchParams({
         page: String(targetPage),
         pageSize: String(CATALOGUE_PAGE_SIZE),
+        photosOnly: "1",
       });
       if (search.trim()) params.set("q", search.trim());
       if (category && category !== "All Products") params.set("category", category);
@@ -537,6 +544,10 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
       setError("Enter the product code and product name.");
       return;
     }
+    if (!editing && !image) {
+      setError("Please select a product picture before adding it to the catalogue.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -572,7 +583,7 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
     let exportPage = 1;
     let exportPages = 1;
     do {
-      const params = new URLSearchParams({ page: String(exportPage), pageSize: "48" });
+      const params = new URLSearchParams({ page: String(exportPage), pageSize: "48", photosOnly: "1" });
       const response = await fetch(`/api/catalogue?${params.toString()}`);
       const result = await apiResult(response);
       collected.push(...(result.products || []));
@@ -763,29 +774,31 @@ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?
         <div className="catalogueLoading">Loading catalogue products…</div>
       ) : error && products.length === 0 ? (
         <div className="catalogueEmpty"><h3>Catalogue temporarily unavailable</h3><p>The products could not be loaded. Please follow the message above and try again later.</p></div>
-      ) : products.length === 0 ? (
+      ) : visibleProducts.length === 0 ? (
         <div className="catalogueEmpty">
           <i>▧</i>
           <h3>{query || categoryFilter !== "All Products" ? "No products match this catalogue view" : "The catalogue is ready for products"}</h3>
-          <p>{query || categoryFilter !== "All Products" ? `Try another product name, code or category${categoryFilter !== "All Products" ? `, or add products under ${categoryFilter}.` : "."}` : canManage ? "Add the first product, code, description and picture." : "Catalogue products will appear here once they are added."}</p>
+          <p>{query || categoryFilter !== "All Products" ? `Try another product name, code or category${categoryFilter !== "All Products" ? `, or add products under ${categoryFilter}.` : "."}` : canManage ? "Add the first product, code, description and picture." : "Only products with working pictures appear in the catalogue."}</p>
           {!query && canManage && <button className="primary" onClick={openAdd}>Add first product</button>}
         </div>
       ) : (
         <>
           <div className="catalogueGrid">
-            {products.map((product) => {
+            {visibleProducts.map((product) => {
               const assorted = isAssortedProduct(product);
               const tommyFixVariant = getTommyFixVariant(product);
               const displayDescription = getCatalogueDisplayDescription(product, assorted, tommyFixVariant);
               return (
               <article className={`catalogueCard${assorted ? " catalogueCard--assorted" : ""}${tommyFixVariant ? " catalogueCard--tommy" : ""}`} key={product.id}>
                 <div className="catalogueImage">
-                  {product.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={product.image_url} alt={product.name} loading="lazy" />
-                  ) : (
-                    <div><i>▧</i><small>Product image</small></div>
-                  )}
+                  {/* Photo-only catalogue: never render a no-image placeholder. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    loading="lazy"
+                    onError={() => setBrokenPhotoIds((previous) => new Set(previous).add(product.id))}
+                  />
                   {!assorted && <b>{product.code}</b>}
                 </div>
                 <div className="catalogueCardBody">

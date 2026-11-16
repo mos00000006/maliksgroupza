@@ -25,19 +25,16 @@ const PAGE_W = 595.28;
 const PAGE_H = 841.89;
 const CANVAS_W = 2480;
 const CANVAS_H = 3508;
-const PRODUCT_PAGE_COLUMNS = 3;
-const PRODUCT_PAGE_ROWS = 4;
+const PRODUCT_PAGE_COLUMNS = 2;
+const PRODUCT_PAGE_ROWS = 3;
 const PRODUCT_PAGE_CAPACITY = PRODUCT_PAGE_COLUMNS * PRODUCT_PAGE_ROWS;
+const CONTENTS_ROWS_PER_COLUMN = 14;
+const CONTENTS_PAGE_CAPACITY = CONTENTS_ROWS_PER_COLUMN * 2;
 let renderScaleOverride: number | null = null;
 
-const pageRenderScale = () => {
-  if (renderScaleOverride !== null) return renderScaleOverride;
-  if (typeof window === "undefined") return 1;
-  const width = Math.min(window.innerWidth || 9999, window.screen?.width || 9999);
-  if (width <= 760) return 0.8;
-  if (width <= 1024) return 0.9;
-  return 1;
-};
+// The downloadable A4 PDF is always drawn at 300 DPI, regardless of device.
+// Only the interactive leaflet uses reduced-resolution screen previews.
+const pageRenderScale = () => renderScaleOverride ?? 1;
 
 const createPageCanvas = () => {
   const scale = pageRenderScale();
@@ -316,11 +313,12 @@ const drawCenteredLines = (
   startY: number,
   lineHeight: number,
   fill: string,
+  maxWidth?: number,
 ) => {
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   ctx.fillStyle = fill;
-  lines.forEach((line, index) => ctx.fillText(line, centreX, startY + index * lineHeight));
+  lines.forEach((line, index) => ctx.fillText(line, centreX, startY + index * lineHeight, maxWidth));
 };
 
 const drawImageContain = (
@@ -365,26 +363,29 @@ const drawFooter = (
   page: number,
   totalPages: number,
 ) => {
+  // Keep all text away from non-printable printer edges (5 mm safe zone).
+  const footerTop = CANVAS_H - 170;
+  const margin = 58;
   ctx.fillStyle = WHITE;
-  ctx.fillRect(0, CANVAS_H - 92, CANVAS_W, 92);
+  ctx.fillRect(0, footerTop, CANVAS_W, 170);
   ctx.fillStyle = YELLOW;
-  ctx.fillRect(0, CANVAS_H - 92, CANVAS_W, 7);
+  ctx.fillRect(margin, footerTop + 8, CANVAS_W - margin * 2, 7);
   ctx.fillStyle = NAVY;
-  ctx.fillRect(0, CANVAS_H - 85, CANVAS_W, 85);
+  ctx.fillRect(margin, footerTop + 15, CANVAS_W - margin * 2, 99);
 
   ctx.textBaseline = "middle";
   ctx.fillStyle = WHITE;
-  ctx.font = `700 20px ${FONT_BOLD}`;
+  ctx.font = `700 26px ${FONT_BOLD}`;
   ctx.textAlign = "left";
-  ctx.fillText("POWERBUILD WHOLESALE DIVISION", 54, CANVAS_H - 54);
+  ctx.fillText("POWERBUILD WHOLESALE DIVISION", margin + 30, footerTop + 53);
 
-  ctx.font = `600 19px ${FONT_REGULAR}`;
+  ctx.font = `600 24px ${FONT_REGULAR}`;
   ctx.textAlign = "center";
-  ctx.fillText("www.powerbuild.co.za  ·  For orders & enquiries, contact your PowerBuild representative", CANVAS_W / 2, CANVAS_H - 30);
+  ctx.fillText("www.powerbuild.co.za  |  For orders and enquiries, contact your representative", CANVAS_W / 2, footerTop + 88);
 
-  ctx.font = `700 19px ${FONT_BOLD}`;
+  ctx.font = `700 26px ${FONT_BOLD}`;
   ctx.textAlign = "right";
-  ctx.fillText(`${page} / ${totalPages}`, CANVAS_W - 54, CANVAS_H - 54);
+  ctx.fillText(`${page} / ${totalPages}`, CANVAS_W - margin - 30, footerTop + 53);
 };
 
 const drawCoverPage = async (productCount: number, cover: LoadedImage | null) => {
@@ -398,7 +399,7 @@ const drawCoverPage = async (productCount: number, cover: LoadedImage | null) =>
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   if (cover) {
-    const margin = 24;
+    const margin = 54;
     drawImageContain(ctx, cover, margin, margin, CANVAS_W - margin * 2, CANVAS_H - margin * 2);
     return canvasToJpeg(canvas, 0.985);
   }
@@ -431,56 +432,61 @@ const drawContentsPage = async (
   plans: CategoryPlan[],
   logo: LoadedImage | null,
   totalPages: number,
+  contentsPage: number,
+  contentsPages: number,
 ) => {
   const { canvas, ctx } = createPageCanvas();
-
-  ctx.fillStyle = LIGHT;
+  ctx.fillStyle = WHITE;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  drawRoundedRect(ctx, 36, 30, CANVAS_W - 72, 132, 26, WHITE, MID, 2);
-  drawLogo(ctx, logo, 62, 52, 190, 86);
+  drawRoundedRect(ctx, 50, 46, CANVAS_W - 100, 160, 20, WHITE, MID, 2);
+  drawLogo(ctx, logo, 80, 72, 238, 112);
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = BLUE;
-  ctx.font = `900 48px ${FONT_BOLD}`;
-  ctx.fillText("CONTENTS", CANVAS_W - 66, 82);
+  ctx.fillStyle = NAVY;
+  ctx.font = `900 57px ${FONT_BOLD}`;
+  ctx.fillText("CATALOGUE CONTENTS", CANVAS_W - 92, 111);
   ctx.fillStyle = MUTED;
-  ctx.font = `600 24px ${FONT_REGULAR}`;
-  ctx.fillText("Wholesale product categories", CANVAS_W - 66, 124);
+  ctx.font = `600 28px ${FONT_REGULAR}`;
+  ctx.fillText(`Categories and page numbers  |  ${contentsPage} of ${contentsPages}`, CANVAS_W - 92, 163);
 
-  const startY = 216;
-  const rowH = 112;
-  plans.forEach((plan, index) => {
-    const y = startY + index * rowH;
-    drawShadow(ctx, 10, "rgba(15, 23, 42, 0.06)", 3);
-    drawRoundedRect(ctx, 58, y, CANVAS_W - 116, 88, 18, WHITE, "#e0e8f1", 1.5);
-    clearShadow(ctx);
+  ctx.fillStyle = YELLOW;
+  ctx.fillRect(58, 229, CANVAS_W - 116, 8);
+  const offset = (contentsPage - 1) * CONTENTS_PAGE_CAPACITY;
+  const slice = plans.slice(offset, offset + CONTENTS_PAGE_CAPACITY);
+  const gap = 28;
+  const margin = 64;
+  const columnW = (CANVAS_W - margin * 2 - gap) / 2;
+  const rowHeight = 218;
+  const firstY = 272;
 
-    drawRoundedRect(ctx, 76, y + 18, 54, 52, 14, index % 2 === 0 ? BLUE : NAVY);
-    ctx.fillStyle = WHITE;
-    ctx.textAlign = "center";
+  slice.forEach((plan, index) => {
+    const col = index % 2;
+    const row = Math.floor(index / 2);
+    const x = margin + col * (columnW + gap);
+    const y = firstY + row * rowHeight;
+    drawRoundedRect(ctx, x, y, columnW, 194, 18, LIGHT, MID, 1.2);
+    drawRoundedRect(ctx, x + 15, y + 20, 66, 62, 12, NAVY);
     ctx.textBaseline = "middle";
-    ctx.font = `900 23px ${FONT_BOLD}`;
-    ctx.fillText(String(index + 1).padStart(2, "0"), 103, y + 44);
-
-    ctx.textAlign = "left";
-    ctx.fillStyle = TEXT;
-    ctx.font = `900 30px ${FONT_BOLD}`;
-    ctx.fillText(plan.category.toUpperCase(), 154, y + 34);
-    ctx.fillStyle = MUTED;
-    ctx.font = `600 21px ${FONT_REGULAR}`;
-    ctx.fillText(`${plan.items.length} products`, 154, y + 62);
-
-    drawRoundedRect(ctx, CANVAS_W - 260, y + 17, 176, 54, 16, SOFT_BLUE, "#c9dced", 1.5);
     ctx.textAlign = "center";
+    ctx.fillStyle = WHITE;
+    ctx.font = `900 30px ${FONT_BOLD}`;
+    ctx.fillText(String(offset + index + 1).padStart(2, "0"), x + 48, y + 51);
+    ctx.fillStyle = NAVY;
+    ctx.font = `900 29px ${FONT_BOLD}`;
+    ctx.textAlign = "left";
+    ctx.fillText(plan.category.toUpperCase(), x + 96, y + 48, columnW - 116);
+    ctx.fillStyle = MUTED;
+    ctx.font = `600 25px ${FONT_REGULAR}`;
+    ctx.fillText(`${plan.items.length} products with photographs`, x + 24, y + 117, columnW - 48);
     ctx.fillStyle = BLUE;
-    ctx.font = `900 23px ${FONT_BOLD}`;
-    const pageText = plan.startPage === plan.endPage ? `PAGE ${plan.startPage}` : `PAGES ${plan.startPage}-${plan.endPage}`;
-    ctx.fillText(pageText, CANVAS_W - 172, y + 44);
+    ctx.font = `900 27px ${FONT_BOLD}`;
+    const text = plan.startPage === plan.endPage ? `PAGE ${plan.startPage}` : `PAGES ${plan.startPage}-${plan.endPage}`;
+    ctx.fillText(text, x + 24, y + 160);
   });
 
-  drawFooter(ctx, 2, totalPages);
-  return canvasToJpeg(canvas, 0.975);
+  drawFooter(ctx, 1 + contentsPage, totalPages);
+  return canvasToJpeg(canvas, 0.94);
 };
 
 const isAssortedProduct = (product: WholesaleCatalogueProduct) => {
@@ -491,7 +497,7 @@ const isAssortedProduct = (product: WholesaleCatalogueProduct) => {
 const drawProductCard = (
   ctx: CanvasRenderingContext2D,
   product: WholesaleCatalogueProduct,
-  image: LoadedImage | null,
+  image: LoadedImage,
   x: number,
   y: number,
   width: number,
@@ -504,33 +510,22 @@ const drawProductCard = (
   const imageFrameX = x + 18;
   const imageFrameY = y + 18;
   const imageFrameW = width - 36;
-  const imageFrameH = height - 219;
+  const imageFrameH = height - 260;
   drawRoundedRect(ctx, imageFrameX, imageFrameY, imageFrameW, imageFrameH, 16, LIGHT, MID, 1.4);
 
-  if (image) {
-    drawImageContain(ctx, image, imageFrameX + 10, imageFrameY + 10, imageFrameW - 20, imageFrameH - 20);
-  } else {
-    ctx.fillStyle = "#9aa8b7";
-    ctx.font = `900 20px ${FONT_BOLD}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("PRODUCT IMAGE", x + width / 2, imageFrameY + imageFrameH / 2 - 10);
-    ctx.fillStyle = MUTED;
-    ctx.font = `600 17px ${FONT_REGULAR}`;
-    ctx.fillText("Upload in catalogue", x + width / 2, imageFrameY + imageFrameH / 2 + 20);
-  }
+  drawImageContain(ctx, image, imageFrameX + 18, imageFrameY + 18, imageFrameW - 36, imageFrameH - 36);
 
   const name = cleanText(product.name || product.description || product.code);
-  ctx.font = `900 28px ${FONT_BOLD}`;
-  const nameLines = wrapCanvasText(ctx, name, width - 40, 2);
-  const nameTop = y + height - 184;
-  drawCenteredLines(ctx, nameLines, x + width / 2, nameTop, 32, TEXT);
+  ctx.font = `900 42px ${FONT_BOLD}`;
+  const nameLines = wrapCanvasText(ctx, name, width - 104, 2);
+  const nameTop = y + height - 215;
+  drawCenteredLines(ctx, nameLines, x + width / 2, nameTop, 48, TEXT, width - 104);
 
   const subtitle = cleanText(product.description && product.description !== product.name ? product.description : "");
   if (subtitle && nameLines.length < 2) {
-    ctx.font = `600 20px ${FONT_REGULAR}`;
-    const subtitleLines = wrapCanvasText(ctx, subtitle, width - 44, 1);
-    drawCenteredLines(ctx, subtitleLines, x + width / 2, nameTop + 68, 23, MUTED);
+    ctx.font = `600 26px ${FONT_REGULAR}`;
+    const subtitleLines = wrapCanvasText(ctx, subtitle, width - 98, 1);
+    drawCenteredLines(ctx, subtitleLines, x + width / 2, nameTop + 103, 29, MUTED, width - 98);
   }
 
   const assorted = isAssortedProduct(product);
@@ -599,25 +594,27 @@ const drawProductPage = async (
   ctx.fillStyle = YELLOW;
   ctx.fillRect(84, 194, CANVAS_W - 168, 6);
 
-  const gridX = 44;
-  const gridY = 224;
+  const gridX = 70;
+  const gridY = 238;
   const cols = PRODUCT_PAGE_COLUMNS;
   const rows = PRODUCT_PAGE_ROWS;
-  const gapX = 18;
-  const gapY = 18;
+  const gapX = 24;
+  const gapY = 22;
   const cardW = (CANVAS_W - gridX * 2 - gapX * (cols - 1)) / cols;
-  const cardH = (CANVAS_H - gridY - 124 - gapY * (rows - 1)) / rows;
+  const cardH = (CANVAS_H - gridY - 200 - gapY * (rows - 1)) / rows;
 
   items.forEach((product, index) => {
     const row = Math.floor(index / cols);
     const col = index % cols;
     const x = gridX + col * (cardW + gapX);
     const y = gridY + row * (cardH + gapY);
-    drawProductCard(ctx, product, imageMap.get(product.id) ?? null, x, y, cardW, cardH);
+    const image = imageMap.get(product.id);
+    if (!image) return; // Defensive: PDF never prints empty-image placeholders.
+    drawProductCard(ctx, product, image, x, y, cardW, cardH);
   });
 
   drawFooter(ctx, absolutePage, totalPages);
-  return canvasToJpeg(canvas, 0.98);
+  return canvasToJpeg(canvas, 0.92);
 };
 
 const tryLoadNexaFonts = async () => {
@@ -635,7 +632,7 @@ const tryLoadNexaFonts = async () => {
       try {
         const localFont = new FontFace("Nexa", local, { weight });
         await localFont.load();
-        document.fonts.add(localFont);
+        (document.fonts as FontFaceSet & { add(font: FontFace): void }).add(localFont);
         return;
       } catch {
         // Try a bundled font file next.
@@ -643,7 +640,7 @@ const tryLoadNexaFonts = async () => {
       try {
         const bundledFont = new FontFace("Nexa", `url(${file})`, { weight });
         await bundledFont.load();
-        document.fonts.add(bundledFont);
+        (document.fonts as FontFaceSet & { add(font: FontFace): void }).add(bundledFont);
       } catch {
         // Export remains usable with the browser fallback font.
       }
@@ -658,253 +655,190 @@ const tryLoadNexaFonts = async () => {
   }
 };
 
-export async function buildWholesaleCataloguePdf(
-  products: WholesaleCatalogueProduct[],
-  onProgress?: ProgressFn,
-) {
-  await tryLoadNexaFonts();
+/** Verify that a picture can actually be fetched and decoded before counting it. */
+async function preparePrintableProducts(products: WholesaleCatalogueProduct[], onProgress?: ProgressFn) {
+  const candidates = products.filter((product) => Boolean(product.image_url?.trim()));
+  const imageMap = new Map<number, LoadedImage>();
+  const concurrency = 5;
+  let completed = 0;
+  let cursor = 0;
 
-  const sorted = [...products].sort((a, b) => {
-    const categoryCompare = categoryRank(cataloguePdfCategory(a)) - categoryRank(cataloguePdfCategory(b));
-    if (categoryCompare) return categoryCompare;
-    const labelCompare = cataloguePdfCategory(a).localeCompare(cataloguePdfCategory(b));
-    if (labelCompare) return labelCompare;
-    return cleanText(a.name || a.description || a.code).localeCompare(cleanText(b.name || b.description || b.code));
+  const workers = Array.from({ length: Math.min(concurrency, candidates.length) }, async () => {
+    while (true) {
+      const index = cursor++;
+      if (index >= candidates.length) return;
+      const product = candidates[index];
+      try {
+        imageMap.set(product.id, await loadImageElement(product.image_url.trim()));
+      } catch {
+        // The image is missing, blocked, invalid or undecodable: omit the product.
+      }
+      completed += 1;
+      onProgress?.(`Checking product pictures ${completed}/${candidates.length}...`, 8 + Math.round(completed / candidates.length * 35));
+    }
+  });
+  await Promise.all(workers);
+
+  const printable = candidates.filter((p) => imageMap.has(p.id)).sort((a, b) => {
+    const aCat = cataloguePdfCategory(a);
+    const bCat = cataloguePdfCategory(b);
+    return categoryRank(aCat) - categoryRank(bCat)
+      || aCat.localeCompare(bCat)
+      || cleanText(a.name || a.description || a.code).localeCompare(cleanText(b.name || b.description || b.code));
   });
 
-  const groups = new Map<string, WholesaleCatalogueProduct[]>();
-  for (const product of sorted) {
-    const category = cataloguePdfCategory(product);
-    if (!groups.has(category)) groups.set(category, []);
-    groups.get(category)!.push(product);
+  if (!printable.length) {
+    imageMap.forEach(releaseImage);
+    throw new Error("No catalogue products have a working picture. Add photographs before printing the PDF.");
   }
 
-  const pageCapacity = PRODUCT_PAGE_CAPACITY;
-  let nextPage = 3; // Page 1 cover, page 2 contents.
-  const plans: CategoryPlan[] = Array.from(groups.entries()).map(([category, items]) => {
-    const productPages = Math.ceil(items.length / pageCapacity);
+  const grouped = new Map<string, WholesaleCatalogueProduct[]>();
+  printable.forEach((product) => {
+    const category = cataloguePdfCategory(product);
+    if (!grouped.has(category)) grouped.set(category, []);
+    grouped.get(category)!.push(product);
+  });
+
+  const contentsPages = Math.max(1, Math.ceil(grouped.size / CONTENTS_PAGE_CAPACITY));
+  let nextPage = 2 + contentsPages; // Cover + full contents section.
+  const plans: CategoryPlan[] = Array.from(grouped.entries()).map(([category, items]) => {
+    const productPages = Math.ceil(items.length / PRODUCT_PAGE_CAPACITY);
     const startPage = nextPage;
     const endPage = startPage + productPages - 1;
     nextPage = endPage + 1;
     return { category, items, productPages, startPage, endPage };
   });
-  const totalPages = nextPage - 1;
-
-  onProgress?.("Preparing PowerBuild branding...", 10);
-  let cover: LoadedImage | null = null;
-  let logo: LoadedImage | null = null;
-  try {
-    cover = await loadImageElement("/wholesale-division-cover-v2.png");
-  } catch {
-    cover = null;
-  }
-  try {
-    logo = await loadImageElement("/powerbuild-logo-transparent.png");
-  } catch {
-    logo = null;
-  }
-
-  const productsWithImages = sorted.filter((product) => Boolean(product.image_url));
-  const imageMap = new Map<number, LoadedImage>();
-  const concurrency = 5;
-  let completed = 0;
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(concurrency, productsWithImages.length) }, async () => {
-    while (true) {
-      const current = cursor++;
-      if (current >= productsWithImages.length) return;
-      const product = productsWithImages[current];
-      try {
-        imageMap.set(product.id, await loadImageElement(product.image_url));
-      } catch {
-        // Product remains in the PDF with a styled placeholder.
-      }
-      completed += 1;
-      const percent = 12 + Math.round((completed / Math.max(1, productsWithImages.length)) * 31);
-      onProgress?.(`Loading catalogue pictures ${completed}/${productsWithImages.length}...`, percent);
-    }
-  });
-  await Promise.all(workers);
-
-  onProgress?.("Creating cover and contents...", 46);
-  const pdf = new PdfWriter();
-  const catalogRef = pdf.reserve();
-  const pagesRef = pdf.reserve();
-  const pageRefs: number[] = [];
-
-  const addPage = (image: PdfImage, resourceName: string) => {
-    const imageRef = pdf.jpeg(image);
-    const content = bytes(`q ${PAGE_W.toFixed(2)} 0 0 ${PAGE_H.toFixed(2)} 0 0 cm /${resourceName} Do Q\n`);
-    const contentRef = pdf.stream(content);
-    const pageRef = pdf.add(
-      `<< /Type /Page /Parent ${pagesRef} 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /XObject << /${resourceName} ${imageRef} 0 R >> >> /Contents ${contentRef} 0 R >>`,
-    );
-    pageRefs.push(pageRef);
-  };
-
-  addPage(await drawCoverPage(products.length, cover), "Pg1");
-  addPage(await drawContentsPage(plans, logo, totalPages), "Pg2");
-
-  let built = 0;
-  const renderTotal = plans.reduce((sum, plan) => sum + plan.productPages, 0);
-  for (const plan of plans) {
-    for (let start = 0; start < plan.items.length; start += pageCapacity) {
-      const slice = plan.items.slice(start, start + pageCapacity);
-      const categoryPage = Math.floor(start / pageCapacity) + 1;
-      const absolutePage = plan.startPage + categoryPage - 1;
-      addPage(
-        await drawProductPage(
-          plan.category,
-          slice,
-          imageMap,
-          logo,
-          categoryPage,
-          plan.productPages,
-          absolutePage,
-          totalPages,
-        ),
-        `Pg${absolutePage}`,
-      );
-      built += 1;
-      onProgress?.(
-        `Building catalogue page ${absolutePage}/${totalPages}...`,
-        48 + Math.round((built / Math.max(1, renderTotal)) * 46),
-      );
-    }
-  }
-
-  onProgress?.("Finalising wholesale leaflet...", 96);
-  pdf.set(pagesRef, `<< /Type /Pages /Kids [${pageRefs.map((ref) => `${ref} 0 R`).join(" ")}] /Count ${pageRefs.length} >>`);
-  pdf.set(catalogRef, `<< /Type /Catalog /Pages ${pagesRef} 0 R >>`);
-
-  const output = pdf.build(catalogRef);
-  const pdfBuffer = output.buffer.slice(output.byteOffset, output.byteOffset + output.byteLength) as ArrayBuffer;
-  const blob = new Blob([pdfBuffer], { type: "application/pdf" });
-
-  releaseImage(cover);
-  releaseImage(logo);
-  imageMap.forEach((image) => releaseImage(image));
-  onProgress?.("Wholesale leaflet ready.", 100);
-  return blob;
+  return { imageMap, plans, contentsPages, totalPages: nextPage - 1, productCount: printable.length };
 }
 
+async function loadBrandImages() {
+  let cover: LoadedImage | null = null;
+  let logo: LoadedImage | null = null;
+  try { cover = await loadImageElement("/wholesale-division-cover-v2.png"); } catch { /* Fallback cover */ }
+  try { logo = await loadImageElement("/powerbuild-logo-transparent.png"); } catch { /* Text fallback */ }
+  return { cover, logo };
+}
+
+export async function buildWholesaleCataloguePdf(
+  products: WholesaleCatalogueProduct[],
+  onProgress?: ProgressFn,
+) {
+  await tryLoadNexaFonts();
+  const plan = await preparePrintableProducts(products, onProgress);
+  const { imageMap, plans, contentsPages, totalPages, productCount } = plan;
+  const { cover, logo } = await loadBrandImages();
+
+  try {
+    onProgress?.("Creating A4 print-ready catalogue...", 45);
+    const pdf = new PdfWriter();
+    const catalogRef = pdf.reserve();
+    const pagesRef = pdf.reserve();
+    const pageRefs: number[] = [];
+
+    const addPage = (image: PdfImage, resourceName: string) => {
+      const imageRef = pdf.jpeg(image);
+      const content = bytes(`q ${PAGE_W.toFixed(2)} 0 0 ${PAGE_H.toFixed(2)} 0 0 cm /${resourceName} Do Q\n`);
+      const contentRef = pdf.stream(content);
+      const pageRef = pdf.add(
+        `<< /Type /Page /Parent ${pagesRef} 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /XObject << /${resourceName} ${imageRef} 0 R >> >> /Contents ${contentRef} 0 R >>`,
+      );
+      pageRefs.push(pageRef);
+    };
+
+    addPage(await drawCoverPage(productCount, cover), "Pg1");
+    for (let index = 1; index <= contentsPages; index += 1) {
+      addPage(await drawContentsPage(plans, logo, totalPages, index, contentsPages), `Pg${index + 1}`);
+    }
+
+    let built = 0;
+    const renderTotal = plans.reduce((sum, item) => sum + item.productPages, 0);
+    for (const section of plans) {
+      for (let start = 0; start < section.items.length; start += PRODUCT_PAGE_CAPACITY) {
+        const categoryPage = Math.floor(start / PRODUCT_PAGE_CAPACITY) + 1;
+        const absolutePage = section.startPage + categoryPage - 1;
+        addPage(
+          await drawProductPage(
+            section.category,
+            section.items.slice(start, start + PRODUCT_PAGE_CAPACITY),
+            imageMap,
+            logo,
+            categoryPage,
+            section.productPages,
+            absolutePage,
+            totalPages,
+          ),
+          `Pg${absolutePage}`,
+        );
+        built += 1;
+        onProgress?.(`Rendering print page ${absolutePage}/${totalPages}...`, 48 + Math.round(built / Math.max(1, renderTotal) * 48));
+      }
+    }
+
+    pdf.set(pagesRef, `<< /Type /Pages /Kids [${pageRefs.map((ref) => `${ref} 0 R`).join(" ")}] /Count ${pageRefs.length} >>`);
+    pdf.set(catalogRef, `<< /Type /Catalog /Pages ${pagesRef} 0 R >>`);
+    const output = pdf.build(catalogRef);
+    const pdfBuffer = output.buffer.slice(output.byteOffset, output.byteOffset + output.byteLength) as ArrayBuffer;
+    onProgress?.(`Print-ready PDF: ${productCount} photographed products.`, 100);
+    return new Blob([pdfBuffer], { type: "application/pdf" });
+  } finally {
+    releaseImage(cover);
+    releaseImage(logo);
+    imageMap.forEach(releaseImage);
+  }
+}
 
 export async function buildWholesaleLeafletPages(
   products: WholesaleCatalogueProduct[],
   onProgress?: ProgressFn,
 ) {
   await tryLoadNexaFonts();
-
-  const sorted = [...products].sort((a, b) => {
-    const categoryCompare = categoryRank(cataloguePdfCategory(a)) - categoryRank(cataloguePdfCategory(b));
-    if (categoryCompare) return categoryCompare;
-    const labelCompare = cataloguePdfCategory(a).localeCompare(cataloguePdfCategory(b));
-    if (labelCompare) return labelCompare;
-    return cleanText(a.name || a.description || a.code).localeCompare(cleanText(b.name || b.description || b.code));
-  });
-
-  const groups = new Map<string, WholesaleCatalogueProduct[]>();
-  for (const product of sorted) {
-    const category = cataloguePdfCategory(product);
-    if (!groups.has(category)) groups.set(category, []);
-    groups.get(category)!.push(product);
-  }
-
-  const pageCapacity = PRODUCT_PAGE_CAPACITY;
-  let nextPage = 3;
-  const plans: CategoryPlan[] = Array.from(groups.entries()).map(([category, items]) => {
-    const productPages = Math.ceil(items.length / pageCapacity);
-    const startPage = nextPage;
-    const endPage = startPage + productPages - 1;
-    nextPage = endPage + 1;
-    return { category, items, productPages, startPage, endPage };
-  });
-  const totalPages = nextPage - 1;
-
-  onProgress?.("Preparing interactive leaflet...", 6);
-  let cover: LoadedImage | null = null;
-  let logo: LoadedImage | null = null;
-  try {
-    cover = await loadImageElement("/wholesale-division-cover-v2.png");
-  } catch {
-    cover = null;
-  }
-  try {
-    logo = await loadImageElement("/powerbuild-logo-transparent.png");
-  } catch {
-    logo = null;
-  }
-
-  const productsWithImages = sorted.filter((product) => Boolean(product.image_url));
-  const imageMap = new Map<number, LoadedImage>();
-  const concurrency = 5;
-  let completed = 0;
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(concurrency, productsWithImages.length) }, async () => {
-    while (true) {
-      const current = cursor++;
-      if (current >= productsWithImages.length) return;
-      const product = productsWithImages[current];
-      try {
-        imageMap.set(product.id, await loadImageElement(product.image_url));
-      } catch {
-        // The page renderer will show the styled placeholder.
-      }
-      completed += 1;
-      const percent = 8 + Math.round((completed / Math.max(1, productsWithImages.length)) * 32);
-      onProgress?.(`Loading leaflet pictures ${completed}/${productsWithImages.length}...`, percent);
-    }
-  });
-  await Promise.all(workers);
-
+  const { imageMap, plans, contentsPages, totalPages, productCount } = await preparePrintableProducts(products, onProgress);
+  const { cover, logo } = await loadBrandImages();
   const pages: Blob[] = [];
+  const originalOverride = renderScaleOverride;
+  // Screen previews are smaller than the 300-DPI downloadable PDF.
+  renderScaleOverride = typeof window !== "undefined" && Math.min(window.innerWidth, window.screen?.width || window.innerWidth) <= 760 ? 0.36 : 0.44;
+
   const pushPage = (image: PdfImage) => {
     const buffer = image.bytes.buffer.slice(image.bytes.byteOffset, image.bytes.byteOffset + image.bytes.byteLength) as ArrayBuffer;
     pages.push(new Blob([buffer], { type: "image/jpeg" }));
   };
 
-  const originalOverride = renderScaleOverride;
-  renderScaleOverride = typeof window !== "undefined" && Math.min(window.innerWidth, window.screen?.width || window.innerWidth) <= 760 ? 0.36 : 0.44;
-
   try {
-    onProgress?.("Creating leaflet pages...", 44);
-    pushPage(await drawCoverPage(products.length, cover));
-    pushPage(await drawContentsPage(plans, logo, totalPages));
+    onProgress?.("Creating photo-only leaflet...", 44);
+    pushPage(await drawCoverPage(productCount, cover));
+    for (let index = 1; index <= contentsPages; index += 1) {
+      pushPage(await drawContentsPage(plans, logo, totalPages, index, contentsPages));
+    }
 
     let built = 0;
-    const renderTotal = plans.reduce((sum, plan) => sum + plan.productPages, 0);
-    for (const plan of plans) {
-      for (let start = 0; start < plan.items.length; start += pageCapacity) {
-        const slice = plan.items.slice(start, start + pageCapacity);
-        const categoryPage = Math.floor(start / pageCapacity) + 1;
-        const absolutePage = plan.startPage + categoryPage - 1;
-        pushPage(
-          await drawProductPage(
-            plan.category,
-            slice,
-            imageMap,
-            logo,
-            categoryPage,
-            plan.productPages,
-            absolutePage,
-            totalPages,
-          ),
-        );
+    const renderTotal = plans.reduce((sum, section) => sum + section.productPages, 0);
+    for (const section of plans) {
+      for (let start = 0; start < section.items.length; start += PRODUCT_PAGE_CAPACITY) {
+        const categoryPage = Math.floor(start / PRODUCT_PAGE_CAPACITY) + 1;
+        const absolutePage = section.startPage + categoryPage - 1;
+        pushPage(await drawProductPage(
+          section.category,
+          section.items.slice(start, start + PRODUCT_PAGE_CAPACITY),
+          imageMap,
+          logo,
+          categoryPage,
+          section.productPages,
+          absolutePage,
+          totalPages,
+        ));
         built += 1;
-        onProgress?.(
-          `Preparing leaflet page ${absolutePage}/${totalPages}...`,
-          46 + Math.round((built / Math.max(1, renderTotal)) * 50),
-        );
+        onProgress?.(`Preparing leaflet page ${absolutePage}/${totalPages}...`, 48 + Math.round(built / Math.max(1, renderTotal) * 50));
       }
     }
   } finally {
     renderScaleOverride = originalOverride;
     releaseImage(cover);
     releaseImage(logo);
-    imageMap.forEach((image) => releaseImage(image));
+    imageMap.forEach(releaseImage);
   }
 
-  onProgress?.("Interactive leaflet ready.", 100);
+  onProgress?.(`Leaflet ready: ${productCount} photographed products.`, 100);
   return pages;
 }
 
@@ -916,10 +850,10 @@ export async function downloadWholesaleCatalogue(
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `PowerBuild_Wholesale_Division_Catalogue_${new Date().toISOString().slice(0, 10)}.pdf`;
+  anchor.download = `PowerBuild_Wholesale_Division_Print_Catalogue_${new Date().toISOString().slice(0, 10)}.pdf`;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-  onProgress?.("Wholesale catalogue downloaded.", 100);
+  onProgress?.("A4 print catalogue downloaded.", 100);
 }
