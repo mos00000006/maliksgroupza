@@ -14,7 +14,7 @@ test('Professional top navigation and home shortcuts do not expose Sales',async(
   assert.match(page,/Open Stock module/);
   assert.match(page,/data-suite-module="stock"/);
   assert.match(page,/data-suite-module="debtors"/);
-  assert.match(page,/if\(suiteView==='home'\)suiteHome\(\);else suiteModuleView\(suiteView\)/);
+  assert.match(page,/if\(suiteView==='home'\)suiteHome\(\);else if\(suiteView==='checkout'\)posPremiumCheckout\(\);else suiteModuleView\(suiteView\)/);
 });
 
 test('Sales runs as its own branded standalone workstation',async()=>{
