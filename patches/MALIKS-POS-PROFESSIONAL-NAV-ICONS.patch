@@ -1,0 +1,135 @@
+diff --git a/maliks-operations/src/frontend.mjs b/maliks-operations/src/frontend.mjs
+--- a/maliks-operations/src/frontend.mjs
++++ b/maliks-operations/src/frontend.mjs
+@@ -1,4 +1,5 @@
+-import { POWERBUILD_LOGO_BASE64 } from './powerbuild-logo.mjs';
++import { POWERBUILD_LOGO_BASE64 } from './powerbuild-logo.mjs';
++import { SUITE_ICONS, suiteIconMarkup } from './suite-icons.mjs';
+ 
+ const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c => c.charCodeAt(0));
+ 
+@@ -12,13 +13,13 @@
+ };
+ // Phase 14: The Professional accounting suite and Sales are separate Workers.
+ // This is a navigation inventory; unbuilt functions remain previews, not live postings.
+-const SUITE_NAV = [
+-  ['home','Home','⌂'],['debtors','Debtors','◎'],
+-  ['suppliers','Suppliers','▤'],['stock','Stock','▦'],['backoffice','Back Office','▥'],
+-  ['dispatching','Dispatching','⇥'],['headoffice','Head Office','◇'],
+-  ['system','System Settings','⚙'],['widget','Widget','◫'],
+-  ['help','Help','?'],['lock','Lock','♙'],['exit','Exit','⏻'],
+-];
++const SUITE_NAV = [
++  ['home','Home'],['debtors','Debtors'],
++  ['suppliers','Suppliers'],['stock','Stock'],['backoffice','Back Office'],
++  ['dispatching','Dispatching'],['headoffice','Head Office'],
++  ['system','System Settings'],['widget','Widget'],
++  ['help','Help'],['lock','Lock'],['exit','Exit'],
++];
+ const SUITE_MENU_TREE = {
+   debtors: {
+     'Master Files':['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes'],
+@@ -71,7 +72,7 @@
+ };
+ const SUITE_TITLES = Object.fromEntries(SUITE_NAV.map(([id,label])=>[id,label]));
+ function suiteHeader(){
+-  const buttons=SUITE_NAV.map(([id,label,symbol])=>`<button type="button" data-suite-module="${id}" class="suite-nav-button" aria-pressed="false"><span class="suite-nav-icon" aria-hidden="true">${symbol}</span><span>${label}</span></button>`).join('');
++  const buttons=SUITE_NAV.map(([id,label])=>`<button type="button" data-suite-module="${id}" class="suite-nav-button" aria-pressed="false"><span class="suite-nav-icon" aria-hidden="true">${suiteIconMarkup(id)}</span><span>${label}</span></button>`).join('');
+   return `<header id="suite-navigation" class="suite-header" hidden>
+     <div class="suite-brandbar"><button type="button" class="suite-brand" data-suite-module="home" aria-label="Maliks Professional home"><img class="suite-brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="66" height="66"/><span class="suite-brand-text"><strong>MALIKS <span>POS</span></strong><small>ACCOUNTING &amp; POS SOLUTIONS <em>PROFESSIONAL</em></small></span></button><span class="suite-system-status">● SECURE WORKSPACE</span><span id="suite-user" class="suite-user">Signed in</span></div>
+     <nav class="suite-navbar" aria-label="Maliks Professional modules">${buttons}</nav>
+@@ -168,7 +169,7 @@
+  .suite-navbar{display:flex;align-items:stretch;overflow-x:auto;scrollbar-width:thin;background:#182e47;padding:0 20px;gap:2px}
+  .suite-nav-button{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;min-width:91px;min-height:76px;border:0;border-radius:0;background:transparent;color:#b8cde1;font-size:11px;font-weight:700;padding:10px 13px;white-space:nowrap;border-bottom:3px solid transparent;transition:background .18s,color .18s}
+  .suite-nav-button:hover{background:#ffffff12;color:#fff}.suite-nav-button[aria-pressed="true"]{background:#ffffff13;color:#fff;border-bottom-color:#e9c66f}
+- .suite-nav-icon{font-size:23px;line-height:1;font-weight:700;color:#e4bb66}.suite-nav-button:focus-visible{outline:2px solid #f4d78c;outline-offset:-4px}
++ .suite-nav-icon{display:inline-flex;align-items:center;justify-content:center;width:29px;height:29px;color:#e4bb66;flex:none}.suite-nav-icon svg{display:block;width:27px;height:27px}.suite-nav-button:hover .suite-nav-icon,.suite-nav-button[aria-pressed="true"] .suite-nav-icon{color:#f3cf7d}.suite-nav-button:focus-visible{outline:2px solid #f4d78c;outline-offset:-4px}
+  .suite-shell{display:block;min-height:calc(100vh - 160px)}.suite-shell>aside{display:none}.suite-shell>main{max-width:1480px;padding:30px clamp(16px,3vw,46px) 60px}
+  .suite-shell .top{margin-bottom:16px}.suite-shell .top h2{font-size:25px;color:#152a44}.suite-shell .top .tag{background:#e8f3fa;color:#24607e;border:1px solid #c6dbe9}
+  .suite-shell .panel{border-radius:13px;box-shadow:0 4px 16px #102a4b0b}
+@@ -181,7 +182,7 @@
+  .suite-section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:24px 0 12px}.suite-section-head h3{margin:0;color:#172b43}.suite-section-head small{color:#62738b}
+  .suite-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:15px}
+  .suite-card{border:1px solid #dbe4ee;border-radius:15px;background:#fff;padding:22px;text-align:left;color:#1d2f46;display:flex;flex-direction:column;align-items:flex-start;gap:9px;min-height:170px;box-shadow:0 5px 20px #0f29400b;transition:transform .16s,box-shadow .16s}
+- .suite-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px #0f294018}.suite-card .suite-card-icon{font-size:27px;color:#b98b38}.suite-card strong{font-size:18px}.suite-card small{font-size:12px;color:#60718a;font-weight:500;white-space:normal;line-height:1.5}
++ .suite-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px #0f294018}.suite-card .suite-card-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;color:#b98b38}.suite-card .suite-card-icon svg{display:block;width:32px;height:32px}.suite-card strong{font-size:18px}.suite-card small{font-size:12px;color:#60718a;font-weight:500;white-space:normal;line-height:1.5}
+  .suite-card .suite-card-status{margin-top:auto;font-size:10px;font-weight:900;letter-spacing:.1em;color:#8b6c31}
+  .suite-card .suite-card-status.live{color:#12715b}
+  .suite-sales-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 18px;padding:12px;background:#fff;border:1px solid #dce5ed;border-radius:12px}
+@@ -221,7 +222,8 @@
+  let currentUserRole='';
+  const SUITE_NAV=${JSON.stringify(SUITE_NAV)};
+  const SUITE_MENU_TREE=${JSON.stringify(SUITE_MENU_TREE)};
+- const SUITE_TITLES=${JSON.stringify(SUITE_TITLES)};
++ const SUITE_TITLES=${JSON.stringify(SUITE_TITLES)};
++  const SUITE_ICONS=${JSON.stringify(SUITE_ICONS)};
+  const E=id=>document.getElementById(id);
+  const h=(tag,text='',cls='')=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=String(text);if(cls)el.className=cls;return el;};
+  const api=async (url,opts)=>{const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});let data;try{data=await r.json();}catch{const e=Error('The service returned a non-JSON response (HTTP '+r.status+'). Check the Core Worker, Phase 21 D1 migration and Cloudflare Access session.');e.status=r.status;throw e;}if(!r.ok){const e=Error(data.error||'Request failed (HTTP '+r.status+').');e.status=r.status;throw e;}return data;};
+@@ -1184,18 +1186,21 @@
+    hero.append(suiteButton('Open Stock module  →','stock','suite-primary'));root.append(hero);
+    const head=h('div',undefined,'suite-section-head');head.append(h('h3','Your workspaces'),h('small','Menus based on the supplied system reference'));root.append(head);
+    const cards=h('div',undefined,'suite-card-grid');
+-   const definitions=[
+-     ['tills','▤','Tills','Cashier checkout, cash/card confirmations and paid receipts.','SEPARATE WORKSTATION'],
+-     ['cashoffice','◈','Cash Office','Payment verification, cash-up and internal finance controls.','SEPARATE WORKSTATION'],
+-     ['dispatching','⇥','Dispatching','Paid-order picking, checking and delivery management.','SEPARATE WORKSTATION'],
+-     ['stock','▦','Stock','Purchase orders, receiving, GRVs, stock-on-hand and transfers.','LIVE STOCK FLOW'],
+-     ['debtors','◎','Debtors','Branch debtor master records and audit history.','LIVE MASTER FILES'],
+-     ['suppliers','▤','Suppliers','Supplier master and purchase orders.','LIVE PURCHASING'],
+-     ['backoffice','▥','Back Office','Tills, end-of-day, VAT, reporting and month-end controls.','MENU INVENTORY'],
+-     ['headoffice','◇','Head Office','Branches, synchronization and group management.','MENU INVENTORY'],
+-   ];
+-   for(const [id,symbol,name,description,status] of definitions){
+-     const card=suiteButton('',id,'suite-card');card.append(h('span',symbol,'suite-card-icon'),h('strong',name),h('small',description));
++   const definitions=[
++     ['tills','Tills','Cashier checkout, cash/card confirmations and paid receipts.','SEPARATE WORKSTATION'],
++     ['cashoffice','Cash Office','Payment verification, cash-up and internal finance controls.','SEPARATE WORKSTATION'],
++     ['dispatching','Dispatching','Paid-order picking, checking and delivery management.','SEPARATE WORKSTATION'],
++     ['stock','Stock','Purchase orders, receiving, GRVs, stock-on-hand and transfers.','LIVE STOCK FLOW'],
++     ['debtors','Debtors','Branch debtor master records and audit history.','LIVE MASTER FILES'],
++     ['suppliers','Suppliers','Supplier master and purchase orders.','LIVE PURCHASING'],
++     ['backoffice','Back Office','Tills, end-of-day, VAT, reporting and month-end controls.','MENU INVENTORY'],
++     ['headoffice','Head Office','Branches, synchronization and group management.','MENU INVENTORY'],
++   ];
++   for(const [id,name,description,status] of definitions){
++     const card=suiteButton('',id,'suite-card');
++     const icon=h('span',undefined,'suite-card-icon');icon.setAttribute('aria-hidden','true');
++     icon.innerHTML=SUITE_ICONS[id]||SUITE_ICONS.help;
++     card.append(icon,h('strong',name),h('small',description));
+      card.append(h('span',status,'suite-card-status'+(status.startsWith('LIVE')?' live':'')));cards.append(card);
+    }
+    root.append(cards,h('p','Hub catalogue-linked stock, purchase orders, GRVs, transfers and supplier invoice matching are connected. AP, VAT, GL, sales stock deduction and returns are NOT posted.','suite-footnote'));
+diff --git a/maliks-operations/src/suite-icons.mjs b/maliks-operations/src/suite-icons.mjs
+new file mode 100644
+--- /dev/null
++++ b/maliks-operations/src/suite-icons.mjs
+@@ -0,0 +1,28 @@
++// Professional, self-hosted vector module icons. No external font or CDN required.
++// SVG markup is constant and never assembled from user-controlled input.
++const paths = {
++  "home": "<path d=\"m3 10 9-7 9 7v11h-6v-7H9v7H3z\"/>",
++  "debtors": "<circle cx=\"8.5\" cy=\"7.5\" r=\"3\"/><path d=\"M2.5 20v-2a6 6 0 0 1 12 0v2\"/><rect x=\"15.5\" y=\"5\" width=\"6\" height=\"12\" rx=\"1\"/><path d=\"M17.5 9h2m-2 3h2\"/>",
++  "suppliers": "<path d=\"m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10M8 5l9 4\"/>",
++  "stock": "<rect x=\"2.5\" y=\"12\" width=\"9\" height=\"9\" rx=\"1\"/><rect x=\"12.5\" y=\"12\" width=\"9\" height=\"9\" rx=\"1\"/><rect x=\"7.5\" y=\"2.5\" width=\"9\" height=\"8.5\" rx=\"1\"/><path d=\"M7 16h1m9 0h1m-6-9h1\"/>",
++  "backoffice": "<rect x=\"4\" y=\"6\" width=\"16\" height=\"15\" rx=\"2\"/><path d=\"M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M8 11h8M8 15h8M8 19h5\"/>",
++  "dispatching": "<path d=\"M2 6h12v12H2zM14 10h4l4 4v4h-8M2 18h2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/><circle cx=\"18\" cy=\"18\" r=\"2\"/><path d=\"M17 10v4h5\"/>",
++  "headoffice": "<path d=\"M5 21V5l7-3 7 3v16M2 21h20M10 21v-5h4v5M8 8h2m4 0h2M8 12h2m4 0h2\"/>",
++  "system": "<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M10 2h4l.6 2.3 1.8.8 2.1-1.1 2.8 2.8-1.1 2.1.8 1.8 2.3.6v4l-2.3.6-.8 1.8 1.1 2.1-2.8 2.8-2.1-1.1-1.8.8L14 22h-4l-.6-2.3-1.8-.8-2.1 1.1-2.8-2.8 1.1-2.1-.8-1.8L1 14v-4l2.3-.6.8-1.8L3 5.5l2.8-2.8 2.1 1.1 1.8-.8z\"/>",
++  "widget": "<rect x=\"3\" y=\"3\" width=\"8\" height=\"8\" rx=\"1\"/><rect x=\"13\" y=\"3\" width=\"8\" height=\"5\" rx=\"1\"/><rect x=\"13\" y=\"10\" width=\"8\" height=\"11\" rx=\"1\"/><rect x=\"3\" y=\"13\" width=\"8\" height=\"8\" rx=\"1\"/>",
++  "help": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M9.5 9a2.6 2.6 0 1 1 4.3 2c-1.2 1-1.8 1.6-1.8 3.2M12 18h.01\"/>",
++  "lock": "<rect x=\"5\" y=\"10\" width=\"14\" height=\"11\" rx=\"2\"/><path d=\"M8 10V7a4 4 0 0 1 8 0v3M12 15v2\"/>",
++  "exit": "<path d=\"M12 2v10\"/><path d=\"M6.4 5.5a9 9 0 1 0 11.2 0\"/>",
++  "tills": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"17\" rx=\"2\"/><path d=\"M6 8h12M7 12h2m3 0h2m3 0h1M7 16h2m3 0h2m3 0h1\"/>",
++  "cashoffice": "<path d=\"M4 7V5a2 2 0 0 1 2-2h12v4M5 7h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2zM21 12h-5a2 2 0 0 0 0 4h5\"/>"
++};
++
++export const SUITE_ICONS = Object.freeze(Object.fromEntries(
++  Object.entries(paths).map(([id,shape])=>[id,
++    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" focusable="false" aria-hidden="true">'+shape+'</svg>'
++  ])
++));
++
++export function suiteIconMarkup(id){
++  return SUITE_ICONS[id] || SUITE_ICONS.help;
++}
