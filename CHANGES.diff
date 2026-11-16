@@ -1,799 +1,337 @@
---- a/maliks-operations/src/frontend.mjs
-+++ b/maliks-operations/src/frontend.mjs
-@@ -84,7 +84,7 @@
- }
- const DEPARTMENT_NAV={
-  sales:[['home','Home','house'],['new','New Quotation','shopping-cart'],['history','My Quotations','receipt']],
-- tills:[['home','Home','house'],['checkout','Checkout','credit-card'],['shifts','Till Shifts','clock'],['payments','Paid Invoices','receipt'],['quotes','Quotations','clipboard-list'],['preparations','Preparations','wallet']],
-+ tills:[['home','Home','house'],['checkout','Checkout','credit-card'],['shifts','Till Shifts','clock'],['cashup','Close / Cash-Up','wallet'],['payments','Paid Invoices','receipt'],['quotes','Quotations','clipboard-list'],['preparations','Preparations','wallet']],
-  cashoffice:[['home','Home','house'],['paid','Paid Invoices','receipt'],['shifts','Shift Reviews','users'],['cashup','Cash-Up','wallet'],['evidence','Evidence','file-text'],['preparations','Preparations','clipboard-list'],['quotes','Quotations','search']],
-  dispatch:[['home','Home','house'],['queue','Dispatch Queue','truck']]
+--- a/app/store-controls.tsx
++++ b/app/store-controls.tsx
+@@ -31,6 +31,7 @@
+   issues_count: number;
+   notes: string;
+   manager_signoff: string;
++  record_status?: "Draft" | "Finalized";
+   items: ChecklistItem[];
  };
-@@ -251,6 +251,7 @@
-  </main></div><script type="module">
-  const APP=${JSON.stringify(app)};
-  const MEMBER_TEAM_URL='https://maliks-member-team.moyanamoses006.workers.dev';
-+ const CASH_OFFICE_URL='https://maliks-cash-office.moyanamoses006.workers.dev/';
-  let currentUserRole='';
-  const SUITE_NAV=${JSON.stringify(SUITE_NAV)};
-  const SUITE_MENU_TREE=${JSON.stringify(SUITE_MENU_TREE)};
-@@ -680,7 +681,92 @@
-      target.append(h('p','* Provisional projected cash = opening float + cash applied in saved preparations. Difference = cashier-declared closing count minus projected cash. Card/EFT amounts are also UNVERIFIED. These totals are not financial balances.','tiny'));
-    }catch(error){if(branch===selected)target.replaceChildren(h('p','Provisional worksheet unavailable: '+error.message,'error'));}
-  }
-- // Phase 8: independent Cash Office observations of card/bank documents only.
-+   // Phase 22: real recorded shift CASH figures + independent Cash Office count review.
-+  // This is NOT a bank reconciliation or a Hub financial posting.
-+  function cashupReconciliationView(){
-+    const p=panel('Cash-Up Reconciliation — Cash Office');
-+    p.append(h('p','This register calculates expected cash using the opening float PLUS CASH sales confirmed against the cashier shift. Tender preparations are excluded. Card amounts are cashier-confirmed, not bank-settled. A cash-count review does not post a deposit, journal or stock deduction.','cashup-warning'));
-+    const toolbar=h('div',undefined,'bar');
-+    const refresh=h('button','Refresh cash-ups','secondary');refresh.type='button';refresh.addEventListener('click',loadCashupReconciliations);
-+    toolbar.append(refresh);p.append(toolbar);
-+    const stats=h('div',undefined,'cashup-stats');stats.id='cashup-reconciliation-stats';p.append(stats);
-+    const body=h('div','Loading cash-up register…');body.id='cashup-reconciliation-list';p.append(body);
-+    const review=h('section',undefined,'suite-master-editor');review.id='cashup-reconciliation-review';review.hidden=true;p.append(review);
-+    return p;
-+  }
-+  async function loadCashupReconciliations(){
-+    const target=E('cashup-reconciliation-list'),stats=E('cashup-reconciliation-stats'),review=E('cashup-reconciliation-review');
-+    if(!target||!stats)return;
-+    const selected=branch;target.replaceChildren(h('p','Loading confirmed shift cash figures…','muted'));stats.replaceChildren();if(review){review.hidden=true;review.replaceChildren();}
-+    try{
-+      const data=await api('/api/cashup-reconciliation?branch='+encodeURIComponent(selected));
-+      if(branch!==selected||!target.isConnected)return;
-+      if(data.mode!=='CASHIER_CONFIRMED_SHIFT_PAYMENTS')throw Error('Unexpected Cash-Up source. Refresh the application.');
-+      const rows=data.records||[];target.replaceChildren();
-+      if(!rows.length){target.append(h('p','No till shifts found for the selected branch.','empty'));return;}
-+      const closed=rows.filter(x=>x.status==='CLOSED');
-+      const flagged=closed.filter(x=>x.variance_cents!==0||x.pending_payment_count>0).length;
-+      const checked=closed.filter(x=>x.review_status==='CASH_COUNT_CHECKED').length;
-+      for(const summary of [rows.length+' shifts',closed.length+' closed',checked+' cash counts checked',flagged+' exceptions'])
-+        stats.append(h('span',summary));
-+      const table=h('table');table.className='cashup-table';
-+      const th=h('tr');for(const title of ['Shift / Till','Cashier','Status','Opening float','Confirmed cash','Expected cash','Counted cash','Difference','Card*','Pending','Cash Office review','Action'])cell(th,title,'th');
-+      const head=h('thead');head.append(th);table.append(head);
-+      const body=h('tbody');
-+      for(const record of rows){
-+        const tr=h('tr');for(const val of [
-+          '#'+record.shift_id+' / '+record.till_code,record.cashier_name,record.status,
-+          money(record.opening_float_cents),money(record.confirmed_cash_sales_cents),money(record.expected_cash_cents),
-+          record.counted_cash_cents===null?'—':money(record.counted_cash_cents),
-+          record.variance_cents===null?'—':money(record.variance_cents),
-+          money(record.confirmed_card_sales_cents),String(record.pending_payment_count),
-+          record.review_status==='CASH_COUNT_CHECKED'?'Cash count checked':record.review_status==='FLAGGED'?'Flagged for follow-up':'Awaiting Cash Office review'
-+        ])cell(tr,val);
-+        const varianceCells=tr.querySelectorAll('td');if(record.variance_cents!==null)varianceCells[7].className=record.variance_cents===0?'cashup-zero':'cashup-diff';
-+        const actions=h('td');
-+        if(record.status==='CLOSED'&&record.review_status!=='CASH_COUNT_CHECKED'){
-+          const open=h('button','Review','secondary small-btn');open.type='button';
-+          open.addEventListener('click',()=>openCashupReview(record));actions.append(open);
-+        }else{actions.textContent=record.status==='OPEN'?'Close shift first':'Recorded';}
-+        tr.append(actions);body.append(tr);
-+      }
-+      table.append(body);const scroll=h('div',undefined,'scroll');scroll.append(table);target.append(scroll);
-+      target.append(h('p','Expected cash = opening float + confirmed cash sales (net of change). Cash count is the cashier’s declared closing amount. *Card sales are not proof of settlement. Pending/unverified payments are excluded and must be investigated. Cash Office reviews are audit records only.','tiny'));
-+    }catch(error){if(branch===selected&&target.isConnected)target.replaceChildren(h('p','Cash-Up unavailable: '+error.message+'. Check Phase 22 database migration and Core deployment.','error'));}
-+  }
-+  function openCashupReview(record){
-+    const review=E('cashup-reconciliation-review');if(!review)return;
-+    review.hidden=false;review.replaceChildren(h('h3','Review shift #'+record.shift_id+' · '+record.till_code));
-+    review.append(h('p',record.cashier_name+' · Opening '+money(record.opening_float_cents)+' + Cash '+money(record.confirmed_cash_sales_cents)+' = Expected '+money(record.expected_cash_cents)+' · Declared '+money(record.counted_cash_cents)+' · Difference '+money(record.variance_cents),'muted'));
-+    if(record.pending_payment_count)review.append(h('p',record.pending_payment_count+' payment(s) awaiting verification. Investigate before completing a cash-count check.','cashup-warning'));
-+    const form=h('form');const fields=h('div',undefined,'shift-form');
-+    const decisionLabel=h('label');decisionLabel.append(h('span','Cash Office outcome'));const decision=h('select');
-+    const exact=record.variance_cents===0&&record.pending_payment_count===0;
-+    const choices=exact?[['CASH_COUNT_CHECKED','Cash count checked (NOT bank reconciled)'],['FLAGGED','Flag for follow-up']]:[['FLAGGED','Flag for investigation']];
-+    for(const [value,label] of choices){const o=h('option',label);o.value=value;decision.append(o);}decisionLabel.append(decision);fields.append(decisionLabel);
-+    const noteLabel=h('label');noteLabel.append(h('span','Count evidence / exception note'));
-+    const note=h('textarea');note.required=true;note.maxLength=400;note.rows=3;note.placeholder='Record who counted the drawer and the evidence, or describe any difference (minimum 10 characters for flags).';
-+    noteLabel.append(note);fields.append(noteLabel);
-+    const submit=h('button','Record independent review');submit.type='submit';fields.append(submit);
-+    form.append(fields);review.append(form);
-+    const status=h('div');status.setAttribute('role','status');review.append(status);
-+    let pending=null;
-+    const reset=()=>{pending=null;};decision.addEventListener('change',reset);note.addEventListener('input',reset);
-+    form.addEventListener('submit',async event=>{
-+      event.preventDefault();status.replaceChildren();
-+      if(branch!==record.branch){status.append(h('p','The selected branch changed. Reopen Cash-Up.','error'));return;}
-+      if(!pending)pending={request_id:crypto.randomUUID(),branch:record.branch,shift_id:record.shift_id,decision:decision.value,
-+        note:note.value.trim(),expected_cash_cents:record.expected_cash_cents,counted_cash_cents:record.counted_cash_cents};
-+      submit.disabled=true;
-+      try{
-+        const result=await api('/api/cashup-reconciliation/review',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(pending)});
-+        pending=null;status.replaceChildren(h('p','Cash Office review recorded: '+result.decision+'. No deposit or financial posting occurred.','success'));
-+        await loadCashupReconciliations();
-+      }catch(error){status.replaceChildren(h('p',error.message+'. Retry uses the same review request ID.','error'));submit.disabled=false;}
-+    });
-+    review.scrollIntoView({block:'start',behavior:'smooth'});
-+  }
-+// Phase 8: independent Cash Office observations of card/bank documents only.
-  // These records are NOT actual receipts, processor confirmations, paid orders,
-  // financial journal entries or instructions to dispatch.
-  function evidenceView(){
-@@ -881,7 +967,7 @@
-    }catch(error){if(branch!==selected)return;container.replaceChildren(h('p','Could not load shifts: '+error.message,'error'));}
-  }
-  function tillShiftView(){
--   const p=panel(APP==='tills'?'My Till Shift Register':'Cash Office — Shift Review & Exceptions');
-+   const p=panel(APP==='tills'?'My Till Shift Register / Close & Cash-Up':'Cash Office — Shift Review & Exceptions');
-    p.append(h('p',APP==='tills'?'Open your till shift before checkout. Closing cash count is your declaration; Cash Office handles reconciliation.':'OPEN/CLOSE REGISTER ONLY. Opening float and closing count are employee declarations, not reconciled takings. No sales, deposits, invoices or stock balances are posted.','training-warning'));
-    const current=h('div');current.id='shift-current';p.append(current);
-    const bar=h('div',undefined,'bar');const refresh=h('button','Refresh shift register','secondary');refresh.addEventListener('click',loadShifts);bar.append(refresh);p.append(bar);
-@@ -895,7 +981,8 @@
-    const root=E('app-content');
-    if(mode==='paid'||mode==='payments'){root.append(paymentQueuePanel());void loadPaymentQueue();return;}
-    if(mode==='shifts'){root.append(tillShiftView());void loadShifts();return;}
--   if(mode==='cashup'&&APP==='cashoffice'){root.append(cashupView());void loadCashupPreviews();return;}
-+   if(mode==='cashup'&&APP==='cashoffice'){root.append(cashupReconciliationView());void loadCashupReconciliations();return;}
-+   if(mode==='cashup'&&APP==='tills'){root.append(tillShiftView());void loadShifts();return;}
-    if(mode==='evidence'&&APP==='cashoffice'){root.append(evidenceView());void loadEvidence();return;}
-    if(mode==='preparations'){
-      const p=panel(APP==='cashoffice'?'Cash Office — Tender preparations (read-only)':'My tender preparations — NOT PAID');
-@@ -1230,6 +1317,7 @@
-    debtor:[['contact_name','Contact person','text'],['phone','Phone','text'],['email','Email','email'],['credit_limit_cents','Credit limit (R)','money'],['payment_terms_days','Payment terms (days)','integer']]
-  };
-  let masterPermissions={};
-+ let stockPricePermission=false;
-  let purchasePermissions={};
-  let inventoryPermissions={};
-  let supplierInvoicePermissions={};
-@@ -1247,7 +1335,7 @@
-    tools.append(search,searchButton,refreshButton,auditButton);
-    if(masterPermissions[kind]?.write)tools.append(newButton);
-    header.append(tools);detail.append(header);
--   const notice=h('p',kind==='stock'?'Branch: '+selectedBranch+' · Selling prices and descriptions come from Group Hub. On-hand reflects posted POS stock movements only (GRVs, transfers and approved stock controls); sales deductions are not yet integrated. Double-click a linked item to edit branch settings.':'Branch: '+selectedBranch+' · Master records do not post supplier/debtor balances, invoices or GL entries.','suite-master-note');detail.append(notice);
-+   const notice=h('p',kind==='stock'?'Branch: '+selectedBranch+' · Selling price is branch-specific and editable by authorised managers. Descriptions are controlled in Group Hub. On-hand reflects posted POS movements (GRVs, transfers and approved stock controls); sales deductions are not yet integrated. Double-click a linked item to edit branch settings.':'Branch: '+selectedBranch+' · Master records do not post supplier/debtor balances, invoices or GL entries.','suite-master-note');detail.append(notice);
-    const feedback=h('div');feedback.setAttribute('role','status');detail.append(feedback);
-    const editor=h('section',undefined,'suite-master-editor');editor.hidden=true;detail.append(editor);
-    const listArea=h('div');detail.append(listArea);
-@@ -1270,7 +1358,7 @@
-          ['Recorded on hand',record?.linked?formatQty(record.on_hand_milli)+' '+(record.details?.unit||'EA'):'Not linked']
-        ]){const fact=h('div',undefined,'stock-master-editor-fact');fact.append(h('small',label),h('strong',value));facts.append(fact);}
-        editor.append(facts);
--       editor.append(h('p','Description and selling price are controlled by Group Hub / Price Tag Studio. Recorded on-hand cannot be changed here: use an approved stock adjustment or stock take.','muted'));
-+       editor.append(h('p',stockPricePermission?'Selling price changes here are saved to the selected branch and used in POS search and quotations. Description remains managed in the Group Hub. Recorded on-hand must be changed via an approved stock adjustment or stock take.':'Selling price may be changed only by an authorised branch manager. Description is controlled by the Group Hub. Recorded on-hand requires an approved adjustment or stock take.','muted'));
-        if(inventoryPermissions.transfer||inventoryPermissions.count){
-          const stockAction=h('button','Open Stock Adjustment / Stock Take','secondary');stockAction.type='button';
-          stockAction.addEventListener('click',()=>{suiteWorkspaceStart('Stock Control');suiteStockControl(inventoryPermissions.transfer?'ADJUSTMENT':'STOCKTAKE');});editor.append(stockAction);
-@@ -1282,7 +1370,7 @@
-        input.name=key;input.type=type==='money'||type==='integer'?'number':type==='email'?'email':'text';
-        if(type==='money'){input.step='0.01';input.min='0';}else if(type==='integer'){input.step='1';input.min='0';}
-        input.value=displayValue(value);if(key==='code'||key==='name'||key==='unit')input.required=true;
--       if(kind==='stock'&&['code','name','category','selling_price_cents'].includes(key))input.readOnly=true;
-+       if(kind==='stock'&&(['code','name','category'].includes(key)||(key==='selling_price_cents'&&!stockPricePermission)))input.readOnly=true;
-        wrap.append(input);form.append(wrap);controls[key]=input;
-      };
-      addField('code','Code','text',record?.code||'');addField('name','Description / name','text',record?.name||'');
-@@ -1313,6 +1401,14 @@
-        const body={request_id:pendingId,kind,branch:selectedBranch,code:controls.code.value.trim(),
-          name:controls.name.value.trim(),active:active.value==='true',details};
-        if(record){body.id=record.id;body.version=record.version;}
-+       if(kind==='stock'){
-+         const previous=Number(record?.details?.selling_price_cents||0);
-+         if(details.selling_price_cents!==previous){
-+           if(!stockPricePermission){showMessage('You are not authorised to amend the selling price.');return;}
-+           if(details.selling_price_cents<=0){showMessage('Selling price must be greater than R0.00.');return;}
-+           body.price_update=true;body.expected_selling_price_cents=previous;
-+         }
-+       }
-        save.disabled=true;showMessage('');
-        try{
-          const response=await api('/api/master/records',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
-@@ -1709,6 +1805,7 @@
-    if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
-    if(id==='suppliers')return ['Suppliers','Purchase Orders','Invoices and Debit Notes','Audits','Supplier Master CSV File Export'].includes(item);
-    if(id==='debtors')return ['Debtors','Audits','Debtors Master CSV/Text File Export'].includes(item);
-+   if(id==='backoffice')return item==='Till Cash-Up';
-    if(id==='system')return ['User Permissions','Branch Access'].includes(item);
-    if(id==='widget')return ['Management Dashboard','Branch Dashboard','Stock Overview'].includes(item);
-    if(id==='help')return true;
-@@ -1736,6 +1833,9 @@
-          b.setAttribute('aria-label',item+' — not available');list.append(b);continue;
-        }
-        b.addEventListener('click',()=>{
-+         if(id==='backoffice'&&item==='Till Cash-Up'){
-+           window.location.assign(CASH_OFFICE_URL+'?view=cashup&branch='+encodeURIComponent(branch));return;
-+         }
-          suiteWorkspaceStart(item);
-          if(id==='widget'&&['Management Dashboard','Branch Dashboard'].includes(item)){suiteOperationalDashboard(item==='Management Dashboard'?'management':'branch');return;}
-          if(id==='widget'&&item==='Stock Overview'){suiteStockBalances();return;}
-@@ -1929,9 +2029,16 @@
-    const session=await api('/api/session');
-    if(session.password_change_required){changePasswordView();}
-    else{
--     masterPermissions=session.master_permissions||{};purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};currentUserEmail=String(session.user.email||'').toLowerCase();currentUserRole=session.user.role;E('signed-in').textContent=APP==='sales'?session.user.name:session.user.name+' · '+session.user.role;
-+     masterPermissions=session.master_permissions||{};stockPricePermission=session.stock_price_permission===true;purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};currentUserEmail=String(session.user.email||'').toLowerCase();currentUserRole=session.user.role;E('signed-in').textContent=APP==='sales'?session.user.name:session.user.name+' · '+session.user.role;
-      E('access').textContent=APP==='sales'?session.branches.join(', '):session.branches.length+' assigned branch(es)'+(['pos','member'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
--     for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=APP==='sales'&&session.branches.length===1;branch=select.value;select.addEventListener('change',selectBranch);
-+     for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=APP==='sales'&&session.branches.length===1;branch=select.value;
-+     if(APP==='cashoffice'){
-+       const linkParams=new URLSearchParams(window.location.search);
-+       const requestedBranch=linkParams.get('branch');
-+       if(requestedBranch&&session.branches.includes(requestedBranch)){branch=requestedBranch;select.value=requestedBranch;}
-+       if(linkParams.get('view')==='cashup')departmentView='cashup';
-+     }
-+     select.addEventListener('change',selectBranch);
-      if(APP==='sales'){E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;const label=document.querySelector('label[for=branch]');if(label)label.textContent='Store';}
-      if(DEPARTMENT_NAV[APP]){
-        E('department-user').textContent=session.user.name+' · '+session.user.role;
-@@ -1958,6 +2065,7 @@
-    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
-    const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
-      '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview',
-+     '/api/cashup-reconciliation':'/v1/cashup-reconciliation','/api/cashup-reconciliation/review':'/v1/cashup-reconciliation/review',
-      '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
-      '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue','/api/master/catalogue/sync':'/v1/master/catalogue/sync',
-      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
-@@ -1969,7 +2077,7 @@
-    if(!path)return Response.json({error:'Unknown API.'},{status:404});
-    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
-    if((path==='/v1/team'&&req.method!=='GET')||(['/v1/team/change','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path)&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
--   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
-+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/cashup-reconciliation/review','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
-    // The Professional suite cannot submit Sales transactions through its old POS origin.
-    if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
-    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
-@@ -1988,6 +2096,9 @@
-       (url.pathname==='/api/till-reviews' && kind!=='cashoffice') ||
-       (url.pathname.startsWith('/api/payment-evidence') && kind!=='cashoffice') ||
-       (url.pathname==='/api/cashup-preview' && kind!=='cashoffice') ||
-+      (url.pathname.startsWith('/api/cashup-reconciliation') && kind!=='cashoffice') ||
-+      (url.pathname==='/api/cashup-reconciliation' && req.method!=='GET') ||
-+      (url.pathname==='/api/cashup-reconciliation/review' && req.method!=='POST') ||
-       (url.pathname==='/api/tender-preparations' && !['tills','cashoffice'].includes(kind)) ||
-       (url.pathname==='/api/tender-preparations' && req.method==='POST' && kind!=='tills') ||
-       (url.pathname.startsWith('/api/till-shifts') && req.method==='POST' && kind!=='tills'))
---- a/maliks-operations/src/core.mjs
-+++ b/maliks-operations/src/core.mjs
-@@ -6,9 +6,10 @@
- import {validateTenderPreparation,tenderListStatement,tenderForClient} from './tender-domain.mjs';
- import {quoteId} from './quote-domain.mjs';
- import {cashupPreviewStatement,cashupForClient,CASHUP_MODE} from './cashup-domain.mjs';
-+import {listCashupReconciliations,reviewCashupReconciliation} from './cashup-reconciliation-domain.mjs';
- import {submitPayment,confirmSimpleCheckout,listPayments,verifyPayment,listDispatch,updateDispatch,getInvoice} from './payment-dispatch-domain.mjs';
- import {validateEvidenceInput,evidenceListStatement,evidenceHistoryStatement,evidenceForClient,EVIDENCE_MODE} from './payment-evidence-domain.mjs';
--import {listMasterRecords,listMasterAudit,listMasterCatalogue,syncStockCatalogue,saveMasterRecord,canUseMaster,MASTER_KINDS} from './master-domain.mjs';
-+import {listMasterRecords,listMasterAudit,listMasterCatalogue,syncStockCatalogue,saveMasterRecord,canUseMaster,canEditStockPrice,MASTER_KINDS} from './master-domain.mjs';
- import {canUsePurchase,listPurchaseOrders,purchaseAudit,savePurchaseOrder,actionPurchaseOrder} from './purchase-domain.mjs';
- import {canUseSupplierInvoice,listSupplierInvoices,captureSupplierInvoice,supplierInvoiceAction} from './supplier-invoice-domain.mjs';
- import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
-@@ -77,7 +78,7 @@
-     COALESCE(bp.price_cents,t.price_cents) AS price_cents,
-     COALESCE(t.unit,'each') AS unit,COALESCE(t.coverage_per_box,0) AS coverage_per_box
-     FROM catalogue_products p
--    JOIN ${table} t ON t.product_id=p.id AND t.published=1
-+    LEFT JOIN ${table} t ON t.product_id=p.id AND t.published=1
-     LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
-     WHERE p.active=1 AND COALESCE(bp.price_cents,t.price_cents)>0
-     AND (lower(p.code)=lower(?) OR lower(p.code) LIKE ? ESCAPE '\\' OR lower(p.name) LIKE ? ESCAPE '\\')
-@@ -156,7 +157,7 @@
-   const brand=brandFor(branch), table=tagTableFor(branch), ids=lines.map(x=>x.product_id);
-   const marks=ids.map(()=>'?').join(',');
-   const {results}=await env.DB.prepare(`SELECT p.id,p.code,p.name,COALESCE(t.unit,'each') AS unit,
--    CASE WHEN t.product_id IS NOT NULL THEN COALESCE(bp.price_cents,t.price_cents,0) ELSE 0 END AS price_cents
-+    COALESCE(bp.price_cents,t.price_cents,0) AS price_cents
-     FROM catalogue_products p
-     LEFT JOIN ${table} t ON t.product_id=p.id AND t.published=1
-     LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
-@@ -488,6 +489,7 @@
-         app:auth.app,user:{name:access.member.name,role:access.member.role,email:access.member.email},branches:access.branches,
-         password_change_required:auth.method==='password'&&auth.must_change_password,
-         team_permissions:auth.app==='member'?{manage:canManageTeam(access.member)}:undefined,
-+        stock_price_permission:auth.app==='management'?canEditStockPrice(access.member):false,
-         master_permissions:auth.app==='management'?Object.fromEntries(MASTER_KINDS.map(k=>[k,{read:canUseMaster(access.member,k),write:canUseMaster(access.member,k,true)}])):undefined,
-         purchase_permissions:auth.app==='management'?{read:canUsePurchase(access.member),write:canUsePurchase(access.member,'write'),approve:canUsePurchase(access.member,'approve')}:undefined,
-         supplier_invoice_permissions:auth.app==='management'?Object.fromEntries(['read','capture','verify'].map(k=>[k,canUseSupplierInvoice(access.member,k)])):undefined,
-@@ -529,6 +531,8 @@
-       if(path==='/v1/till-reviews'&&req.method==='GET')return await reviewHistory(req,env,context);
-       if(path==='/v1/till-reviews'&&req.method==='POST')return await recordShiftReview(req,env,context);
-       if(path==='/v1/cashup-preview'&&req.method==='GET')return await listCashupPreviews(req,env,context);
-+      if(path==='/v1/cashup-reconciliation'&&req.method==='GET')return await listCashupReconciliations(req,env,context);
-+      if(path==='/v1/cashup-reconciliation/review'&&req.method==='POST')return await reviewCashupReconciliation(req,env,context);
-       if(path==='/v1/payment-evidence'&&req.method==='GET')return await listPaymentEvidence(req,env,context);
-       if(path==='/v1/payment-evidence/history'&&req.method==='GET')return await paymentEvidenceHistory(req,env,context);
-       if(path==='/v1/payment-evidence'&&req.method==='POST')return await recordPaymentEvidence(req,env,context);
---- a/maliks-operations/src/master-domain.mjs
-+++ b/maliks-operations/src/master-domain.mjs
-@@ -25,6 +25,10 @@
-   if(member.role==='Executive / EXCO'&&member.access_scope==='Full company')return !write;
-   return MASTER_ROLES[kind].includes(member.role);
- }
-+// Price amendments are a branch-manager privilege, separate from stock master write access.
-+export function canEditStockPrice(member){
-+  return !!member&&Number(member.active)===1&&MANAGERS.has(member.role);
-+}
- const str=(value,name,max,required=false)=>{
-   if(typeof value!=='string')throw Error(name+' must be text.');
-   const s=value.trim();
-@@ -74,6 +78,14 @@
-     if(!Number.isSafeInteger(raw.id)||raw.id<1)throw Error('Invalid record ID.');
-     if(!Number.isSafeInteger(raw.version)||raw.version<1)throw Error('Invalid record version.');
-     data.id=raw.id;data.version=raw.version;
-+  }
-+  if(raw.price_update!==undefined){
-+    if(raw.kind!=='stock'||typeof raw.price_update!=='boolean')throw Error('Invalid price update instruction.');
-+    if(raw.price_update){
-+      if(data.id===undefined)throw Error('Link the product to this branch before editing its price.');
-+      data.price_update=true;
-+      data.expected_selling_price_cents=int(raw.expected_selling_price_cents,'previous selling price',100000000000);
-+    }
-   }
-   return data;
- }
-@@ -113,10 +125,10 @@
-     const tagTable=/buster\s*build/i.test(branch)?'busterbuild_price_tags':'powerbuild_price_tags';
-     const brand=/buster\s*build/i.test(branch)?'busterbuild':'powerbuild';
-     const {results}=await env.DB.prepare(`SELECT p.id AS catalogue_id,p.code,p.name,p.category,p.updated_at,
--      CASE WHEN t.product_id IS NULL THEN 0 ELSE COALESCE(bp.price_cents,t.price_cents,0) END AS hub_price_cents,COALESCE(t.unit,'EA') AS hub_unit,
-+      COALESCE(bp.price_cents,t.price_cents,0) AS hub_price_cents,COALESCE(t.unit,'EA') AS hub_unit,
-       m.id,m.kind,m.branch,m.active,m.details_json,m.version,m.updated_at AS master_updated_at,
-       CASE WHEN m.id IS NULL THEN NULL ELSE COALESCE(b.qty_milli,0) END AS on_hand_milli,
--      CASE WHEN t.product_id IS NULL THEN 0 ELSE 1 END AS price_available
-+      CASE WHEN COALESCE(bp.price_cents,t.price_cents,0)>0 THEN 1 ELSE 0 END AS price_available
-       FROM catalogue_products p LEFT JOIN maliks_pos_master_records m
-         ON m.kind='stock' AND lower(m.branch)=lower(?) AND lower(m.code)=lower(p.code)
-       LEFT JOIN maliks_pos_stock_balances b ON b.stock_master_id=m.id AND lower(b.branch)=lower(m.branch)
-@@ -195,7 +207,7 @@
-       (kind,branch,code,name,active,details_json,version,created_by_email,updated_by_email,created_at,updated_at,create_request_id,create_payload_hash,last_request_id)
-       SELECT 'stock',?,p.code,p.name,1,
-       json_object('unit',COALESCE(t.unit,'EA'),'category',p.category,'barcode','',
--        'cost_cents',0,'selling_price_cents',CASE WHEN t.product_id IS NULL THEN 0 ELSE COALESCE(bp.price_cents,t.price_cents,0) END,'reorder_min',0),
-+        'cost_cents',0,'selling_price_cents',COALESCE(bp.price_cents,t.price_cents,0),'reorder_min',0),
-       1,?,?,?,?,?||p.id,?,?||p.id
-       FROM catalogue_products p LEFT JOIN ${tagTable} t ON t.product_id=p.id AND t.published=1
-       LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
-@@ -223,20 +235,30 @@
-   const branch=matchingBranch(context.branches,data.branch);
-   if(!branch)return fail('Branch access denied.',403);
-   data.branch=branch;
-+  let stockProductId=null,stockPriceBrand='',currentStockPriceCents=null;
-   if(data.kind==='stock'){
-     // Never accept a new product identity from POS: Hub owns product codes,
-     // names and departments. POS may only maintain branch operational settings.
--    const product=await env.DB.prepare(`SELECT code,name,category FROM catalogue_products
-+    const product=await env.DB.prepare(`SELECT id,code,name,category FROM catalogue_products
-       WHERE lower(code)=lower(?) AND active=1 LIMIT 1`).bind(data.code).first();
-     if(!product)return fail('Stock item is not in the active Group Hub catalogue. Add it in Hub first.',409);
-     data.code=product.code;data.name=product.name;data.details.category=product.category;
-+    stockProductId=product.id;
-     const tagTable=/buster\s*build/i.test(branch)?'busterbuild_price_tags':'powerbuild_price_tags';
-     const brand=/buster\s*build/i.test(branch)?'busterbuild':'powerbuild';
--    const hubPrice=await env.DB.prepare(`SELECT CASE WHEN t.product_id IS NULL THEN 0 ELSE COALESCE(bp.price_cents,t.price_cents,0) END AS price_cents
-+    stockPriceBrand=brand;
-+    const hubPrice=await env.DB.prepare(`SELECT COALESCE(bp.price_cents,t.price_cents,0) AS price_cents
-       FROM catalogue_products p LEFT JOIN ${tagTable} t ON t.product_id=p.id AND t.published=1
-       LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
-       WHERE lower(p.code)=lower(?) AND p.active=1 LIMIT 1`).bind(brand,branch,data.code).first();
--    data.details.selling_price_cents=Number(hubPrice?.price_cents||0);
-+    currentStockPriceCents=Number(hubPrice?.price_cents||0);
-+    if(data.price_update){
-+      if(!canEditStockPrice(context.member))return fail('Only branch managers can amend selling prices.',403);
-+      if(data.details.selling_price_cents<1)return fail('Selling price must be greater than R0.00.',400);
-+    }else{
-+      // All other stock edits retain the current published effective branch price.
-+      data.details.selling_price_cents=currentStockPriceCents;
-+    }
-     if(data.id!==undefined){
-       const linked=await env.DB.prepare(`SELECT code FROM maliks_pos_master_records WHERE id=? AND kind='stock' AND lower(branch)=lower(?)`).bind(data.id,branch).first();
-       if(!linked||linked.code.toLowerCase()!==product.code.toLowerCase())return fail('Stock code cannot be changed. Edit the product in Group Hub.',409);
-@@ -275,24 +297,42 @@
-     return json({record:JSON.parse(replay.after_json),duplicate:true});
-   }
-   if(prior.version!==data.version)return fail('This record changed. Refresh before saving.',409);
-+  if(data.price_update&&currentStockPriceCents!==data.expected_selling_price_cents)
-+    return fail('Selling price changed in another workspace. Refresh before saving.',409);
-   const after={id:data.id,kind:data.kind,branch,code:data.code,name:data.name,active:Boolean(data.active),
-     details:data.details,version:data.version+1,updated_at:now};
-   // The audit INSERT is conditional on last_request_id matching this successful UPDATE.
-   // D1 batch transactions roll back both statements if either fails.
--  let outcomes;try{outcomes=await env.DB.batch([
-+  const statements=[
-     env.DB.prepare(`UPDATE maliks_pos_master_records SET code=?,name=?,active=?,details_json=?,version=version+1,
-       updated_by_email=?,updated_at=?,last_request_id=?
-       WHERE id=? AND kind=? AND lower(branch)=lower(?) AND version=?
-       AND NOT EXISTS(SELECT 1 FROM maliks_pos_master_audit WHERE request_id=?)`)
-       .bind(data.code,data.name,data.active,detailsJson,actor,now,data.request_id,
-         data.id,data.kind,branch,data.version,data.request_id),
-+  ];
-+  if(data.kind==='stock'&&data.price_update&&data.details.selling_price_cents!==currentStockPriceCents){
-+    // Publish the branch override only if the optimistic master update succeeded.
-+    // Both changes and their audit are committed in the same D1 transaction.
-+    statements.push(env.DB.prepare(`INSERT INTO price_tag_branch_prices
-+      (brand,product_id,branch_name,price_cents,updated_by,updated_at)
-+      SELECT ?,?,?,?,?,? WHERE EXISTS(
-+        SELECT 1 FROM maliks_pos_master_records
-+        WHERE id=? AND kind='stock' AND lower(branch)=lower(?) AND version=? AND last_request_id=?)
-+      ON CONFLICT(brand,product_id,branch_name) DO UPDATE
-+      SET price_cents=excluded.price_cents,updated_by=excluded.updated_by,updated_at=excluded.updated_at`)
-+      .bind(stockPriceBrand,stockProductId,branch,data.details.selling_price_cents,actor,now,
-+        data.id,branch,data.version+1,data.request_id));
-+  }
-+  statements.push(
-     env.DB.prepare(`INSERT OR IGNORE INTO maliks_pos_master_audit
-       (request_id,kind,branch,record_id,action,actor_email,actor_name,payload_hash,before_json,after_json,created_at)
-       SELECT ?,kind,branch,id,'UPDATE',?,?,?,?,?,? FROM maliks_pos_master_records
-       WHERE id=? AND kind=? AND lower(branch)=lower(?) AND version=? AND last_request_id=?`)
-       .bind(data.request_id,actor,actorName,hash,JSON.stringify(snapshot(prior)),JSON.stringify(after),now,
-         data.id,data.kind,branch,data.version+1,data.request_id),
--  ]);}catch(error){if(/UNIQUE constraint failed/i.test(String(error)))return fail('Code already exists for this branch.',409);throw error;}
-+  );
-+  let outcomes;try{outcomes=await env.DB.batch(statements);}catch(error){if(/UNIQUE constraint failed/i.test(String(error)))return fail('Code already exists for this branch.',409);throw error;}
-   if(Number(outcomes?.[0]?.meta?.changes)!==1)return fail('This record changed. Refresh before saving.',409);
-   return json({record:after});
- }
---- a/maliks-operations/src/department-premium.mjs
-+++ b/maliks-operations/src/department-premium.mjs
-@@ -99,10 +99,10 @@
-   ],actions:[['new','Create New Quotation','Search products and submit to Cash Office','shopping-cart'],['history','My Quotations','Recent quotations and reprints','receipt']]},
-   tills:{title:'Tills Workspace',intro:'Cashier checkout with controlled till shifts, payment confirmation and paid receipts.',hero:'credit-card',stats:[
-     ['Cash / Card','Cashier-confirmed payments','credit-card'],['Till shifts','Open and close your own shift','clock'],['Paid invoices','Review payment status','receipt'],['Receipts','Print 80mm paid slips','printer']
--  ],actions:[['checkout','Cashier Checkout','Find quotation and confirm Cash or Card','credit-card'],['shifts','Till Shift Register','Open, close and inspect your shifts','clock'],['payments','Paid Invoices','Confirmed payments and receipt options','receipt'],['quotes','Recent Quotations','Review authorised quotations','clipboard-list'],['preparations','Tender Preparations','View unposted preparation records','wallet']]},
-+  ],actions:[['checkout','Cashier Checkout','Find quotation and confirm Cash or Card','credit-card'],['shifts','Till Shift Register','Open, close and inspect your shifts','clock'],['cashup','Close / Cash-Up','Record closing cash count','wallet'],['payments','Paid Invoices','Confirmed payments and receipt options','receipt'],['quotes','Recent Quotations','Review authorised quotations','clipboard-list'],['preparations','Tender Preparations','View unposted preparation records','wallet']]},
-   cashoffice:{title:'Cash Office Workspace',intro:'Review cashier payment evidence, monitor paid invoices and inspect till declarations.',hero:'wallet',stats:[
-     ['Paid invoices','Review confirmed receipts','receipt'],['Shift review','Declarations and exceptions','users'],['Provisional cash-up','An estimate, not reconciliation','wallet'],['Payment evidence','Controlled verification','file-text']
--  ],actions:[['paid','Paid Invoice Audit','Review and reprint posted invoices','receipt'],['shifts','Shift Reviews','Inspect declarations and flags','users'],['cashup','Provisional Cash-Up','Review estimates and exceptions','wallet'],['evidence','Payment Evidence','Inspect verification records','file-text'],['preparations','Tender Preparations','Proposed, unposted tenders','clipboard-list'],['quotes','Submitted Quotations','Review branch quotations','search']]},
-+  ],actions:[['paid','Paid Invoice Audit','Review and reprint posted invoices','receipt'],['shifts','Shift Reviews','Inspect declarations and flags','users'],['cashup','Cash-Up Reconciliation','Match shift counts and review exceptions','wallet'],['evidence','Payment Evidence','Inspect verification records','file-text'],['preparations','Tender Preparations','Proposed, unposted tenders','clipboard-list'],['quotes','Submitted Quotations','Review branch quotations','search']]},
-   dispatch:{title:'Dispatch Workspace',intro:'Manage the paid-invoice queue, picker handover and independent checking.',hero:'truck',stats:[
-     ['Paid queue','Confirmed invoice jobs only','receipt'],['Picking','Record picking and staging','boxes'],['Independent check','Confirm the picked items','package-check'],['Print slips','A4 picking documents','printer']
-   ],actions:[['queue','Open Dispatch Queue','Print slips and record pick/check actions','truck']]}
---- /dev/null
-+++ b/maliks-operations/src/cashup-reconciliation-domain.mjs
-@@ -0,0 +1,155 @@
-+// Shift cash reconciliation based on recorded cashier-confirmed payments, not tender preparations.
-+// CASH_COUNT_CHECKED means the declared cash count matched the recorded shift cash;
-+ // it does not mean bank reconciliation, card settlement, Hub GL or physical deposit posting.
-+import { matchingBranch } from './policy.mjs';
-+
-+const headers={'cache-control':'no-store','x-content-type-options':'nosniff'};
-+const ok=(data,status=200)=>Response.json(data,{status,headers});
-+const denied=(message,status=403)=>ok({error:message},status);
-+const cent=v=>Number.isSafeInteger(v)&&v>=0&&v<=100_000_000_000;
-+const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
-+const safeNote=v=>typeof v==='string'&&v.trim().length>=3&&v.trim().length<=400&& !/[\u0000-\u001f\u007f]/.test(v);
-+export const CASHUP_RECONCILIATION_MODE='CASHIER_CONFIRMED_SHIFT_PAYMENTS';
-+
-+export function cashupReconciliationQuery(branch,shiftId=null){
-+  if(typeof branch!=='string'||!branch.trim()||branch.length>150)throw Error('Select a branch.');
-+  const filter=shiftId===null?'':" AND id=?";
-+  return {sql:`WITH selected_shifts AS (
-+    SELECT * FROM maliks_till_shift_register WHERE lower(branch)=lower(?)${filter}
-+    ORDER BY id DESC LIMIT ${shiftId===null?'75':'1'}
-+  ), totals AS (
-+    SELECT s.id AS shift_id,s.branch,s.till_code,s.status,s.opened_by_name,s.opened_by_email,s.opened_at,
-+      s.closed_at,s.opening_float_cents,s.counted_cash_cents,
-+      COALESCE(SUM(CASE WHEN p.status='CONFIRMED' THEN p.cash_cents ELSE 0 END),0) AS cash_sales_cents,
-+      COALESCE(SUM(CASE WHEN p.status='CONFIRMED' THEN p.card_cents ELSE 0 END),0) AS card_sales_cents,
-+      COALESCE(SUM(CASE WHEN p.status='CONFIRMED' THEN p.eft_cents ELSE 0 END),0) AS eft_sales_cents,
-+      COALESCE(SUM(CASE WHEN p.status='CONFIRMED' THEN p.cash_received_cents-p.cash_cents ELSE 0 END),0) AS change_cents,
-+      COALESCE(SUM(CASE WHEN p.status='CONFIRMED' THEN 1 ELSE 0 END),0) AS confirmed_count,
-+      COALESCE(SUM(CASE WHEN p.status='AWAITING_VERIFICATION' THEN 1 ELSE 0 END),0) AS pending_count,
-+      COALESCE(SUM(CASE WHEN p.status='REJECTED' THEN 1 ELSE 0 END),0) AS rejected_count
-+    FROM selected_shifts s LEFT JOIN maliks_p9_payments p
-+      ON p.shift_id=s.id AND lower(p.branch)=lower(s.branch)
-+    GROUP BY s.id
-+  ) SELECT t.*,r.decision AS last_review_decision,r.reviewer_name AS last_reviewed_by,
-+    r.reviewed_at AS last_reviewed_at,r.note AS last_review_note
-+    FROM totals t LEFT JOIN maliks_p22_cashup_reviews r ON r.id=(
-+      SELECT rr.id FROM maliks_p22_cashup_reviews rr
-+      WHERE rr.shift_id=t.shift_id AND lower(rr.branch)=lower(t.branch)
-+      ORDER BY rr.id DESC LIMIT 1)
-+    ORDER BY t.shift_id DESC`,params:shiftId===null?[branch]:[branch,shiftId]};
-+}
-+export function cashupReconciliationForClient(row){
-+  const expected=Number(row.opening_float_cents)+Number(row.cash_sales_cents);
-+  const closed=row.status==='CLOSED';
-+  if(!cent(expected)||!cent(row.opening_float_cents)||!cent(row.cash_sales_cents)||
-+     !cent(row.card_sales_cents)||!cent(row.eft_sales_cents)||!cent(row.pending_count)||
-+     !cent(row.confirmed_count)||!cent(row.rejected_count))throw Error('Invalid cash-up data.');
-+  if(closed&&!cent(row.counted_cash_cents))throw Error('Closing count not available.');
-+  const variance=closed?Number(row.counted_cash_cents)-expected:null;
-+  return {
-+    shift_id:row.shift_id,branch:row.branch,till_code:row.till_code,status:row.status,
-+    cashier_name:row.opened_by_name,cashier_email:row.opened_by_email,opened_at:row.opened_at,closed_at:row.closed_at,
-+    opening_float_cents:Number(row.opening_float_cents),
-+    confirmed_cash_sales_cents:Number(row.cash_sales_cents),
-+    confirmed_card_sales_cents:Number(row.card_sales_cents),
-+    confirmed_eft_sales_cents:Number(row.eft_sales_cents),
-+    cash_change_cents:Number(row.change_cents),
-+    confirmed_payment_count:Number(row.confirmed_count),
-+    pending_payment_count:Number(row.pending_count),
-+    rejected_payment_count:Number(row.rejected_count),
-+    expected_cash_cents:expected,
-+    counted_cash_cents:closed?Number(row.counted_cash_cents):null,
-+    variance_cents:variance,
-+    review_status:row.last_review_decision||'PENDING_CASH_OFFICE_REVIEW',
-+    reviewed_by:row.last_reviewed_by||null,
-+    reviewed_at:row.last_reviewed_at||null,
-+    review_note:row.last_review_note||null,
-+    bank_reconciled:false,card_settled:false,hub_general_ledger_posted:false,
-+  };
-+}
-+function authorised(context){return context.app==='cashoffice';}
-+async function readShift(env,branch,id){
-+  const q=cashupReconciliationQuery(branch,id);
-+  const row=await env.DB.prepare(q.sql).bind(...q.params).first();
-+  return row?cashupReconciliationForClient(row):null;
-+}
-+export async function listCashupReconciliations(req,env,context){
-+  if(!authorised(context))return denied('Cash Office only.');
-+  const branch=matchingBranch(context.branches,new URL(req.url).searchParams.get('branch'));
-+  if(!branch)return denied('Branch access denied.');
-+  const q=cashupReconciliationQuery(branch);
-+  const {results}=await env.DB.prepare(q.sql).bind(...q.params).all();
-+  return ok({branch,mode:CASHUP_RECONCILIATION_MODE,records:results.map(cashupReconciliationForClient),
-+    warning:'Shift cash count versus cashier-confirmed payment records only. Card payments are cashier-attested, not bank-settled. No deposit, Hub GL or stock postings.'});
-+}
-+export async function reviewCashupReconciliation(req,env,context){
-+  if(!authorised(context))return denied('Cash Office only.');
-+  if(!req.headers.get('origin')||req.headers.get('origin')!==req.headers.get('x-maliks-original-origin'))
-+    return denied('Invalid request origin.');
-+  let data;
-+  try{const raw=await req.text();if(raw.length>3000)throw Error();data=JSON.parse(raw);}
-+  catch{return denied('Invalid cash-up review request.',400);}
-+  const branch=matchingBranch(context.branches,data?.branch);
-+  const shiftId=data?.shift_id,decision=data?.decision,note=data?.note;
-+  if(!branch)return denied('Branch access denied.');
-+  if(!Number.isSafeInteger(shiftId)||shiftId<1||!uuid(data?.request_id)||
-+     !['CASH_COUNT_CHECKED','FLAGGED'].includes(decision)||!safeNote(note)||
-+     !cent(data?.expected_cash_cents)||!cent(data?.counted_cash_cents))
-+    return denied('Invalid review details or note (minimum 3 characters).',400);
-+  if(decision==='FLAGGED'&&note.trim().length<10)return denied('A flagged variance needs an explanation of at least 10 characters.',400);
-+  const reviewer=String(context.member.email||'').trim().toLowerCase();
-+  const prior=await env.DB.prepare('SELECT * FROM maliks_p22_cashup_reviews WHERE request_id=?')
-+    .bind(data.request_id).first();
-+  if(prior){
-+    if(prior.shift_id!==shiftId||prior.branch.toLowerCase()!==branch.toLowerCase()||
-+       prior.reviewer_email.toLowerCase()!==reviewer||prior.decision!==decision||prior.note!==note.trim()||
-+       prior.expected_cash_cents!==data.expected_cash_cents||prior.counted_cash_cents!==data.counted_cash_cents)
-+      return denied('Review request ID already used.',409);
-+    return ok({record_id:prior.id,duplicate:true,decision:prior.decision});
-+  }
-+  const record=await readShift(env,branch,shiftId);
-+  if(!record)return denied('Shift not found for your branch.',404);
-+  if(record.status!=='CLOSED')return denied('Cash-Up is available after the cashier closes the shift.',409);
-+  if(reviewer===String(record.cashier_email||'').toLowerCase()){
-+    // Cashier identity is independently checked below in SQL as well.
-+    return denied('A cashier cannot check their own cash-up.',403);
-+  }
-+  if(record.expected_cash_cents!==data.expected_cash_cents||record.counted_cash_cents!==data.counted_cash_cents)
-+    return denied('Cash-Up values have changed. Refresh before review.',409);
-+  if(decision==='CASH_COUNT_CHECKED'&&(record.variance_cents!==0||record.pending_payment_count!==0))
-+    return denied('Cannot mark a cash-up checked with a variance or pending payments.',409);
-+  if(record.review_status==='CASH_COUNT_CHECKED')return denied('This cash count has already been checked. Do not overwrite its audit.',409);
-+  const at=new Date().toISOString();
-+  // Revalidate state and cashier independence in the single INSERT statement.
-+  // A checked result cannot be created while a pending payment or variance exists.
-+  const sql=`INSERT OR IGNORE INTO maliks_p22_cashup_reviews
-+    (request_id,branch,shift_id,decision,opening_float_cents,confirmed_cash_sales_cents,
-+     expected_cash_cents,counted_cash_cents,variance_cents,pending_payment_count,reviewer_email,reviewer_name,note,reviewed_at)
-+    SELECT ?,s.branch,s.id,?,s.opening_float_cents,
-+      COALESCE(SUM(CASE WHEN p.status='CONFIRMED' THEN p.cash_cents ELSE 0 END),0),
-+      s.opening_float_cents+COALESCE(SUM(CASE WHEN p.status='CONFIRMED' THEN p.cash_cents ELSE 0 END),0),
-+      s.counted_cash_cents,
-+      s.counted_cash_cents-s.opening_float_cents-COALESCE(SUM(CASE WHEN p.status='CONFIRMED' THEN p.cash_cents ELSE 0 END),0),
-+      COALESCE(SUM(CASE WHEN p.status='AWAITING_VERIFICATION' THEN 1 ELSE 0 END),0),?,?,?,?
-+    FROM maliks_till_shift_register s
-+    LEFT JOIN maliks_p9_payments p ON p.shift_id=s.id AND lower(p.branch)=lower(s.branch)
-+    WHERE s.id=? AND lower(s.branch)=lower(?) AND s.status='CLOSED'
-+      AND lower(s.opened_by_email)<>lower(?)
-+      AND NOT EXISTS(SELECT 1 FROM maliks_p22_cashup_reviews rr WHERE rr.shift_id=s.id
-+                     AND rr.decision='CASH_COUNT_CHECKED')
-+    GROUP BY s.id
-+    HAVING s.opening_float_cents+COALESCE(SUM(CASE WHEN p.status='CONFIRMED' THEN p.cash_cents ELSE 0 END),0)=?
-+      AND s.counted_cash_cents=?
-+      AND (?='FLAGGED' OR (s.counted_cash_cents=s.opening_float_cents+
-+        COALESCE(SUM(CASE WHEN p.status='CONFIRMED' THEN p.cash_cents ELSE 0 END),0)
-+        AND COALESCE(SUM(CASE WHEN p.status='AWAITING_VERIFICATION' THEN 1 ELSE 0 END),0)=0))`;
-+  try {
-+    const result=await env.DB.prepare(sql).bind(
-+      data.request_id,decision,reviewer,context.member.name,note.trim(),at,
-+      shiftId,branch,reviewer,data.expected_cash_cents,data.counted_cash_cents,decision).run();
-+    if(Number(result.meta?.changes)!==1)return denied('Cash-Up changed or was already checked. Refresh before reviewing.',409);
-+  }catch(e){return denied('Could not record the cash-up. Check that the Phase 22 migration has been applied.',503);}
-+  const saved=await env.DB.prepare('SELECT id,decision,reviewed_at FROM maliks_p22_cashup_reviews WHERE request_id=?').bind(data.request_id).first();
-+  return ok({record_id:saved.id,decision:saved.decision,reviewed_at:saved.reviewed_at,
-+    message:'Cash Office review recorded. No bank, deposit, Hub GL, stock or invoice posting occurred.'});
-+}
---- /dev/null
-+++ b/maliks-operations/sql/phase22_cashup_reconciliation.sql
-@@ -0,0 +1,20 @@
-+-- Phase 22: independent cash-office cash-count review.
-+-- Additive audit register. Does not create deposits, bank reconciliation, invoices or stock postings.
-+CREATE TABLE IF NOT EXISTS maliks_p22_cashup_reviews (
-+  id INTEGER PRIMARY KEY AUTOINCREMENT,
-+  request_id TEXT NOT NULL UNIQUE,
-+  branch TEXT NOT NULL,
-+  shift_id INTEGER NOT NULL REFERENCES maliks_till_shift_register(id),
-+  decision TEXT NOT NULL CHECK(decision IN ('CASH_COUNT_CHECKED','FLAGGED')),
-+  opening_float_cents INTEGER NOT NULL CHECK(opening_float_cents>=0),
-+  confirmed_cash_sales_cents INTEGER NOT NULL CHECK(confirmed_cash_sales_cents>=0),
-+  expected_cash_cents INTEGER NOT NULL CHECK(expected_cash_cents>=0),
-+  counted_cash_cents INTEGER NOT NULL CHECK(counted_cash_cents>=0),
-+  variance_cents INTEGER NOT NULL,
-+  pending_payment_count INTEGER NOT NULL CHECK(pending_payment_count>=0),
-+  reviewer_email TEXT NOT NULL,
-+  reviewer_name TEXT NOT NULL,
-+  note TEXT NOT NULL,
-+  reviewed_at TEXT NOT NULL
-+);
-+CREATE INDEX IF NOT EXISTS idx_maliks_p22_cashup_shift ON maliks_p22_cashup_reviews(branch,shift_id,id DESC);
---- a/maliks-operations/tests/stock-master-branch-grid.test.mjs
-+++ b/maliks-operations/tests/stock-master-branch-grid.test.mjs
-@@ -55,7 +55,7 @@
-  assert.equal((await listMasterRecords(request('Branch B'),env,context('Branch A'))).status,403,'a user cannot request another branch');
- });
+ type Attachment = {
+@@ -145,6 +146,7 @@
+   const [checklistNotes, setChecklistNotes] = useState("");
+   const [checklistSignoff, setChecklistSignoff] = useState("");
+   const [checklistFiles, setChecklistFiles] = useState<File[]>([]);
++  const [checklistMessage, setChecklistMessage] = useState<{ text: string; success: boolean } | null>(null);
  
--test('POS stock list includes selling price, recorded on-hand, double-click and keyboard edit; edits preserve Hub authority',async()=>{
-+test('POS stock list includes selling price, recorded on-hand, double-click and role-controlled price editing',async()=>{
-  const page=await (await frontend.fetch(new Request('https://pos.test/'),{APP_TYPE:'pos'})).text();
-  assert.match(page,/\['Code','Description','Category','Selling price','On hand','Unit','Status','Action'\]/);
-  assert.match(page,/tr\.addEventListener\('dblclick',open\)/);
-@@ -65,6 +65,8 @@
-  assert.match(page,/record\.linked\?formatQty/);
-  assert.match(page,/Record(?:ed)? on hand|Recorded on hand/);
-  assert.match(page,/Stock Adjustment \/ Stock Take/);
-- assert.match(page,/selling_price_cents'\]\.includes\(key\)\)input\.readOnly=true/);
-+ assert.match(page,/stockPricePermission/);
-+ assert.match(page,/price_update=true/);
-+ assert.match(page,/expected_selling_price_cents/);
-  assert.match(page,/sales deductions are not yet integrated/);
- });
---- /dev/null
-+++ b/maliks-operations/tests/phase22-branch-price-cashup.test.mjs
-@@ -0,0 +1,143 @@
+   const load = async () => {
+     setLoading(true);
+@@ -203,6 +205,10 @@
+     () => (data?.checklists || []).filter((row) => !selectedStore || row.workspace === selectedStore),
+     [data, selectedStore],
+   );
++  const activeChecklist = checklistHistory.find((row) => row.checklist_date === checklistDate);
++  const activeChecklistStatus = activeChecklist
++    ? (activeChecklist.record_status || (activeChecklist.manager_signoff ? "Finalized" : "Draft"))
++    : "Not saved";
+   const auditScore = Math.round((auditSections.reduce((sum, item) => sum + Number(item.score || 0), 0) / (auditSections.length * 5)) * 100);
+   const applicableChecklist = checklistItems.filter((item) => item.status !== "N/A");
+   const checklistDone = applicableChecklist.filter((item) => item.status === "Done").length;
+@@ -283,22 +289,31 @@
+     }
+   };
+ 
+-  const saveChecklist = async () => {
++  const saveChecklist = async (mode: "draft" | "finalize") => {
+     if (!data?.canWrite || saving) return;
+-    if (!selectedStore || !checklistManager.trim() || !checklistSignoff.trim()) {
+-      setNotice("Select a store and complete the manager and sign-off fields.");
++    const inform = (text: string, success = false) => setChecklistMessage({ text, success });
++    if (!selectedStore || !checklistDate || !checklistManager.trim()) {
++      inform("Select the store and checklist date, then enter the manager's name.");
+       return;
+     }
+-    if (checklistItems.some((item) => !item.status)) {
+-      setNotice("Complete every daily checklist item before saving.");
+-      return;
+-    }
+-    const issueWithoutComment = checklistItems.find((item) => item.status === "Issue" && !item.comment.trim());
+-    if (issueWithoutComment) {
+-      setNotice(`Add a comment for the issue: ${issueWithoutComment.name}`);
+-      return;
++    if (mode === "finalize") {
++      if (!checklistSignoff.trim()) {
++        inform("Enter the manager sign-off to finalise the checklist.");
++        return;
++      }
++      const incomplete = checklistItems.find((item) => !item.status);
++      if (incomplete) {
++        inform(`Select Done, Issue or N/A for: ${incomplete.name}`);
++        return;
++      }
++      const issueWithoutComment = checklistItems.find((item) => item.status === "Issue" && !item.comment.trim());
++      if (issueWithoutComment) {
++        inform(`Add a comment for the issue: ${issueWithoutComment.name}`);
++        return;
++      }
+     }
+     setSaving(true);
++    setChecklistMessage(null);
+     setNotice("");
+     try {
+       const response = await fetch("/api/store-controls", {
+@@ -306,25 +321,31 @@
+         headers: { "content-type": "application/json" },
+         body: JSON.stringify({
+           type: "checklist",
++          mode,
+           workspace: selectedStore,
+           checklistDate,
+           manager: checklistManager,
+           items: checklistItems,
+           notes: checklistNotes,
+-          managerSignoff: checklistSignoff,
++          managerSignoff: mode === "finalize" ? checklistSignoff : "",
+         }),
+       });
+-      const result = (await response.json().catch(() => ({}))) as { checklist?: Checklist; error?: string };
+-      if (!response.ok || !result.checklist) throw new Error(result.error || "Checklist could not be saved.");
++      const result = (await response.json().catch(() => ({}))) as {
++        checklist?: Checklist; error?: string; saved?: boolean;
++      };
++      if (!response.ok || !result.saved || !result.checklist?.id)
++        throw new Error(result.error || "The checklist was not confirmed as saved. Please retry.");
+       let evidenceWarning = "";
+       if (checklistFiles.length) {
+         try { await uploadFiles("checklist", Number(result.checklist.id), checklistFiles); }
+-        catch { evidenceWarning = " Evidence upload failed; the checklist itself was saved."; }
+-      }
+-      setNotice(`Daily checklist saved at ${result.checklist.compliance_percent}% compliance.${evidenceWarning}`);
++        catch { evidenceWarning = " Checklist saved, but evidence upload failed. Please retry the evidence separately."; }
++      }
++      setChecklistFiles([]);
+       await load();
++      const statusText = mode === "draft" ? "Progress saved as draft" : "Daily checklist finalised";
++      inform(`${statusText} for ${selectedStore} (${checklistDate}).${evidenceWarning}`, true);
+     } catch (err) {
+-      setNotice(err instanceof Error ? err.message : "Checklist could not be saved.");
++      inform(err instanceof Error ? err.message : "Checklist could not be saved.");
+     } finally {
+       setSaving(false);
+     }
+@@ -359,7 +380,7 @@
+   return <div className="storeControls">
+     <section className="storeControlsHero">
+       <div><small>POWERBUILD OPERATING CONTROL SYSTEM</small><h2>Store Control Centre</h2><p>Digital audits, daily manager discipline and one executive ranking across the store network.</p></div>
+-      <label>Store scope<select value={selectedStore} onChange={(event) => setSelectedStore(event.target.value)}>{data.stores.map((store) => <option key={store.id} value={store.name}>{store.name}</option>)}</select></label>
++      <label>Store scope<select value={selectedStore} onChange={(event) => { setSelectedStore(event.target.value); setChecklistMessage(null); }}>{data.stores.map((store) => <option key={store.id} value={store.name}>{store.name}</option>)}</select></label>
+     </section>
+ 
+     <nav className="storeControlTabs">
+@@ -396,13 +417,20 @@
+     </>}
+ 
+     {tab === "checklists" && <>
+-      <section className="storeControlPanel dailyChecklistPanel"><header><div><small>DAILY STORE CONTROL</small><h3>{selectedStore}</h3><p>Complete the manager checklist every operating day. Missed days count against compliance in the executive ranking.</p></div><div className={`auditLiveScore ${scoreTone(checklistPreview)}`}><b>{checklistPreview}%</b><small>current compliance</small></div></header>
+-        <div className="storeControlFormGrid checklistHeaderFields"><label>Checklist date<input type="date" value={checklistDate} onChange={(event) => setChecklistDate(event.target.value)} /></label><label>Manager<input value={checklistManager} onChange={(event) => setChecklistManager(event.target.value)} disabled={!data.canWrite} /></label>{data.canWrite && <button type="button" className="markCompliantBtn" onClick={() => setChecklistItems((items) => items.map((item) => ({ ...item, status: "Done" })))}>Mark all Done</button>}</div>
++      <section className="storeControlPanel dailyChecklistPanel"><header><div><small>DAILY STORE CONTROL · {activeChecklistStatus}</small><h3>{selectedStore}</h3><p>Save progress during the day, then finalise the checklist after the closing checks. Only finalised checklists count as complete.</p></div><div className={`auditLiveScore ${scoreTone(checklistPreview)}`}><b>{checklistPreview}%</b><small>current compliance</small></div></header>
++        <div className="storeControlFormGrid checklistHeaderFields"><label>Checklist date<input type="date" value={checklistDate} onChange={(event) => { setChecklistDate(event.target.value); setChecklistMessage(null); }} /></label><label>Manager<input value={checklistManager} onChange={(event) => setChecklistManager(event.target.value)} disabled={!data.canWrite} /></label>{data.canWrite && <button type="button" className="markCompliantBtn" onClick={() => setChecklistItems((items) => items.map((item) => ({ ...item, status: "Done" })))}>Mark all Done</button>}</div>
+         <div className="dailyChecklistItems">{checklistItems.map((item, index) => <article key={item.name} className={item.status === "Issue" ? "hasIssue" : item.status === "Done" ? "isDone" : ""}><span>{index + 1}</span><div><b>{item.name}</b><input disabled={!data.canWrite} value={item.comment} onChange={(event) => setChecklistItems((items) => items.map((row, i) => i === index ? { ...row, comment: event.target.value } : row))} placeholder={item.status === "Issue" ? "Issue comment required" : "Optional note"} /></div><select disabled={!data.canWrite} value={item.status} onChange={(event) => setChecklistItems((items) => items.map((row, i) => i === index ? { ...row, status: event.target.value as ChecklistItem["status"] } : row))}><option value="">Select</option><option value="Done">Done</option><option value="Issue">Issue</option><option value="N/A">N/A</option></select></article>)}</div>
+         <div className="storeControlFormGrid"><label>Manager notes<textarea value={checklistNotes} disabled={!data.canWrite} onChange={(event) => setChecklistNotes(event.target.value)} placeholder="Outstanding items, handover notes or management actions" /></label><label>Manager sign-off<input value={checklistSignoff} disabled={!data.canWrite} onChange={(event) => setChecklistSignoff(event.target.value)} placeholder="Manager full name" /></label><label>Photo evidence<input type="file" multiple accept="image/*,.pdf" disabled={!data.canWrite} onChange={(event) => setChecklistFiles(Array.from(event.target.files || []))} /><small>Optional · up to 5 files</small></label></div>
+-        {data.canWrite && <footer><button className="storeControlPrimary" disabled={saving} onClick={() => void saveChecklist()}>{saving ? "Saving checklist…" : "Save daily manager checklist"}</button></footer>}
++        {data.canWrite && <footer>
++          <button type="button" className="markCompliantBtn" disabled={saving || activeChecklistStatus === "Finalized"} onClick={() => void saveChecklist("draft")}>{saving ? "Saving…" : "Save Progress"}</button>
++          <button type="button" className="storeControlPrimary" disabled={saving} onClick={() => void saveChecklist("finalize")}>{saving ? "Saving…" : "Finalise Daily Checklist"}</button>
++        </footer>}
++        {checklistMessage && <div role={checklistMessage.success ? "status" : "alert"} aria-live="polite" className="storeControlNotice" style={{ marginTop: 12 }}>
++          <strong>{checklistMessage.success ? "Saved successfully: " : "Checklist not saved: "}</strong>{checklistMessage.text}
++        </div>}
++        {!data.canWrite && <div className="storeControlNotice" role="status">Your account has read-only access. Request checklist editing permission from the Hub administrator.</div>}
+       </section>
+-      <section className="storeControlPanel"><header><div><h3>Checklist history</h3><p>Daily compliance and exceptions for {selectedStore}</p></div></header><div className="checklistHistoryTable"><div className="checklistHistoryHead"><span>Date</span><span>Manager</span><span>Compliance</span><span>Issues</span><span>Evidence</span></div>{checklistHistory.slice(0, 31).map((row) => <div className="checklistHistoryRow" key={row.id}><b>{dateLabel(row.checklist_date)}</b><span>{row.manager}</span><strong className={scoreTone(Number(row.compliance_percent))}>{Math.round(Number(row.compliance_percent))}%</strong><span>{row.issues_count}</span><span>{attachmentsFor("checklist", row.id).map((file) => <a key={file.id} href={`/api/store-controls/attachments/${file.id}`} target="_blank" rel="noreferrer">▧</a>)}{!attachmentsFor("checklist", row.id).length && "—"}</span></div>)}{!checklistHistory.length && <div className="storeControlEmpty">No manager checklists captured for this store yet.</div>}</div></section>
++      <section className="storeControlPanel"><header><div><h3>Checklist history</h3><p>Daily compliance and exceptions for {selectedStore}</p></div></header><div className="checklistHistoryTable"><div className="checklistHistoryHead"><span>Date</span><span>Manager</span><span>Compliance</span><span>Issues</span><span>Evidence</span></div>{checklistHistory.slice(0, 31).map((row) => <div className="checklistHistoryRow" key={row.id}><b>{dateLabel(row.checklist_date)}</b><span>{row.manager}</span><strong className={scoreTone(Number(row.compliance_percent))}>{Math.round(Number(row.compliance_percent))}%</strong><span>{row.issues_count} · {row.record_status || (row.manager_signoff ? "Finalized" : "Draft")}</span><span>{attachmentsFor("checklist", row.id).map((file) => <a key={file.id} href={`/api/store-controls/attachments/${file.id}`} target="_blank" rel="noreferrer">▧</a>)}{!attachmentsFor("checklist", row.id).length && "—"}</span></div>)}{!checklistHistory.length && <div className="storeControlEmpty">No manager checklists captured for this store yet.</div>}</div></section>
+     </>}
+ 
+     {tab === "ranking" && <>
+--- a/app/api/store-controls/route.ts
++++ b/app/api/store-controls/route.ts
+@@ -16,14 +16,16 @@
+     return [];
+   }
+ };
+-const isoDate = (date = new Date()) => date.toISOString().slice(0, 10);
++// Store operating dates follow South Africa Standard Time (UTC+02:00),
++// not the Cloudflare Worker/UTC clock, so a checklist saved after midnight
++// appears against the correct local trading date.
++const isoDate = (date = new Date()) => new Date(date.getTime() + 2 * 60 * 60 * 1000).toISOString().slice(0, 10);
+ const operatingDays = (days: number) => {
+   const out: string[] = [];
+-  const d = new Date();
+-  d.setHours(12, 0, 0, 0);
++  const d = new Date(`${isoDate()}T12:00:00Z`);
+   while (out.length < days) {
+-    if (d.getDay() !== 0) out.push(isoDate(d));
+-    d.setDate(d.getDate() - 1);
++    if (d.getUTCDay() !== 0) out.push(d.toISOString().slice(0, 10));
++    d.setUTCDate(d.getUTCDate() - 1);
+   }
+   return out;
+ };
+@@ -53,7 +55,9 @@
+     const auditScore = latestAudit ? clamp(latestAudit.score) : 0;
+ 
+     const recentChecklists = checklists.filter(
+-      (row) => String(row.workspace) === workspace && lastOperatingDays.includes(String(row.checklist_date)),
++      (row) => String(row.workspace) === workspace &&
++        String(row.manager_signoff || "").trim() !== "" &&
++        lastOperatingDays.includes(String(row.checklist_date)),
+     );
+     const checklistByDay = new Map(recentChecklists.map((row) => [String(row.checklist_date), clamp(row.compliance_percent)]));
+     const checklistScore = Math.round(
+@@ -76,7 +80,8 @@
+ 
+     const score = Math.round(auditScore * 0.35 + checklistScore * 0.3 + correctiveScore * 0.1 + taskScore * 0.25);
+     const dataCoverage = (latestAudit ? 45 : 0) + (recentChecklists.length ? 30 : 0) + (storeTasks.length ? 25 : 0);
+-    const todayChecklist = checklists.find((row) => String(row.workspace) === workspace && String(row.checklist_date) === today);
++    const todayChecklist = checklists.find((row) => String(row.workspace) === workspace &&
++      String(row.checklist_date) === today && String(row.manager_signoff || "").trim() !== "");
+     const status = dataCoverage < 45 ? "Setup required" : score >= 85 ? "Green" : score >= 70 ? "Amber" : "Red";
+     return {
+       workspace,
+@@ -117,8 +122,12 @@
+   const rawChecklists = checklistQuery.results.filter((row) => storeNames.has(String(row.workspace)));
+   const audits: Array<DbRow & { sections: AuditSection[] }> = rawAudits
+     .map((row) => ({ ...row, sections: parseJsonArray<AuditSection>(row.sections_json) }));
+-  const checklists: Array<DbRow & { items: ChecklistItem[] }> = rawChecklists
+-    .map((row) => ({ ...row, items: parseJsonArray<ChecklistItem>(row.items_json) }));
++  const checklists: Array<DbRow & { items: ChecklistItem[]; record_status: "Draft" | "Finalized" }> = rawChecklists
++    .map((row) => ({
++      ...row,
++      items: parseJsonArray<ChecklistItem>(row.items_json),
++      record_status: String(row.manager_signoff || "").trim() ? "Finalized" as const : "Draft" as const,
++    }));
+   const tasks = taskQuery.results.filter((row) => storeNames.has(String(row.project)));
+   const attachments = attachmentQuery.results.filter((row) => storeNames.has(String(row.workspace)));
+   const ranking = buildRanking(stores, rawAudits, rawChecklists, tasks);
+@@ -134,7 +143,7 @@
+     summary: {
+       stores: stores.length,
+       auditedStores: new Set(audits.map((row) => String(row.workspace))).size,
+-      todayChecklists: checklists.filter((row) => String(row.checklist_date) === today).length,
++      todayChecklists: checklists.filter((row) => String(row.checklist_date) === today && row.record_status === "Finalized").length,
+       overdueCorrectives: ranking.reduce((sum, row) => sum + row.overdueCorrectives, 0),
+       averageScore: (() => {
+         const rated = ranking.filter((row) => row.dataCoverage >= 45);
+@@ -195,40 +204,105 @@
+   }
+ 
+   if (type === "checklist") {
+-    const items = Array.isArray(payload.items) ? (payload.items as ChecklistItem[]) : [];
+-    if (!items.length) return Response.json({ error: "Checklist items are required." }, { status: 400 });
+-    const applicable = items.filter((item) => String(item.status || "") !== "N/A");
+-    const done = applicable.filter((item) => String(item.status || "") === "Done").length;
+-    const issues = applicable.filter((item) => String(item.status || "") === "Issue").length;
++    const mode = String(payload.mode || "finalize");
++    if (!["draft", "finalize"].includes(mode))
++      return Response.json({ error: "Choose Save Progress or Finalise Checklist." }, { status: 400 });
 +
-+import test from 'node:test';
-+import assert from 'node:assert/strict';
-+import {DatabaseSync} from 'node:sqlite';
-+import {readFileSync} from 'node:fs';
-+import {listMasterRecords,saveMasterRecord,syncStockCatalogue} from '../src/master-domain.mjs';
-+import {listCashupReconciliations,reviewCashupReconciliation,CASHUP_RECONCILIATION_MODE} from '../src/cashup-reconciliation-domain.mjs';
-+import frontend from '../src/frontend.mjs';
-+const uid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
-+const owner={name:'Manager',email:'manager@maliks.test',active:1,role:'Store Manager',access_scope:'Assigned workspace'};
-+const stocker={...owner,name:'Stock Controller',email:'stock@maliks.test',role:'Stock Controller'};
-+const cashoffice={name:'Cash Officer',email:'cashoffice@maliks.test',active:1,role:'Finance Manager'};
-+const context=(app,branch,member=owner)=>({app,branches:[branch],member});
-+const origin='https://pos.test';
-+const req=(path)=>new Request(origin+path);
-+const post=(path,data,reqOrigin=origin)=>new Request(origin+path,{method:'POST',headers:{origin:reqOrigin,'x-maliks-original-origin':origin},body:JSON.stringify(data)});
-+class D1 {
-+ constructor(){
-+   this.sqlite=new DatabaseSync(':memory:');
-+   for(const file of ['phase15_master_files.sql','phase4_till_shift_register.sql',
-+     'phase9_paid_sales_dispatch.sql','phase22_cashup_reconciliation.sql']){
-+     this.sqlite.exec(readFileSync(new URL('../sql/'+file,import.meta.url),'utf8'));
-+   }
-+   this.sqlite.exec(`CREATE TABLE till_quotation_submissions (id INTEGER PRIMARY KEY);
-+   INSERT INTO till_quotation_submissions(id) VALUES (1),(2),(3);
-+   CREATE TABLE maliks_pos_stock_balances (branch TEXT NOT NULL COLLATE NOCASE, stock_master_id INTEGER NOT NULL, qty_milli INTEGER NOT NULL DEFAULT 0, version INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL, PRIMARY KEY(branch,stock_master_id));
-+   CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT UNIQUE,name TEXT,category TEXT,active INTEGER,updated_at TEXT);
-+   CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);
-+   CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER,unit TEXT,price_cents INTEGER);
-+   CREATE TABLE price_tag_branch_prices(brand TEXT NOT NULL,product_id INTEGER NOT NULL,
-+     branch_name TEXT NOT NULL,price_cents INTEGER NOT NULL,updated_by TEXT,updated_at TEXT,
-+     PRIMARY KEY(brand,product_id,branch_name));`);
-+   this.sqlite.exec("INSERT INTO catalogue_products VALUES (1,'ITEM001','Hardware Item','Hardware',1,'2026-11-16');");
-+ }
-+ prepare(sql){const db=this.sqlite;let params=[];return {bind(...args){params=args;return this;},
-+     first(){return db.prepare(sql).get(...params)||null;},
-+     all(){return {results:db.prepare(sql).all(...params)};},
-+     run(){const x=db.prepare(sql).run(...params);return {meta:{changes:Number(x.changes)}};}};}
-+ batch(stmts){this.sqlite.exec('BEGIN');try{const x=stmts.map(s=>s.run());this.sqlite.exec('COMMIT');return x;}
-+   catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
-+}
-+test('Branch manager can set initially R0 selling price and save branch override with audit',async()=>{
-+  const env={DB:new D1()};
-+  for(const [branch,n] of [['Branch A',1],['Branch B',2]]){
-+    const r=await syncStockCatalogue(post('/v1/master/catalogue/sync',{branch,request_id:uid(n)}),env,context('management',branch));
-+    assert.equal(r.status,200,await r.text());
-+  }
-+  const before=await (await listMasterRecords(req('/v1/master/records?kind=stock&branch=Branch%20A'),env,context('management','Branch A'))).json();
-+  const record=before.records[0];
-+  assert.equal(record.details.selling_price_cents,0);
-+  const modified={request_id:uid(11),kind:'stock',branch:'Branch A',code:record.code,name:record.name,
-+    active:true,id:record.id,version:record.version,details:{...record.details,selling_price_cents:12995},
-+    price_update:true,expected_selling_price_cents:0};
-+  const saved=await saveMasterRecord(post('/v1/master/records',modified),env,context('management','Branch A'));
-+  assert.equal(saved.status,200,await saved.text());
-+  const newPrice=env.DB.sqlite.prepare("SELECT price_cents FROM price_tag_branch_prices WHERE branch_name='Branch A'").get();
-+  assert.equal(newPrice.price_cents,12995);
-+  const after=await (await listMasterRecords(req('/v1/master/records?kind=stock&branch=Branch%20A'),env,context('management','Branch A'))).json();
-+  assert.equal(after.records[0].details.selling_price_cents,12995);
-+  assert.equal(after.records[0].price_available,true,'branch price becomes visible even without price tag');
-+  const b=await (await listMasterRecords(req('/v1/master/records?kind=stock&branch=Branch%20B'),env,context('management','Branch B'))).json();
-+  assert.equal(b.records[0].details.selling_price_cents,0,'other branch price unaffected');
-+  const audit=env.DB.sqlite.prepare("SELECT after_json FROM maliks_pos_master_audit WHERE action='UPDATE'").get();
-+  assert.equal(JSON.parse(audit.after_json).details.selling_price_cents,12995);
-+  const stale=await saveMasterRecord(post('/v1/master/records',{...modified,request_id:uid(12)}),env,context('management','Branch A'));
-+  assert.equal(stale.status,409);
-+});
-+test('Stock controller may edit stock settings but cannot change prices',async()=>{
-+ const env={DB:new D1()};
-+ await syncStockCatalogue(post('/v1/master/catalogue/sync',{branch:'Branch A',request_id:uid(22)}),env,context('management','Branch A'));
-+ const record=(await (await listMasterRecords(req('/v1/master/records?kind=stock&branch=Branch%20A'),env,context('management','Branch A'))).json()).records[0];
-+ const request={request_id:uid(23),kind:'stock',branch:'Branch A',code:record.code,name:record.name,active:true,
-+   details:{...record.details,selling_price_cents:4999},price_update:true,expected_selling_price_cents:0,id:record.id,version:record.version};
-+ const response=await saveMasterRecord(post('/v1/master/records',request),env,context('management','Branch A',stocker));
-+ assert.equal(response.status,403);
-+ assert.equal(env.DB.sqlite.prepare('SELECT count(*) as n FROM price_tag_branch_prices').get().n,0);
-+});
-+function seedShift(db){
-+  db.sqlite.prepare(`INSERT INTO maliks_till_shift_register
-+    (open_request_id,branch,till_code,opened_by_email,opened_by_name,opening_float_cents,opened_at,status,
-+     counted_cash_cents,closed_by_email,closed_at)
-+    VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
-+    .run(uid(30),'Branch A','TILL01','cashier@maliks.test','Cashier',5000,'2026-11-16T07:00:00Z','CLOSED',27000,'cashier@maliks.test','2026-11-16T17:00:00Z');
-+  const add=(id,quote,amtCash,amtCard,st,amtReceived)=>db.sqlite.prepare(`INSERT INTO maliks_p9_payments
-+   (request_id,quotation_id,branch,shift_id,cashier_email,cashier_name,cash_cents,cash_received_cents,
-+    card_cents,eft_cents,total_cents,status,created_at)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-+    .run(uid(id),quote,'Branch A',1,'cashier@maliks.test','Cashier',amtCash,amtReceived,amtCard,0,
-+      amtCash+amtCard,st,'2026-11-16T12:00:00Z');
-+  add(31,1,22000,0,'CONFIRMED',30000); // R80 change excluded from till cash
-+  add(32,2,0,13500,'CONFIRMED',0);
-+  add(33,3,500,0,'AWAITING_VERIFICATION',500);
-+}
-+test('Cash-Up sums confirmed transactions and blocks premature cash-count check',async()=>{
-+ const env={DB:new D1()};seedShift(env.DB);
-+ const result=await listCashupReconciliations(req('/v1/cashup-reconciliation?branch=Branch%20A'),env,context('cashoffice','Branch A',cashoffice));
-+ assert.equal(result.status,200);
-+ const data=await result.json();assert.equal(data.mode,CASHUP_RECONCILIATION_MODE);
-+ const row=data.records[0];
-+ assert.equal(row.expected_cash_cents,27000);
-+ assert.equal(row.confirmed_cash_sales_cents,22000);
-+ assert.equal(row.confirmed_card_sales_cents,13500);
-+ assert.equal(row.cash_change_cents,8000);
-+ assert.equal(row.counted_cash_cents,27000);
-+ assert.equal(row.variance_cents,0);
-+ assert.equal(row.pending_payment_count,1);
-+ assert.equal(row.bank_reconciled,false);
-+ let payload={request_id:uid(34),branch:'Branch A',shift_id:row.shift_id,decision:'CASH_COUNT_CHECKED',
-+   note:'Cash physically counted',expected_cash_cents:row.expected_cash_cents,counted_cash_cents:row.counted_cash_cents};
-+ const pending=await reviewCashupReconciliation(post('/v1/cashup-reconciliation/review',payload),env,context('cashoffice','Branch A',cashoffice));
-+ assert.equal(pending.status,409);
-+ const another=await reviewCashupReconciliation(post('/v1/cashup-reconciliation/review',payload),env,context('cashoffice','Branch A',cashoffice),);
-+ assert.equal(another.status,409);
-+ env.DB.sqlite.exec("UPDATE maliks_p9_payments SET status='REJECTED' WHERE quotation_id=3");
-+ const saved=await reviewCashupReconciliation(post('/v1/cashup-reconciliation/review',payload),env,context('cashoffice','Branch A',cashoffice));
-+ assert.equal(saved.status,200,await saved.clone().text());
-+ assert.equal((await saved.json()).decision,'CASH_COUNT_CHECKED');
-+ const replay=await reviewCashupReconciliation(post('/v1/cashup-reconciliation/review',payload),env,context('cashoffice','Branch A',cashoffice));
-+ assert.equal((await replay.json()).duplicate,true);
-+ const other=await listCashupReconciliations(req('/v1/cashup-reconciliation?branch=Branch%20A'),env,context('cashoffice','Branch B',cashoffice));
-+ assert.equal(other.status,403);
-+});
-+test('Cashier cannot review their own cash-up; invalid origin is refused',async()=>{
-+ const env={DB:new D1()};seedShift(env.DB);
-+ const payload={request_id:uid(40),branch:'Branch A',shift_id:1,decision:'FLAGGED',note:'Till counter difference investigated',
-+   expected_cash_cents:27000,counted_cash_cents:27000};
-+ const self=await reviewCashupReconciliation(post('/v1/cashup-reconciliation/review',payload),env,
-+   context('cashoffice','Branch A',{...cashoffice,email:'cashier@maliks.test'}));
-+ assert.equal(self.status,403);
-+ const origin=await reviewCashupReconciliation(post('/v1/cashup-reconciliation/review',payload,'https://other.test'),env,
-+   context('cashoffice','Branch A',cashoffice));
-+ assert.equal(origin.status,403);
-+ assert.equal(env.DB.sqlite.prepare('SELECT count(*) AS n FROM maliks_p22_cashup_reviews').get().n,0);
-+});
-+test('No unauthorised worker gets Cash-Up review endpoints; premium screens contain Cash-Up workflow',async()=>{
-+ const cash=await (await frontend.fetch(req('/'),{APP_TYPE:'cashoffice'})).text();
-+ assert.match(cash,/Cash-Up Reconciliation/);
-+ assert.match(cash,/linkParams.get\('view'\)==='cashup'/);
-+ assert.match(cash,/expected_cash_cents/);
-+ const tills=await (await frontend.fetch(req('/'),{APP_TYPE:'tills'})).text();
-+ assert.match(tills,/Close \/ Cash-Up/);
-+ const blocked=await frontend.fetch(req('/api/cashup-reconciliation?branch=Branch%20A'),{APP_TYPE:'tills'});
-+ assert.equal(blocked.status,403);
-+});
---- a/maliks-operations/package.json
-+++ b/maliks-operations/package.json
-@@ -29,7 +29,8 @@
-     "deploy:member": "wrangler deploy --config .generated/member.json",
-     "migrate:phase20": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase20_stock_control.sql --config .generated/core.json",
-     "migrate:phase21": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase21_staff_password_login.sql --config .generated/core.json",
--    "migrate:phase21b": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase21b_cloudflare_pbkdf2.sql --config .generated/core.json"
-+    "migrate:phase21b": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase21b_cloudflare_pbkdf2.sql --config .generated/core.json",
-+    "migrate:phase22": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase22_cashup_reconciliation.sql --config .generated/core.json"
-   },
-   "dependencies": {
-     "jose": "^6.1.0"
++    const checklistDate = String(payload.checklistDate || "").trim();
++    if (!/^\d{4}-\d{2}-\d{2}$/.test(checklistDate) ||
++        !Number.isFinite(Date.parse(`${checklistDate}T12:00:00Z`)) ||
++        new Date(`${checklistDate}T12:00:00Z`).toISOString().slice(0, 10) !== checklistDate)
++      return Response.json({ error: "Choose a valid checklist date." }, { status: 400 });
++
++    const manager = String(payload.manager || user?.displayName || member?.name || "").trim();
++    const signoff = String(payload.managerSignoff || "").trim();
++    const notes = String(payload.notes || "").trim();
++    if (!manager || manager.length > 150 || notes.length > 4000 || signoff.length > 150)
++      return Response.json({ error: "Enter a manager name and keep notes within the allowed length." }, { status: 400 });
++
++    const rawItems = Array.isArray(payload.items) ? (payload.items as ChecklistItem[]) : [];
++    if (!rawItems.length || rawItems.length > 64)
++      return Response.json({ error: "Checklist items are required." }, { status: 400 });
++    const items = rawItems.map((item) => ({
++      name: String(item.name || "").trim(),
++      status: String(item.status || "").trim(),
++      comment: String(item.comment || "").trim(),
++    }));
++    const seen = new Set<string>();
++    for (const item of items) {
++      if (!item.name || item.name.length > 250 || item.comment.length > 2000 ||
++          seen.has(item.name) || !["", "Done", "Issue", "N/A"].includes(item.status))
++        return Response.json({ error: "Invalid checklist item. Review the checklist and retry." }, { status: 400 });
++      seen.add(item.name);
++    }
++
++    if (mode === "finalize") {
++      if (!signoff) return Response.json({ error: "Enter the manager sign-off to finalise the checklist." }, { status: 400 });
++      if (items.some((item) => !item.status))
++        return Response.json({ error: "Select Done, Issue or N/A for every item before finalising." }, { status: 400 });
++      const missingComment = items.find((item) => item.status === "Issue" && !item.comment);
++      if (missingComment) return Response.json({
++        error: `Add a comment explaining the issue: ${missingComment.name}`,
++      }, { status: 400 });
++    }
++
++    const previous = await env.DB.prepare(
++      "SELECT id,manager_signoff FROM daily_manager_checklists WHERE workspace=? AND checklist_date=? LIMIT 1",
++    ).bind(workspace, checklistDate).first<{ id: number; manager_signoff: string }>();
++    if (mode === "draft" && String(previous?.manager_signoff || "").trim())
++      return Response.json({
++        error: "This checklist has already been finalised. It cannot be replaced with an unfinished draft.",
++      }, { status: 409 });
++
++    const applicable = items.filter((item) => item.status !== "N/A" && item.status !== "");
++    const done = applicable.filter((item) => item.status === "Done").length;
++    const issues = applicable.filter((item) => item.status === "Issue").length;
+     const compliance = applicable.length ? Math.round((done / applicable.length) * 100) : 0;
+-    const checklistDate = String(payload.checklistDate || isoDate());
+-    const checklist = await env.DB.prepare(`INSERT INTO daily_manager_checklists (
++    // No sign-off is recorded on an in-progress checklist.
++    const savedSignoff = mode === "finalize" ? signoff : "";
++    let checklist: DbRow | null = null;
++    try {
++      checklist = await env.DB.prepare(`INSERT INTO daily_manager_checklists (
+       workspace,checklist_date,manager,items_json,compliance_percent,issues_count,notes,manager_signoff,created_by,created_at,updated_at
+     ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+     ON CONFLICT(workspace,checklist_date) DO UPDATE SET
+       manager=excluded.manager,items_json=excluded.items_json,compliance_percent=excluded.compliance_percent,
+       issues_count=excluded.issues_count,notes=excluded.notes,manager_signoff=excluded.manager_signoff,
+-      created_by=excluded.created_by,updated_at=excluded.updated_at
++      updated_at=excluded.updated_at
++    WHERE daily_manager_checklists.manager_signoff='' OR excluded.manager_signoff<>''
+     RETURNING *`)
+       .bind(
+         workspace,
+         checklistDate,
+-        String(payload.manager || user?.displayName || member?.name || "Store Manager"),
+-        JSON.stringify(items.map((item) => ({
+-          name: String(item.name || ""),
+-          status: ["Done", "Issue", "N/A"].includes(String(item.status)) ? String(item.status) : "Issue",
+-          comment: String(item.comment || ""),
+-        }))),
++        manager,
++        JSON.stringify(items),
+         compliance,
+         issues,
+-        String(payload.notes || ""),
+-        String(payload.managerSignoff || ""),
++        notes,
++        savedSignoff,
+         createdBy,
+         now,
+         now,
+       )
+       .first<DbRow>();
+-    return Response.json({ checklist: { ...checklist, items } }, { status: 201 });
++    } catch (error) {
++      console.error("Daily checklist database save failed:", error);
++      return Response.json({
++        error: "The Daily Checklist database could not save this record. Please retry or contact your Hub administrator.",
++      }, { status: 503 });
++    }
++    if (!checklist?.id)
++      return Response.json({
++        error: mode === "draft"
++          ? "This checklist has already been finalised. Refresh the page before making changes."
++          : "The checklist was not confirmed as saved. Please retry.",
++      }, { status: mode === "draft" ? 409 : 503 });
++
++    return Response.json({
++      checklist: { ...checklist, items, record_status: mode === "finalize" ? "Finalized" : "Draft" },
++      saved: true,
++      message: mode === "draft" ? "Checklist progress saved." : "Daily checklist finalised.",
++    }, { status: 200 });
+   }
+ 
+   return Response.json({ error: "Unknown store control record type." }, { status: 400 });

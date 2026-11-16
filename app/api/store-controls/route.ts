@@ -16,14 +16,16 @@ const parseJsonArray = <T,>(value: unknown): T[] => {
     return [];
   }
 };
-const isoDate = (date = new Date()) => date.toISOString().slice(0, 10);
+// Store operating dates follow South Africa Standard Time (UTC+02:00),
+// not the Cloudflare Worker/UTC clock, so a checklist saved after midnight
+// appears against the correct local trading date.
+const isoDate = (date = new Date()) => new Date(date.getTime() + 2 * 60 * 60 * 1000).toISOString().slice(0, 10);
 const operatingDays = (days: number) => {
   const out: string[] = [];
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
+  const d = new Date(`${isoDate()}T12:00:00Z`);
   while (out.length < days) {
-    if (d.getDay() !== 0) out.push(isoDate(d));
-    d.setDate(d.getDate() - 1);
+    if (d.getUTCDay() !== 0) out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() - 1);
   }
   return out;
 };
@@ -53,7 +55,9 @@ function buildRanking(stores: DbRow[], audits: DbRow[], checklists: DbRow[], tas
     const auditScore = latestAudit ? clamp(latestAudit.score) : 0;
 
     const recentChecklists = checklists.filter(
-      (row) => String(row.workspace) === workspace && lastOperatingDays.includes(String(row.checklist_date)),
+      (row) => String(row.workspace) === workspace &&
+        String(row.manager_signoff || "").trim() !== "" &&
+        lastOperatingDays.includes(String(row.checklist_date)),
     );
     const checklistByDay = new Map(recentChecklists.map((row) => [String(row.checklist_date), clamp(row.compliance_percent)]));
     const checklistScore = Math.round(
@@ -76,7 +80,8 @@ function buildRanking(stores: DbRow[], audits: DbRow[], checklists: DbRow[], tas
 
     const score = Math.round(auditScore * 0.35 + checklistScore * 0.3 + correctiveScore * 0.1 + taskScore * 0.25);
     const dataCoverage = (latestAudit ? 45 : 0) + (recentChecklists.length ? 30 : 0) + (storeTasks.length ? 25 : 0);
-    const todayChecklist = checklists.find((row) => String(row.workspace) === workspace && String(row.checklist_date) === today);
+    const todayChecklist = checklists.find((row) => String(row.workspace) === workspace &&
+      String(row.checklist_date) === today && String(row.manager_signoff || "").trim() !== "");
     const status = dataCoverage < 45 ? "Setup required" : score >= 85 ? "Green" : score >= 70 ? "Amber" : "Red";
     return {
       workspace,
@@ -117,8 +122,12 @@ export async function GET() {
   const rawChecklists = checklistQuery.results.filter((row) => storeNames.has(String(row.workspace)));
   const audits: Array<DbRow & { sections: AuditSection[] }> = rawAudits
     .map((row) => ({ ...row, sections: parseJsonArray<AuditSection>(row.sections_json) }));
-  const checklists: Array<DbRow & { items: ChecklistItem[] }> = rawChecklists
-    .map((row) => ({ ...row, items: parseJsonArray<ChecklistItem>(row.items_json) }));
+  const checklists: Array<DbRow & { items: ChecklistItem[]; record_status: "Draft" | "Finalized" }> = rawChecklists
+    .map((row) => ({
+      ...row,
+      items: parseJsonArray<ChecklistItem>(row.items_json),
+      record_status: String(row.manager_signoff || "").trim() ? "Finalized" as const : "Draft" as const,
+    }));
   const tasks = taskQuery.results.filter((row) => storeNames.has(String(row.project)));
   const attachments = attachmentQuery.results.filter((row) => storeNames.has(String(row.workspace)));
   const ranking = buildRanking(stores, rawAudits, rawChecklists, tasks);
@@ -134,7 +143,7 @@ export async function GET() {
     summary: {
       stores: stores.length,
       auditedStores: new Set(audits.map((row) => String(row.workspace))).size,
-      todayChecklists: checklists.filter((row) => String(row.checklist_date) === today).length,
+      todayChecklists: checklists.filter((row) => String(row.checklist_date) === today && row.record_status === "Finalized").length,
       overdueCorrectives: ranking.reduce((sum, row) => sum + row.overdueCorrectives, 0),
       averageScore: (() => {
         const rated = ranking.filter((row) => row.dataCoverage >= 45);
@@ -195,40 +204,105 @@ export async function POST(req: Request) {
   }
 
   if (type === "checklist") {
-    const items = Array.isArray(payload.items) ? (payload.items as ChecklistItem[]) : [];
-    if (!items.length) return Response.json({ error: "Checklist items are required." }, { status: 400 });
-    const applicable = items.filter((item) => String(item.status || "") !== "N/A");
-    const done = applicable.filter((item) => String(item.status || "") === "Done").length;
-    const issues = applicable.filter((item) => String(item.status || "") === "Issue").length;
+    const mode = String(payload.mode || "finalize");
+    if (!["draft", "finalize"].includes(mode))
+      return Response.json({ error: "Choose Save Progress or Finalise Checklist." }, { status: 400 });
+
+    const checklistDate = String(payload.checklistDate || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(checklistDate) ||
+        !Number.isFinite(Date.parse(`${checklistDate}T12:00:00Z`)) ||
+        new Date(`${checklistDate}T12:00:00Z`).toISOString().slice(0, 10) !== checklistDate)
+      return Response.json({ error: "Choose a valid checklist date." }, { status: 400 });
+
+    const manager = String(payload.manager || user?.displayName || member?.name || "").trim();
+    const signoff = String(payload.managerSignoff || "").trim();
+    const notes = String(payload.notes || "").trim();
+    if (!manager || manager.length > 150 || notes.length > 4000 || signoff.length > 150)
+      return Response.json({ error: "Enter a manager name and keep notes within the allowed length." }, { status: 400 });
+
+    const rawItems = Array.isArray(payload.items) ? (payload.items as ChecklistItem[]) : [];
+    if (!rawItems.length || rawItems.length > 64)
+      return Response.json({ error: "Checklist items are required." }, { status: 400 });
+    const items = rawItems.map((item) => ({
+      name: String(item.name || "").trim(),
+      status: String(item.status || "").trim(),
+      comment: String(item.comment || "").trim(),
+    }));
+    const seen = new Set<string>();
+    for (const item of items) {
+      if (!item.name || item.name.length > 250 || item.comment.length > 2000 ||
+          seen.has(item.name) || !["", "Done", "Issue", "N/A"].includes(item.status))
+        return Response.json({ error: "Invalid checklist item. Review the checklist and retry." }, { status: 400 });
+      seen.add(item.name);
+    }
+
+    if (mode === "finalize") {
+      if (!signoff) return Response.json({ error: "Enter the manager sign-off to finalise the checklist." }, { status: 400 });
+      if (items.some((item) => !item.status))
+        return Response.json({ error: "Select Done, Issue or N/A for every item before finalising." }, { status: 400 });
+      const missingComment = items.find((item) => item.status === "Issue" && !item.comment);
+      if (missingComment) return Response.json({
+        error: `Add a comment explaining the issue: ${missingComment.name}`,
+      }, { status: 400 });
+    }
+
+    const previous = await env.DB.prepare(
+      "SELECT id,manager_signoff FROM daily_manager_checklists WHERE workspace=? AND checklist_date=? LIMIT 1",
+    ).bind(workspace, checklistDate).first<{ id: number; manager_signoff: string }>();
+    if (mode === "draft" && String(previous?.manager_signoff || "").trim())
+      return Response.json({
+        error: "This checklist has already been finalised. It cannot be replaced with an unfinished draft.",
+      }, { status: 409 });
+
+    const applicable = items.filter((item) => item.status !== "N/A" && item.status !== "");
+    const done = applicable.filter((item) => item.status === "Done").length;
+    const issues = applicable.filter((item) => item.status === "Issue").length;
     const compliance = applicable.length ? Math.round((done / applicable.length) * 100) : 0;
-    const checklistDate = String(payload.checklistDate || isoDate());
-    const checklist = await env.DB.prepare(`INSERT INTO daily_manager_checklists (
+    // No sign-off is recorded on an in-progress checklist.
+    const savedSignoff = mode === "finalize" ? signoff : "";
+    let checklist: DbRow | null = null;
+    try {
+      checklist = await env.DB.prepare(`INSERT INTO daily_manager_checklists (
       workspace,checklist_date,manager,items_json,compliance_percent,issues_count,notes,manager_signoff,created_by,created_at,updated_at
     ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(workspace,checklist_date) DO UPDATE SET
       manager=excluded.manager,items_json=excluded.items_json,compliance_percent=excluded.compliance_percent,
       issues_count=excluded.issues_count,notes=excluded.notes,manager_signoff=excluded.manager_signoff,
-      created_by=excluded.created_by,updated_at=excluded.updated_at
+      updated_at=excluded.updated_at
+    WHERE daily_manager_checklists.manager_signoff='' OR excluded.manager_signoff<>''
     RETURNING *`)
       .bind(
         workspace,
         checklistDate,
-        String(payload.manager || user?.displayName || member?.name || "Store Manager"),
-        JSON.stringify(items.map((item) => ({
-          name: String(item.name || ""),
-          status: ["Done", "Issue", "N/A"].includes(String(item.status)) ? String(item.status) : "Issue",
-          comment: String(item.comment || ""),
-        }))),
+        manager,
+        JSON.stringify(items),
         compliance,
         issues,
-        String(payload.notes || ""),
-        String(payload.managerSignoff || ""),
+        notes,
+        savedSignoff,
         createdBy,
         now,
         now,
       )
       .first<DbRow>();
-    return Response.json({ checklist: { ...checklist, items } }, { status: 201 });
+    } catch (error) {
+      console.error("Daily checklist database save failed:", error);
+      return Response.json({
+        error: "The Daily Checklist database could not save this record. Please retry or contact your Hub administrator.",
+      }, { status: 503 });
+    }
+    if (!checklist?.id)
+      return Response.json({
+        error: mode === "draft"
+          ? "This checklist has already been finalised. Refresh the page before making changes."
+          : "The checklist was not confirmed as saved. Please retry.",
+      }, { status: mode === "draft" ? 409 : 503 });
+
+    return Response.json({
+      checklist: { ...checklist, items, record_status: mode === "finalize" ? "Finalized" : "Draft" },
+      saved: true,
+      message: mode === "draft" ? "Checklist progress saved." : "Daily checklist finalised.",
+    }, { status: 200 });
   }
 
   return Response.json({ error: "Unknown store control record type." }, { status: 400 });

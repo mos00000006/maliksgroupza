@@ -31,6 +31,7 @@ type Checklist = {
   issues_count: number;
   notes: string;
   manager_signoff: string;
+  record_status?: "Draft" | "Finalized";
   items: ChecklistItem[];
 };
 type Attachment = {
@@ -145,6 +146,7 @@ export default function StoreControls({
   const [checklistNotes, setChecklistNotes] = useState("");
   const [checklistSignoff, setChecklistSignoff] = useState("");
   const [checklistFiles, setChecklistFiles] = useState<File[]>([]);
+  const [checklistMessage, setChecklistMessage] = useState<{ text: string; success: boolean } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -203,6 +205,10 @@ export default function StoreControls({
     () => (data?.checklists || []).filter((row) => !selectedStore || row.workspace === selectedStore),
     [data, selectedStore],
   );
+  const activeChecklist = checklistHistory.find((row) => row.checklist_date === checklistDate);
+  const activeChecklistStatus = activeChecklist
+    ? (activeChecklist.record_status || (activeChecklist.manager_signoff ? "Finalized" : "Draft"))
+    : "Not saved";
   const auditScore = Math.round((auditSections.reduce((sum, item) => sum + Number(item.score || 0), 0) / (auditSections.length * 5)) * 100);
   const applicableChecklist = checklistItems.filter((item) => item.status !== "N/A");
   const checklistDone = applicableChecklist.filter((item) => item.status === "Done").length;
@@ -283,22 +289,31 @@ export default function StoreControls({
     }
   };
 
-  const saveChecklist = async () => {
+  const saveChecklist = async (mode: "draft" | "finalize") => {
     if (!data?.canWrite || saving) return;
-    if (!selectedStore || !checklistManager.trim() || !checklistSignoff.trim()) {
-      setNotice("Select a store and complete the manager and sign-off fields.");
+    const inform = (text: string, success = false) => setChecklistMessage({ text, success });
+    if (!selectedStore || !checklistDate || !checklistManager.trim()) {
+      inform("Select the store and checklist date, then enter the manager's name.");
       return;
     }
-    if (checklistItems.some((item) => !item.status)) {
-      setNotice("Complete every daily checklist item before saving.");
-      return;
-    }
-    const issueWithoutComment = checklistItems.find((item) => item.status === "Issue" && !item.comment.trim());
-    if (issueWithoutComment) {
-      setNotice(`Add a comment for the issue: ${issueWithoutComment.name}`);
-      return;
+    if (mode === "finalize") {
+      if (!checklistSignoff.trim()) {
+        inform("Enter the manager sign-off to finalise the checklist.");
+        return;
+      }
+      const incomplete = checklistItems.find((item) => !item.status);
+      if (incomplete) {
+        inform(`Select Done, Issue or N/A for: ${incomplete.name}`);
+        return;
+      }
+      const issueWithoutComment = checklistItems.find((item) => item.status === "Issue" && !item.comment.trim());
+      if (issueWithoutComment) {
+        inform(`Add a comment for the issue: ${issueWithoutComment.name}`);
+        return;
+      }
     }
     setSaving(true);
+    setChecklistMessage(null);
     setNotice("");
     try {
       const response = await fetch("/api/store-controls", {
@@ -306,25 +321,31 @@ export default function StoreControls({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           type: "checklist",
+          mode,
           workspace: selectedStore,
           checklistDate,
           manager: checklistManager,
           items: checklistItems,
           notes: checklistNotes,
-          managerSignoff: checklistSignoff,
+          managerSignoff: mode === "finalize" ? checklistSignoff : "",
         }),
       });
-      const result = (await response.json().catch(() => ({}))) as { checklist?: Checklist; error?: string };
-      if (!response.ok || !result.checklist) throw new Error(result.error || "Checklist could not be saved.");
+      const result = (await response.json().catch(() => ({}))) as {
+        checklist?: Checklist; error?: string; saved?: boolean;
+      };
+      if (!response.ok || !result.saved || !result.checklist?.id)
+        throw new Error(result.error || "The checklist was not confirmed as saved. Please retry.");
       let evidenceWarning = "";
       if (checklistFiles.length) {
         try { await uploadFiles("checklist", Number(result.checklist.id), checklistFiles); }
-        catch { evidenceWarning = " Evidence upload failed; the checklist itself was saved."; }
+        catch { evidenceWarning = " Checklist saved, but evidence upload failed. Please retry the evidence separately."; }
       }
-      setNotice(`Daily checklist saved at ${result.checklist.compliance_percent}% compliance.${evidenceWarning}`);
+      setChecklistFiles([]);
       await load();
+      const statusText = mode === "draft" ? "Progress saved as draft" : "Daily checklist finalised";
+      inform(`${statusText} for ${selectedStore} (${checklistDate}).${evidenceWarning}`, true);
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Checklist could not be saved.");
+      inform(err instanceof Error ? err.message : "Checklist could not be saved.");
     } finally {
       setSaving(false);
     }
@@ -359,7 +380,7 @@ export default function StoreControls({
   return <div className="storeControls">
     <section className="storeControlsHero">
       <div><small>POWERBUILD OPERATING CONTROL SYSTEM</small><h2>Store Control Centre</h2><p>Digital audits, daily manager discipline and one executive ranking across the store network.</p></div>
-      <label>Store scope<select value={selectedStore} onChange={(event) => setSelectedStore(event.target.value)}>{data.stores.map((store) => <option key={store.id} value={store.name}>{store.name}</option>)}</select></label>
+      <label>Store scope<select value={selectedStore} onChange={(event) => { setSelectedStore(event.target.value); setChecklistMessage(null); }}>{data.stores.map((store) => <option key={store.id} value={store.name}>{store.name}</option>)}</select></label>
     </section>
 
     <nav className="storeControlTabs">
@@ -396,13 +417,20 @@ export default function StoreControls({
     </>}
 
     {tab === "checklists" && <>
-      <section className="storeControlPanel dailyChecklistPanel"><header><div><small>DAILY STORE CONTROL</small><h3>{selectedStore}</h3><p>Complete the manager checklist every operating day. Missed days count against compliance in the executive ranking.</p></div><div className={`auditLiveScore ${scoreTone(checklistPreview)}`}><b>{checklistPreview}%</b><small>current compliance</small></div></header>
-        <div className="storeControlFormGrid checklistHeaderFields"><label>Checklist date<input type="date" value={checklistDate} onChange={(event) => setChecklistDate(event.target.value)} /></label><label>Manager<input value={checklistManager} onChange={(event) => setChecklistManager(event.target.value)} disabled={!data.canWrite} /></label>{data.canWrite && <button type="button" className="markCompliantBtn" onClick={() => setChecklistItems((items) => items.map((item) => ({ ...item, status: "Done" })))}>Mark all Done</button>}</div>
+      <section className="storeControlPanel dailyChecklistPanel"><header><div><small>DAILY STORE CONTROL · {activeChecklistStatus}</small><h3>{selectedStore}</h3><p>Save progress during the day, then finalise the checklist after the closing checks. Only finalised checklists count as complete.</p></div><div className={`auditLiveScore ${scoreTone(checklistPreview)}`}><b>{checklistPreview}%</b><small>current compliance</small></div></header>
+        <div className="storeControlFormGrid checklistHeaderFields"><label>Checklist date<input type="date" value={checklistDate} onChange={(event) => { setChecklistDate(event.target.value); setChecklistMessage(null); }} /></label><label>Manager<input value={checklistManager} onChange={(event) => setChecklistManager(event.target.value)} disabled={!data.canWrite} /></label>{data.canWrite && <button type="button" className="markCompliantBtn" onClick={() => setChecklistItems((items) => items.map((item) => ({ ...item, status: "Done" })))}>Mark all Done</button>}</div>
         <div className="dailyChecklistItems">{checklistItems.map((item, index) => <article key={item.name} className={item.status === "Issue" ? "hasIssue" : item.status === "Done" ? "isDone" : ""}><span>{index + 1}</span><div><b>{item.name}</b><input disabled={!data.canWrite} value={item.comment} onChange={(event) => setChecklistItems((items) => items.map((row, i) => i === index ? { ...row, comment: event.target.value } : row))} placeholder={item.status === "Issue" ? "Issue comment required" : "Optional note"} /></div><select disabled={!data.canWrite} value={item.status} onChange={(event) => setChecklistItems((items) => items.map((row, i) => i === index ? { ...row, status: event.target.value as ChecklistItem["status"] } : row))}><option value="">Select</option><option value="Done">Done</option><option value="Issue">Issue</option><option value="N/A">N/A</option></select></article>)}</div>
         <div className="storeControlFormGrid"><label>Manager notes<textarea value={checklistNotes} disabled={!data.canWrite} onChange={(event) => setChecklistNotes(event.target.value)} placeholder="Outstanding items, handover notes or management actions" /></label><label>Manager sign-off<input value={checklistSignoff} disabled={!data.canWrite} onChange={(event) => setChecklistSignoff(event.target.value)} placeholder="Manager full name" /></label><label>Photo evidence<input type="file" multiple accept="image/*,.pdf" disabled={!data.canWrite} onChange={(event) => setChecklistFiles(Array.from(event.target.files || []))} /><small>Optional · up to 5 files</small></label></div>
-        {data.canWrite && <footer><button className="storeControlPrimary" disabled={saving} onClick={() => void saveChecklist()}>{saving ? "Saving checklist…" : "Save daily manager checklist"}</button></footer>}
+        {data.canWrite && <footer>
+          <button type="button" className="markCompliantBtn" disabled={saving || activeChecklistStatus === "Finalized"} onClick={() => void saveChecklist("draft")}>{saving ? "Saving…" : "Save Progress"}</button>
+          <button type="button" className="storeControlPrimary" disabled={saving} onClick={() => void saveChecklist("finalize")}>{saving ? "Saving…" : "Finalise Daily Checklist"}</button>
+        </footer>}
+        {checklistMessage && <div role={checklistMessage.success ? "status" : "alert"} aria-live="polite" className="storeControlNotice" style={{ marginTop: 12 }}>
+          <strong>{checklistMessage.success ? "Saved successfully: " : "Checklist not saved: "}</strong>{checklistMessage.text}
+        </div>}
+        {!data.canWrite && <div className="storeControlNotice" role="status">Your account has read-only access. Request checklist editing permission from the Hub administrator.</div>}
       </section>
-      <section className="storeControlPanel"><header><div><h3>Checklist history</h3><p>Daily compliance and exceptions for {selectedStore}</p></div></header><div className="checklistHistoryTable"><div className="checklistHistoryHead"><span>Date</span><span>Manager</span><span>Compliance</span><span>Issues</span><span>Evidence</span></div>{checklistHistory.slice(0, 31).map((row) => <div className="checklistHistoryRow" key={row.id}><b>{dateLabel(row.checklist_date)}</b><span>{row.manager}</span><strong className={scoreTone(Number(row.compliance_percent))}>{Math.round(Number(row.compliance_percent))}%</strong><span>{row.issues_count}</span><span>{attachmentsFor("checklist", row.id).map((file) => <a key={file.id} href={`/api/store-controls/attachments/${file.id}`} target="_blank" rel="noreferrer">▧</a>)}{!attachmentsFor("checklist", row.id).length && "—"}</span></div>)}{!checklistHistory.length && <div className="storeControlEmpty">No manager checklists captured for this store yet.</div>}</div></section>
+      <section className="storeControlPanel"><header><div><h3>Checklist history</h3><p>Daily compliance and exceptions for {selectedStore}</p></div></header><div className="checklistHistoryTable"><div className="checklistHistoryHead"><span>Date</span><span>Manager</span><span>Compliance</span><span>Issues</span><span>Evidence</span></div>{checklistHistory.slice(0, 31).map((row) => <div className="checklistHistoryRow" key={row.id}><b>{dateLabel(row.checklist_date)}</b><span>{row.manager}</span><strong className={scoreTone(Number(row.compliance_percent))}>{Math.round(Number(row.compliance_percent))}%</strong><span>{row.issues_count} · {row.record_status || (row.manager_signoff ? "Finalized" : "Draft")}</span><span>{attachmentsFor("checklist", row.id).map((file) => <a key={file.id} href={`/api/store-controls/attachments/${file.id}`} target="_blank" rel="noreferrer">▧</a>)}{!attachmentsFor("checklist", row.id).length && "—"}</span></div>)}{!checklistHistory.length && <div className="storeControlEmpty">No manager checklists captured for this store yet.</div>}</div></section>
     </>}
 
     {tab === "ranking" && <>
