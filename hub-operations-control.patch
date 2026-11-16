@@ -1,0 +1,95 @@
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -13,6 +13,7 @@
+ import StoreSpecials from "./store-specials";
+ import EcommerceControl from "./ecommerce-control";
+ import SystemControlCentre from "./system-control-centre";
++import OperationsBridge from "./operations-bridge";
+ import SystemClientMonitor from "./system-client-monitor";
+ import RolloutOnboardingCentre from "./rollout-onboarding-centre";
+ import OnboardingGate from "./onboarding-gate";
+@@ -96,6 +97,7 @@
+ };
+ const nav = [
+   "Executive Overview",
++  "Operations Control",
+   "My Work",
+   "Store Operations",
+   "Sales / Tills",
+@@ -143,6 +145,14 @@
+           <path d="M2.5 20h19" />
+         </svg>
+       );
++    case "Operations Control":
++      return (
++        <svg {...common}>
++          <rect x="3" y="4" width="18" height="16" rx="2"/>
++          <path d="M7 9h3M7 13h3M7 17h3M13 9h4M13 13h4M13 17h4"/>
++          <path d="M13 6V3"/>
++        </svg>
++      );
+     case "Executive Overview":
+       return (
+         <svg {...common}>
+@@ -373,6 +383,7 @@
+       fullCompany ||
+       ["Regional Manager", "Store Manager", "Department Manager"].includes(user.role || "") ||
+       /(^|\b)(hr|human resources|people)(\b|$)/i.test(user.department || "");
++    if (item === "Operations Control") return ["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO", "Regional Manager", "Store Manager", "Department Manager"].includes(user.role || "");
+     if (item === "System Control Centre" || item === "Rollout & Onboarding") return accessAdmin;
+     if (item === "Employee Records") return employeeRecordsAccess;
+     if (item === "Buyer Workspace") return fullCompany;
+@@ -759,8 +770,8 @@
+         : fullCompanyNavigation
+         ? nav.filter(
+             (item) =>
+-              !["System Control Centre", "Rollout & Onboarding"].includes(item) ||
+-              canManageTeam,
++              (item !== "Operations Control" || ["Owner / Admin", "Developer / Technical Admin", "Executive / EXCO", "Regional Manager", "Store Manager", "Department Manager"].includes(currentUser.role || "")) &&
++              (!["System Control Centre", "Rollout & Onboarding"].includes(item) || canManageTeam),
+           )
+         : availableNav;
+   useEffect(() => {
+@@ -855,6 +866,7 @@
+   const viewCopy: Record<string, string> = {
+     "Executive Overview":
+       "Master dashboard rolling up all stores, DC, Head Office and Wholesale.",
++    "Operations Control": "Read-only, branch-scoped status of sales, tills, cash office, dispatch, purchasing and GRVs across the Hub and POS.",
+     "My Work": `Tasks assigned to or owned by ${currentUser.name}.`,
+     "Store Operations": "Operational actions across the store network.",
+     "Store Audits": "Digital branch audits with scoring, evidence and corrective-action tracking.",
+@@ -1545,6 +1557,7 @@
+   const isStockOrdersView = active === "Stock Orders";
+   const isStoreSpecialsView = active === "Store Specials";
+   const isEcommerceControlView = active === "E-Commerce Control";
++  const isOperationsBridgeView = active === "Operations Control";
+   const isSystemControlView = active === "System Control Centre";
+   const isRolloutOnboardingView = active === "Rollout & Onboarding";
+   if (accessDenied)
+@@ -1752,7 +1765,7 @@
+             </p>
+           </div>
+           <div className="actions">
+-            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStockOrdersView && !isStoreSpecialsView && !isEcommerceControlView && !isSystemControlView && !isRolloutOnboardingView && (
++            {active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStockOrdersView && !isStoreSpecialsView && !isEcommerceControlView && !isSystemControlView && !isRolloutOnboardingView && !isOperationsBridgeView && (
+               <label>
+                 ⌕
+                 <input
+@@ -1784,7 +1797,7 @@
+               </button>
+             )}
+             <PwaInstallButton />
+-            {!readOnlyAccess && !restrictedOperationsAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStockOrdersView && !isStoreSpecialsView && !isEcommerceControlView && !isSystemControlView && !isRolloutOnboardingView && (
++            {!readOnlyAccess && !restrictedOperationsAccess && active !== "Our Catalogue" && !isStoreControlView && !isEmployeeRecordsView && !isBuyerWorkspaceView && !isStockOrdersView && !isStoreSpecialsView && !isEcommerceControlView && !isSystemControlView && !isRolloutOnboardingView && !isOperationsBridgeView && (
+               <button className="primary" onClick={openComposer}>
+                 ＋ Add task
+               </button>
+@@ -1810,6 +1823,8 @@
+           <StoreSpecials currentUser={currentUser} />
+         ) : isEcommerceControlView ? (
+           <EcommerceControl />
++        ) : isOperationsBridgeView ? (
++          <OperationsBridge />
+         ) : isSystemControlView ? (
+           <SystemControlCentre currentUser={currentUser} />
+         ) : isRolloutOnboardingView ? (
