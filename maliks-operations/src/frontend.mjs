@@ -1,5 +1,8 @@
 import { POWERBUILD_LOGO_BASE64 } from './powerbuild-logo.mjs';
 import { SUITE_INSIGHTS_CLIENT_SCRIPT } from './suite-insights.mjs';
+import { LUCIDE_ICON_MARKUP } from './pos-lucide-icons.mjs';
+import { POS_PREMIUM_CSS } from './pos-premium-theme.mjs';
+import { POS_PREMIUM_CLIENT_SCRIPT } from './pos-premium-screens.mjs';
 
 const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c => c.charCodeAt(0));
 
@@ -14,11 +17,11 @@ const APPS={
 // Phase 14: The Professional accounting suite and Sales are separate Workers.
 // This is a navigation inventory; unbuilt functions remain previews, not live postings.
 const SUITE_NAV = [
-  ['home','Home','⌂'],['debtors','Debtors','◎'],
-  ['suppliers','Suppliers','▤'],['stock','Stock','▦'],['backoffice','Back Office','▥'],
-  ['dispatching','Dispatching','⇥'],['headoffice','Head Office','◇'],
-  ['system','System Settings','⚙'],['widget','Widget','◫'],
-  ['help','Help','?'],['lock','Lock','♙'],['exit','Exit','⏻'],
+  ['home','Home','house'],['debtors','Debtors','users'],
+  ['suppliers','Suppliers','clipboard-list'],['stock','Stock','boxes'],['backoffice','Back Office','briefcase-business'],
+  ['dispatching','Dispatching','truck'],['headoffice','Head Office','building'],
+  ['system','System Settings','settings'],['widget','Widget','layout-dashboard'],
+  ['help','Help','circle-question-mark'],['lock','Lock','lock-keyhole'],['exit','Exit','power'],
 ];
 const SUITE_MENU_TREE = {
   debtors: {
@@ -72,9 +75,9 @@ const SUITE_MENU_TREE = {
 };
 const SUITE_TITLES = Object.fromEntries(SUITE_NAV.map(([id,label])=>[id,label]));
 function suiteHeader(){
-  const buttons=SUITE_NAV.map(([id,label,symbol])=>`<button type="button" data-suite-module="${id}" class="suite-nav-button" aria-pressed="false"><span class="suite-nav-icon" aria-hidden="true">${symbol}</span><span>${label}</span></button>`).join('');
+  const buttons=SUITE_NAV.map(([id,label,iconId])=>`<button type="button" data-suite-module="${id}" class="suite-nav-button" aria-pressed="false"><span class="suite-nav-icon" aria-hidden="true">${LUCIDE_ICON_MARKUP[iconId]}</span><span>${label}</span></button>`).join('');
   return `<header id="suite-navigation" class="suite-header" hidden>
-    <div class="suite-brandbar"><button type="button" class="suite-brand" data-suite-module="home" aria-label="Maliks Professional home"><img class="suite-brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="66" height="66"/><span class="suite-brand-text"><strong>MALIKS <span>POS</span></strong><small>ACCOUNTING &amp; POS SOLUTIONS <em>PROFESSIONAL</em></small></span></button><span class="suite-system-status">● SECURE WORKSPACE</span><span id="suite-user" class="suite-user">Signed in</span></div>
+    <div class="suite-brandbar"><button type="button" class="suite-brand" data-suite-module="home" aria-label="Maliks Professional home"><img class="suite-brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="66" height="66"/><span class="suite-brand-text"><strong>MALIKS <span>POS</span></strong><small>ACCOUNTING &amp; POS SOLUTIONS <em>PROFESSIONAL</em></small></span></button><span class="suite-system-status"><span class="suite-secure-dot" aria-hidden="true"></span>SECURE WORKSPACE</span><span id="suite-user" class="suite-user">Signed in</span></div>
     <nav class="suite-navbar" aria-label="Maliks Professional modules">${buttons}</nav>
   </header>`;
 }
@@ -84,7 +87,7 @@ function page(app){
  const salesShell=app==='sales';
  const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':app==='member'?'TEAM · STORE ACCESS':salesShell?'SALES · QUOTATIONS':'ACCOUNTING & POS SOLUTIONS';
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
- <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="#102a4b"/><style>
+ <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="${suiteShell?'#0A2A3F':'#102a4b'}"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
  body{margin:0}.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
  aside{background:#102a4b;color:#fff;padding:28px 18px}aside h1{font-size:21px;margin:14px 0 5px}aside p{font-size:13px;color:#adbed0}
@@ -209,6 +212,7 @@ function page(app){
  @page{size:A4;margin:12mm}}
 
  @media(max-width:850px){.shell{grid-template-columns:1fr}aside{padding:15px 20px;display:flex;align-items:center;gap:14px}aside h1{margin:0;font-size:17px}aside .brand-logo{width:56px;height:56px;flex:0 0 56px}aside .nav,aside .foot,aside p{display:none}main{padding:23px 14px}.two{grid-template-columns:1fr}}
+ ${POS_PREMIUM_CSS}
  </style></head><body class="${suiteShell?'maliks-professional':salesShell?'maliks-sales-workstation':''}">
  ${suiteShell?suiteHeader():''}
  <div class="shell ${suiteShell?'suite-shell':''}"><aside><img class="brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
@@ -223,6 +227,7 @@ function page(app){
  const SUITE_NAV=${JSON.stringify(SUITE_NAV)};
  const SUITE_MENU_TREE=${JSON.stringify(SUITE_MENU_TREE)};
  const SUITE_TITLES=${JSON.stringify(SUITE_TITLES)};
+ const SUITE_PREMIUM_ICONS=${JSON.stringify(LUCIDE_ICON_MARKUP)};
  const E=id=>document.getElementById(id);
  const h=(tag,text='',cls='')=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=String(text);if(cls)el.className=cls;return el;};
  const api=async (url,opts)=>{const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});let data;try{data=await r.json();}catch{const e=Error('The service returned a non-JSON response (HTTP '+r.status+'). Check the Core Worker, Phase 21 D1 migration and Cloudflare Access session.');e.status=r.status;throw e;}if(!r.ok){const e=Error(data.error||'Request failed (HTTP '+r.status+').');e.status=r.status;throw e;}return data;};
@@ -240,8 +245,8 @@ function page(app){
    if(pendingQuote){E('branch').value=branch;err('Finish or release the pending quotation before changing branch.');return;}
    if(pendingReviewAction){E('branch').value=branch;err('Retry or resolve the pending Cash Office review before changing branch.');return;}
    if(pendingTenderAction){E('branch').value=branch;err('Resolve the pending tender preparation before changing branch.');return;}
-   if(basket.length && !window.confirm('Changing branch will clear the quotation basket. Continue?')){E('branch').value=branch;return;}
-   branch=incoming;basket=[];recentQuotes=[];quoteRows=[];suiteSalesDraft={customer:'',contact:'',notes:''};pendingShiftAction=null;pendingReviewAction=null;pendingTenderAction=null;draw();
+   if((basket.length||premiumDraft.length) && !window.confirm('Changing branch will clear the current basket. Continue?')){E('branch').value=branch;return;}
+   branch=incoming;basket=[];premiumDraft=[];premiumSearchSequence++;recentQuotes=[];quoteRows=[];suiteSalesDraft={customer:'',contact:'',notes:''};pendingShiftAction=null;pendingReviewAction=null;pendingTenderAction=null;draw();
  }
  async function searchProducts(){
    err('');const q=E('search')?.value.trim();if(!q){err('Enter a product name or code.');return;}
@@ -1176,31 +1181,8 @@ function page(app){
  function suiteButton(text,module,cls=''){
    const b=h('button',text,cls);b.type='button';b.addEventListener('click',()=>setSuiteView(module));return b;
  }
- function suiteHome(){
-   const root=E('app-content');
-   const hero=h('section',undefined,'suite-hero');
-   hero.append(h('div','MALIKS PROFESSIONAL · SECURE RETAIL OPERATIONS','suite-eyebrow'));
-   const title=h('div',undefined,'suite-hero-title');title.append(h('span','MALIKS '),document.createTextNode('POS'));hero.append(title);
-   hero.append(h('p','Accounting & POS Solutions Professional — stock, debtors, suppliers, back office and multi-branch operations in a dedicated management workspace.','suite-hero-subtitle'));
-   hero.append(suiteButton('Open Stock module  →','stock','suite-primary'));root.append(hero);
-   const head=h('div',undefined,'suite-section-head');head.append(h('h3','Your workspaces'),h('small','Menus based on the supplied system reference'));root.append(head);
-   const cards=h('div',undefined,'suite-card-grid');
-   const definitions=[
-     ['tills','▤','Tills','Cashier checkout, cash/card confirmations and paid receipts.','SEPARATE WORKSTATION'],
-     ['cashoffice','◈','Cash Office','Payment verification, cash-up and internal finance controls.','SEPARATE WORKSTATION'],
-     ['dispatching','⇥','Dispatching','Paid-order picking, checking and delivery management.','SEPARATE WORKSTATION'],
-     ['stock','▦','Stock','Purchase orders, receiving, GRVs, stock-on-hand and transfers.','LIVE STOCK FLOW'],
-     ['debtors','◎','Debtors','Branch debtor master records and audit history.','LIVE MASTER FILES'],
-     ['suppliers','▤','Suppliers','Supplier master and purchase orders.','LIVE PURCHASING'],
-     ['backoffice','▥','Back Office','Tills, end-of-day, VAT, reporting and month-end controls.','MENU INVENTORY'],
-     ['headoffice','◇','Head Office','Branches, synchronization and group management.','MENU INVENTORY'],
-   ];
-   for(const [id,symbol,name,description,status] of definitions){
-     const card=suiteButton('',id,'suite-card');card.append(h('span',symbol,'suite-card-icon'),h('strong',name),h('small',description));
-     card.append(h('span',status,'suite-card-status'+(status.startsWith('LIVE')?' live':'')));cards.append(card);
-   }
-   root.append(cards,h('p','Hub catalogue-linked stock, purchase orders, GRVs, transfers and supplier invoice matching are connected. AP, VAT, GL, sales stock deduction and returns are NOT posted.','suite-footnote'));
- }
+ ${POS_PREMIUM_CLIENT_SCRIPT}
+ function suiteHome(){posPremiumDashboard();}
  const MASTER_LABELS={stock:'Stock Master',supplier:'Suppliers Master',debtor:'Debtors Master'};
  const MASTER_FIELDS={
    stock:[['unit','Unit','text'],['category','Category','text'],['barcode','Barcode','text'],['cost_cents','Cost price (R)','money'],['selling_price_cents','Selling price (R)','money'],['reorder_min','Minimum stock level','integer']],
@@ -1712,11 +1694,11 @@ function page(app){
  }
  function updateSuiteUI(){
    if(APP!=='pos')return;
-   const title=suiteView==='home'?'Maliks Professional':SUITE_TITLES[suiteView]||({tills:'Tills',cashoffice:'Cash Office'}[suiteView])||'Maliks Professional';
+   const title=suiteView==='home'?'Maliks Professional':suiteView==='checkout'?'Point of Sale':SUITE_TITLES[suiteView]||({tills:'Tills',cashoffice:'Cash Office'}[suiteView])||'Maliks Professional';
    E('screen-heading').textContent=title;
    E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;
    for(const b of document.querySelectorAll('[data-suite-module]')){
-     if(b.classList.contains('suite-nav-button'))b.setAttribute('aria-pressed',String(b.dataset.suiteModule===suiteView));
+     if(b.classList.contains('suite-nav-button'))b.setAttribute('aria-pressed',String(b.dataset.suiteModule===(suiteView==='checkout'?'home':suiteView)));
    }
  }
  function setSuiteView(id){
@@ -1724,7 +1706,7 @@ function page(app){
    if(id==='lock'||id==='exit'){
      void api('/api/auth/logout',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}).finally(()=>window.location.assign('/'));return;
    }
-   if(!['home',...Object.keys(SUITE_MENU_TREE)].includes(id))return;
+   if(!['home','checkout',...Object.keys(SUITE_MENU_TREE)].includes(id))return;
    suiteView=id;draw();window.scrollTo({top:0,behavior:'auto'});
  }
  function teamView(){
@@ -1824,7 +1806,7 @@ function page(app){
  function draw(){
    E('app-content').replaceChildren();err('');
    if(APP==='pos'){
-     if(suiteView==='home')suiteHome();else suiteModuleView(suiteView);
+     if(suiteView==='home')suiteHome();else if(suiteView==='checkout')posPremiumCheckout();else suiteModuleView(suiteView);
      updateSuiteUI();
    }else if(APP==='member')teamView();else if(APP==='sales')posView();else if(APP==='dispatch')dispatchView();else void quoteView();
  }
@@ -1858,7 +1840,7 @@ function page(app){
    });p.append(f);root.append(p);
  }
  function addSignOut(){
-   const parent=E('screen-heading').parentElement;const b=h('button','Sign out','secondary small-btn');b.type='button';b.addEventListener('click',async()=>{
+   const parent=APP==='pos'?E('screen-heading').closest('.top'):E('screen-heading').parentElement;const b=h('button','Sign out','secondary small-btn');b.type='button';b.addEventListener('click',async()=>{
      try{await api('/api/auth/logout',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});}catch{}location.reload();
    });parent.append(b);
  }
