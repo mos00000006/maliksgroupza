@@ -1,44 +1,39 @@
-# Maliks Group Hub — Daily Checklist Save Fix
-16 November 2026
+# MALIKS GROUP HUB — DAILY CHECKLIST SAVE + RESULTS (V2)
 
-## What was wrong
-The old Daily Checklist refused to save an unfinished opening-to-closing checklist. Validation errors were displayed at the very top of the Store Control Centre, out of sight when the user was at the Save button.
+This **combined patch** includes the previous Daily Checklist saving fix and the new automatic results screen. It replaces only the main Hub's two Store Control Centre source files and adds two regression tests. It is not a Maliks Operations/POS patch.
 
-The Hub was also determining "today" using UTC, which can assign a South African trading-day checklist to the previous date between 00:00 and 01:59 SAST.
-
-## What changes
-- **Save Progress:** saves an incomplete checklist as a draft with all selected statuses, comments and manager notes intact. A manager name and valid date are still required.
-- **Finalise Daily Checklist:** requires all checklist items marked Done/Issue/N/A, comments for Issue items, and manager sign-off.
-- **Error/success feedback appears beside the two Save buttons**, including backend validation and database failure messages.
-- Saving the same branch/date edits that record, rather than creating duplicate checklists.
-- Once finalised, an unfinished draft cannot replace the signed-off record.
-- Only finalised checklists contribute to Today's Checklists and executive score/ranking.
-- Dates follow Africa/Johannesburg (UTC+2), not the UTC Worker clock.
-- Existing Daily Checklist history and submitted records are preserved. **No database migration required.**
-- The automated tests cover incomplete draft saving, readback, updating same date, finalisation validation, summary counting, and permission/date protection.
+## Improvements
+- Save Progress stores an incomplete checklist, without pretending that it is finalised.
+- Finalise Daily Checklist checks all item statuses, required issue comments, and manager sign-off.
+- On confirmed successful **Save Progress** or **Finalise**, the editable form is replaced by a **Saved Checklist Results** screen and the browser opens it automatically; no manual scrolling through the form.
+- Results are grouped as **What is not right — requires follow-up**, **What is done**, **Still outstanding**, **Not applicable**. Counts and original manager comments appear for each item. A summary also displays compliance and manager sign-off.
+- **Back to Checklist** returns to the editable form. **View Results** in Checklist History reopens a prior day's saved report.
+- Changing branches or checklist dates closes stale results. The server preserves one checklist per branch/date and blocks an unfinished draft from overwriting a finalised checklist.
+- Incomplete drafts do not count toward the executive's finalised Daily Checklist compliance.
+- All reports and draft saves use the existing `daily_manager_checklists` database table; no database schema changes are required.
 
 ## Installation
-1. Back up your repository and create a Git branch. The patch is for the **main Hub**, not the `maliks-operations/` POS folder.
-2. From this ZIP, copy `app/store-controls.tsx` and `app/api/store-controls/route.ts` into the same paths at the root of `maliksgroupza`, replacing only those two files.
-3. Copy `tests/daily-checklist-save.test.mjs` to the root `tests/` directory.
-4. In VS Code at the **repository root** run:
-   ```
-   node --test tests/daily-checklist-save.test.mjs
+1. Back up your live repository and D1 database, and create a new Git branch for review.
+2. Extract the ZIP into the **root** of your `maliksgroupza` repository, merging the `app/` and `tests/` directories. Replace only these files:
+   - `app/store-controls.tsx`
+   - `app/api/store-controls/route.ts`
+   - add `tests/daily-checklist-save.test.mjs`
+   - add `tests/daily-checklist-results.test.mjs`
+3. From the main repository root run:
+   ```bash
+   node --test tests/daily-checklist-save.test.mjs tests/daily-checklist-results.test.mjs
    npm run check
    ```
-5. Commit and push to GitHub. Once its checks pass, deploy using your existing Hub Cloudflare deployment workflow. Do not deploy the separate POS or run a D1 migration for this fix.
-6. Open Hub → Daily Checklists, select a store, and test:
-   - Mark two items Done and leave the rest blank; click **Save Progress**; reload and check the draft remains.
-   - Finish all items, fill in comments for any Issue, type manager sign-off; click **Finalise Daily Checklist**.
-   - Reload. The history shows Finalized and Today's Checklists increases by one.
+4. Commit and push to GitHub. Review GitHub Actions, then deploy the **Hub** through your current Cloudflare workflow. **Do not run new database migrations** for this patch.
+5. Test with an authorised store manager:
+   - Pick branch and date, mark two items Done, one Issue with a note, leave other items incomplete. Press **Save Progress**.
+   - Verify the saved results appear automatically, with correct Done/Issue/Outstanding counts and original notes.
+   - Press **Back to Checklist**, complete the remaining statuses, enter manager sign-off, press **Finalise Daily Checklist**.
+   - Confirm results again; reload the Hub, then select **View Results** for that date in Checklist History.
+   - Confirm unauthorised users cannot save and that finalised forms are not downgraded to drafts.
 
-## Troubleshooting
-- **Save button missing:** The Hub account may not have edit permissions (`data.canWrite`). Have an authorised administrator verify the assigned role.
-- **Database error:** The screen now shows a clear error by Save. Check Cloudflare Worker logs and D1 binding/migrations for `daily_manager_checklists`.
-- **Saving a draft after sign-off:** The application rejects downgrading a finalised checklist. Use Finalise Checklist to submit a revision, or contact management.
-- **Uploads:** Evidence uploads remain optional and are separate from the saved checklist. A failed upload shows a warning without claiming that the checklist failed.
-
-## Verification scope
-- 3 regression tests passed on the extracted Hub source with an in-memory SQLite D1-compatible harness.
-- Both changed files were syntax-checked with TypeScript's parser (missing external dependencies in the isolated test folder prevent a full project build).
-- The ZIP was not deployed to Cloudflare and does not update live data.
+## Verification and limitations
+- Six local regression checks passed (three API/save integration checks using in-memory SQLite, three UI source-contract checks).
+- TypeScript parser found no syntax errors in the changed source files. A complete `npm run check` still needs to be run in your working repository with dependencies installed.
+- Cloudflare D1 and the live production Hub were **not modified**.
+- This patch shows issues and comments for follow-up; it does not independently create corrective-action tasks or assign task owners.
