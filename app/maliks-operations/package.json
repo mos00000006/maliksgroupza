@@ -23,7 +23,16 @@
     "migrate:phase17": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase17_inventory_flow.sql --config .generated/core.json",
     "migrate:phase16": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase16_purchase_orders.sql --config .generated/core.json",
     "migrate:phase15": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase15_master_files.sql --config .generated/core.json",
-    "migrate:phase9": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase9_paid_sales_dispatch.sql --config .generated/core.json"
+    "migrate:phase9": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase9_paid_sales_dispatch.sql --config .generated/core.json",
+    "migrate:phase18": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase18_supplier_invoice_matching.sql --config .generated/core.json",
+    "migrate:phase19": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase19_member_team.sql --config .generated/core.json",
+    "deploy:member": "wrangler deploy --config .generated/member.json",
+    "migrate:phase20": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase20_stock_control.sql --config .generated/core.json",
+    "migrate:phase21": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase21_staff_password_login.sql --config .generated/core.json",
+    "migrate:phase21b": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase21b_cloudflare_pbkdf2.sql --config .generated/core.json",
+    "migrate:phase22": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase22_cashup_reconciliation.sql --config .generated/core.json",
+    "deploy:quote": "wrangler deploy --config .generated/quote.json",
+    "migrate:phase23": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase23_member_app_access.sql --config .generated/core.json"
   },
   "dependencies": {
     "jose": "^6.1.0"

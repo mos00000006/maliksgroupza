@@ -1,45 +1,64 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import { APPS, canUseApp, allowedBranches, matchingBranch, limitSearch } from './policy.mjs';
+import { APPS, canUseApp, allowedBranches, matchingBranch, limitSearch, attachAppPermissions } from './policy.mjs';
 import { validateQuoteLines, calculateQuote, canonicalQuotePayload, quoteNumber, quoteListStatement, quoteLookupStatement } from './quote-domain.mjs';
 import { validateRequestId, validateTillCode, validateMoneyCents, validateCloseNote, validateShiftId, shiftForClient, shiftListStatement } from './shift-domain.mjs';
 import {validateReviewDecision,validateReviewNote,latestReviewsStatement,reviewHistoryStatement,reviewForClient} from './review-domain.mjs';
 import {validateTenderPreparation,tenderListStatement,tenderForClient} from './tender-domain.mjs';
 import {quoteId} from './quote-domain.mjs';
 import {cashupPreviewStatement,cashupForClient,CASHUP_MODE} from './cashup-domain.mjs';
+import {listCashupReconciliations,reviewCashupReconciliation} from './cashup-reconciliation-domain.mjs';
 import {submitPayment,confirmSimpleCheckout,listPayments,verifyPayment,listDispatch,updateDispatch,getInvoice} from './payment-dispatch-domain.mjs';
 import {validateEvidenceInput,evidenceListStatement,evidenceHistoryStatement,evidenceForClient,EVIDENCE_MODE} from './payment-evidence-domain.mjs';
-import {listMasterRecords,listMasterAudit,listMasterCatalogue,saveMasterRecord,canUseMaster,MASTER_KINDS} from './master-domain.mjs';
+import {listMasterRecords,listMasterAudit,listMasterCatalogue,syncStockCatalogue,saveMasterRecord,canUseMaster,canEditStockPrice,MASTER_KINDS} from './master-domain.mjs';
 import {canUsePurchase,listPurchaseOrders,purchaseAudit,savePurchaseOrder,actionPurchaseOrder} from './purchase-domain.mjs';
+import {canUseSupplierInvoice,listSupplierInvoices,captureSupplierInvoice,supplierInvoiceAction} from './supplier-invoice-domain.mjs';
+import {resolveMobilePriceTag,listBranchSalesQuotes} from './mobile-quote-domain.mjs';
 import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
+import {canManageTeam,listTeam,changeTeam,setTeamAppAccess} from './team-domain.mjs';
+import {listStockControl,createStockControl,stockControlAction} from './stock-control-domain.mjs';
+import {loginPassword,verifySession,logoutPassword,changeOwnPassword,issueTemporaryPassword,bootstrapOwnPassword} from './password-auth-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
 const result=(json,status=200)=>Response.json(json,{status,headers:HEADERS});
 const securityCache = new Map();
-const accessVars={pos:'ACCESS_AUD_POS',management:'ACCESS_AUD_POS',tills:'ACCESS_AUD_TILLS',cashoffice:'ACCESS_AUD_CASHOFFICE',dispatch:'ACCESS_AUD_DISPATCH'};
+const accessVars={pos:'ACCESS_AUD_POS',management:'ACCESS_AUD_POS',tills:'ACCESS_AUD_TILLS',cashoffice:'ACCESS_AUD_CASHOFFICE',dispatch:'ACCESS_AUD_DISPATCH',member:'ACCESS_AUD_MEMBER'};
 
 async function identity(request,env) {
   const app=request.headers.get('x-maliks-app');
   if(!APPS.includes(app)) return null;
+  const nativeOnly=String(env.NATIVE_LOGIN_APPS||'').split(',').map(x=>x.trim());
+  if(nativeOnly.includes(app))return verifySession(env,app,request.headers.get('x-maliks-session'));
   const jwt=request.headers.get('cf-access-jwt-assertion');
   const issuer=String(env.CF_ACCESS_TEAM_DOMAIN||'').replace(/\/$/,'');
   const audience=env[accessVars[app]];
-  if(!jwt || !issuer.startsWith('https://') || !audience || audience.startsWith('REPLACE_')) return null;
+  if(!jwt || !issuer.startsWith('https://') || !audience || audience.startsWith('REPLACE_')) {
+    return verifySession(env,app,request.headers.get('x-maliks-session'));
+  }
   try {
     let keys=securityCache.get(issuer);
     if(!keys){keys=createRemoteJWKSet(new URL(`${issuer}/cdn-cgi/access/certs`));securityCache.set(issuer,keys);}
     const {payload}=await jwtVerify(jwt,keys,{issuer,audience,algorithms:['RS256']});
     const email=typeof payload.email==='string' ? payload.email.trim().toLowerCase() : '';
-    return email ? {email,app} : null;
-  } catch {return null;}
+    return email ? {email,app,method:'access',must_change_password:false} : null;
+  } catch {return verifySession(env,app,request.headers.get('x-maliks-session'));}
 }
 
 async function memberAndBranches(env,email,app){
-  const member=await env.DB.prepare(`SELECT name,email,role,department,access_scope,workspace_access,active
+  const member=await env.DB.prepare(`SELECT id,name,email,role,department,access_scope,workspace_access,active
     FROM team_members WHERE lower(email)=? AND active=1 LIMIT 1`).bind(email).first();
+  await attachAppPermissions(env.DB,member);
   if(!canUseApp(member,app))return null;
   const {results}=await env.DB.prepare("SELECT name FROM workspaces WHERE type='Store' AND active=1 ORDER BY name").all();
-  const branches=allowedBranches(member,results.map(r=>r.name));
+  let branches=allowedBranches(member,results.map(r=>r.name));
+  // A store salesperson must never inherit access to other branches from a malformed Hub assignment.
+  if(app==='pos'&&!['Owner / Admin','Developer / Technical Admin','Store Manager','Regional Manager','Operations Manager'].includes(member.role)){
+    branches=branches.filter(b=>b.toLowerCase()===String(member.department||'').toLowerCase());
+  }
+  // A store manager's Member Team access is strictly limited to their own store.
+  if(app==='member'&&member.role==='Store Manager'){
+    branches=branches.filter(b=>b.toLowerCase()===String(member.department||'').toLowerCase());
+  }
   return branches.length ? {member,branches} : null;
 }
 
@@ -61,7 +80,7 @@ async function catalogue(req,env,context){
     COALESCE(bp.price_cents,t.price_cents) AS price_cents,
     COALESCE(t.unit,'each') AS unit,COALESCE(t.coverage_per_box,0) AS coverage_per_box
     FROM catalogue_products p
-    JOIN ${table} t ON t.product_id=p.id AND t.published=1
+    LEFT JOIN ${table} t ON t.product_id=p.id AND t.published=1
     LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
     WHERE p.active=1 AND COALESCE(bp.price_cents,t.price_cents)>0
     AND (lower(p.code)=lower(?) OR lower(p.code) LIKE ? ESCAPE '\\' OR lower(p.name) LIKE ? ESCAPE '\\')
@@ -140,7 +159,7 @@ async function createQuote(req,env,context){
   const brand=brandFor(branch), table=tagTableFor(branch), ids=lines.map(x=>x.product_id);
   const marks=ids.map(()=>'?').join(',');
   const {results}=await env.DB.prepare(`SELECT p.id,p.code,p.name,COALESCE(t.unit,'each') AS unit,
-    CASE WHEN t.product_id IS NOT NULL THEN COALESCE(bp.price_cents,t.price_cents,0) ELSE 0 END AS price_cents
+    COALESCE(bp.price_cents,t.price_cents,0) AS price_cents
     FROM catalogue_products p
     LEFT JOIN ${table} t ON t.product_id=p.id AND t.published=1
     LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
@@ -444,28 +463,64 @@ export default {
     const path=new URL(req.url).pathname;
     if(!path.startsWith('/v1/'))return denied('Internal service only.',404);
     if(!['GET','POST'].includes(req.method))return denied('Method not allowed.',405);
+    const app=req.headers.get('x-maliks-app');
+    if(path==='/v1/auth/login'&&req.method==='POST'){
+      if(!APPS.includes(app))return denied('Invalid application.',403);
+      return loginPassword(req,env,app,req.headers.get('x-maliks-client-ip')||'');
+    }
+    if(path==='/v1/auth/logout'&&req.method==='POST'){
+      if(req.headers.get('origin')!==req.headers.get('x-maliks-original-origin'))return denied('Invalid origin.',403);
+      return logoutPassword(env,req.headers.get('x-maliks-session'));
+    }
     const auth=await identity(req,env);
-    if(!auth)return denied('Cloudflare Access login is required.',401);
+    if(!auth)return denied('Sign in with your employee credentials.',401);
+    if(path==='/v1/auth/change-password'&&req.method==='POST')return changeOwnPassword(req,env,auth);
+    if(path==='/v1/auth/bootstrap'&&req.method==='POST'){
+      try{return await bootstrapOwnPassword(req,env,auth);}
+      catch(error){
+        console.error('Administrator password endpoint failed:',String(error?.message||'Unknown error').slice(0,200));
+        return denied('Administrator password service failed. Check Phase 21 D1 migration and Core logs.',503);
+      }
+    }
+    if(auth.method==='password'&&auth.must_change_password&&path!=='/v1/session')return denied('Password change required.',428);
     try{
       const access=await memberAndBranches(env,auth.email,auth.app);
       if(!access)return denied('No active department and branch assignment.');
-      const context={...access,app:auth.app};
+      const context={...access,app:auth.app,auth_method:auth.method};
       if(path==='/v1/session'&&req.method==='GET')return result({
-        app:auth.app,user:{name:access.member.name,role:access.member.role},branches:access.branches,
+        app:auth.app,user:{name:access.member.name,role:access.member.role,email:access.member.email},branches:access.branches,
+        password_change_required:auth.method==='password'&&auth.must_change_password,
+        team_permissions:auth.app==='member'?{manage:canManageTeam(access.member)}:undefined,
+        app_login_access:auth.app==='member'?APPS.filter(app=>canUseApp(access.member,app)):undefined,
+        stock_price_permission:auth.app==='management'?canEditStockPrice(access.member):false,
         master_permissions:auth.app==='management'?Object.fromEntries(MASTER_KINDS.map(k=>[k,{read:canUseMaster(access.member,k),write:canUseMaster(access.member,k,true)}])):undefined,
         purchase_permissions:auth.app==='management'?{read:canUsePurchase(access.member),write:canUsePurchase(access.member,'write'),approve:canUsePurchase(access.member,'approve')}:undefined,
+        supplier_invoice_permissions:auth.app==='management'?Object.fromEntries(['read','capture','verify'].map(k=>[k,canUseSupplierInvoice(access.member,k)])):undefined,
         inventory_permissions:auth.app==='management'?Object.fromEntries(['read','count','verify','post','packCheck','transfer','approveTransfer'].map(k=>[k,canUseInventory(access.member,k)])):undefined,
-        mode:auth.app==='management'?'MASTER_FILES':auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
+        mode:auth.app==='member'?'MEMBER_TEAM':auth.app==='management'?'MASTER_FILES':auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
       });
+      if(path==='/v1/team'&&req.method==='GET')return await listTeam(req,env,context);
+      if(path==='/v1/team/change'&&req.method==='POST')return await changeTeam(req,env,context);
+      if(path==='/v1/team/apps'&&req.method==='POST')return await setTeamAppAccess(req,env,context);
+      if(path==='/v1/team/password-reset'&&req.method==='POST')return await issueTemporaryPassword(req,env,context);
+      if(path==='/v1/quote/tag'&&req.method==='GET')return await resolveMobilePriceTag(req,env,context);
+      if(path==='/v1/quote/branch-queue'&&req.method==='GET'){await env.DB.prepare(createQuoteTable).run();return await listBranchSalesQuotes(req,env,context);}
       if(path==='/v1/master/records'&&req.method==='GET')return await listMasterRecords(req,env,context);
       if(path==='/v1/master/records'&&req.method==='POST')return await saveMasterRecord(req,env,context);
       if(path==='/v1/master/audit'&&req.method==='GET')return await listMasterAudit(req,env,context);
       if(path==='/v1/master/catalogue'&&req.method==='GET')return await listMasterCatalogue(req,env,context);
+      if(path==='/v1/master/catalogue/sync'&&req.method==='POST')return await syncStockCatalogue(req,env,context);
+      if(path==='/v1/supplier-invoices'&&req.method==='GET')return await listSupplierInvoices(req,env,context);
+      if(path==='/v1/supplier-invoices'&&req.method==='POST')return await captureSupplierInvoice(req,env,context);
+      if(path==='/v1/supplier-invoices/action'&&req.method==='POST')return await supplierInvoiceAction(req,env,context);
       if(path==='/v1/purchase-orders'&&req.method==='GET')return await listPurchaseOrders(req,env,context);
       if(path==='/v1/purchase-orders'&&req.method==='POST')return await savePurchaseOrder(req,env,context);
       if(path==='/v1/purchase-orders/audit'&&req.method==='GET')return await purchaseAudit(req,env,context);
       if(path==='/v1/purchase-orders/action'&&req.method==='POST')return await actionPurchaseOrder(req,env,context);
       if(path==='/v1/inventory'&&req.method==='GET')return await listInventory(req,env,context);
+      if(path==='/v1/stock-control'&&req.method==='GET')return await listStockControl(req,env,context);
+      if(path==='/v1/stock-control'&&req.method==='POST')return await createStockControl(req,env,context);
+      if(path==='/v1/stock-control/action'&&req.method==='POST')return await stockControlAction(req,env,context);
       if(path==='/v1/receipts'&&req.method==='GET')return await listReceipts(req,env,context);
       if(path==='/v1/receipts'&&req.method==='POST')return await countReceipt(req,env,context);
       if(path==='/v1/receipts/action'&&req.method==='POST')return await receiptAction(req,env,context);
@@ -482,6 +537,8 @@ export default {
       if(path==='/v1/till-reviews'&&req.method==='GET')return await reviewHistory(req,env,context);
       if(path==='/v1/till-reviews'&&req.method==='POST')return await recordShiftReview(req,env,context);
       if(path==='/v1/cashup-preview'&&req.method==='GET')return await listCashupPreviews(req,env,context);
+      if(path==='/v1/cashup-reconciliation'&&req.method==='GET')return await listCashupReconciliations(req,env,context);
+      if(path==='/v1/cashup-reconciliation/review'&&req.method==='POST')return await reviewCashupReconciliation(req,env,context);
       if(path==='/v1/payment-evidence'&&req.method==='GET')return await listPaymentEvidence(req,env,context);
       if(path==='/v1/payment-evidence/history'&&req.method==='GET')return await paymentEvidenceHistory(req,env,context);
       if(path==='/v1/payment-evidence'&&req.method==='POST')return await recordPaymentEvidence(req,env,context);

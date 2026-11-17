@@ -1,4 +1,9 @@
 import { POWERBUILD_LOGO_BASE64 } from './powerbuild-logo.mjs';
+import { SUITE_INSIGHTS_CLIENT_SCRIPT } from './suite-insights.mjs';
+import { LUCIDE_ICON_MARKUP } from './pos-lucide-icons.mjs';
+import { POS_PREMIUM_CSS } from './pos-premium-theme.mjs';
+import { POS_PREMIUM_CLIENT_SCRIPT } from './pos-premium-screens.mjs';
+import { DEPARTMENT_PREMIUM_CSS, DEPARTMENT_PREMIUM_CLIENT_SCRIPT } from './department-premium.mjs';
 
 const POWERBUILD_LOGO_BYTES = Uint8Array.from(atob(POWERBUILD_LOGO_BASE64), c => c.charCodeAt(0));
 
@@ -7,16 +12,17 @@ const APPS={
   sales:{name:'Maliks Sales',subtitle:'Sales & Quotations',hint:'Product search, VAT-inclusive quotations, quotation history and printing. No till payment or dispatch posting.'},
   tills:{name:'Maliks Tills',subtitle:'Cashier Workstation',hint:'Cash or card: cashier confirms receipt and sends paid internal invoice directly to Dispatch. Bank/terminal integration remains separate.'},
   cashoffice:{name:'Maliks Cash Office',subtitle:'Cash Office Workstation',hint:'Audit cashier-confirmed Cash/Card payments and independently verify legacy or EFT payment requests.'},
+  member:{name:'Maliks Member Team',subtitle:'Employee Access & Store Assignments',hint:'Managers may add and deactivate employees only in their authorised stores. Access is audited.'},
   dispatch:{name:'Maliks Dispatch',subtitle:'Dispatch Workstation',hint:'Confirmed paid invoices appear in the dispatch queue. Picking and independent checking are recorded; stock posting, exit release and driver POD are not yet integrated.'},
 };
 // Phase 14: The Professional accounting suite and Sales are separate Workers.
 // This is a navigation inventory; unbuilt functions remain previews, not live postings.
 const SUITE_NAV = [
-  ['home','Home','⌂'],['debtors','Debtors','◎'],
-  ['suppliers','Suppliers','▤'],['stock','Stock','▦'],['backoffice','Back Office','▥'],
-  ['dispatching','Dispatching','⇥'],['headoffice','Head Office','◇'],
-  ['system','System Settings','⚙'],['widget','Widget','◫'],
-  ['help','Help','?'],['lock','Lock','♙'],['exit','Exit','⏻'],
+  ['home','Home','house'],['debtors','Debtors','users'],
+  ['suppliers','Suppliers','clipboard-list'],['stock','Stock','boxes'],['backoffice','Back Office','briefcase-business'],
+  ['dispatching','Dispatching','truck'],['headoffice','Head Office','building'],
+  ['system','System Settings','settings'],['widget','Widget','layout-dashboard'],
+  ['help','Help','circle-question-mark'],['lock','Lock','lock-keyhole'],['exit','Exit','power'],
 ];
 const SUITE_MENU_TREE = {
   debtors: {
@@ -38,7 +44,7 @@ const SUITE_MENU_TREE = {
     'Master Files':['Stock Master','Departments','Categories','Units','Barcodes','Stock Groups'],
     'Transactions':['Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Returns','Stock Take'],
     'Reporting':['Master','Stock Valuations','Stock Take','Transactions','Sales','Onhands','Re-Order','Audits','Promotions'],
-    'Utilities':['Promotions','Labelling','Pricing Utilities','Master Utilities','Minimum / Maximum Stock Levels','Stock Take','Freeze Onhands','Reprint Documents','Link Pictures','Stock Master CSV/Text File Export','Daily Stock Count','Serial Number Tracking','Stock Master CSV File Import','Delete Stock Items','Delete Stock Purchase Orders'],
+    'Utilities':['Promotions','Labelling','Pricing Utilities','Master Utilities','Minimum / Maximum Stock Levels','Stock Take','Opening Stock Count','Freeze Onhands','Reprint Documents','Link Pictures','Stock Master CSV/Text File Export','Daily Stock Count','Serial Number Tracking','Stock Master CSV File Import','Delete Stock Items','Delete Stock Purchase Orders'],
     'Settings':['Settings','Numbering'],
   },
   backoffice: {
@@ -70,19 +76,30 @@ const SUITE_MENU_TREE = {
 };
 const SUITE_TITLES = Object.fromEntries(SUITE_NAV.map(([id,label])=>[id,label]));
 function suiteHeader(){
-  const buttons=SUITE_NAV.map(([id,label,symbol])=>`<button type="button" data-suite-module="${id}" class="suite-nav-button" aria-pressed="false"><span class="suite-nav-icon" aria-hidden="true">${symbol}</span><span>${label}</span></button>`).join('');
+  const buttons=SUITE_NAV.map(([id,label,iconId])=>`<button type="button" data-suite-module="${id}" class="suite-nav-button" aria-pressed="false"><span class="suite-nav-icon" aria-hidden="true">${LUCIDE_ICON_MARKUP[iconId]}</span><span>${label}</span></button>`).join('');
   return `<header id="suite-navigation" class="suite-header" hidden>
-    <div class="suite-brandbar"><button type="button" class="suite-brand" data-suite-module="home" aria-label="Maliks Professional home"><img class="suite-brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="66" height="66"/><span class="suite-brand-text"><strong>MALIKS <span>POS</span></strong><small>ACCOUNTING &amp; POS SOLUTIONS <em>PROFESSIONAL</em></small></span></button><span class="suite-system-status">● SECURE WORKSPACE</span><span id="suite-user" class="suite-user">Signed in</span></div>
+    <div class="suite-brandbar"><button type="button" class="suite-brand" data-suite-module="home" aria-label="Maliks Professional home"><img class="suite-brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="66" height="66"/><span class="suite-brand-text"><strong>MALIKS <span>POS</span></strong><small>ACCOUNTING &amp; POS SOLUTIONS <em>PROFESSIONAL</em></small></span></button><span class="suite-system-status"><span class="suite-secure-dot" aria-hidden="true"></span>SECURE WORKSPACE</span><span id="suite-user" class="suite-user">Signed in</span></div>
     <nav class="suite-navbar" aria-label="Maliks Professional modules">${buttons}</nav>
   </header>`;
+}
+const DEPARTMENT_NAV={
+ sales:[['home','Home','house'],['new','New Quotation','shopping-cart'],['history','My Quotations','receipt']],
+ tills:[['home','Home','house'],['checkout','Checkout','credit-card'],['shifts','Till Shifts','clock'],['cashup','Close / Cash-Up','wallet'],['payments','Paid Invoices','receipt'],['quotes','Quotations','clipboard-list'],['preparations','Preparations','wallet']],
+ cashoffice:[['home','Home','house'],['paid','Paid Invoices','receipt'],['shifts','Shift Reviews','users'],['cashup','Cash-Up','wallet'],['evidence','Evidence','file-text'],['preparations','Preparations','clipboard-list'],['quotes','Quotations','search']],
+ dispatch:[['home','Home','house'],['queue','Dispatch Queue','truck']]
+};
+function departmentHeader(app){
+  const actions=DEPARTMENT_NAV[app].map(([id,label,icon])=>`<button type="button" class="department-nav-button" data-department-view="${id}" aria-pressed="false"><span aria-hidden="true" class="department-nav-icon">${LUCIDE_ICON_MARKUP[icon]}</span><span>${label}</span></button>`).join('');
+  return `<header id="department-navigation" class="department-header" hidden><div class="department-brandbar"><button class="department-brand" type="button" data-department-view="home"><img class="department-brand-logo" alt="PowerBuild logo" src="/powerbuild-logo.png" width="66" height="66"/><span><strong>MALIKS <em>POS</em></strong><small>ACCOUNTING &amp; POS SOLUTIONS <b>PROFESSIONAL</b></small></span></button><span class="department-secure"><i aria-hidden="true"></i>SECURE WORKSPACE</span><span id="department-user" class="department-user">Signed in</span></div><nav class="department-navbar" aria-label="Department workspaces">${actions}</nav></header>`;
 }
 function page(app){
  const d=APPS[app];
  const suiteShell=app==='pos';
+ const departmentShell=Object.prototype.hasOwnProperty.call(DEPARTMENT_NAV,app);
  const salesShell=app==='sales';
- const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':salesShell?'SALES · QUOTATIONS':'ACCOUNTING & POS SOLUTIONS';
+ const releaseLabel=app==='dispatch'?'PAID INVOICE DISPATCH QUEUE':app==='tills'?'TILLS — PAYMENT WORKFLOW':app==='cashoffice'?'CASH OFFICE — VERIFICATION':app==='member'?'TEAM · STORE ACCESS':salesShell?'SALES · QUOTATIONS':'ACCOUNTING & POS SOLUTIONS';
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
- <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="#102a4b"/><style>
+ <title>${d.name}</title><link rel="icon" type="image/png" href="/powerbuild-logo.png"/><meta name="theme-color" content="${suiteShell||departmentShell?'#0A2A3F':'#102a4b'}"/><style>
  :root{font-family:Inter,Arial,sans-serif;color:#19263b;background:#eff3f8}*{box-sizing:border-box}
  body{margin:0}.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
  aside{background:#102a4b;color:#fff;padding:28px 18px}aside h1{font-size:21px;margin:14px 0 5px}aside p{font-size:13px;color:#adbed0}
@@ -94,6 +111,7 @@ function page(app){
  h2{font-size:28px;margin:0 0 6px}h3{font-size:19px;margin:0 0 14px}p{line-height:1.5}.muted{color:#607187;font-size:14px}
  .tag{background:#fef3c7;border:1px solid #eab308;border-radius:6px;padding:7px 10px;color:#785217;font-weight:700;font-size:11px}
  .panel{background:white;padding:22px;border:1px solid #dae2ec;border-radius:15px;box-shadow:0 6px 24px #1529480b;margin-bottom:18px}
+ .login-panel{max-width:520px;margin:36px auto;padding:30px;box-shadow:0 16px 40px #102a4b18}.login-panel input{margin-bottom:16px}.login-panel button{width:100%}.login-logo{display:block;width:76px;height:76px;object-fit:contain;margin:0 auto 16px}
  .bar{display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0}.bar>*{flex:1 1 170px}
  label{font-weight:700;font-size:12px;display:block;margin:0 0 7px}input,select,textarea{width:100%;border:1px solid #bdc9d9;border-radius:7px;padding:11px;font:inherit;background:#fff;color:#19263b}
  input:focus,select:focus,textarea:focus{outline:2px solid #8fc1f6;outline-offset:1px}
@@ -189,7 +207,7 @@ function page(app){
  .suite-menu-card{background:#fff;border:1px solid #dce5ed;border-radius:14px;padding:20px;box-shadow:0 5px 18px #132b420a}
  .suite-menu-card h3{font-size:17px;color:#1a344f;border-bottom:1px solid #e5edf5;padding-bottom:12px;margin-bottom:7px}
  .suite-menu-list{display:grid;gap:2px}.suite-menu-action{background:transparent;color:#304a64;text-align:left;font-size:13px;font-weight:600;border-radius:7px;padding:10px 8px;display:flex;justify-content:space-between;gap:10px}
- .suite-menu-action:hover{background:#f0f5fa;color:#135e9e}.suite-menu-action:after{content:'›';font-size:19px;line-height:13px;color:#9aaabd}
+ .suite-menu-action:hover{background:#f0f5fa;color:#135e9e}.suite-menu-action:disabled{background:transparent;color:#8a99aa;cursor:not-allowed;opacity:.7}.suite-menu-action:disabled:after{content:'—';font-size:13px}.suite-menu-action:after{content:'›';font-size:19px;line-height:13px;color:#9aaabd}
  .suite-feature-detail[hidden]{display:none!important}
  .suite-feature-detail{background:#fff9e9;border:1px solid #f1dca6;border-radius:12px;padding:18px 20px;margin:20px 0;color:#6d531e}
  .suite-feature-detail strong{display:block;margin-bottom:5px}.suite-footnote{font-size:12px;color:#6b7c91;margin-top:18px}
@@ -206,21 +224,53 @@ function page(app){
  @page{size:A4;margin:12mm}}
 
  @media(max-width:850px){.shell{grid-template-columns:1fr}aside{padding:15px 20px;display:flex;align-items:center;gap:14px}aside h1{margin:0;font-size:17px}aside .brand-logo{width:56px;height:56px;flex:0 0 56px}aside .nav,aside .foot,aside p{display:none}main{padding:23px 14px}.two{grid-template-columns:1fr}}
- </style></head><body class="${suiteShell?'maliks-professional':salesShell?'maliks-sales-workstation':''}">
+ /* Stock Master: branch-specific, high-density product register; ledger quantities remain read only. */
+ .stock-master-table{width:100%;min-width:1090px;border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}
+ .stock-master-table th{position:sticky;top:0;background:#F0F2F3;color:#0A2A3F;font-weight:800;padding:14px 12px;z-index:1}
+ .stock-master-table td{padding:13px 12px;color:#0A2A3F;border-bottom:1px solid #E3E5E7}
+ .stock-master-table td:first-child{font-weight:800;white-space:nowrap}
+ .stock-master-table td:nth-child(2){min-width:230px}
+ .stock-master-table .stock-master-number{white-space:nowrap;text-align:right;font-weight:750}
+ .stock-master-table th:nth-child(4),.stock-master-table th:nth-child(5){text-align:right}
+ .stock-master-table .stock-master-editable{cursor:pointer}
+ .stock-master-table .stock-master-editable:hover,.stock-master-table .stock-master-editable:focus-visible{background:#F0F2F3;outline:2px solid #D4A017;outline-offset:-2px}
+ .stock-master-editor-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:13px 0}
+ .stock-master-editor-fact{border:1px solid #E3E5E7;border-left:3px solid #D4A017;background:#FFFFFF;border-radius:10px;padding:13px 15px;display:grid;gap:7px}
+ .stock-master-editor-fact small{color:#0A2A3F;font-size:12px}
+ .stock-master-editor-fact strong{color:#0A2A3F;font-size:19px}
+ ${POS_PREMIUM_CSS}
+ ${DEPARTMENT_PREMIUM_CSS}
+ </style></head><body class="${suiteShell?'maliks-professional':departmentShell?'maliks-department':''}">
  ${suiteShell?suiteHeader():''}
- <div class="shell ${suiteShell?'suite-shell':''}"><aside><img class="brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
+ ${departmentShell?departmentHeader(app):''}
+ <div class="shell ${suiteShell?'suite-shell':departmentShell?'department-shell':''}"><aside><img class="brand-logo" src="/powerbuild-logo.png" alt="PowerBuild logo" width="112" height="112"/><div><h1>${d.name}</h1><p>${d.subtitle}</p></div><div class="nav">${d.subtitle}</div><p class="foot">Restricted department workstation. All activity is associated with your approved Maliks account and assigned branch.</p></aside>
  <main><div class="top"><div><h2 id="screen-heading">${d.name}</h2><div class="muted" id="signed-in">Checking approved user access…</div></div><span class="tag" id="workstation-tag">${releaseLabel}</span></div>
  <div class="notice" id="workstation-notice">${d.hint}</div><div id="error" role="alert" hidden></div>
- <div class="panel"><div class="bar"><div><label for="branch">Assigned branch</label><select id="branch" disabled><option>Authorising…</option></select></div><div><label>Application access</label><p class="muted" id="access">Verification in progress…</p></div></div></div>
+ <div class="panel" id="branch-panel"><div class="bar"><div><label for="branch">Assigned branch</label><select id="branch" disabled><option>Authorising…</option></select></div><div><label>Application access</label><p class="muted" id="access">Verification in progress…</p></div></div></div>
  <div id="app-content"></div>
  </main></div><script type="module">
  const APP=${JSON.stringify(app)};
+ const MEMBER_TEAM_URL='https://maliks-member-team.moyanamoses006.workers.dev';
+ const MALIKS_APP_LINKS=[
+   ['management','Maliks POS Professional','https://maliks-pos.moyanamoses006.workers.dev/'],
+   ['pos','Maliks Sales','https://maliks-sales.moyanamoses006.workers.dev/'],
+   ['pos','Maliks Quote','https://maliks-quote.moyanamoses006.workers.dev/'],
+   ['tills','Maliks Tills','https://maliks-tills.moyanamoses006.workers.dev/'],
+   ['cashoffice','Maliks Cash Office','https://maliks-cash-office.moyanamoses006.workers.dev/'],
+   ['dispatch','Maliks Dispatch','https://maliks-dispatch.moyanamoses006.workers.dev/'],
+   ['member','Maliks Member Team','https://maliks-member-team.moyanamoses006.workers.dev/']
+ ];
+ let loggedInMaliksApps=[];
+ const CASH_OFFICE_URL='https://maliks-cash-office.moyanamoses006.workers.dev/';
+ let currentUserRole='';
  const SUITE_NAV=${JSON.stringify(SUITE_NAV)};
  const SUITE_MENU_TREE=${JSON.stringify(SUITE_MENU_TREE)};
  const SUITE_TITLES=${JSON.stringify(SUITE_TITLES)};
+ const DEPARTMENT_NAV=${JSON.stringify(DEPARTMENT_NAV)};
+ const SUITE_PREMIUM_ICONS=${JSON.stringify(LUCIDE_ICON_MARKUP)};
  const E=id=>document.getElementById(id);
  const h=(tag,text='',cls='')=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=String(text);if(cls)el.className=cls;return el;};
- const api=async (url,opts)=>{const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});let data;try{data=await r.json();}catch{throw Error('Unexpected service response.');}if(!r.ok)throw Error(data.error||'Request failed');return data;};
+ const api=async (url,opts)=>{const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});let data;try{data=await r.json();}catch{const e=Error('The service returned a non-JSON response (HTTP '+r.status+'). Check the Core Worker, Phase 21 D1 migration and Cloudflare Access session.');e.status=r.status;throw e;}if(!r.ok){const e=Error(data.error||'Request failed (HTTP '+r.status+').');e.status=r.status;throw e;}return data;};
  const money=c=>new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR'}).format(c/100);
  const err=message=>{const e=E('error');e.hidden=!message;e.textContent=message||'';e.className='error';};
  const panel=title=>{const p=h('section',undefined,'panel');p.append(h('h3',title));return p;};
@@ -228,15 +278,15 @@ function page(app){
  const showDate=value=>{if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?value:new Intl.DateTimeFormat('en-ZA',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Johannesburg'}).format(d);};
  const calcBasket=()=>{const total=basket.reduce((s,l)=>s+Math.round(l.product.price_cents*l.quantity),0);const vat=Math.round(total*15/115);return {total,vat,net:total-vat};};
  let branch='',basket=[],pendingQuote=null,recentQuotes=[],quoteRows=[],pendingShiftAction=null,pendingReviewAction=null,pendingTenderAction=null;
- let suiteView='home';
+ let suiteView='home',departmentView='home',currentUserEmail='';
  let suiteSalesDraft={customer:'',contact:'',notes:''};
  function selectBranch(){
    const incoming=E('branch').value;
    if(pendingQuote){E('branch').value=branch;err('Finish or release the pending quotation before changing branch.');return;}
    if(pendingReviewAction){E('branch').value=branch;err('Retry or resolve the pending Cash Office review before changing branch.');return;}
    if(pendingTenderAction){E('branch').value=branch;err('Resolve the pending tender preparation before changing branch.');return;}
-   if(basket.length && !window.confirm('Changing branch will clear the quotation basket. Continue?')){E('branch').value=branch;return;}
-   branch=incoming;basket=[];recentQuotes=[];quoteRows=[];suiteSalesDraft={customer:'',contact:'',notes:''};pendingShiftAction=null;pendingReviewAction=null;pendingTenderAction=null;draw();
+   if((basket.length||premiumDraft.length) && !window.confirm('Changing branch will clear the current basket. Continue?')){E('branch').value=branch;return;}
+   branch=incoming;basket=[];premiumDraft=[];premiumSearchSequence++;recentQuotes=[];quoteRows=[];suiteSalesDraft={customer:'',contact:'',notes:''};pendingShiftAction=null;pendingReviewAction=null;pendingTenderAction=null;draw();
  }
  async function searchProducts(){
    err('');const q=E('search')?.value.trim();if(!q){err('Enter a product name or code.');return;}
@@ -423,6 +473,23 @@ function page(app){
    thermalFooter(sheet,['Present this quotation at Tills to make payment.','No goods may be collected using this quotation.']);
    return printThermalSheet(sheet);
  }
+ function printA4Quote(row){
+   if(!row||row.branch!==branch||!Array.isArray(row.lines))throw Error('Select the matching branch before printing.');
+   const sheet=h('section',undefined,'print-sheet');
+   printHeader(sheet,'CUSTOMER QUOTATION',row.number,'MALIKS SALES · NOT PAID');
+   printMetadata(sheet,[['Branch',row.branch],['Quotation',row.number],['Date',showDate(row.created_at)],
+     ['Salesperson',row.submitted_by_name||'—'],['Customer',row.customer_name],['Contact',row.customer_contact||'—'],
+     ['Payment status','NOT PAID · QUOTATION ONLY']]);
+   printItems(sheet,row.lines,true);
+   const totals=h('div',undefined,'doc-totals');
+   for(const [label,amount,isGrand] of [['Total excluding VAT',row.net_cents,false],['VAT included (15%)',row.vat_cents,false],['Total quotation',row.total_cents,true]]){
+     const line=h('p');line.append(h(isGrand?'strong':'span',label),h(isGrand?'strong':'span',money(amount)));totals.append(line);
+   }
+   sheet.append(totals);
+   const foot=h('div',undefined,'doc-foot');
+   foot.append(h('p','NOT PAID — QUOTATION ONLY. No stock is reserved, no invoice issued and no goods may be released using this quotation. Confirm price and stock availability before payment.'));
+   sheet.append(foot);printDocument(sheet);
+ }
  function renderQuotes(target,list){
    const body=E(target);if(!body)return;body.replaceChildren();
    if(!list.length){const r=h('tr');const c=h('td','No quotations found.','empty');c.colSpan=6;r.append(c);body.append(r);return;}
@@ -431,14 +498,15 @@ function page(app){
      const td=h('td',undefined,'row-actions');const view=h('button','Details','secondary small-btn');view.type='button';
      view.setAttribute('aria-expanded','false');
      const print=h('button','Print 80mm quote','secondary small-btn');print.type='button';print.addEventListener('click',()=>void printQuote(row).catch(e=>err(e.message)));
-     td.append(view,print);r.append(td);body.append(r);
+     const a4=h('button','Print A4 quotation','secondary small-btn');a4.type='button';a4.addEventListener('click',()=>{try{printA4Quote(row);}catch(e){err(e.message);}});
+     td.append(view,print,a4);r.append(td);body.append(r);
      const detailRow=h('tr');detailRow.hidden=true;const c=h('td');c.colSpan=6;c.append(quoteDetails(row));detailRow.append(c);body.append(detailRow);
      view.addEventListener('click',()=>{detailRow.hidden=!detailRow.hidden;view.setAttribute('aria-expanded',String(!detailRow.hidden));view.textContent=detailRow.hidden?'Details':'Hide';});
    }
  }
- function posView(){
+ function posView(mode='new'){
    const root=E('app-content');
-   if(APP==='sales'){
+   if(APP==='sales' && mode==='legacy'){
      const tools=h('div',undefined,'suite-sales-toolbar');tools.append(h('strong','Sales · Transactions'));
      const live=h('button','Quotations · LIVE','selected');live.type='button';tools.append(live);
      for(const item of ['Sales Orders','Reprint Documents','Reporting']){
@@ -448,6 +516,14 @@ function page(app){
        });tools.append(b);
      }
      root.append(tools);
+   }
+   if(mode==='history'){
+     const recent=panel('My recent quotations');const controls=h('div',undefined,'bar');const refresh=h('button','Refresh my quotations','secondary');refresh.type='button';refresh.addEventListener('click',loadOwnQuotes);controls.append(refresh);recent.append(controls);recent.append(makeQuoteTable('own-quotes'));recent.append(h('p','Showing quotations for this signed-in account and branch.','tiny'));root.append(recent);
+     const shared=panel('Branch quotation print queue · Mobile + PC');const bar=h('div',undefined,'bar');const search=h('input');search.id='branch-quote-filter';search.placeholder='Search number, customer or salesperson';search.maxLength=100;
+     const filter=h('button','Find quotation','secondary');filter.type='button';filter.addEventListener('click',loadBranchQuoteQueue);bar.append(search,filter);shared.append(bar);
+     const hint=h('p','Sales staff at this branch can print a quotation saved on Maliks Quote mobile. No payment or stock posting happens here.','tiny');shared.append(hint);
+     shared.append(makeQuoteTable('branch-quote-rows'));root.append(shared);
+     void loadOwnQuotes();void loadBranchQuoteQueue();return;
    }
    const two=h('div',undefined,'two');const lookup=panel('Product catalogue');
    const bar=h('div',undefined,'bar');const field=h('div');const l=h('label','Search products');l.htmlFor='search';field.append(l);
@@ -473,9 +549,15 @@ function page(app){
    const release=h('button','Release pending request (after checking quotations)','secondary widebutton');release.id='release-pending';release.type='button';release.hidden=true;release.addEventListener('click',releasePending);checkout.append(release);
    checkout.append(h('p','This action only submits a quotation. No payment, tax invoice, stock deduction or dispatch release occurs.','tiny'));
    const confirmation=h('div');confirmation.id='confirmation';checkout.append(confirmation);two.append(lookup,checkout);root.append(two);
-   const recent=panel('My recent quotations');const controls2=h('div',undefined,'bar');const refresh=h('button','Refresh my quotations','secondary');refresh.addEventListener('click',loadOwnQuotes);controls2.append(refresh);recent.append(controls2);
-   recent.append(makeQuoteTable('own-quotes'));recent.append(h('p','Only quotations submitted by your current signed-in account and selected branch are shown.','tiny'));root.append(recent);
-   drawBasket();void loadOwnQuotes();
+   drawBasket();
+ }
+ async function loadBranchQuoteQueue(){
+   const target=E('branch-quote-rows');if(!target)return;const branchAtStart=branch;
+   target.replaceChildren();const tr=h('tr'),td=h('td','Loading branch quotations…');td.colSpan=6;tr.append(td);target.append(tr);
+   try{const input=E('branch-quote-filter')?.value.trim()||'';const data=await api('/api/quote/branch-queue?'+new URLSearchParams({branch:branchAtStart,q:input}));
+     if(branch!==branchAtStart||!target.isConnected)return;
+     renderQuotes('branch-quote-rows',data.quotes||[]);
+   }catch(e){if(branch===branchAtStart&&target.isConnected){target.replaceChildren();const error=h('tr'),cell=h('td','Branch print queue unavailable: '+e.message);cell.colSpan=6;error.append(cell);target.append(error);}}
  }
  async function loadOwnQuotes(){
    const body=E('own-quotes');if(!body)return;const selected=branch;body.replaceChildren();const row=h('tr');const c=h('td','Loading quotations…');c.colSpan=6;row.append(c);body.append(row);
@@ -640,7 +722,92 @@ function page(app){
      target.append(h('p','* Provisional projected cash = opening float + cash applied in saved preparations. Difference = cashier-declared closing count minus projected cash. Card/EFT amounts are also UNVERIFIED. These totals are not financial balances.','tiny'));
    }catch(error){if(branch===selected)target.replaceChildren(h('p','Provisional worksheet unavailable: '+error.message,'error'));}
  }
- // Phase 8: independent Cash Office observations of card/bank documents only.
+   // Phase 22: real recorded shift CASH figures + independent Cash Office count review.
+  // This is NOT a bank reconciliation or a Hub financial posting.
+  function cashupReconciliationView(){
+    const p=panel('Cash-Up Reconciliation — Cash Office');
+    p.append(h('p','This register calculates expected cash using the opening float PLUS CASH sales confirmed against the cashier shift. Tender preparations are excluded. Card amounts are cashier-confirmed, not bank-settled. A cash-count review does not post a deposit, journal or stock deduction.','cashup-warning'));
+    const toolbar=h('div',undefined,'bar');
+    const refresh=h('button','Refresh cash-ups','secondary');refresh.type='button';refresh.addEventListener('click',loadCashupReconciliations);
+    toolbar.append(refresh);p.append(toolbar);
+    const stats=h('div',undefined,'cashup-stats');stats.id='cashup-reconciliation-stats';p.append(stats);
+    const body=h('div','Loading cash-up register…');body.id='cashup-reconciliation-list';p.append(body);
+    const review=h('section',undefined,'suite-master-editor');review.id='cashup-reconciliation-review';review.hidden=true;p.append(review);
+    return p;
+  }
+  async function loadCashupReconciliations(){
+    const target=E('cashup-reconciliation-list'),stats=E('cashup-reconciliation-stats'),review=E('cashup-reconciliation-review');
+    if(!target||!stats)return;
+    const selected=branch;target.replaceChildren(h('p','Loading confirmed shift cash figures…','muted'));stats.replaceChildren();if(review){review.hidden=true;review.replaceChildren();}
+    try{
+      const data=await api('/api/cashup-reconciliation?branch='+encodeURIComponent(selected));
+      if(branch!==selected||!target.isConnected)return;
+      if(data.mode!=='CASHIER_CONFIRMED_SHIFT_PAYMENTS')throw Error('Unexpected Cash-Up source. Refresh the application.');
+      const rows=data.records||[];target.replaceChildren();
+      if(!rows.length){target.append(h('p','No till shifts found for the selected branch.','empty'));return;}
+      const closed=rows.filter(x=>x.status==='CLOSED');
+      const flagged=closed.filter(x=>x.variance_cents!==0||x.pending_payment_count>0).length;
+      const checked=closed.filter(x=>x.review_status==='CASH_COUNT_CHECKED').length;
+      for(const summary of [rows.length+' shifts',closed.length+' closed',checked+' cash counts checked',flagged+' exceptions'])
+        stats.append(h('span',summary));
+      const table=h('table');table.className='cashup-table';
+      const th=h('tr');for(const title of ['Shift / Till','Cashier','Status','Opening float','Confirmed cash','Expected cash','Counted cash','Difference','Card*','Pending','Cash Office review','Action'])cell(th,title,'th');
+      const head=h('thead');head.append(th);table.append(head);
+      const body=h('tbody');
+      for(const record of rows){
+        const tr=h('tr');for(const val of [
+          '#'+record.shift_id+' / '+record.till_code,record.cashier_name,record.status,
+          money(record.opening_float_cents),money(record.confirmed_cash_sales_cents),money(record.expected_cash_cents),
+          record.counted_cash_cents===null?'—':money(record.counted_cash_cents),
+          record.variance_cents===null?'—':money(record.variance_cents),
+          money(record.confirmed_card_sales_cents),String(record.pending_payment_count),
+          record.review_status==='CASH_COUNT_CHECKED'?'Cash count checked':record.review_status==='FLAGGED'?'Flagged for follow-up':'Awaiting Cash Office review'
+        ])cell(tr,val);
+        const varianceCells=tr.querySelectorAll('td');if(record.variance_cents!==null)varianceCells[7].className=record.variance_cents===0?'cashup-zero':'cashup-diff';
+        const actions=h('td');
+        if(record.status==='CLOSED'&&record.review_status!=='CASH_COUNT_CHECKED'){
+          const open=h('button','Review','secondary small-btn');open.type='button';
+          open.addEventListener('click',()=>openCashupReview(record));actions.append(open);
+        }else{actions.textContent=record.status==='OPEN'?'Close shift first':'Recorded';}
+        tr.append(actions);body.append(tr);
+      }
+      table.append(body);const scroll=h('div',undefined,'scroll');scroll.append(table);target.append(scroll);
+      target.append(h('p','Expected cash = opening float + confirmed cash sales (net of change). Cash count is the cashier’s declared closing amount. *Card sales are not proof of settlement. Pending/unverified payments are excluded and must be investigated. Cash Office reviews are audit records only.','tiny'));
+    }catch(error){if(branch===selected&&target.isConnected)target.replaceChildren(h('p','Cash-Up unavailable: '+error.message+'. Check Phase 22 database migration and Core deployment.','error'));}
+  }
+  function openCashupReview(record){
+    const review=E('cashup-reconciliation-review');if(!review)return;
+    review.hidden=false;review.replaceChildren(h('h3','Review shift #'+record.shift_id+' · '+record.till_code));
+    review.append(h('p',record.cashier_name+' · Opening '+money(record.opening_float_cents)+' + Cash '+money(record.confirmed_cash_sales_cents)+' = Expected '+money(record.expected_cash_cents)+' · Declared '+money(record.counted_cash_cents)+' · Difference '+money(record.variance_cents),'muted'));
+    if(record.pending_payment_count)review.append(h('p',record.pending_payment_count+' payment(s) awaiting verification. Investigate before completing a cash-count check.','cashup-warning'));
+    const form=h('form');const fields=h('div',undefined,'shift-form');
+    const decisionLabel=h('label');decisionLabel.append(h('span','Cash Office outcome'));const decision=h('select');
+    const exact=record.variance_cents===0&&record.pending_payment_count===0;
+    const choices=exact?[['CASH_COUNT_CHECKED','Cash count checked (NOT bank reconciled)'],['FLAGGED','Flag for follow-up']]:[['FLAGGED','Flag for investigation']];
+    for(const [value,label] of choices){const o=h('option',label);o.value=value;decision.append(o);}decisionLabel.append(decision);fields.append(decisionLabel);
+    const noteLabel=h('label');noteLabel.append(h('span','Count evidence / exception note'));
+    const note=h('textarea');note.required=true;note.maxLength=400;note.rows=3;note.placeholder='Record who counted the drawer and the evidence, or describe any difference (minimum 10 characters for flags).';
+    noteLabel.append(note);fields.append(noteLabel);
+    const submit=h('button','Record independent review');submit.type='submit';fields.append(submit);
+    form.append(fields);review.append(form);
+    const status=h('div');status.setAttribute('role','status');review.append(status);
+    let pending=null;
+    const reset=()=>{pending=null;};decision.addEventListener('change',reset);note.addEventListener('input',reset);
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();status.replaceChildren();
+      if(branch!==record.branch){status.append(h('p','The selected branch changed. Reopen Cash-Up.','error'));return;}
+      if(!pending)pending={request_id:crypto.randomUUID(),branch:record.branch,shift_id:record.shift_id,decision:decision.value,
+        note:note.value.trim(),expected_cash_cents:record.expected_cash_cents,counted_cash_cents:record.counted_cash_cents};
+      submit.disabled=true;
+      try{
+        const result=await api('/api/cashup-reconciliation/review',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(pending)});
+        pending=null;status.replaceChildren(h('p','Cash Office review recorded: '+result.decision+'. No deposit or financial posting occurred.','success'));
+        await loadCashupReconciliations();
+      }catch(error){status.replaceChildren(h('p',error.message+'. Retry uses the same review request ID.','error'));submit.disabled=false;}
+    });
+    review.scrollIntoView({block:'start',behavior:'smooth'});
+  }
+// Phase 8: independent Cash Office observations of card/bank documents only.
  // These records are NOT actual receipts, processor confirmations, paid orders,
  // financial journal entries or instructions to dispatch.
  function evidenceView(){
@@ -841,7 +1008,7 @@ function page(app){
    }catch(error){if(branch!==selected)return;container.replaceChildren(h('p','Could not load shifts: '+error.message,'error'));}
  }
  function tillShiftView(){
-   const p=panel(APP==='tills'?'My Till Shift Register':'Cash Office — Shift Review & Exceptions');
+   const p=panel(APP==='tills'?'My Till Shift Register / Close & Cash-Up':'Cash Office — Shift Review & Exceptions');
    p.append(h('p',APP==='tills'?'Open your till shift before checkout. Closing cash count is your declaration; Cash Office handles reconciliation.':'OPEN/CLOSE REGISTER ONLY. Opening float and closing count are employee declarations, not reconciled takings. No sales, deposits, invoices or stock balances are posted.','training-warning'));
    const current=h('div');current.id='shift-current';p.append(current);
    const bar=h('div',undefined,'bar');const refresh=h('button','Refresh shift register','secondary');refresh.addEventListener('click',loadShifts);bar.append(refresh);p.append(bar);
@@ -851,29 +1018,39 @@ function page(app){
    return p;
  }
 
- async function quoteView(){
+ async function quoteView(mode='quotes'){
    const root=E('app-content');
-   if(APP==='cashoffice'){root.append(paymentQueuePanel());void loadPaymentQueue();root.append(tillShiftView());void loadShifts();}
-   if(APP==='cashoffice'){root.append(cashupView());void loadCashupPreviews();root.append(evidenceView());void loadEvidence();}
-   if(APP==='cashoffice'){const preps=panel('Cash Office — Tender preparations (read-only)');preps.append(h('p','These are proposed cash/card/EFT splits, not verified receipts, tax invoices or approved payments. No stock or dispatch release.','training-warning'));const refresh=h('button','Refresh preparations','secondary');refresh.addEventListener('click',loadPreparations);preps.append(refresh);const list=h('div');list.id='tender-preparations';preps.append(list);root.append(preps);void loadPreparations();}
-   const lookup=panel('Find quotation by exact number');
-   const lookupBar=h('div',undefined,'bar');const lookupField=h('div');
-   const lookupLabel=h('label','Quotation number');lookupLabel.htmlFor='quote-number';
-   const lookupInput=h('input');lookupInput.id='quote-number';lookupInput.placeholder='Q-00000001';lookupInput.maxLength=14;
-   lookupInput.addEventListener('keydown',ev=>{if(ev.key==='Enter')void exactLookup();});
-   lookupField.append(lookupLabel,lookupInput);
-   const lookupButton=h('button','Find quotation');lookupButton.type='button';lookupButton.addEventListener('click',exactLookup);
-   lookupBar.append(lookupField,lookupButton);lookup.append(lookupBar);
-   const exactResult=h('div',undefined,'lookup-output');exactResult.id='exact-result';lookup.append(exactResult);
-   lookup.append(h('p','Exact lookup can find older quotations that are no longer in the recent-50 list, but only for your assigned branch.','tiny'));
-   root.append(lookup);
-   if(APP==='tills'){root.append(tillShiftView());void loadShifts();root.append(paymentQueuePanel());void loadPaymentQueue();const old=h('details');old.append(h('summary','Old preparation history (not payment)'));const preps=panel('My tender preparations — NOT PAID');preps.append(h('p','These are proposed cash/card/EFT splits, not verified receipts, tax invoices or approved payments. No stock or dispatch release.','training-warning'));const refresh=h('button','Refresh preparations','secondary');refresh.addEventListener('click',loadPreparations);preps.append(refresh);const list=h('div');list.id='tender-preparations';preps.append(list);old.append(preps);root.append(old);void loadPreparations();}
-   const queue=panel(APP==='tills'?'Recent quotations':'Cash Office — submitted quotations');
-   const bar=h('div',undefined,'bar');const field=h('div');const label=h('label','Filter by quote number, customer or contact');label.htmlFor='quote-filter';const search=h('input');search.id='quote-filter';search.placeholder='Search the 50 most recent quotations';
-   search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();renderQuotes('quotes',quoteRows.filter(x=>[x.number,x.customer_name,x.customer_contact,x.status].some(v=>String(v||'').toLowerCase().includes(q))));});
-   field.append(label,search);const refresh=h('button','Refresh quotations','secondary');refresh.addEventListener('click',loadQuotes);bar.append(field,refresh);queue.append(bar);
-   queue.append(makeQuoteTable('quotes'));
-   queue.append(h('p','Quotation records alone are not payment evidence. Check the payment verification queue for confirmed internal invoices and Dispatch release.','tiny'));root.append(queue);await loadQuotes();
+   if(mode==='paid'||mode==='payments'){root.append(paymentQueuePanel());void loadPaymentQueue();return;}
+   if(mode==='shifts'){root.append(tillShiftView());void loadShifts();return;}
+   if(mode==='cashup'&&APP==='cashoffice'){root.append(cashupReconciliationView());void loadCashupReconciliations();return;}
+   if(mode==='cashup'&&APP==='tills'){root.append(tillShiftView());void loadShifts();return;}
+   if(mode==='evidence'&&APP==='cashoffice'){root.append(evidenceView());void loadEvidence();return;}
+   if(mode==='preparations'){
+     const p=panel(APP==='cashoffice'?'Cash Office — Tender preparations (read-only)':'My tender preparations — NOT PAID');
+     p.append(h('p','These are proposed cash/card/EFT splits, not verified receipts, tax invoices or approved payments. No stock or dispatch release.','training-warning'));
+     const refresh=h('button','Refresh preparations','secondary');refresh.type='button';refresh.addEventListener('click',loadPreparations);p.append(refresh);
+     const list=h('div','Loading preparations…');list.id='tender-preparations';p.append(list);root.append(p);void loadPreparations();return;
+   }
+   if(mode==='checkout'||mode==='quotes'){
+     const lookup=panel('Find quotation by exact number');
+     const lookupBar=h('div',undefined,'bar');const lookupField=h('div');
+     const lookupLabel=h('label','Quotation number');lookupLabel.htmlFor='quote-number';
+     const lookupInput=h('input');lookupInput.id='quote-number';lookupInput.placeholder='Q-00000001';lookupInput.maxLength=14;
+     lookupInput.addEventListener('keydown',ev=>{if(ev.key==='Enter')void exactLookup();});
+     lookupField.append(lookupLabel,lookupInput);
+     const lookupButton=h('button','Find quotation');lookupButton.type='button';lookupButton.addEventListener('click',exactLookup);
+     lookupBar.append(lookupField,lookupButton);lookup.append(lookupBar);
+     const exactResult=h('div',undefined,'lookup-output');exactResult.id='exact-result';lookup.append(exactResult);
+     lookup.append(h('p',APP==='tills'?'Enter an approved quotation number to open Cash/Card payment. A current till shift is required.':'Exact lookup can find older quotations that are no longer in the recent-50 list, but only for your assigned branch.','tiny'));root.append(lookup);
+     if(mode==='checkout')return;
+     const queue=panel(APP==='tills'?'Recent quotations':'Cash Office — submitted quotations');
+     const bar=h('div',undefined,'bar');const field=h('div');const label=h('label','Filter by quote number, customer or contact');label.htmlFor='quote-filter';
+     const search=h('input');search.id='quote-filter';search.placeholder='Search the 50 most recent quotations';
+     search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();renderQuotes('quotes',quoteRows.filter(x=>[x.number,x.customer_name,x.customer_contact,x.status].some(v=>String(v||'').toLowerCase().includes(q))));});
+     field.append(label,search);const refresh=h('button','Refresh quotations','secondary');refresh.type='button';refresh.addEventListener('click',loadQuotes);bar.append(field,refresh);queue.append(bar);
+     queue.append(makeQuoteTable('quotes'));
+     queue.append(h('p','Quotation records alone are not payment evidence. Check a confirmed paid invoice before dispatch.','tiny'));root.append(queue);await loadQuotes();return;
+   }
  }
  async function loadQuotes(){
    err('');const body=E('quotes');if(!body)return;const selected=branch;quoteRows=[];renderQuotes('quotes',[]);
@@ -1171,31 +1348,9 @@ function page(app){
  function suiteButton(text,module,cls=''){
    const b=h('button',text,cls);b.type='button';b.addEventListener('click',()=>setSuiteView(module));return b;
  }
- function suiteHome(){
-   const root=E('app-content');
-   const hero=h('section',undefined,'suite-hero');
-   hero.append(h('div','MALIKS PROFESSIONAL · SECURE RETAIL OPERATIONS','suite-eyebrow'));
-   const title=h('div',undefined,'suite-hero-title');title.append(h('span','MALIKS '),document.createTextNode('POS'));hero.append(title);
-   hero.append(h('p','Accounting & POS Solutions Professional — stock, debtors, suppliers, back office and multi-branch operations in a dedicated management workspace.','suite-hero-subtitle'));
-   hero.append(suiteButton('Open Stock module  →','stock','suite-primary'));root.append(hero);
-   const head=h('div',undefined,'suite-section-head');head.append(h('h3','Your workspaces'),h('small','Menus based on the supplied system reference'));root.append(head);
-   const cards=h('div',undefined,'suite-card-grid');
-   const definitions=[
-     ['tills','▤','Tills','Cashier checkout, cash/card confirmations and paid receipts.','SEPARATE WORKSTATION'],
-     ['cashoffice','◈','Cash Office','Payment verification, cash-up and internal finance controls.','SEPARATE WORKSTATION'],
-     ['dispatching','⇥','Dispatching','Paid-order picking, checking and delivery management.','SEPARATE WORKSTATION'],
-     ['stock','▦','Stock','Purchase orders, receiving, GRVs, stock-on-hand and transfers.','LIVE STOCK FLOW'],
-     ['debtors','◎','Debtors','Branch debtor master records and audit history.','LIVE MASTER FILES'],
-     ['suppliers','▤','Suppliers','Supplier master and purchase orders.','LIVE PURCHASING'],
-     ['backoffice','▥','Back Office','Tills, end-of-day, VAT, reporting and month-end controls.','MENU INVENTORY'],
-     ['headoffice','◇','Head Office','Branches, synchronization and group management.','MENU INVENTORY'],
-   ];
-   for(const [id,symbol,name,description,status] of definitions){
-     const card=suiteButton('',id,'suite-card');card.append(h('span',symbol,'suite-card-icon'),h('strong',name),h('small',description));
-     card.append(h('span',status,'suite-card-status'+(status.startsWith('LIVE')?' live':'')));cards.append(card);
-   }
-   root.append(cards,h('p','Purchase orders, receiving counts, GRV posting, stock-on-hand and inter-branch transfers are connected. Supplier invoices, VAT, accounting, sales stock deduction and returns are not yet posted.','suite-footnote'));
- }
+ ${POS_PREMIUM_CLIENT_SCRIPT}
+ ${DEPARTMENT_PREMIUM_CLIENT_SCRIPT}
+ function suiteHome(){posPremiumDashboard();}
  const MASTER_LABELS={stock:'Stock Master',supplier:'Suppliers Master',debtor:'Debtors Master'};
  const MASTER_FIELDS={
    stock:[['unit','Unit','text'],['category','Category','text'],['barcode','Barcode','text'],['cost_cents','Cost price (R)','money'],['selling_price_cents','Selling price (R)','money'],['reorder_min','Minimum stock level','integer']],
@@ -1203,8 +1358,10 @@ function page(app){
    debtor:[['contact_name','Contact person','text'],['phone','Phone','text'],['email','Email','email'],['credit_limit_cents','Credit limit (R)','money'],['payment_terms_days','Payment terms (days)','integer']]
  };
  let masterPermissions={};
+ let stockPricePermission=false;
  let purchasePermissions={};
  let inventoryPermissions={};
+ let supplierInvoicePermissions={};
  function suiteMasterView(kind,openAudit=false){
    const detail=E('suite-feature-detail');if(!detail)return;
    const selectedBranch=branch;detail.hidden=false;detail.className='suite-feature-detail suite-master-workspace';detail.replaceChildren();
@@ -1212,14 +1369,14 @@ function page(app){
    const tools=h('div',undefined,'suite-master-actions');
    const search=h('input');search.type='search';search.placeholder='Search code or name';search.setAttribute('aria-label','Search '+MASTER_LABELS[kind]);
    const searchButton=h('button','Search');searchButton.type='button';
-   const newButton=h('button','New '+(kind==='stock'?'item':kind));newButton.type='button';
+   const newButton=h('button',kind==='stock'?'Link Hub catalogue to branch':'New '+kind);newButton.type='button';
    const auditButton=h('button','Audit history','secondary');auditButton.type='button';
    const refreshButton=h('button','Refresh','secondary');refreshButton.type='button';
    const cancelButton=h('button','Back to list','secondary');cancelButton.type='button';
    tools.append(search,searchButton,refreshButton,auditButton);
    if(masterPermissions[kind]?.write)tools.append(newButton);
    header.append(tools);detail.append(header);
-   const notice=h('p','Branch: '+selectedBranch+' · These are master records only. No stock-on-hand, supplier balance, debtor balance, invoice, payment or GL posting occurs.','suite-master-note');detail.append(notice);
+   const notice=h('p',kind==='stock'?'Branch: '+selectedBranch+' · Selling price is branch-specific and editable by authorised managers. Descriptions are controlled in Group Hub. On-hand reflects posted POS movements (GRVs, transfers and approved stock controls); sales deductions are not yet integrated. Double-click a linked item to edit branch settings.':'Branch: '+selectedBranch+' · Master records do not post supplier/debtor balances, invoices or GL entries.','suite-master-note');detail.append(notice);
    const feedback=h('div');feedback.setAttribute('role','status');detail.append(feedback);
    const editor=h('section',undefined,'suite-master-editor');editor.hidden=true;detail.append(editor);
    const listArea=h('div');detail.append(listArea);
@@ -1227,17 +1384,34 @@ function page(app){
    const valid=()=>branch===selectedBranch&&detail.isConnected;
    const showMessage=(message,good=false)=>{feedback.textContent=message;feedback.className=good?'success':'error';feedback.hidden=!message;};
    feedback.hidden=true;
-   const displayValue=(v)=>v===null||v===undefined?'':String(v);
+   let masterPage=1;const displayValue=(v)=>v===null||v===undefined?'':String(v);
+   const formatMoney=cents=>'R '+new Intl.NumberFormat('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(cents||0)/100);
+   const formatQty=milli=>new Intl.NumberFormat('en-GB',{maximumFractionDigits:3}).format(Number(milli||0)/1000);
    function openEditor(record){
      if(!masterPermissions[kind]?.write){showMessage('This account has read-only access.');return;}
      editor.hidden=false;editor.replaceChildren();auditArea.hidden=true;listArea.hidden=true;
-     const heading=h('h3',record?'Edit '+record.code:'New '+MASTER_LABELS[kind]+' record');editor.append(heading);
+     const heading=h('h3',record?(kind==='stock'?'Branch settings · ':'Edit ')+record.code:'New '+MASTER_LABELS[kind]+' record');editor.append(heading);
+     if(kind==='stock'){
+       const facts=h('div',undefined,'stock-master-editor-facts');
+       for(const [label,value] of [
+         ['Branch',selectedBranch],
+         ['Selling price',record?.price_available?formatMoney(record.details?.selling_price_cents):'Not published'],
+         ['Recorded on hand',record?.linked?formatQty(record.on_hand_milli)+' '+(record.details?.unit||'EA'):'Not linked']
+       ]){const fact=h('div',undefined,'stock-master-editor-fact');fact.append(h('small',label),h('strong',value));facts.append(fact);}
+       editor.append(facts);
+       editor.append(h('p',stockPricePermission?'Selling price changes here are saved to the selected branch and used in POS search and quotations. Description remains managed in the Group Hub. Recorded on-hand must be changed via an approved stock adjustment or stock take.':'Selling price may be changed only by an authorised branch manager. Description is controlled by the Group Hub. Recorded on-hand requires an approved adjustment or stock take.','muted'));
+       if(inventoryPermissions.transfer||inventoryPermissions.count){
+         const stockAction=h('button','Open Stock Adjustment / Stock Take','secondary');stockAction.type='button';
+         stockAction.addEventListener('click',()=>{suiteWorkspaceStart('Stock Control');suiteStockControl(inventoryPermissions.transfer?'ADJUSTMENT':'STOCKTAKE');});editor.append(stockAction);
+       }
+     }
      const form=h('form',undefined,'suite-master-form');const controls={};
      const addField=(key,label,type,value)=>{
        const wrap=h('label');wrap.append(h('span',label));const input=h('input');
        input.name=key;input.type=type==='money'||type==='integer'?'number':type==='email'?'email':'text';
        if(type==='money'){input.step='0.01';input.min='0';}else if(type==='integer'){input.step='1';input.min='0';}
        input.value=displayValue(value);if(key==='code'||key==='name'||key==='unit')input.required=true;
+       if(kind==='stock'&&(['code','name','category'].includes(key)||(key==='selling_price_cents'&&!stockPricePermission)))input.readOnly=true;
        wrap.append(input);form.append(wrap);controls[key]=input;
      };
      addField('code','Code','text',record?.code||'');addField('name','Description / name','text',record?.name||'');
@@ -1268,6 +1442,14 @@ function page(app){
        const body={request_id:pendingId,kind,branch:selectedBranch,code:controls.code.value.trim(),
          name:controls.name.value.trim(),active:active.value==='true',details};
        if(record){body.id=record.id;body.version=record.version;}
+       if(kind==='stock'){
+         const previous=Number(record?.details?.selling_price_cents||0);
+         if(details.selling_price_cents!==previous){
+           if(!stockPricePermission){showMessage('You are not authorised to amend the selling price.');return;}
+           if(details.selling_price_cents<=0){showMessage('Selling price must be greater than R0.00.');return;}
+           body.price_update=true;body.expected_selling_price_cents=previous;
+         }
+       }
        save.disabled=true;showMessage('');
        try{
          const response=await api('/api/master/records',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
@@ -1279,20 +1461,40 @@ function page(app){
    }
    async function loadRecords(){
      if(!valid())return;
-     auditArea.hidden=true;listArea.hidden=false;listArea.replaceChildren(h('p','Loading branch master records…','muted'));
+     auditArea.hidden=true;listArea.hidden=false;listArea.replaceChildren(h('p','Loading '+(kind==='stock'?'Hub catalogue products':'branch master records')+'…','muted'));
      try{
-       const q=search.value.trim();const data=await api('/api/master/records?kind='+encodeURIComponent(kind)+'&branch='+encodeURIComponent(selectedBranch)+'&q='+encodeURIComponent(q));
+       const q=search.value.trim();const data=await api('/api/master/records?kind='+encodeURIComponent(kind)+'&branch='+encodeURIComponent(selectedBranch)+'&q='+encodeURIComponent(q)+'&page='+masterPage);
        if(!valid())return;
        listArea.replaceChildren();
-       if(!data.records.length){listArea.append(h('p','No records found. Use New to add a branch master record.','empty'));return;}
-       const table=h('table');const head=h('tr');for(const label of ['Code','Name','Status','Updated','Action'])cell(head,label,'th');
+       if(!data.records.length){listArea.append(h('p',kind==='stock'?'No active Hub catalogue products match this search.':'No records found. Use New to add a branch master record.','empty'));return;}
+       if(kind==='stock')listArea.append(h('p',data.total+' active Hub catalogue items · Page '+data.page+' of '+data.pages+' · '+data.records.filter(r=>r.linked).length+' linked on this page.','muted'));
+       const table=h('table');if(kind==='stock')table.className='stock-master-table';
+       const head=h('tr');for(const label of kind==='stock'?['Code','Description','Category','Selling price','On hand','Unit','Status','Action']:['Code','Name','Status','Updated','Action'])cell(head,label,'th');
        const thead=h('thead');thead.append(head);table.append(thead);const tbody=h('tbody');
        for(const record of data.records){
-         const tr=h('tr');cell(tr,record.code);cell(tr,record.name);cell(tr,record.active?'Active':'Inactive');cell(tr,showDate(record.updated_at));
-         const actions=h('td');if(masterPermissions[kind]?.write){const edit=h('button','Edit','small-btn');edit.type='button';edit.addEventListener('click',()=>openEditor(record));actions.append(edit);}else actions.textContent='Read only';
+         const tr=h('tr');
+         if(kind==='stock'){
+           cell(tr,record.code);cell(tr,record.name);cell(tr,record.category||record.details?.category||'—');
+           const price=h('td',record.price_available?formatMoney(record.details?.selling_price_cents):'Not published','stock-master-number');tr.append(price);
+           const onHand=h('td',record.linked?formatQty(record.on_hand_milli):'—','stock-master-number');tr.append(onHand);
+           cell(tr,record.details?.unit||'EA');
+           cell(tr,record.linked?(record.active?'Linked / Active':'Linked / Inactive'):'Not linked');
+           if(record.id&&masterPermissions.stock?.write){
+             tr.classList.add('stock-master-editable');tr.tabIndex=0;tr.title='Double-click to edit branch settings for '+record.code;
+             tr.setAttribute('aria-label',record.code+' · '+record.name+' · Double-click or press Enter to edit branch settings');
+             const open=()=>{openEditor(record);window.scrollTo({top:0,behavior:'instant'});};
+             tr.addEventListener('dblclick',open);
+             tr.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();open();}});
+           }
+         }else{
+           cell(tr,record.code);cell(tr,record.name);cell(tr,record.active?'Active':'Inactive');cell(tr,showDate(record.updated_at));
+         }
+         const actions=h('td');if(masterPermissions[kind]?.write&&record.id){const edit=h('button',kind==='stock'?'Edit settings':'Edit','small-btn');edit.type='button';edit.addEventListener('click',()=>{openEditor(record);window.scrollTo({top:0,behavior:'instant'});});actions.append(edit);}else actions.textContent=kind==='stock'&&!record.linked?'Link catalogue first':'Read only';
          tr.append(actions);tbody.append(tr);
        }
        table.append(tbody);const scroller=h('div',undefined,'scroll');scroller.append(table);listArea.append(scroller);
+       if(kind==='stock'&&data.pages>1){const pager=h('div',undefined,'suite-master-actions');const prev=h('button','Previous','secondary small-btn');const next=h('button','Next','secondary small-btn');prev.disabled=masterPage<=1;next.disabled=masterPage>=data.pages;
+         prev.addEventListener('click',()=>{masterPage--;void loadRecords();});next.addEventListener('click',()=>{masterPage++;void loadRecords();});pager.append(prev,h('span','Page '+masterPage+' / '+data.pages),next);listArea.append(pager);}
      }catch(e){if(valid())showMessage(e.message);}
    }
    async function loadAudit(){
@@ -1307,30 +1509,18 @@ function page(app){
        table.append(tbody);const scroller=h('div',undefined,'scroll');scroller.append(table);auditArea.append(scroller);
      }catch(e){if(valid())showMessage(e.message);}
    }
-   searchButton.addEventListener('click',()=>{editor.hidden=true;void loadRecords();});
-   search.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();editor.hidden=true;void loadRecords();}});
+   searchButton.addEventListener('click',()=>{masterPage=1;editor.hidden=true;void loadRecords();});
+   search.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();masterPage=1;editor.hidden=true;void loadRecords();}});
    refreshButton.addEventListener('click',()=>{editor.hidden=true;void loadRecords();});
-   newButton.addEventListener('click',()=>openEditor(null));
+   newButton.addEventListener('click',()=>{if(kind!=='stock'){openEditor(null);return;}
+     if(!window.confirm('Link all active Group Hub catalogue products to '+selectedBranch+'? Existing branch stock settings will not be overwritten. This does NOT import stock quantities.'))return;
+     newButton.disabled=true;showMessage('Linking catalogue products…');
+     void api('/api/master/catalogue/sync',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({branch:selectedBranch,request_id:crypto.randomUUID()})})
+       .then(async data=>{if(valid()){showMessage('Hub catalogue linked: '+data.linked+' stock items ('+data.newly_linked+' new). Stock-on-hand remains unchanged.',true);masterPage=1;await loadRecords();}})
+       .catch(e=>{if(valid())showMessage(e.message);}).finally(()=>{newButton.disabled=false;});
+   });
    auditButton.addEventListener('click',()=>void loadAudit());
    cancelButton.addEventListener('click',()=>{editor.hidden=true;void loadRecords();});
-   if(kind==='stock'){
-     const lookup=h('section',undefined,'suite-master-catalogue');lookup.append(h('h4','Existing product catalogue (read only)'));
-     lookup.append(h('p','Search products already in the Group Hub catalogue. This does not create stock-on-hand or alter price tags.','muted'));
-     const row=h('div',undefined,'suite-master-actions');const input=h('input');input.type='search';input.placeholder='Product code or name (2+ characters)';
-     const button=h('button','Search catalogue','secondary');button.type='button';row.append(input,button);lookup.append(row);
-     const results=h('div');lookup.append(results);detail.append(lookup);
-     const doLookup=async()=>{
-       if(input.value.trim().length<2){results.textContent='Enter at least two characters.';return;}
-       results.textContent='Searching…';try{
-         const data=await api('/api/master/catalogue?branch='+encodeURIComponent(selectedBranch)+'&q='+encodeURIComponent(input.value.trim()));
-         if(!valid())return;results.replaceChildren();if(!data.products.length){results.append(h('p','No matching products.','empty'));return;}
-         const table=h('table');const head=h('tr');for(const label of ['Code','Description','Category'])cell(head,label,'th');const thead=h('thead');thead.append(head);table.append(thead);
-         const tbody=h('tbody');for(const p of data.products){const tr=h('tr');cell(tr,p.code);cell(tr,p.name);cell(tr,p.category||'—');tbody.append(tr);}table.append(tbody);
-         const scroller=h('div',undefined,'scroll');scroller.append(table);results.append(scroller);
-       }catch(e){results.textContent=e.message;}
-     };
-     button.addEventListener('click',()=>void doLookup());input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void doLookup();}});
-   }
    if(openAudit)void loadAudit();else void loadRecords();
  }
  // Phases 16–17: live purchasing and controlled stock operations, all server-authorised.
@@ -1369,8 +1559,15 @@ function page(app){
    const delivery=invField(controls,'Expected delivery','date');const notes=invField(controls,'Notes');
    const lineSection=h('div');lineSection.style.gridColumn='1/-1';controls.append(lineSection);
    const rows=[];let products=[];
+   const stockSearch=invField(controls,'Find linked Hub stock by code or description');
+   const findStock=invButton('Find stock',()=>void searchStock());controls.append(findStock);
+   async function searchStock(){try{const data=await api('/api/master/records?kind=stock&branch='+encodeURIComponent(branch)+'&q='+encodeURIComponent(stockSearch.value.trim()));
+     if(!w.valid())return;const found=data.records.filter(x=>x.active&&x.id);const byId=new Map(products.map(p=>[p.id,p]));for(const p of found)byId.set(p.id,p);products=[...byId.values()];
+     w.message(found.length+' linked stock items found. Click Add stock line to select one.',true);}
+     catch(e){w.message(e.message);}}
+   stockSearch.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void searchStock();}});
    const addLine=()=>{
-     if(!products.length){w.message('Create active Stock Master items before purchasing.');return;}
+     if(!products.length){w.message('Link the Group Hub catalogue to this branch, or search for a linked stock item.');return;}
      const row=h('div',undefined,'suite-master-actions');
      const product=invSelect(row,'Stock item',products,p=>p.id,p=>p.code+' · '+p.name);
      const qty=invField(row,'Quantity','number','1');const cost=invField(row,'Unit cost (R)','number',String((products[0].details?.cost_cents||100)/100));cost.step='0.01';
@@ -1381,7 +1578,7 @@ function page(app){
    const add=invButton('Add stock line',addLine);const save=invButton('Save draft',()=>void savePO(),'suite-primary');actions.append(add,save);controls.append(actions);
    async function loadMasters(){
      try{const [s,p]=await Promise.all(['supplier','stock'].map(kind=>api('/api/master/records?kind='+kind+'&branch='+encodeURIComponent(branch))));
-       if(!w.valid())return;products=p.records.filter(x=>x.active);supplierSelect.replaceChildren();
+       if(!w.valid())return;products=p.records.filter(x=>x.active&&x.id);supplierSelect.replaceChildren();
        for(const item of s.records.filter(x=>x.active)){const o=h('option',item.code+' · '+item.name);o.value=item.id;supplierSelect.append(o);}
        if(!rows.length)addLine();
      }catch(e){w.message(e.message);}
@@ -1474,12 +1671,76 @@ function page(app){
    void loadPOs();void loadReceipts();
  }
  function suiteStockBalances(){
-   const w=invWorkspace('Stock-on-Hand','Quantities are from posted GRVs and completed transfers only. Sales, returns, adjustments and opening balances are not yet integrated.');w.form.hidden=true;
-   const refresh=invButton('Refresh stock balances',()=>void load(),'suite-primary');w.list.append(refresh);
+   const w=invWorkspace('Stock-on-Hand','Operational quantities include posted GRVs, transfers, independently approved adjustments and stock counts. Sales deductions and returns are not yet integrated.');w.form.hidden=true;
+   let stockPage=1;const refresh=invButton('Refresh stock balances',()=>void load(),'suite-primary');
+   const pager=h('div',undefined,'suite-master-actions'),prev=invButton('Previous',()=>{if(stockPage>1){stockPage--;void load();}}),next=invButton('Next',()=>{stockPage++;void load();});pager.append(prev,next);w.list.append(refresh,pager);
    const items=h('div'),moves=h('div');w.list.append(h('h4','Branch balances'),items,h('h4','Recent stock movements'),moves);
-   async function load(){try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch));if(!w.valid())return;
+   async function load(){try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch)+'&page='+stockPage);if(!w.valid())return;
+     prev.disabled=stockPage<=1;next.disabled=stockPage>=data.pages;pager.hidden=data.pages<=1;
      invTable(items,['Code','Description','Unit','On-hand','Version'],data.items.map(x=>[x.code,x.name,x.unit||'each',invQty(x.qty_milli),x.stock_version]));
      invTable(moves,['Date','Stock','Type','Document','Change','User'],data.movements.map(x=>[showDate(x.created_at),x.code,x.movement_type,x.document_id,(x.quantity_delta_milli>0?'+':'')+invQty(x.quantity_delta_milli),x.actor_email]));
+   }catch(e){if(w.valid())w.message(e.message);}}
+   void load();
+ }
+ function suiteStockControl(initialType='STOCKTAKE'){
+   const w=invWorkspace('Stock Control — Adjustments & Stock Takes','Physical count/adjustment is a draft until a DIFFERENT authorised manager approves it. Opening stock is only for items without prior movements. This changes operational stock, NOT the General Ledger.');
+   const form=h('div',undefined,'suite-master-form');w.form.append(h('h4','New controlled stock document'),form);
+   const type=invSelect(form,'Document type',['STOCKTAKE','ADJUSTMENT','OPENING'],x=>x,x=>({STOCKTAKE:'Physical stock take',ADJUSTMENT:'Stock adjustment (+ / −)',OPENING:'Opening physical count'}[x]));type.value=initialType;
+   const reason=invField(form,'Reason / reference');reason.placeholder='Explain the count, damage, correction or opening balance';
+   const lookup=invField(form,'Find stock code / description','search');lookup.placeholder='Search the linked Hub stock items';
+   const searchButton=invButton('Search stock',()=>void loadItems(),'secondary');form.append(searchButton);
+   const lineArea=h('div');lineArea.style.gridColumn='1/-1';form.append(lineArea);
+   const actions=h('div',undefined,'suite-master-form-buttons');actions.style.gridColumn='1/-1';form.append(actions);
+   const add=invButton('Add stock line',addLine),save=invButton('Save draft for manager',()=>void create(),'suite-primary');actions.append(add,save);
+   const docs=h('div'),movements=h('div');w.list.append(h('h4','Documents awaiting approval / history'),docs,h('h4','Stock control movement audit'),movements);
+   let products=[];const lines=[];
+   function addLine(){if(!products.length){w.message('Link the Group Hub catalogue to this branch first.');return;}
+     const row=h('div',undefined,'suite-master-actions');const item=invSelect(row,'Stock item',products,x=>x.stock_id,x=>x.code+' · '+x.name+' (current '+invQty(x.qty_milli)+')');
+     const qty=invField(row,type.value==='ADJUSTMENT'?'Change (+ or −)':'Physical count','number',type.value==='ADJUSTMENT'?'1':'0');qty.min=type.value==='ADJUSTMENT'?'-1000000':'0';
+     const entry={row,item,qty};row.append(invButton('Remove',()=>{row.remove();lines.splice(lines.indexOf(entry),1);}));lines.push(entry);lineArea.append(row);
+   }
+   function updateMode(){for(const l of lines){l.qty.parentNode.querySelector('span').textContent=type.value==='ADJUSTMENT'?'Change (+ or −)':'Physical count';l.qty.min=type.value==='ADJUSTMENT'?'-1000000':'0';}
+     save.disabled=!(type.value==='ADJUSTMENT'?inventoryPermissions.transfer:inventoryPermissions.count);}
+   type.addEventListener('change',updateMode);
+   async function create(){save.disabled=true;w.message('');try{
+     const entries=lines.map(l=>{
+       const n=Number(l.qty.value);if(!Number.isFinite(n)||Math.abs(n)>1000000||Math.abs(n*1000-Math.round(n*1000))>0.000001||
+         (type.value==='ADJUSTMENT'&&n===0)||(type.value!=='ADJUSTMENT'&&n<0))throw Error('Invalid stock quantity (maximum three decimals).');
+       return type.value==='ADJUSTMENT'?{stock_id:Number(l.item.value),delta_milli:Math.round(n*1000)}:{stock_id:Number(l.item.value),counted_milli:Math.round(n*1000)};
+     });
+     const data=await invPost('/api/stock-control',{branch,doc_type:type.value,reason:reason.value,lines:entries});
+     if(w.valid()){w.message('Draft '+data.document.number+' saved. A DIFFERENT manager must approve before stock changes.',true);await loadDocs();}
+   }catch(e){if(w.valid())w.message(e.message);}finally{updateMode();}}
+   async function act(doc,action){if(!window.confirm(action+' '+doc.number+'?'+(action==='POST'?' This will change stock quantities.':'')))return;
+     try{const data=await invPost('/api/stock-control/action',{branch,id:doc.id,version:doc.version,action});
+       if(w.valid()){w.message(data.document.number+' '+data.document.status+'.',true);await loadDocs();await loadItems();}}
+     catch(e){if(w.valid())w.message(e.message);}}
+   async function loadItems(){try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch)+'&q='+encodeURIComponent(lookup.value.trim()));if(!w.valid())return;products=data.items;
+     if(!lines.length)addLine();}catch(e){if(w.valid())w.message(e.message);}}
+   async function loadDocs(){try{const data=await api('/api/stock-control?branch='+encodeURIComponent(branch));if(!w.valid())return;
+     invTable(docs,['Document','Type / reason','Status','Counted / adjusted items','Creator','Actions'],data.documents.map(d=>{
+       const buttons=h('div',undefined,'suite-master-actions');if(inventoryPermissions.approveTransfer&&d.status==='DRAFT'){
+         buttons.append(invButton('Approve & post',()=>void act(d,'POST')),invButton('Cancel',()=>void act(d,'CANCEL')));}
+       return [d.number,d.doc_type+' · '+d.reason,d.status,d.lines.map(l=>l.code+' '+(d.doc_type==='ADJUSTMENT'?(l.delta_milli>0?'+':'')+invQty(l.delta_milli):'count '+invQty(l.counted_milli)+' / prior '+invQty(l.expected_qty_milli))).join('; '),d.created_by_email,buttons];
+     }));
+     invTable(movements,['Date','Stock','Type','Change','Approver'],data.movements.map(m=>[showDate(m.created_at),m.code,m.movement_type,(m.quantity_delta_milli>0?'+':'')+invQty(m.quantity_delta_milli),m.actor_email]));
+   }catch(e){if(w.valid())w.message(e.message);}}
+   if(!inventoryPermissions.count&&!inventoryPermissions.transfer)w.form.hidden=true;
+   updateMode();void loadItems();void loadDocs();
+ }
+ function suiteStockReport(mode){
+   const label={valuation:'Indicative Stock Valuation',reorder:'Re-Order Report',transactions:'Stock Movement Register',categories:'Hub Stock Categories',units:'Units & Barcodes',master:'Stock Master Report'}[mode]||'Stock Report';
+   const w=invWorkspace(label,'Branch-scoped operational report using linked Group Hub stock and posted POS quantities. Valuations use stored indicative cost prices and are NOT accounting balances.');w.form.hidden=true;
+   let reportPage=1;const refresh=invButton('Refresh',()=>void load(),'suite-primary'),table=h('div'),pager=h('div',undefined,'suite-master-actions');
+   const prev=invButton('Previous',()=>{if(reportPage>1){reportPage--;void load();}}),next=invButton('Next',()=>{reportPage++;void load();});pager.append(prev,next);w.list.append(refresh,table,pager);
+   async function load(){try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch)+'&page='+reportPage);if(!w.valid())return;
+     const items=data.items;prev.disabled=reportPage<=1;next.disabled=reportPage>=data.pages;pager.hidden=mode==='transactions'||data.pages<=1;
+     if(mode==='transactions')invTable(table,['Date','Stock','Type','Document','Quantity','User'],data.movements.map(m=>[showDate(m.created_at),m.code,m.movement_type,m.document_id,(m.quantity_delta_milli>0?'+':'')+invQty(m.quantity_delta_milli),m.actor_email]));
+     else if(mode==='reorder')invTable(table,['Code','Description','On-hand','Minimum','To reorder'],items.filter(i=>i.reorder_min>0&&i.qty_milli<i.reorder_min*1000).map(i=>[i.code,i.name,invQty(i.qty_milli),i.reorder_min,invQty(i.reorder_min*1000-i.qty_milli)]));
+     else if(mode==='valuation')invTable(table,['Code','Description','On-hand','Indicative unit cost','Indicative stock value'],items.map(i=>[i.code,i.name,invQty(i.qty_milli),i.cost_cents>0?money(i.cost_cents):'Not set',i.cost_cents>0?money(Math.round(i.qty_milli*i.cost_cents/1000)):'Not valued']));
+     else if(mode==='categories')invTable(table,['Code','Description','Hub category'],items.map(i=>[i.code,i.name,i.category||'Uncategorised']));
+     else if(mode==='units')invTable(table,['Code','Description','Unit','Barcode'],items.map(i=>[i.code,i.name,i.unit||'each',i.barcode||'—']));
+     else invTable(table,['Code','Description','Category','Unit','On-hand','Min. stock'],items.map(i=>[i.code,i.name,i.category||'—',i.unit||'each',invQty(i.qty_milli),i.reorder_min]));
    }catch(e){if(w.valid())w.message(e.message);}}
    void load();
  }
@@ -1487,6 +1748,7 @@ function page(app){
    const w=invWorkspace('Stock Transfers','Create at source → independent manager sends (deducts stock) → destination independently receives (adds stock).');
    const controls=h('div',undefined,'suite-master-form');w.form.append(h('h4','New inter-branch transfer'),controls);
    const dest=invSelect(controls,'Destination branch',[],x=>x,x=>x);const notes=invField(controls,'Transfer notes');
+   const stockSearch=invField(controls,'Find stock code / description','search');const stockFind=invButton('Search stock',()=>void loadInventory(),'secondary');controls.append(stockFind);
    const linesArea=h('div');linesArea.style.gridColumn='1/-1';controls.append(linesArea);const lines=[];let products=[];
    function addLine(){if(!products.length){w.message('No active stock items.');return;}
      const row=h('div',undefined,'suite-master-actions');const item=invSelect(row,'Stock item',products,x=>x.stock_id,x=>x.code+' · '+x.name+' · Available '+invQty(x.qty_milli));
@@ -1495,7 +1757,7 @@ function page(app){
    const add=invButton('Add line',addLine),save=invButton('Create transfer',()=>void create(),'suite-primary');controls.append(add,save);
    const table=h('div');w.list.append(h('h4','Outgoing and incoming transfers'),table);
    async function loadInventory(){
-     try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch));if(!w.valid())return;
+     try{const data=await api('/api/inventory?branch='+encodeURIComponent(branch)+'&q='+encodeURIComponent(stockSearch.value.trim()));if(!w.valid())return;
        products=data.items;dest.replaceChildren();for(const name of data.destinations||[]){if(name.toLowerCase()===branch.toLowerCase())continue;const o=h('option',name);o.value=name;dest.append(o);}if(!lines.length)addLine();
      }catch(e){w.message(e.message);}
    }
@@ -1523,27 +1785,129 @@ function page(app){
    void loadInventory();void loadTransfers();
  }
 
+ // Phase 18: supplier invoice capture + independent three-way verification only.
+ // This screen NEVER creates a creditor balance, tax claim, payment or GL journal.
+ function suiteSupplierInvoices(){
+   const w=invWorkspace('Supplier Invoices — Three-Way Match','Match approved PO + posted GRV + supplier invoice. VERIFIED means checked only; no AP/VAT/GL posting.');
+   const controls=h('div',undefined,'suite-master-form');w.form.append(h('h4','Capture supplier invoice'),controls);
+   const poSelect=invSelect(controls,'Approved purchase order',[],x=>x.id,x=>x.number+' · '+x.supplier_name);
+   const invoiceNumber=invField(controls,'Supplier invoice number');const invoiceDate=invField(controls,'Invoice date','date',new Date().toISOString().slice(0,10));
+   const vat=invField(controls,'Declared VAT (R)','number','0');vat.step='0.01';
+   const total=invField(controls,'Supplier invoice total incl VAT (R)','number','0');total.step='0.01';
+   const linesArea=h('div');linesArea.style.gridColumn='1/-1';controls.append(linesArea);
+   const submit=invButton('Capture and match invoice',()=>void capture(),'suite-primary');controls.append(submit);
+   const table=h('div');w.list.append(h('h4','Supplier invoice matching register'),table);
+   let orders=[];
+   function selectedOrder(){return orders.find(p=>p.id===Number(poSelect.value));}
+   function drawLines(){linesArea.replaceChildren();const po=selectedOrder();if(!po)return;
+     linesArea.append(h('p','Approved PO '+po.number+' · '+po.supplier_name+' · Enter invoiced quantities and unit costs. Quantities must be covered by posted GRVs.','muted'));
+     for(const line of po.lines){const row=h('div',undefined,'suite-master-actions');row.append(h('strong',line.stock_code+' · '+line.stock_name));
+       const qty=invField(row,'Invoiced quantity','number',String(line.quantity_milli/1000));const cost=invField(row,'Unit cost (R)','number',(line.unit_cost_cents/100).toFixed(2));cost.step='0.01';
+       row.dataset.stockId=String(line.stock_id);qty.dataset.invoiceQty='1';cost.dataset.invoiceCost='1';linesArea.append(row);}
+   }
+   poSelect.addEventListener('change',drawLines);
+   async function capture(){submit.disabled=true;w.message('');try{
+     const po=selectedOrder();if(!po)throw Error('Select an approved purchase order.');
+     const lines=[];for(const row of linesArea.querySelectorAll('[data-stock-id]')){
+       const qty=row.querySelector('[data-invoice-qty]');const cost=row.querySelector('[data-invoice-cost]');
+       if(!qty||!cost)continue;const n=Number(qty.value);if(n===0)continue;
+       lines.push({stock_id:Number(row.dataset.stockId),qty_milli:invNum(qty.value,'invoiced quantity'),unit_cost_cents:invMoney(cost.value)});
+     }
+     if(!lines.length)throw Error('Enter at least one invoice line.');
+     const v=Number(vat.value);if(!Number.isFinite(v)||v<0||Math.abs(v*100-Math.round(v*100))>0.00001)throw Error('Invalid declared VAT.');
+     const result=await invPost('/api/supplier-invoices',{branch,po_id:po.id,invoice_number:invoiceNumber.value,invoice_date:invoiceDate.value,
+       declared_vat_cents:Math.round(v*100),invoice_total_cents:Math.round(Number(total.value)*100),lines});
+     if(w.valid()){w.message(result.invoice.number+' captured: '+result.invoice.status+'. No creditor/VAT/GL posting occurred.',true);await load();}
+   }catch(e){w.message(e.message);}finally{submit.disabled=false;}}
+   async function act(invoice,action){if(!window.confirm(action+' '+invoice.number+'? This does not post accounting.'))return;
+     try{const result=await invPost('/api/supplier-invoices/action',{branch,id:invoice.id,version:invoice.version,action});
+       if(w.valid()){w.message(result.invoice.number+' → '+result.invoice.status+'.',true);await load();}}
+     catch(e){w.message(e.message);}}
+   async function load(){try{
+     const [poData,invData]=await Promise.all([api('/api/purchase-orders?branch='+encodeURIComponent(branch)),api('/api/supplier-invoices?branch='+encodeURIComponent(branch))]);
+     if(!w.valid())return;
+     orders=poData.orders.filter(p=>p.status==='APPROVED');poSelect.replaceChildren();for(const po of orders){const opt=h('option',po.number+' · '+po.supplier_name);opt.value=String(po.id);poSelect.append(opt);}drawLines();
+     invTable(table,['Invoice','Supplier / PO','Status','Net / VAT / Total','Exceptions','Actions'],invData.invoices.map(i=>{
+       const actions=h('div',undefined,'suite-master-actions');
+       if(supplierInvoicePermissions.capture&&i.status==='EXCEPTION')actions.append(invButton('Recheck',()=>void act(i,'RECHECK')));
+       if(supplierInvoicePermissions.verify&&i.status==='MATCHED')actions.append(invButton('Verify independently',()=>void act(i,'VERIFY')));
+       if(supplierInvoicePermissions.capture&&['MATCHED','EXCEPTION'].includes(i.status))actions.append(invButton('Cancel',()=>void act(i,'CANCEL')));
+       return [i.invoice_number,i.supplier_name+' / PO-'+String(i.po_id).padStart(6,'0'),i.status,
+         money(i.net_cents)+' / '+money(i.declared_vat_cents)+' / '+money(i.gross_cents),i.exceptions.join(' '),actions];
+     }));
+   }catch(e){if(w.valid())w.message(e.message);}}
+   if(!supplierInvoicePermissions.capture)w.form.hidden=true;
+   if(!supplierInvoicePermissions.read){w.message('Supplier invoice access denied.');return;}
+   void load();
+ }
+
+ ${SUITE_INSIGHTS_CLIENT_SCRIPT}
+ function isConnectedSuiteAction(id,item){
+   if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
+   if(id==='suppliers')return ['Suppliers','Purchase Orders','Invoices and Debit Notes','Audits','Supplier Master CSV File Export'].includes(item);
+   if(id==='debtors')return ['Debtors','Audits','Debtors Master CSV/Text File Export'].includes(item);
+   if(id==='backoffice')return item==='Till Cash-Up';
+   if(id==='system')return ['User Permissions','Branch Access'].includes(item);
+   if(id==='widget')return ['Management Dashboard','Branch Dashboard','Stock Overview'].includes(item);
+   if(id==='help')return true;
+   return false;
+ }
+ function suiteWorkspaceStart(title){
+   const root=E('app-content');root.replaceChildren();
+   const bar=h('div',undefined,'suite-workspace-bar');
+   const back=h('button','Back to '+(SUITE_TITLES[suiteView]||'Menu'),'suite-workspace-back');back.type='button';back.addEventListener('click',()=>setSuiteView(suiteView));
+   const path=h('div',undefined,'suite-workspace-path');path.append(h('small',(SUITE_TITLES[suiteView]||'Menu')+' / Workspace'),h('h2',title));bar.append(back,path);root.append(bar);
+   const detail=h('section',undefined,'suite-feature-detail suite-master-workspace');detail.id='suite-feature-detail';detail.hidden=true;root.append(detail);
+   window.scrollTo({top:0,behavior:'instant'});
+ }
  function suiteModuleView(id){
    const root=E('app-content');const name=SUITE_TITLES[id]||({tills:'Tills',cashoffice:'Cash Office'}[id])||'Module';
    const isSeparate=['tills','cashoffice','dispatching'].includes(id);
-   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':['stock','suppliers','debtors'].includes(id)?'Branch master files, purchasing and controlled stock operations are live. Supplier invoice and general ledger posting are not yet enabled.':'The menu inventory is a reference. Unbuilt operations remain disabled until their secure workflows are implemented.','suite-menu-intro'));
+   root.append(h('div',isSeparate?'This area is managed by a separate secure department application. Use its approved login and URL for live transactions; these reference menus do not bypass access controls.':['stock','suppliers','debtors'].includes(id)?'Hub-linked stock master, purchasing and controlled stock operations are connected. Financial posting is not yet enabled.':'Only connected operations can be opened. Unimplemented menu entries are disabled rather than opening misleading screens.','suite-menu-intro'));
    const menu=SUITE_MENU_TREE[id]||{};const grid=h('div',undefined,'suite-menu-grid');
    for(const [section,items] of Object.entries(menu)){
      const card=h('section',undefined,'suite-menu-card');card.append(h('h3',section));const list=h('div',undefined,'suite-menu-list');
      for(const item of items){
        const b=h('button',item,'suite-menu-action');b.type='button';
+       if(!isConnectedSuiteAction(id,item)){
+         b.disabled=true;b.title='Not implemented. Disabled to prevent a misleading transaction.';
+         b.setAttribute('aria-label',item+' — not available');list.append(b);continue;
+       }
        b.addEventListener('click',()=>{
+         if(id==='backoffice'&&item==='Till Cash-Up'){
+           window.location.assign(CASH_OFFICE_URL+'?view=cashup&branch='+encodeURIComponent(branch));return;
+         }
+         suiteWorkspaceStart(item);
+         if(id==='widget'&&['Management Dashboard','Branch Dashboard'].includes(item)){suiteOperationalDashboard(item==='Management Dashboard'?'management':'branch');return;}
+         if(id==='widget'&&item==='Stock Overview'){suiteStockBalances();return;}
+         if(id==='help'){suiteHelpView(item);return;}
+         if(id==='stock'&&item==='Stock Master CSV/Text File Export'){suiteMasterExport('stock');return;}
+         if(id==='suppliers'&&item==='Supplier Master CSV File Export'){suiteMasterExport('supplier');return;}
+         if(id==='debtors'&&item==='Debtors Master CSV/Text File Export'){suiteMasterExport('debtor');return;}
+         if(id==='system'&&['User Permissions','Branch Access'].includes(item)){window.location.assign(MEMBER_TEAM_URL);return;}
          const masterKind=id==='stock'&&item==='Stock Master'?'stock':id==='suppliers'&&item==='Suppliers'?'supplier':id==='debtors'&&item==='Debtors'?'debtor':null;
          if(masterKind){suiteMasterView(masterKind);return;}
          if(item==='Purchase Orders'&&(id==='stock'||id==='suppliers')){suitePurchaseOrders();return;}
+         if(id==='suppliers'&&item==='Invoices and Debit Notes'){suiteSupplierInvoices();return;}
          if(id==='stock'&&item==='Goods Received Vouchers (GRV)'){suiteReceiving();return;}
          if(id==='stock'&&item==='Stock Transfers'){suiteTransfers();return;}
          if(id==='stock'&&item==='Onhands'){suiteStockBalances();return;}
+         if(id==='stock'&&item==='Stock Adjustments'){suiteStockControl('ADJUSTMENT');return;}
+         if(id==='stock'&&item==='Stock Take'){suiteStockControl('STOCKTAKE');return;}
+         if(id==='stock'&&item==='Daily Stock Count'){suiteStockControl('STOCKTAKE');return;}
+         if(id==='stock'&&item==='Opening Stock Count'){suiteStockControl('OPENING');return;}
+         if(id==='stock'&&item==='Stock Valuations'){suiteStockReport('valuation');return;}
+         if(id==='stock'&&item==='Re-Order'){suiteStockReport('reorder');return;}
+         if(id==='stock'&&item==='Transactions'){suiteStockReport('transactions');return;}
+         if(id==='stock'&&item==='Master'){suiteStockReport('master');return;}
+         if(id==='stock'&&item==='Categories'){suiteStockReport('categories');return;}
+         if(id==='stock'&&['Units','Barcodes'].includes(item)){suiteStockReport('units');return;}
+         if(id==='stock'&&item==='Minimum / Maximum Stock Levels'){suiteMasterView('stock');return;}
          if(item==='Audits'&&['stock','suppliers','debtors'].includes(id)){suiteMasterView(id==='suppliers'?'supplier':id==='debtors'?'debtor':'stock',true);return;}
          const detail=E('suite-feature-detail');detail.className='suite-feature-detail';detail.replaceChildren();
          detail.append(h('strong',name+'  /  '+section+'  /  '+item));
-         detail.append(h('p',isSeparate?'Open the authorised department workstation for operational access. This suite menu is a reference only.':'This function is in the module inventory but is not live yet. It requires a secure API, database workflow, branch permissions and audit logging before activation.'));
-         detail.hidden=false;detail.scrollIntoView({block:'nearest',behavior:'smooth'});
+         detail.append(h('p',isSeparate?'Open the authorised department workstation for operational access. This suite menu is a reference only.':'This menu has no configured action. Contact the system administrator.'));
+         detail.hidden=false;
        });list.append(b);
      }
      card.append(list);grid.append(card);
@@ -1552,40 +1916,236 @@ function page(app){
  }
  function updateSuiteUI(){
    if(APP!=='pos')return;
-   const title=suiteView==='home'?'Maliks Professional':SUITE_TITLES[suiteView]||({tills:'Tills',cashoffice:'Cash Office'}[suiteView])||'Maliks Professional';
+   const title=suiteView==='home'?'Maliks Professional':suiteView==='checkout'?'Point of Sale':SUITE_TITLES[suiteView]||({tills:'Tills',cashoffice:'Cash Office'}[suiteView])||'Maliks Professional';
    E('screen-heading').textContent=title;
    E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;
    for(const b of document.querySelectorAll('[data-suite-module]')){
-     if(b.classList.contains('suite-nav-button'))b.setAttribute('aria-pressed',String(b.dataset.suiteModule===suiteView));
+     if(b.classList.contains('suite-nav-button'))b.setAttribute('aria-pressed',String(b.dataset.suiteModule===(suiteView==='checkout'?'home':suiteView)));
    }
  }
  function setSuiteView(id){
    if(APP!=='pos')return;
    if(id==='lock'||id==='exit'){
-     window.location.assign('/cdn-cgi/access/logout');return;
+     void api('/api/auth/logout',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}).finally(()=>window.location.assign('/'));return;
    }
-   if(!['home',...Object.keys(SUITE_MENU_TREE)].includes(id))return;
+   if(!['home','checkout',...Object.keys(SUITE_MENU_TREE)].includes(id))return;
    suiteView=id;draw();window.scrollTo({top:0,behavior:'auto'});
+ }
+ function teamView(){
+   const root=E('app-content');
+   const launcher=panel('Maliks Apps — Login & Access');
+   launcher.append(h('p','One employee email and password works in every authorised Maliks application. Each separate website still requires its own secure sign-in. Maliks Quote shares Sales access.','muted'));
+   const appLinks=h('div',undefined,'bar');
+   for(const [id,name,url] of MALIKS_APP_LINKS){
+     if(!loggedInMaliksApps.includes(id))continue;
+     const link=h('a',name,'secondary small-btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+     link.style.cssText='display:inline-flex;text-decoration:none;align-items:center;justify-content:center;padding:10px 14px;border-radius:8px;';
+     appLinks.append(link);
+   }
+   if(!appLinks.children.length)appLinks.append(h('p','No other apps assigned to this account.','muted'));
+   launcher.append(appLinks);root.append(launcher);
+   const main=panel('Employees and store access');
+   main.append(h('p','Add staff to their correct branch, or deactivate staff who have left. Deactivation blocks Maliks department API access immediately.','muted'));
+   const toolbar=h('div',undefined,'bar');const refresh=h('button','Refresh employees','secondary');
+   refresh.addEventListener('click',()=>void loadTeam());toolbar.append(refresh);main.append(toolbar);
+   if(currentUserRole==='Owner / Admin'||currentUserRole==='Developer / Technical Admin'){
+     const admin=panel('Set my administrator password');
+     admin.append(h('p','Use your own permanent password. Your current verified Cloudflare Access administrator identity is used; you cannot set another administrator account password.','muted'));
+     const f=h('form');f.autocomplete='off';
+     const pw=h('input');pw.type='password';pw.required=true;pw.minLength=14;pw.maxLength=128;pw.autocomplete='new-password';pw.placeholder='At least 14 characters';
+     const confirm=h('input');confirm.type='password';confirm.required=true;confirm.minLength=14;confirm.maxLength=128;confirm.autocomplete='new-password';confirm.placeholder='Repeat your password';
+     const set=h('button','Set administrator password');set.type='submit';
+     const status=h('p','','muted');status.setAttribute('role','status');
+     f.append(h('label','New administrator password'),pw,h('label','Confirm administrator password'),confirm,set,status);
+     f.addEventListener('submit',async event=>{
+       event.preventDefault();err('');status.textContent='';
+       if(pw.value!==confirm.value){err('The two passwords do not match.');return;}
+       if(pw.value.length<14){err('Use a password of at least 14 characters.');return;}
+       if(!window.confirm('Set or reset your administrator password? Existing employee-password sessions for your account will be revoked.'))return;
+       set.disabled=true;
+       try{
+         const saved=await api('/api/auth/bootstrap',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({new_password:pw.value,confirm_password:confirm.value})});
+         if(!saved.password_set)throw Error('Administrator password was not confirmed.');
+         status.textContent='Administrator password saved for '+saved.employee+'. You can now sign in to Maliks POS Professional using this email and your chosen password.';
+       }catch(ex){err(ex.message);}finally{pw.value='';confirm.value='';set.disabled=false;}
+     });
+     admin.append(f);main.append(admin);
+   }
+   const form=h('form');form.autocomplete='off';const fields=h('div',undefined,'bar');
+   const field=(title,type)=>{const wrap=h('div');const lab=h('label',title);const inp=h('input');inp.type=type;inp.required=true;wrap.append(lab,inp);fields.append(wrap);return inp;};
+   const name=field('Employee full name','text');name.maxLength=120;
+   const email=field('Employee login email','email');email.maxLength=150;
+   const roleWrap=h('div');roleWrap.append(h('label','Department role'));const role=h('select');roleWrap.append(role);fields.append(roleWrap);
+   const save=h('button','Add employee');save.type='submit';form.append(fields,save);
+   const credentialNotice=h('section',undefined,'panel');credentialNotice.hidden=true;main.append(credentialNotice);
+   function showTemporaryPassword(data){
+     credentialNotice.hidden=false;credentialNotice.replaceChildren(h('h3','Temporary login password — copy now'),
+       h('p','Employee: '+data.employee),h('p','This password is shown once. The employee must change it at first sign-in. Do not send it in a public group.'));
+     const pre=h('pre',data.temporary_password);credentialNotice.append(pre);
+     const copy=h('button','Copy temporary password','secondary');copy.type='button';copy.addEventListener('click',()=>void navigator.clipboard.writeText(data.temporary_password));credentialNotice.append(copy);
+   }
+   async function issuePassword(person){
+     const data=await api('/api/team/password-reset',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({branch,member_id:person.id,request_id:crypto.randomUUID()})});
+     showTemporaryPassword(data);
+   }
+   form.addEventListener('submit',async e=>{
+     e.preventDefault();if(!window.confirm('Add '+name.value+' to '+branch+' with '+role.value+' access?'))return;
+     save.disabled=true;err('');
+     try{const created=await api('/api/team/change',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'CREATE',branch,name:name.value,email:email.value,role:role.value,request_id:crypto.randomUUID()})});
+       name.value='';email.value='';await loadTeam();
+       try{await issuePassword({id:created.member_id});}catch(ex){err('Employee created, but password was not issued: '+ex.message+' Use Issue password below.');}}
+     catch(ex){err(ex.message);}finally{save.disabled=false;}
+   });main.append(form);
+   const status=h('p','Loading employees…','muted');status.id='team-status';main.append(status);
+   const permissionsPanel=h('section',undefined,'panel');permissionsPanel.hidden=true;main.append(permissionsPanel);
+   const permissionsNotice=h('p','','muted');permissionsNotice.setAttribute('role','status');main.append(permissionsNotice);
+   const list=h('div');list.id='team-list';main.append(list);
+   function editAppPermissions(person,apps){
+     permissionsPanel.hidden=false;permissionsPanel.replaceChildren(h('h3','App login permissions · '+person.name));
+     permissionsPanel.append(h('p','Same password for the selected apps. Granting Cash Office or Tills enables transaction access for this employee: approve only when their responsibilities require it. Member Team access still requires a management role.','muted'));
+     const form=h('form');const choices=h('div',undefined,'shift-form');
+     const controls=[];
+     for(const app of apps){
+       const wrap=h('label');wrap.style.cssText='display:flex;gap:9px;align-items:center;padding:10px;border:1px solid #dce4ea;border-radius:8px;';
+       const check=h('input');check.type='checkbox';check.checked=(person.apps||[]).includes(app.id);
+       if(app.id==='member'&&!['Store Manager','Regional Manager','Operations Manager'].includes(person.role)){
+         check.checked=false;check.disabled=true;
+       }
+       wrap.append(check,h('span',app.label));choices.append(wrap);controls.push([app.id,check]);
+     }
+     form.append(choices);const buttons=h('div',undefined,'bar');
+     const submit=h('button','Save app logins');submit.type='submit';const close=h('button','Cancel','secondary');close.type='button';
+     close.addEventListener('click',()=>{permissionsPanel.hidden=true;});
+     buttons.append(submit,close);form.append(buttons);permissionsPanel.append(form);
+     const feedback=h('p','','muted');feedback.setAttribute('role','status');permissionsPanel.append(feedback);
+     let pending=null;
+     for(const [,check] of controls)check.addEventListener('change',()=>{pending=null;feedback.textContent='';});
+     form.addEventListener('submit',async event=>{
+       event.preventDefault();if(!pending)pending={branch,member_id:person.id,apps:controls.filter(([,check])=>check.checked&&!check.disabled).map(([id])=>id),request_id:crypto.randomUUID()};
+       if(!window.confirm('Update app login access for '+person.name+'? Their existing Maliks sessions will be signed out.'))return;
+       submit.disabled=true;feedback.textContent='Saving permissions…';err('');
+       try{
+         await api('/api/team/apps',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(pending)});
+         pending=null;permissionsPanel.hidden=true;permissionsNotice.textContent='App login permissions saved for '+person.name+'. Their other sessions were revoked; they can use the same employee password to sign in to the assigned apps.';
+         await loadTeam();
+       }catch(e){feedback.textContent='Save failed: '+e.message+' Retry retains the same request ID.';submit.disabled=false;}
+     });
+     permissionsPanel.scrollIntoView({block:'start',behavior:'smooth'});
+   }
+   const audit=h('div');audit.id='team-audit';main.append(audit);root.append(main);
+   async function loadTeam(){
+     const selected=branch;status.textContent='Loading employees…';
+     try{const data=await api('/api/team?branch='+encodeURIComponent(selected));if(branch!==selected||!E('team-list'))return;
+       role.replaceChildren();for(const r of data.can_assign_roles||[]){const o=h('option',r);o.value=r;role.append(o);}
+       list.replaceChildren();const tbl=h('table');const head=h('tr');for(const title of ['Name','Email','Role','App logins','Status','Action'])cell(head,title,'th');tbl.append(head);
+       for(const person of data.staff||[]){const row=h('tr');
+         for(const value of [person.name,person.email,person.role])cell(row,value);
+         cell(row,(person.apps||[]).length+' assigned'+(person.app_access_locked?' · All apps':''));
+         cell(row,person.active?'Active':'Inactive');
+         const action=h('td');
+         if(person.active&&person.email.toLowerCase()!==currentUserEmail){
+           const b=h('button','Deactivate','secondary small-btn');b.addEventListener('click',()=>void changeStatus(person,'DEACTIVATE',b));action.append(b);
+         }else if(!person.active&&data.can_reactivate){
+           const b=h('button','Reactivate','secondary small-btn');b.addEventListener('click',()=>void changeStatus(person,'REACTIVATE',b));action.append(b);
+         }
+         if(person.active&&data.can_manage_apps&&!person.app_access_locked&&person.email.toLowerCase()!==currentUserEmail){
+           const access=h('button','Manage app logins','secondary small-btn');access.type='button';
+           access.addEventListener('click',()=>editAppPermissions(person,data.apps||[]));action.append(access);
+         }
+         if(person.active&&(data.can_reactivate||(data.can_assign_roles||[]).includes(person.role))){
+           const pw=h('button','Issue password','secondary small-btn');pw.type='button';pw.addEventListener('click',async()=>{
+             if(!window.confirm('Issue a NEW temporary password for '+person.name+'? Existing sessions will be revoked.'))return;
+             pw.disabled=true;err('');try{await issuePassword(person);}catch(ex){err(ex.message);}finally{pw.disabled=false;}
+           });action.append(pw);
+         }
+         row.append(action);tbl.append(row);
+       }
+       const scroll=h('div',undefined,'scroll');scroll.append(tbl);list.append(scroll);
+       status.textContent=String((data.staff||[]).length)+' employee records · '+selected;
+       audit.replaceChildren(h('h3','Recent staff access changes'));
+       const a=h('ul');for(const event of data.audit||[])a.append(h('li',event.action+' · '+event.member_email+' · '+event.actor_email+' · '+showDate(event.created_at)));
+       audit.append(a);
+     }catch(ex){status.textContent='Could not load employees';err(ex.message);}
+   }
+   async function changeStatus(person,action,btn){
+     if(!window.confirm((action==='DEACTIVATE'?'Remove access for ':'Reactivate ')+person.name+' at '+branch+'?'))return;
+     btn.disabled=true;err('');try{
+       await api('/api/team/change',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,branch,member_id:person.id,request_id:crypto.randomUUID()})});
+       await loadTeam();
+     }catch(ex){err(ex.message);btn.disabled=false;}
+   }
+   void loadTeam();
  }
  function draw(){
    E('app-content').replaceChildren();err('');
    if(APP==='pos'){
-     if(suiteView==='home')suiteHome();else suiteModuleView(suiteView);
+     if(suiteView==='home')suiteHome();else if(suiteView==='checkout')posPremiumCheckout();else suiteModuleView(suiteView);
      updateSuiteUI();
-   }else if(APP==='sales')posView();else if(APP==='dispatch')dispatchView();else void quoteView();
+   }else if(APP==='member')teamView();else if(DEPARTMENT_NAV[APP])departmentDraw();else if(APP==='dispatch')dispatchView();else void quoteView();
  }
 
+
+ function signInView(){
+   E('branch-panel').hidden=true;E('signed-in').textContent='Employee sign in';E('access').textContent='Not signed in';
+   const root=E('app-content');root.replaceChildren();const p=panel('Sign in to '+(APP==='member'?'Maliks Member Team':APP==='sales'?'Maliks Sales':APP==='pos'?'Maliks POS Professional':'Maliks '+APP));p.classList.add('login-panel');const logo=h('img');logo.src='/powerbuild-logo.png';logo.alt='PowerBuild';logo.className='login-logo';p.prepend(logo);
+   p.append(h('p','Enter the email and password issued by your store manager.','muted'));
+   const f=h('form');f.autocomplete='on';const email=h('input');email.type='email';email.autocomplete='username';email.required=true;email.placeholder='Employee email';
+   const pw=h('input');pw.type='password';pw.autocomplete='current-password';pw.required=true;pw.placeholder='Password';
+   const btn=h('button','Sign in');btn.type='submit';const notice=h('p','','muted');
+   f.append(h('label','Email address'),email,h('label','Password'),pw,btn,notice);
+   f.addEventListener('submit',async event=>{event.preventDefault();btn.disabled=true;notice.textContent='Signing in…';err('');
+     try{await api('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:email.value,password:pw.value})});pw.value='';location.reload();}
+     catch(ex){notice.textContent='';err(ex.message);}finally{btn.disabled=false;}
+   });p.append(f);root.append(p);
+ }
+ function changePasswordView(){
+   E('branch-panel').hidden=true;E('signed-in').textContent='Password change required';E('access').textContent='First login';
+   const root=E('app-content');root.replaceChildren();const p=panel('Create your own password');p.classList.add('login-panel');
+   p.append(h('p','Your temporary password must be changed before you can use any workstation. Choose at least 14 characters.','muted'));
+   const f=h('form');const old=h('input');old.type='password';old.required=true;old.autocomplete='current-password';
+   const next=h('input');next.type='password';next.required=true;next.minLength=14;next.autocomplete='new-password';
+   const confirm=h('input');confirm.type='password';confirm.required=true;confirm.minLength=14;confirm.autocomplete='new-password';
+   const btn=h('button','Save new password');btn.type='submit';f.append(h('label','Temporary password'),old,h('label','New password'),next,h('label','Confirm new password'),confirm,btn);
+   f.addEventListener('submit',async event=>{event.preventDefault();err('');if(next.value!==confirm.value){err('Passwords do not match.');return;}
+     btn.disabled=true;try{await api('/api/auth/change-password',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({current_password:old.value,new_password:next.value})});
+       await api('/api/auth/logout',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});location.reload();}
+     catch(ex){err(ex.message);}finally{btn.disabled=false;}
+   });p.append(f);root.append(p);
+ }
+ function addSignOut(){
+   const parent=APP==='pos'?E('screen-heading').closest('.top'):E('screen-heading').parentElement;const b=h('button','Sign out','secondary small-btn');b.type='button';b.addEventListener('click',async()=>{
+     try{await api('/api/auth/logout',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});}catch{}location.reload();
+   });parent.append(b);
+ }
  try{
-   const session=await api('/api/session');masterPermissions=session.master_permissions||{};purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};E('signed-in').textContent=session.user.name+' · '+session.user.role;
-   E('access').textContent=session.branches.length+' assigned branch(es)'+(['pos','sales'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
-   for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=false;branch=select.value;select.addEventListener('change',selectBranch);
-   if(APP==='pos'){
-     E('suite-user').textContent=session.user.name+' · '+session.user.role;
-     for(const btn of E('suite-navigation').querySelectorAll('[data-suite-module]'))btn.addEventListener('click',()=>setSuiteView(btn.dataset.suiteModule));
-     E('suite-navigation').hidden=false;
+   const session=await api('/api/session');
+   if(session.password_change_required){changePasswordView();}
+   else{
+     loggedInMaliksApps=session.app_login_access||[];masterPermissions=session.master_permissions||{};stockPricePermission=session.stock_price_permission===true;purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};currentUserEmail=String(session.user.email||'').toLowerCase();currentUserRole=session.user.role;E('signed-in').textContent=APP==='sales'?session.user.name:session.user.name+' · '+session.user.role;
+     E('access').textContent=APP==='sales'?session.branches.join(', '):session.branches.length+' assigned branch(es)'+(['pos','member'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
+     for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=APP==='sales'&&session.branches.length===1;branch=select.value;
+     if(APP==='cashoffice'){
+       const linkParams=new URLSearchParams(window.location.search);
+       const requestedBranch=linkParams.get('branch');
+       if(requestedBranch&&session.branches.includes(requestedBranch)){branch=requestedBranch;select.value=requestedBranch;}
+       if(linkParams.get('view')==='cashup')departmentView='cashup';
+     }
+     select.addEventListener('change',selectBranch);
+     if(APP==='sales'){E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;const label=document.querySelector('label[for=branch]');if(label)label.textContent='Store';}
+     if(DEPARTMENT_NAV[APP]){
+       E('department-user').textContent=session.user.name+' · '+session.user.role;
+       for(const btn of E('department-navigation').querySelectorAll('[data-department-view]'))btn.addEventListener('click',()=>setDepartmentView(btn.dataset.departmentView));
+       E('department-navigation').hidden=false;
+       E('workstation-notice').hidden=true;E('workstation-tag').hidden=true;
+     }
+     if(APP==='pos'){
+       E('suite-user').textContent=session.user.name+' · '+session.user.role;
+       for(const btn of E('suite-navigation').querySelectorAll('[data-suite-module]'))btn.addEventListener('click',()=>setSuiteView(btn.dataset.suiteModule));
+       E('suite-navigation').hidden=false;
+     }
+     addSignOut();draw();
    }
-   draw();
- }catch(e){E('signed-in').textContent='Access unavailable';E('access').textContent='Not authorised';err(e.message+' Contact your Hub administrator to verify department role and branch assignment.');}
+ }catch(e){if(e.status===401){signInView();}else{E('signed-in').textContent='Access unavailable';E('access').textContent='Not authorised';err(e.message+' Contact your Hub administrator to verify department role and branch assignment.');}}
  </script></body></html>`;
 }
 export default {
@@ -1595,21 +2155,29 @@ export default {
    const url=new URL(req.url);
    if(url.pathname==='/powerbuild-logo.png' && req.method==='GET')return new Response(POWERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
-   const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find',
+   const pathMap={'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue','/api/quotes':'/v1/quotes','/api/quotes/find':'/v1/quotes/find','/api/quote/branch-queue':'/v1/quote/branch-queue',
      '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview',
+     '/api/cashup-reconciliation':'/v1/cashup-reconciliation','/api/cashup-reconciliation/review':'/v1/cashup-reconciliation/review',
      '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
-     '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue',
+     '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue','/api/master/catalogue/sync':'/v1/master/catalogue/sync',
      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
-     '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action'};
+     '/api/stock-control':'/v1/stock-control','/api/stock-control/action':'/v1/stock-control/action',
+     '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action','/api/supplier-invoices':'/v1/supplier-invoices','/api/supplier-invoices/action':'/v1/supplier-invoices/action',
+     '/api/team':'/v1/team','/api/team/change':'/v1/team/change','/api/team/apps':'/v1/team/apps','/api/team/password-reset':'/v1/team/password-reset',
+     '/api/auth/login':'/v1/auth/login','/api/auth/logout':'/v1/auth/logout','/api/auth/change-password':'/v1/auth/change-password','/api/auth/bootstrap':'/v1/auth/bootstrap'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/transfers','/api/transfers/action'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if((path==='/v1/team'&&req.method!=='GET')||(['/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path)&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/cashup-reconciliation/review','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/apps','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // The Professional suite cannot submit Sales transactions through its old POS origin.
-   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
+   // The Member Team Worker is isolated from POS, payments and sales.
+   if(kind==='member' && !['/v1/session','/v1/team','/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Team app only.'},{status:403});
+   if(kind!=='member' && path.startsWith('/v1/team'))return Response.json({error:'Team app only.'},{status:403});
    // The dedicated Sales Worker may only access the quotation/catalogue APIs.
-   if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
+   if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find','/v1/quote/branch-queue','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Department access denied.'},{status:403});
    // Department rules enforced here as an early deny and again by the private Core.
    if((url.pathname.startsWith('/api/dispatch-jobs') && kind!=='dispatch') ||
       (url.pathname==='/api/payments/verify' && kind!=='cashoffice') ||
@@ -1620,6 +2188,9 @@ export default {
       (url.pathname==='/api/till-reviews' && kind!=='cashoffice') ||
       (url.pathname.startsWith('/api/payment-evidence') && kind!=='cashoffice') ||
       (url.pathname==='/api/cashup-preview' && kind!=='cashoffice') ||
+      (url.pathname.startsWith('/api/cashup-reconciliation') && kind!=='cashoffice') ||
+      (url.pathname==='/api/cashup-reconciliation' && req.method!=='GET') ||
+      (url.pathname==='/api/cashup-reconciliation/review' && req.method!=='POST') ||
       (url.pathname==='/api/tender-preparations' && !['tills','cashoffice'].includes(kind)) ||
       (url.pathname==='/api/tender-preparations' && req.method==='POST' && kind!=='tills') ||
       (url.pathname.startsWith('/api/till-shifts') && req.method==='POST' && kind!=='tills'))
@@ -1627,15 +2198,31 @@ export default {
    // No public CORS. Require same-origin for all browser-initiated writes.
    if(req.method==='POST' && req.headers.get('origin')!==url.origin)return Response.json({error:'Invalid request origin.'},{status:403});
    const token=req.headers.get('cf-access-jwt-assertion');
-   if(!token)return Response.json({error:'Cloudflare Access application login required.'},{status:401,headers:{'cache-control':'no-store'}});
+   const sessionToken=(req.headers.get('cookie')||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('__Host-maliks_session='))?.split('=')[1]||'';
+   if(!token&&!sessionToken&&!['/v1/auth/login','/v1/auth/logout'].includes(path))return Response.json({error:'Employee sign in required.'},{status:401,headers:{'cache-control':'no-store'}});
    // Both public Workers use the existing verified POS Access audience. Core receives
    // 'pos' only for the dedicated Sales Worker, preserving its current Sales-only roles.
    const coreApp=kind==='sales'?'pos':kind==='pos'?'management':kind;
-   const headers=new Headers({'cf-access-jwt-assertion':token,'x-maliks-app':coreApp,'x-maliks-original-origin':url.origin});
+   const headers=new Headers({'x-maliks-app':coreApp,'x-maliks-original-origin':url.origin});
+   if(token)headers.set('cf-access-jwt-assertion',token);
+   if(sessionToken)headers.set('x-maliks-session',sessionToken);
+   if(path==='/v1/auth/login')headers.set('x-maliks-client-ip',req.headers.get('cf-connecting-ip')||'unknown');
    if(req.method==='POST'){headers.set('content-type','application/json');headers.set('origin',url.origin);}
    const target=new URL('https://maliks-core.internal'+path+url.search);
-   const response=await env.CORE.fetch(new Request(target,{method:req.method,headers,body:req.method==='POST'?req.body:undefined,duplex:req.method==='POST'?'half':undefined}));
+   let response;
+   try{response=await env.CORE.fetch(new Request(target,{method:req.method,headers,body:req.method==='POST'?req.body:undefined,duplex:req.method==='POST'?'half':undefined}));}
+   catch(error){
+     console.error('Maliks Core service binding failed:',String(error?.message||'Unknown error').slice(0,200));
+     return Response.json({error:'Core service unavailable. Check the private Core Worker deployment and logs.'},{status:503,headers:{'cache-control':'no-store'}});
+   }
    const h=new Headers({'cache-control':'no-store','x-content-type-options':'nosniff','content-type':'application/json'});
+   if(path==='/v1/auth/login'&&response.ok){
+     const data=await response.json();
+     if(!/^[A-Za-z0-9_-]{43}$/.test(data.token||''))return Response.json({error:'Login service failed.'},{status:503});
+     h.set('set-cookie','__Host-maliks_session='+data.token+'; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=28800');
+     return Response.json({ok:true,password_change_required:!!data.password_change_required},{headers:h});
+   }
+   if(path==='/v1/auth/logout')h.set('set-cookie','__Host-maliks_session=; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=0');
    return new Response(response.body,{status:response.status,headers:h});
  }
 };
