@@ -4,6 +4,7 @@ import {readFileSync,mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {generateKeyPairSync,sign} from 'node:crypto';
 import quoteFrontend from '../src/mobile-quote-frontend.mjs';
 import salesFrontend from '../src/frontend.mjs';
 import core from '../src/core.mjs';
@@ -69,13 +70,54 @@ const request=(jwt,appMarker)=>new Request('https://maliks-core.internal/v1/sess
 });
 
 test('Core accepts Quote Access audience for Quote and POS audience for Sales, but not interchangeably',async()=>{
-  // The jose package in this local test environment is a test double that
-  // asserts issuer, algorithm setting and requested AUD; real JWT cryptographic
-  // validation is provided by jose in the deployed Worker.
-  assert.equal((await core.fetch(request('test-token-for:aud-quote','quote'),env)).status,200);
-  assert.equal((await core.fetch(request('test-token-for:aud-pos',null),env)).status,200);
-  assert.equal((await core.fetch(request('test-token-for:aud-pos','quote'),env)).status,401);
-  assert.equal((await core.fetch(request('test-token-for:aud-quote',null),env)).status,401);
-  assert.equal((await core.fetch(request('test-token-for:aud-quote','management'),env)).status,401);
-  assert.equal((await core.fetch(new Request('https://maliks-core.internal/v1/session',{headers:{'x-maliks-app':'management','x-maliks-access-app':'quote','cf-access-jwt-assertion':'test-token-for:aud-quote'}}),env)).status,401);
+  // Use genuine RS256-signed JWTs. CI installs real jose, so fake bearer strings
+  // (such as "test-token-for:aud-quote") must never be used to test Core.
+  // The public JWKS endpoint is mocked locally; NO live Cloudflare credentials,
+  // network calls or production changes are involved in this test.
+  const {publicKey,privateKey}=generateKeyPairSync('rsa',{modulusLength:2048});
+  const kid='maliks-test-jwk-rs256';
+  const publicJwk={...publicKey.export({format:'jwk'}),kid,alg:'RS256',use:'sig'};
+  const base64url=part=>Buffer.from(JSON.stringify(part)).toString('base64url');
+  const signedJwt=(audience,key=privateKey)=>{
+    const now=Math.floor(Date.now()/1000);
+    const prefix=base64url({alg:'RS256',typ:'JWT',kid})+'.'+base64url({
+      iss:env.CF_ACCESS_TEAM_DOMAIN,aud:audience,sub:'developer-test',
+      email:'developer@example.test',iat:now,exp:now+3600,
+    });
+    return prefix+'.'+sign('RSA-SHA256',Buffer.from(prefix),key).toString('base64url');
+  };
+  const originalFetch=globalThis.fetch;
+  let jwksRequests=0;
+  globalThis.fetch=async url=>{
+    const address=typeof url==='string'?url:url?.url||String(url);
+    assert.equal(address,env.CF_ACCESS_TEAM_DOMAIN+'/cdn-cgi/access/certs',
+      'Core must fetch the configured Zero Trust issuer JWKS, not an external host');
+    jwksRequests++;
+    return Response.json({keys:[publicJwk]},{headers:{'content-type':'application/json'}});
+  };
+  try{
+    const quoteToken=signedJwt('aud-quote');
+    const salesToken=signedJwt('aud-pos');
+    assert.equal((await core.fetch(request(quoteToken,'quote'),env)).status,200,
+      'Quote must accept a valid RS256 token with the Quote AUD');
+    assert.equal((await core.fetch(request(salesToken,null),env)).status,200,
+      'Sales must accept a valid RS256 token with the existing POS AUD');
+    assert.equal((await core.fetch(request(salesToken,'quote'),env)).status,401,
+      'A Sales Access token must never grant Quote Access');
+    assert.equal((await core.fetch(request(quoteToken,null),env)).status,401,
+      'A Quote Access token must never grant Sales Access');
+    assert.equal((await core.fetch(request(quoteToken,'management'),env)).status,401,
+      'Unrecognised Access markers must not select an audience');
+    assert.equal((await core.fetch(new Request('https://maliks-core.internal/v1/session',{
+      headers:{'x-maliks-app':'management','x-maliks-access-app':'quote',
+        'cf-access-jwt-assertion':quoteToken},
+    }),env)).status,401,
+      'Quote Access must not elevate the caller to management');
+    const {privateKey:wrongKey}=generateKeyPairSync('rsa',{modulusLength:2048});
+    assert.equal((await core.fetch(request(signedJwt('aud-quote',wrongKey),'quote'),env)).status,401,
+      'A forged JWT with the correct audience must fail signature verification');
+    assert.ok(jwksRequests>=1,'The real verifier must request the mocked issuer JWKS');
+  }finally{
+    globalThis.fetch=originalFetch;
+  }
 });
