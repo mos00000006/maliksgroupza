@@ -23,7 +23,7 @@ function mobileQuoteBrowser(){
   const $=id=>document.getElementById(id);
   const money=c=>new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR'}).format(Number(c||0)/100);
   const icon=(name)=>document.querySelector('#icon-'+name)?.innerHTML||'';
-  const state={session:null,branch:'',basket:[],saved:null,history:[],scanner:null,stream:null,scanBusy:false,pending:null,selected:'new',refreshing:false,sequence:0,checkingSession:false};
+  const state={session:null,branch:'',basket:[],saved:null,history:[],scanner:null,stream:null,scanBusy:false,pending:null,selected:'new',refreshing:false,sequence:0,checkingSession:false,scanCanvas:null,lastScanAt:0};
   const message=(m)=>{const el=$('notice');el.textContent=String(m||'');el.hidden=!m;};
   const setText=(id,txt)=>{if($(id))$(id).textContent=txt;};
   const fmtDate=d=>{const date=new Date(d);return Number.isNaN(date.getTime())?String(d||''):date.toLocaleString('en-ZA',{dateStyle:'medium',timeStyle:'short'});};
@@ -149,18 +149,90 @@ function mobileQuoteBrowser(){
     const selected=state.branch,seq=++state.sequence,box=$('search-results');box.replaceChildren(el('p','muted','Searching…'));
     try{const data=await request('/api/catalogue?'+new URLSearchParams({branch:selected,q:query}));if(seq!==state.sequence||state.branch!==selected)return;box.replaceChildren();if(!data.products?.length)box.append(el('p','muted','No published products found.'));for(const p of data.products||[]){const row=el('div','result');const name=el('div');name.append(el('div','product-title',p.name),el('small','',p.code+' · '+p.unit));const right=el('div');right.append(el('div','money',money(p.price_cents)),btn('Add','small',()=>{addProduct(p);message('Added '+p.name+'.');}));row.append(name,right);box.append(row);}}
     catch(e){box.replaceChildren(el('p','muted',e.message));}}
-  function stopCamera(){if(state.scanner){cancelAnimationFrame(state.scanner);state.scanner=null;}if(state.stream){for(const tr of state.stream.getTracks())tr.stop();state.stream=null;}const vid=$('camera');if(vid){vid.srcObject=null;vid.hidden=true;}$('camera-start').textContent='Start camera scan';}
-  async function cameraLoop(video,detector){if(!state.stream)return;
-    try{if(video.readyState>=2&&!state.scanBusy){const results=await detector.detect(video);if(results.length&&results[0].rawValue){await addScanned(results[0].rawValue);return;}}}
-    catch(e){message('Camera scanning could not read the code. Try good lighting or use the phone camera app.');stopCamera();return;}
+  // iPhone Safari does not expose BarcodeDetector. Load a pinned jsQR fallback
+  // only when needed; native BarcodeDetector remains preferred where supported.
+  // Decoder runs entirely in the browser. Camera frames are not uploaded.
+  let qrDecoderLoading=null;
+  const QR_DECODER_URLS=Object.freeze([
+    'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',
+    'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js'
+  ]);
+  async function loadQrDecoder(){
+    if(typeof window.jsQR==='function')return Promise.resolve(window.jsQR);
+    if(qrDecoderLoading)return qrDecoderLoading;
+    qrDecoderLoading=(async()=>{
+      for(const url of QR_DECODER_URLS){
+        try{
+          await new Promise((resolve,reject)=>{
+            const script=document.createElement('script');script.src=url;script.async=true;
+            const timeout=setTimeout(()=>{script.remove();reject(Error('QR decoder download timed out.'));},12000);
+            script.onload=()=>{clearTimeout(timeout);resolve();};
+            script.onerror=()=>{clearTimeout(timeout);script.remove();reject(Error('Could not load QR decoder.'));};
+            document.head.append(script);
+          });
+          if(typeof window.jsQR==='function')return window.jsQR;
+        }catch{/* Try the second pinned CDN without exposing camera data. */}
+      }
+      throw Error('QR scanner library could not load. Check internet access, or scan the price card using your phone Camera app.');
+    })();
+    try{return await qrDecoderLoading;}
+    finally{qrDecoderLoading=null;}
+  }
+  function stopCamera(){
+    if(state.scanner){cancelAnimationFrame(state.scanner);state.scanner=null;}
+    if(state.stream){for(const tr of state.stream.getTracks())tr.stop();state.stream=null;}
+    state.scanCanvas=null;state.lastScanAt=0;
+    const vid=$('camera');if(vid){vid.pause?.();vid.srcObject=null;vid.hidden=true;}
+    $('camera-start').textContent='Start camera scan';
+  }
+  async function cameraLoop(video,detector){
+    if(!state.stream)return;
+    try{
+      if(video.readyState>=2&&!state.scanBusy&&performance.now()-state.lastScanAt>=160){
+        state.lastScanAt=performance.now();
+        let found='';
+        if(detector){
+          const results=await detector.detect(video);
+          found=results[0]?.rawValue||'';
+        }else if(typeof window.jsQR==='function'){
+          if(!state.scanCanvas)state.scanCanvas=document.createElement('canvas');
+          const canvas=state.scanCanvas;
+          const vw=video.videoWidth||640,vh=video.videoHeight||480;
+          const scale=Math.min(1,720/vw);canvas.width=Math.max(1,Math.round(vw*scale));canvas.height=Math.max(1,Math.round(vh*scale));
+          const context=canvas.getContext('2d',{willReadFrequently:true});
+          if(!context)throw Error('Camera image processing is not supported.');
+          context.drawImage(video,0,0,canvas.width,canvas.height);
+          const pixels=context.getImageData(0,0,canvas.width,canvas.height);
+          found=window.jsQR(pixels.data,canvas.width,canvas.height,{inversionAttempts:'attemptBoth'})?.data||'';
+        }
+        if(found){await addScanned(found);return;}
+      }
+    }catch(e){message('QR scanner error: '+String(e?.message||e)+'. You can scan using your phone Camera app.');stopCamera();return;}
     if(state.stream)state.scanner=requestAnimationFrame(()=>void cameraLoop(video,detector));
   }
-  async function startCamera(){if(state.stream){stopCamera();return;}
-    if(!('BarcodeDetector'in window)){message('Built-in camera QR detection is unavailable in this browser. Scan the printed QR using your phone camera, then tap Add to Maliks Quote on the product page. You can also paste a QR link here.');return;}
-    if(!navigator.mediaDevices?.getUserMedia){message('Camera permission is unavailable. Use HTTPS and allow camera access, or paste the QR link.');return;}
-    try{const detector=new window.BarcodeDetector({formats:['qr_code']});const stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
-      const video=$('camera');state.stream=stream;video.srcObject=stream;video.hidden=false;await video.play();$('camera-start').textContent='Stop camera';message('Aim at the QR code in the price card.');state.scanner=requestAnimationFrame(()=>void cameraLoop(video,detector));}
-    catch(e){stopCamera();message('Camera could not open. Check permission settings, or use your phone QR scanner and the Add to Maliks Quote button.');}}
+  async function startCamera(){
+    if(state.stream){stopCamera();return;}
+    if(!navigator.mediaDevices?.getUserMedia){message('Camera access is not available. Open Maliks Quote in Safari/Chrome over HTTPS and allow Camera permission.');return;}
+    const button=$('camera-start');button.disabled=true;
+    try{
+      let detector=null;
+      if(typeof window.BarcodeDetector==='function'){
+        try{detector=new window.BarcodeDetector({formats:['qr_code']});}
+        catch{detector=null;}
+      }
+      if(!detector){message('Preparing iPhone-compatible QR scanner…');await loadQrDecoder();}
+      // iPhone Safari supports camera capture through getUserMedia on HTTPS.
+      const stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+      const video=$('camera');state.stream=stream;video.srcObject=stream;video.hidden=false;
+      video.setAttribute('playsinline','');video.muted=true;
+      await video.play();button.textContent='Stop camera';
+      message('Camera ready. Point the rear camera at a Maliks price-card QR code.');
+      state.scanner=requestAnimationFrame(()=>void cameraLoop(video,detector));
+    }catch(e){stopCamera();const name=e?.name||'';
+      if(name==='NotAllowedError'||name==='PermissionDeniedError')message('Camera permission was denied. Allow Camera for this website in iPhone Settings > Safari, then try again.');
+      else message('Unable to open QR camera: '+String(e?.message||e));
+    }finally{button.disabled=false;}
+  }
   async function loadHistory(){const selected=state.branch,root=$('history-list');root.replaceChildren(el('p','muted','Loading branch quotations…'));
     try{const data=await request('/api/quote/branch-queue?'+new URLSearchParams({branch:selected}));if(selected!==state.branch)return;state.history=data.quotes||[];root.replaceChildren();
       if(!state.history.length)root.append(el('p','muted','No saved quotations in this branch yet.'));
@@ -259,7 +331,7 @@ const screen=()=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><me
 <div id="notice" class="message" role="status" aria-live="polite" hidden></div>
 <section id="view-new" class="screen"><div class="grid"><div class="stack">
 <section class="panel"><p class="gold-label">01 · Product selection</p><h2>Scan the price card</h2><p class="intro">Use the existing QR code from any published PowerBuild/BusterBuild price tag. Scan one item after another while walking with the customer.</p>
-<div class="scan-box"><div class="scan-hero">${ico('scan-line')}<div><strong>QR Product Scanner</strong><small>Use your rear camera, or paste a scanned link.</small></div></div><video id="camera" autoplay muted playsinline hidden></video><button type="button" class="btn dark block" id="camera-start">Start camera scan</button><div class="field" style="margin-top:13px"><label for="qr-input">QR link or token</label><input id="qr-input" class="qr-entry" placeholder="Paste the scanned price-card link"></div><button type="button" class="btn secondary block" id="qr-add">Add scanned product</button><p class="muted">On phones without built-in QR detection: scan with the Camera app, then tap “Add to Maliks Quote” on the product page.</p></div>
+<div class="scan-box"><div class="scan-hero">${ico('scan-line')}<div><strong>QR Product Scanner</strong><small>Use your iPhone or Android rear camera, or paste a scanned link.</small></div></div><video id="camera" autoplay muted playsinline hidden></video><button type="button" class="btn dark block" id="camera-start">Start camera scan</button><div class="field" style="margin-top:13px"><label for="qr-input">QR link or token</label><input id="qr-input" class="qr-entry" placeholder="Paste the scanned price-card link"></div><button type="button" class="btn secondary block" id="qr-add">Add scanned product</button><p class="muted">On phones without built-in QR detection: scan with the Camera app, then tap “Add to Maliks Quote” on the product page.</p></div>
 <div class="field"><label for="product-search">Search by product name or stock code</label><div class="row"><input id="product-search" placeholder="e.g. cement, tiles, SKU" maxlength="100" style="flex:1;min-height:48px;border-radius:11px;border:1px solid #cfd5d9;padding:12px"><button class="btn secondary" id="product-search-go" type="button">Search</button></div></div><div id="search-results" class="search-results"></div></section></div>
 <div class="stack"><section class="panel"><p class="gold-label">02 · Your basket</p><div class="row" style="justify-content:space-between"><h2>Quotation items</h2><button id="refresh-prices" type="button" class="btn secondary small">Refresh Prices</button></div><div id="basket-list"></div><div class="amounts"><div class="amount-line"><span>Subtotal excl. VAT</span><strong id="net">R 0,00</strong></div><div class="amount-line"><span>VAT included (15%)</span><strong id="vat">R 0,00</strong></div><div class="amount-line total"><span>Total</span><strong id="total">R 0,00</strong></div></div></section>
 <section class="panel customer"><p class="gold-label">03 · Customer details</p><h2>Save for the counter or share</h2><div class="field"><label for="customer">Customer name</label><input id="customer" maxlength="120" placeholder="Walk-in customer"></div><div class="two-fields"><div class="field"><label for="phone">WhatsApp / phone</label><input id="phone" type="tel" maxlength="40" placeholder="082 000 0000"></div><div class="field"><label for="email">Email address</label><input id="email" type="email" maxlength="70" placeholder="customer@example.com"></div></div><div class="field"><label for="notes">Quotation notes</label><textarea id="notes" maxlength="400" placeholder="Optional collection/delivery notes"></textarea></div><button class="btn dark block" type="button" id="save-quote" disabled>Save quotation</button><p class="muted">Saving creates a numbered Maliks Sales quotation. The customer has not paid; the quote does not reserve stock or release dispatch.</p></section></div></div></section>
@@ -290,7 +362,7 @@ export default {
       return new Response(iconBytes[path],{headers:{'content-type':'image/png','cache-control':'public,max-age=86400','x-content-type-options':'nosniff'}});
     if(path==='/manifest.webmanifest'&&request.method==='GET')
       return Response.json(QUOTE_APP_MANIFEST,{headers:{'content-type':'application/manifest+json','cache-control':'public,max-age=3600','x-content-type-options':'nosniff'}});
-    if(path==='/'&&request.method==='GET')return new Response(screen(),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','content-security-policy':"default-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; script-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",'x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
+    if(path==='/'&&request.method==='GET')return new Response(screen(),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','content-security-policy':"default-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://unpkg.com; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",'x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
     const target=routeMap[path];if(!target)return Response.json({error:'Unknown endpoint.'},{status:404});
     const method=request.method;
     const permitted=method==='GET'&&['/api/session','/api/catalogue','/api/quote/tag','/api/quote/branch-queue'].includes(path)||
