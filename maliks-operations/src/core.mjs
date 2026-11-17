@@ -27,11 +27,15 @@ const accessVars={pos:'ACCESS_AUD_POS',management:'ACCESS_AUD_POS',tills:'ACCESS
 async function identity(request,env) {
   const app=request.headers.get('x-maliks-app');
   if(!APPS.includes(app)) return null;
+  // Only the Quote Worker may request a Quote AUD. Its employee app remains
+  // 'pos', so existing branch and sales permissions are unchanged.
+  const accessApp=request.headers.get('x-maliks-access-app');
+  if(accessApp!==null && (accessApp!=='quote'||app!=='pos'))return null;
   const nativeOnly=String(env.NATIVE_LOGIN_APPS||'').split(',').map(x=>x.trim());
   if(nativeOnly.includes(app))return verifySession(env,app,request.headers.get('x-maliks-session'));
   const jwt=request.headers.get('cf-access-jwt-assertion');
   const issuer=String(env.CF_ACCESS_TEAM_DOMAIN||'').replace(/\/$/,'');
-  const audience=env[accessVars[app]];
+  const audience=accessApp==='quote'?env.ACCESS_AUD_QUOTE:env[accessVars[app]];
   if(!jwt || !issuer.startsWith('https://') || !audience || audience.startsWith('REPLACE_')) {
     return verifySession(env,app,request.headers.get('x-maliks-session'));
   }

@@ -19,9 +19,10 @@ if(!/^[a-z0-9-]+\.cloudflareaccess\.com$/i.test(normalizedHost)){
 }
 const issuer='https://'+normalizedHost;
 console.log('Cloudflare Access Team domain validated (value hidden).');
-// The separate Sales Worker reuses the existing POS Access audience.
-// Add its hostname to the SAME Cloudflare Access application before deployment.
-const apps={pos:'CF_ACCESS_AUD_POS',sales:'CF_ACCESS_AUD_POS',quote:'CF_ACCESS_AUD_POS',tills:'CF_ACCESS_AUD_TILLS',cashoffice:'CF_ACCESS_AUD_CASHOFFICE',dispatch:'CF_ACCESS_AUD_DISPATCH',member:'CF_ACCESS_AUD_MEMBER'};
+// Sales retains the existing POS Access audience. Maliks Quote has its own
+// separately protected Cloudflare Zero Trust application and its own AUD.
+// An employee password can still be used across Sales and Quote.
+const apps={pos:'CF_ACCESS_AUD_POS',sales:'CF_ACCESS_AUD_POS',quote:'CF_ACCESS_AUD_QUOTE',tills:'CF_ACCESS_AUD_TILLS',cashoffice:'CF_ACCESS_AUD_CASHOFFICE',dispatch:'CF_ACCESS_AUD_DISPATCH',member:'CF_ACCESS_AUD_MEMBER'};
 if(!uuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid))throw Error('MALIKS_GROUP_D1_DATABASE_ID must be an existing D1 database UUID.');
 for(const [app,key] of Object.entries(apps)){if(!process.env[key]?.trim())throw Error('Missing Cloudflare Access application AUD: '+key+' ('+app+')');}
 const nativeApps=(process.env.MALIKS_NATIVE_LOGIN_APPS||'').split(',').map(x=>x.trim()).filter(Boolean);
@@ -31,7 +32,8 @@ const common={compatibility_date:date,compatibility_flags:['nodejs_compat'],obse
 const out=path.resolve('.generated');await mkdir(out,{recursive:true});
 const core={...common,name:'maliks-core-api',main:'../src/core.mjs',workers_dev:false,
  vars:{CF_ACCESS_TEAM_DOMAIN:issuer,
-  ACCESS_AUD_POS:process.env.CF_ACCESS_AUD_POS.trim(),ACCESS_AUD_TILLS:process.env.CF_ACCESS_AUD_TILLS.trim(),
+  ACCESS_AUD_POS:process.env.CF_ACCESS_AUD_POS.trim(),ACCESS_AUD_QUOTE:process.env.CF_ACCESS_AUD_QUOTE.trim(),
+  ACCESS_AUD_TILLS:process.env.CF_ACCESS_AUD_TILLS.trim(),
   ACCESS_AUD_CASHOFFICE:process.env.CF_ACCESS_AUD_CASHOFFICE.trim(),ACCESS_AUD_DISPATCH:process.env.CF_ACCESS_AUD_DISPATCH.trim(),
   ACCESS_AUD_MEMBER:process.env.CF_ACCESS_AUD_MEMBER.trim(),
   P9_APPROVAL_ENABLED:process.env.MALIKS_P9_APPROVAL_ENABLED==='true'?'true':'false',

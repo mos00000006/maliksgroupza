@@ -1,50 +1,48 @@
-# MALIKS PROFESSIONAL — SHARED LOGIN + RECOVERY FIX
+MALIKS QUOTE — CLOUDFLARE ZERO TRUST AUDIENCE INTEGRATION
 
-## Applies to
-The current `mos00000006/maliksgroupza` GitHub repository, `maliks-operations/` subfolder. This fix uses the latest app-login matrix (Phase 23) already present in the repository. It is NOT a separate Hub upgrade or a new database installation.
+WHAT THIS PATCH DOES
+- Adds the existing GitHub secret CF_ACCESS_AUD_QUOTE to the GitHub Actions deployment environment.
+- Requires that value when generating the Cloudflare Worker configuration and supplies it privately to maliks-core-api.
+- Keeps Maliks Sales and Maliks POS on their existing CF_ACCESS_AUD_POS setting.
+- Allows Maliks Quote's independently configured Cloudflare Access application to authenticate using CF_ACCESS_AUD_QUOTE.
+- Continues to use the same Employee / Member Team account and branch permissions as Maliks Sales (app=pos).
+- Adds isolated tests for correct audiences and denied mismatches.
+- No new D1 migration, database edits, or employee password changes.
 
-## Verified existing design / problem
-- All Maliks Sales and Maliks Quote employee passwords are stored in the same D1 `maliks_pos_staff_credentials_v2` table. The Group Hub has separate authentication. A Group Hub password change alone does not update this employee password.
-- Earlier 600,000-iteration Phase 21 hashes cannot be checked by the Cloudflare Worker runtime. Phase 21b stores compatible 100,000-iteration hashes. If an employee has no v2 hash, they must be given a new employee password by an authorised Member Team administrator.
-- Before this patch, login failures without a known client IP entered a shared `unknown` IP rate-limit bucket; several employees could lock out one another. A legitimate admin password reset did not clear the account-specific failed-login counter. These issues are fixed here.
-- Maliks Quote formerly required temporarily passworded employees to visit Sales for first-login password changes. It can now change the password itself.
+BEFORE INSTALL
+You already saved the application audience tag as the GitHub Actions repository secret CF_ACCESS_AUD_QUOTE.
+The value must be copied from Zero Trust > Access controls > Applications > Maliks Quote > Additional settings > Application Audience (AUD) Tag, not from Maliks POS or Maliks Sales.
+Do not put the secret value into source files, screenshots or chat messages.
+Confirm Maliks Quote has an Allow policy for approved staff. Do not use Bypass or Everyone.
 
-## What's changed
-1. Shared Maliks Core login no longer uses the global `unknown`-IP bucket; per-account rate limiting remains in force and real client IP rate limits remain in place.
-2. Approved employee password issuance, self password setup and personal password changes clear the corresponding account-specific failed-login counter after successful update.
-3. Correct employee credentials without app permission now return `403` with an app-access explanation, instead of counting as a bad password (`401`). Incorrect credentials still return generic `401`.
-4. Missing/corrupt credential storage results in an actionable `503`, not an unexplained internal error. Maliks password lookups tolerate incidental whitespace in stored email addresses.
-5. **Member Team** shows `Check my employee login` for Cloudflare Access-verified Owner / Technical Admin and `Check login status` for authorised employees in assigned stores. The check reports whether the compatible employee credential exists, if a temporary password needs changing, app grants, branch assignment and lockout status. **It never displays passwords or hashes.**
-6. **Maliks Quote** can change a first-login temporary password directly, using the existing guarded Core password-change API; its camera/quotation/printing workflows are unchanged.
-7. No database migrations are added. The existing Phase 21b and Phase 23 migrations are required and already included in your deployment workflow.
+INSTALL
+1. Open your existing maliksgroupza project in VS Code. Create a backup / Git branch.
+2. Extract this ZIP at the repository ROOT (the folder containing .github and maliks-operations).
+3. Merge only the five listed paths; do NOT replace the complete maliks-operations directory with this ZIP.
+4. In a terminal, from maliksgroupza/maliks-operations:
+     npm install
+     npm test
+   The Phase 24 test is included with the patch.
+5. Commit and push to the main GitHub repository after reviewing your changes.
+6. In GitHub > Actions > Deploy Maliks Department Applications > Run workflow, select main and confirm the Worker names.
+7. Check that the steps named npm run config, Deploy central API — private Worker and Deploy Maliks Quote succeed.
+   NOTE: This existing workflow also deploys other department Workers and re-applies additive schema files; confirm production settings and back up the database before running.
+8. Open https://maliks-quote.moyanamoses006.workers.dev/ in a fresh browser window. Complete Cloudflare Access authentication for the Quote application.
+9. If Maliks Quote displays a SECOND employee sign-in, use your Maliks Member Team employee email and password. Do not use your Cloudflare password on this second form.
 
-## Install (avoid losing current GitHub updates)
-1. In VS Code, open the top-level `maliksgroupza` repository and back up or create a new Git branch. Verify the files are current before merging.
-2. Extract the ZIP at the repository root. Merge its `maliks-operations` directory into the existing `maliks-operations` directory. Replace only the six files listed above (four source files, two tests); keep all other Hub and POS files.
-3. From `maliks-operations`, run:
-   ```powershell
-   npm install
-   npm test
-   ```
-4. Commit and push to GitHub. Open the existing **Deploy Maliks Department Applications** workflow. Check you have a backup and verified the Cloudflare Account, D1 database ID and secrets. Its existing migration steps include Phase 21b and Phase 23; no new migration is needed. Run that workflow once (it redeploys the department apps, including Core, Sales, Quote, Member Team).
-5. After the green deployment, sign into **Maliks Member Team using your verified Cloudflare Access Owner / Technical Admin identity** and select **Check my employee login**.
-6. If it says **Password NOT SET**, use `Set administrator password` on that same Member Team page, selecting a new 14+ character password; this updates the Maliks employee-credential v2 table. Do not assume your Group Hub password was written to the v2 table. If the page says password is set but the sign-in still rejects it, repeat the authorised reset once and read the message carefully.
-7. For other employees, choose their assigned branch, click **Check login status**, then **Issue password** if necessary. If Sales + Quote shows `Not allowed`, use **Manage app logins** to authorise Sales + Quote. Give the one-time temporary password privately. The employee must change it at first sign-in; they can now do this directly in Maliks Quote as well as Sales.
-8. Sign into Maliks Sales and Maliks Quote using the **same Member Team employee email and new password** (each origin has a different secure session cookie). Confirm both show the assigned branch.
+IF IT DOES NOT OPEN
+- Cloudflare Access rejection: check the Quote application Allow policy and the AUD tag saved under CF_ACCESS_AUD_QUOTE.
+- GitHub `npm run config` fails: the new secret was not supplied or is empty.
+- Cloudflare Access passes but Maliks employee sign-in fails: use Member Team > Check my employee login and check Core logs. This patch is the Access audience alignment, not an employee password reset.
+- GitHub deployment completed but the old site is cached: close and reopen the installed Maliks Quote app, or open a fresh Chrome Incognito window.
+- DO NOT share passwords, verification codes, access tokens, JWTs or AUD secret values.
 
-## Diagnostic statuses
-- `401` — incorrect employee email/password, or no compatible v2 password set; use Member Team health/reset flow.
-- `403` — employee password verified, but this app is not authorised; adjust Member Team app permissions (an unauthorised branch may also give 403 on the session endpoint).
-- `429` — per-user or real-IP login safety limit; wait for it to expire, or complete an authorised password reset to clear the account-specific lockout.
-- `503` — credential storage/Core D1 unavailable or misconfigured. Verify the Phase 21b migration, D1 binding and Core Worker deployment.
+TESTING
+Local `npm test`: 222 passed, 0 failed, using the self-contained local test harness. The Phase 24 tests simulate JWT validation to verify audience selection; live Cloudflare authentication must still be tested after deployment.
 
-## Security limitations
-- This patch does **not** bypass passwords, impersonate a Developer, or convert the main Group Hub password into a POS credential.
-- Password self-bootstrap and login health require a **verified Cloudflare Access session to Member Team**; password-only sign-in is intentionally insufficient. If `MALIKS_NATIVE_LOGIN_APPS` forces `member` to password-only, an administrator must adjust that secure deployment setting to allow Access-based recovery first.
-- The account health check verifies that a compatible password record exists; it **does not verify which password the employee remembers**.
-- Existing staff records, audit entries and D1 passwords are not deleted.
-
-## Verification
-- `node --test --test-concurrency=4 tests/*.test.mjs`: **219 passed, 0 failures** (local regression suite).
-- App permission denial, wrong password, account rate limiting, administrator reset, session changes and Quote first-login password change tested.
-- Not deployed to live Cloudflare; no live account credentials or private production database were inspected.
+Included files:
+  .github/workflows/deploy-maliks-operations.yml
+  maliks-operations/scripts/make-config.mjs
+  maliks-operations/src/core.mjs
+  maliks-operations/src/mobile-quote-frontend.mjs
+  maliks-operations/tests/phase24-quote-zero-trust-aud.test.mjs

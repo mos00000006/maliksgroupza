@@ -235,7 +235,10 @@ export default {
     const access=request.headers.get('cf-access-jwt-assertion');
     const session=(request.headers.get('cookie')||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('__Host-maliks_session='))?.split('=')[1]||'';
     if(!access&&!session&&!['/api/auth/login','/api/auth/logout'].includes(path))return Response.json({error:'Sign in to Maliks Quote.'},{status:401,headers:{'cache-control':'no-store'}});
-    const headers=new Headers({'x-maliks-app':'pos','x-maliks-original-origin':url.origin});
+    // The private Core uses the Quote Access AUD for this verified Quote Worker,
+    // while keeping the common Sales employee-password permission ('pos').
+    // Browser-supplied x-maliks-access-app values are not forwarded.
+    const headers=new Headers({'x-maliks-app':'pos','x-maliks-access-app':'quote','x-maliks-original-origin':url.origin});
     if(access)headers.set('cf-access-jwt-assertion',access);
     if(session)headers.set('x-maliks-session',session);
     if(path==='/api/auth/login')headers.set('x-maliks-client-ip',request.headers.get('cf-connecting-ip')||'unknown');
