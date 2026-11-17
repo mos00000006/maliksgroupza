@@ -23,7 +23,7 @@ function mobileQuoteBrowser(){
   const $=id=>document.getElementById(id);
   const money=c=>new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR'}).format(Number(c||0)/100);
   const icon=(name)=>document.querySelector('#icon-'+name)?.innerHTML||'';
-  const state={session:null,branch:'',basket:[],saved:null,history:[],scanner:null,stream:null,scanBusy:false,pending:null,selected:'new',refreshing:false,sequence:0};
+  const state={session:null,branch:'',basket:[],saved:null,history:[],scanner:null,stream:null,scanBusy:false,pending:null,selected:'new',refreshing:false,sequence:0,checkingSession:false};
   const message=(m)=>{const el=$('notice');el.textContent=String(m||'');el.hidden=!m;};
   const setText=(id,txt)=>{if($(id))$(id).textContent=txt;};
   const fmtDate=d=>{const date=new Date(d);return Number.isNaN(date.getTime())?String(d||''):date.toLocaleString('en-ZA',{dateStyle:'medium',timeStyle:'short'});};
@@ -153,15 +153,51 @@ function mobileQuoteBrowser(){
         row.append(el('p','',q.status+' · '+q.lines.length+' product lines'));const actions=el('div','row');actions.append(btn('Open','secondary small',()=>renderSaved(q)),btn('Print','secondary small',()=>print(q)));row.append(actions);root.append(row);}}
     catch(e){root.replaceChildren(el('p','muted','Could not load branch quotes: '+e.message));}}
   function changeBranch(){stopCamera();state.branch=$('branch').value;state.basket=[];state.pending=null;state.saved=null;state.history=[];renderBasket();showTab('new');message('Branch changed. Prices will now use '+state.branch+'.');}
+  // Cloudflare Access can already authenticate the browser without a staff-password
+  // login. Recheck when an installed/PWA window regains focus after Access sign-in.
   async function startSession(){
-    try{const data=await request('/api/session');if(data.password_change_required){$('login').hidden=true;$('workspace').hidden=true;$('change-password').hidden=false;setText('password-help','A temporary password must be changed before you can create quotations.');return;}
-      state.session=data;const branchInput=$('branch');branchInput.replaceChildren();for(const b of data.branches||[]){const opt=el('option','',b);opt.value=b;branchInput.append(opt);}
-      if(!data.branches?.length)throw Error('No assigned branch. Contact Head Office.');
-      const params=new URLSearchParams(location.search);const requested=params.get('branch');if(requested&&data.branches.some(x=>x.toLowerCase()===requested.toLowerCase()))branchInput.value=data.branches.find(x=>x.toLowerCase()===requested.toLowerCase());
-      state.branch=branchInput.value;setText('staff-name',data.user.name+' · '+data.user.role);
-      $('login').hidden=true;$('change-password').hidden=true;$('workspace').hidden=false;renderBasket();
-      const token=params.get('tag');if(token){const qr=new URL('/p/'+encodeURIComponent(token),'https://maliks.co.za');if(params.get('tag_branch'))qr.searchParams.set('branch',params.get('tag_branch'));await addScanned(qr.href);}
-    }catch(e){$('login').hidden=false;$('workspace').hidden=true;setText('login-help',e.message);}
+    if(state.session)return true;
+    if(state.checkingSession)return false;
+    state.checkingSession=true;
+    const accessButton=$('access-continue');
+    if(accessButton)accessButton.disabled=true;
+    setText('access-status','Checking your Cloudflare Access session…');
+    try{
+      const data=await request('/api/session');
+      if(!data||!data.user||!Array.isArray(data.branches))throw Error('Invalid session response from Maliks Core.');
+      if(data.password_change_required){
+        $('login').hidden=true;$('workspace').hidden=true;$('change-password').hidden=false;
+        setText('password-help','A temporary password must be changed before you can create quotations.');
+        return true;
+      }
+      if(!data.branches.length)throw Error('No assigned branch. Contact Head Office.');
+      const branchInput=$('branch');branchInput.replaceChildren();
+      for(const b of data.branches){const opt=el('option','',b);opt.value=b;branchInput.append(opt);}
+      const params=new URLSearchParams(location.search);const requested=params.get('branch');
+      if(requested&&data.branches.some(x=>x.toLowerCase()===requested.toLowerCase()))
+        branchInput.value=data.branches.find(x=>x.toLowerCase()===requested.toLowerCase());
+      state.branch=branchInput.value;
+      setText('staff-name',data.user.name+' · '+data.user.role);
+      state.session=data;
+      $('login').hidden=true;$('change-password').hidden=true;$('workspace').hidden=false;
+      setText('login-help','');setText('access-status','Secure Access verified.');
+      renderBasket();
+      const token=params.get('tag');
+      if(token){const qr=new URL('/p/'+encodeURIComponent(token),'https://maliks.co.za');
+        if(params.get('tag_branch'))qr.searchParams.set('branch',params.get('tag_branch'));
+        await addScanned(qr.href);}
+      return true;
+    }catch(e){
+      // Keep the login fallback, but show the actual Core error. No credentials,
+      // bypass, or browser-stored bearer tokens are introduced here.
+      if(!state.session){$('login').hidden=false;$('workspace').hidden=true;
+        setText('access-status','Cloudflare session not yet verified in this window. Select Continue to check again.');
+        setText('login-help',e.message||'Unable to verify Maliks Quote session.');}
+      return false;
+    }finally{
+      state.checkingSession=false;
+      if(accessButton)accessButton.disabled=false;
+    }
   }
   $('change-password-form').addEventListener('submit',async event=>{
     event.preventDefault();const button=$('change-password-submit');
@@ -190,13 +226,16 @@ function mobileQuoteBrowser(){
   $('login-form').addEventListener('submit',async e=>{e.preventDefault();const b=$('login-button');b.disabled=true;setText('login-help','Signing in…');
     try{await request('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('login-email').value.trim(),password:$('login-password').value})});$('login-password').value='';await startSession();}
     catch(err){setText('login-help',err.message);}finally{b.disabled=false;}});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera();});
+  $('access-continue').addEventListener('click',()=>void startSession());
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera();else if(!state.session)void startSession();});
+  window.addEventListener('pageshow',()=>{if(!state.session)void startSession();});
+  window.addEventListener('focus',()=>{if(!state.session)void startSession();});
   void startSession();
 }
 
 const screen=()=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Maliks Quote — Mobile Sales</title><meta name="theme-color" content="#0A2A3F"><meta name="application-name" content="Maliks Quote"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Maliks Quote"><meta name="apple-mobile-web-app-status-bar-style" content="default"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/quote-icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><style>${css}</style></head>
 <body><header class="top"><div class="top-inner"><div class="brand"><img src="/powerbuild-logo.png" width="54" height="54" alt="PowerBuild"><div><strong>MALIKS <span>QUOTE</span></strong><small>ACCOUNTING &amp; POS SOLUTIONS · PROFESSIONAL</small></div></div><span class="secure"><i></i>SECURE SALES</span><span class="user" id="staff-name"></span></div></header>
-<section id="login" class="app"><div class="panel" style="max-width:420px;margin:35px auto"><p class="gold-label">Authorised sales only</p><h1>Sign in to Maliks Quote</h1><p class="intro">Use your Maliks Member Team employee email and password (not necessarily your Group Hub password). Staff accounts are restricted to authorised branches. If login fails, an administrator can check your login status or issue a new password from Member Team.</p><form id="login-form"><div class="field"><label for="login-email">Staff email</label><input id="login-email" type="email" autocomplete="username" required></div><div class="field"><label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" required></div><button id="login-button" class="btn dark block" type="submit">Sign in securely</button></form><p id="login-help" class="muted" aria-live="polite"></p></div></section>
+<section id="login" class="app"><div class="panel" style="max-width:420px;margin:35px auto"><p class="gold-label">Authorised sales only</p><h1>Sign in to Maliks Quote</h1><p class="intro">Already signed into Cloudflare Access? Open your authorised Quote workspace below. You do not need to type your Cloudflare password into the employee form.</p><button id="access-continue" class="btn dark block" type="button">Continue with Cloudflare Access</button><p id="access-status" class="muted" role="status" aria-live="polite">Checking your Cloudflare Access session…</p><p class="muted" style="margin:18px 0 12px">Alternatively, use your Maliks Member Team employee email and password. These are separate from your Cloudflare credentials.</p><form id="login-form"><div class="field"><label for="login-email">Staff email</label><input id="login-email" type="email" autocomplete="username" required></div><div class="field"><label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" required></div><button id="login-button" class="btn dark block" type="submit">Sign in securely</button></form><p id="login-help" class="muted" aria-live="polite"></p></div></section>
 <section id="change-password" class="app" hidden><div class="panel" style="max-width:440px;margin:35px auto"><p class="gold-label">First sign-in security</p><h1>Choose your permanent password</h1><p class="intro">Change the temporary Maliks Member Team password here. This password will work in Maliks Sales and Maliks Quote once your app permissions are enabled.</p><form id="change-password-form"><div class="field"><label for="change-current">Temporary password</label><input id="change-current" type="password" autocomplete="current-password" required></div><div class="field"><label for="change-new">New password (14+ characters)</label><input id="change-new" type="password" minlength="14" maxlength="128" autocomplete="new-password" required></div><div class="field"><label for="change-confirm">Confirm new password</label><input id="change-confirm" type="password" minlength="14" maxlength="128" autocomplete="new-password" required></div><button id="change-password-submit" class="btn dark block" type="submit">Save new password</button></form><p id="password-help" aria-live="polite" class="muted"></p></div></section>
 <main id="workspace" class="app" hidden><div class="page-heading"><div><p class="gold-label">Mobile sales · scan to quote</p><h1>Build a customer quotation</h1><p>Live branch pricing · quotation only, no payment</p></div><button class="btn secondary small" type="button" id="logout">Sign out</button></div>
 <div class="row" style="margin-bottom:18px"><div class="field" style="max-width:400px"><label for="branch">Branch / Store</label><select id="branch"></select></div></div>

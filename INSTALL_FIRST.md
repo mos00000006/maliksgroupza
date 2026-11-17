@@ -1,44 +1,35 @@
-# MALIKS QUOTE — GitHub Actions Test #136 Fix
+# Maliks Quote — Cloudflare Access Session Resume Fix
 
-## What failed
+## Why this patch
 
-GitHub Actions `npm test` ran 222 tests: 221 passed, 1 failed.
+The `/api/session` endpoint already returned a valid user, `app: pos`, the Developer/Technical Admin role, branch assignments and `password_change_required: false`. The remaining blocker was the Quote window showing its employee-login screen without a clear way to recheck a valid Cloudflare Access session.
 
-The failing test was **#136** in:
+## Exactly what changes
 
-`maliks-operations/tests/phase24-quote-zero-trust-aud.test.mjs`
+- Updates only `maliks-operations/src/mobile-quote-frontend.mjs` (the Quote Worker frontend).
+- Adds a **Continue with Cloudflare Access** button that rechecks `/api/session`.
+- Rechecks the authorised session when the installed app window resumes (focus/pageshow/visibility).
+- Displays the actual error if the session isn't available and retains the existing Member Team employee login fallback.
+- Prevents simultaneous session checks and preserves existing quotation, staff role, branch, password and payment controls.
+- Adds a focused automated test: `maliks-operations/tests/phase25-quote-access-resume.test.mjs`.
 
-The test used a fake token (`test-token-for:aud-quote`) when invoking the real Core JWT verifier. The local development harness previously substituted a fake `jose` verifier that accepted this token. GitHub installs the genuine `jose` library, which correctly rejects the fake token as invalid and returns HTTP 401 rather than 200.
-
-## What the patch does
-
-- Replaces the fake token in test #136 with an RSA-SHA256 signed JWT generated **only within the test**.
-- Stubs out the public Cloudflare JWKS endpoint **only inside the test** to serve the corresponding temporary public key. There are no external network requests or production credentials.
-- Confirms that a valid Quote token is accepted by the Quote audience, and a valid Sales token is accepted by the existing Sales/POS audience.
-- Confirms that Quote and Sales audiences cannot be interchanged; a Quote token cannot claim management, an invalid marker is rejected, and a forged signature is rejected.
-- Restores the original `fetch` handler after the test.
-- Does NOT modify production `core.mjs`, `mobile-quote-frontend.mjs`, Cloudflare secrets, Worker configuration, D1 data, or login permissions.
+**No changes to:** `maliks-core-api`, Zero Trust policies/AUD secrets, Member Team passwords, D1 tables, Sales, Tills, Cash Office or Dispatch.
 
 ## Install
 
-1. Back up your working `maliksgroupza` project or make a Git branch.
-2. Extract this ZIP at the **root** of your existing `maliksgroupza` repository. Merge the `maliks-operations` folder and replace ONLY this file:
-   `maliks-operations/tests/phase24-quote-zero-trust-aud.test.mjs`
-3. In VS Code terminal, run:
-   ```powershell
-   cd maliks-operations
-   npm install
-   npm test
-   ```
-4. Commit and push the changed test file to GitHub.
-5. In GitHub → Actions → Deploy Maliks Department Applications, confirm the new check passes. The normal workflow will then proceed to deployments; review the configured production environment before running it manually.
+1. Extract the ZIP into the root of your `maliksgroupza` GitHub project, keeping the folder paths inside the ZIP.
+2. Replace the existing `maliks-operations/src/mobile-quote-frontend.mjs` and add the new test file.
+3. Commit and push the two files.
+4. Go to **GitHub Actions → Deploy Maliks Department Applications → Run workflow** (select `main`, check the worker names confirmation).
+5. Confirm `npm test`, `Deploy central API` and **`Deploy Maliks Quote`** are green.
+6. Open `https://maliks-quote.moyanamoses006.workers.dev/` and click **Continue with Cloudflare Access** if it doesn't open automatically.
 
-## Verification
+## What success looks like
 
-Local `npm test`: **222 tests, 222 passed, 0 failed** using the existing local test harness, enhanced solely for verification to exercise real RSA signatures and JWKS responses.
+The top of the page says **Build a customer quotation**, shows a **Branch / Store** selector, **New Quote / Saved Quote / Branch Quotes** tabs and **Scan the price card**.
 
-The local environment could not download the actual `jose` npm package, so final confirmation with the genuine library is the new GitHub Actions run. The `jose@6.1.0` source was inspected to confirm that `createRemoteJWKSet` fetches JWKS through `fetch`, as mocked by this test.
+If you see a message under **Cloudflare Access**, its full error text identifies the next real failure. Do not send passwords or verification codes.
 
-## Notes
+## Verified source base
 
-This fixes **the test failing with HTTP 401**, not any separate live employee-login failure. This ZIP does not reset passwords and does not weaken authentication checks.
+Quote source is based on live GitHub blob `a4010fe8022b3580db7685c4ebe949363154f35a` from `mos00000006/maliksgroupza`. If your repository has changed that file after this patch was prepared, compare first instead of overwriting newer changes.
