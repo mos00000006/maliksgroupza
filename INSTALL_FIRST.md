@@ -1,35 +1,27 @@
-# Maliks Quote — Cloudflare Access Session Resume Fix
+# Maliks Quote — External Script Startup Fix (17 November 2026)
 
 ## Why this patch
+Maliks Quote `/api/session` already returned a successful account and branch list, but the installed app remained on its initial "Checking your Cloudflare Access session…" text. The previous page bootstrapped all interactivity using an HTML-inline script. This patch moves the same browser code to a same-origin `/quote-app.js` route to avoid inline execution restrictions, and adds a 15-second connection deadline with a visible error. It does not change the Core API, Cloudflare AUD, database, Member Team passwords, employee grants, or accounting modules.
 
-The `/api/session` endpoint already returned a valid user, `app: pos`, the Developer/Technical Admin role, branch assignments and `password_change_required: false`. The remaining blocker was the Quote window showing its employee-login screen without a clear way to recheck a valid Cloudflare Access session.
+## Installation
+1. Unzip into the root of your existing `maliksgroupza` GitHub repository. Merge the `maliks-operations` folder and replace the matching files.
+2. Verify the following files change:
+   - `maliks-operations/src/mobile-quote-frontend.mjs`
+   - `maliks-operations/tests/mobile-quote-integration.test.mjs`
+   - `maliks-operations/tests/phase23-member-app-logins.test.mjs`
+   - `maliks-operations/tests/phase25-quote-access-resume.test.mjs`
+   - `maliks-operations/tests/phase26-quote-external-startup.test.mjs` (new)
+3. Commit and push to GitHub `main`.
+4. In GitHub Actions, manually run `Deploy Maliks Department Applications` and check the confirmation checkbox. Its workflow runs `npm test` before deployments. Confirm all steps pass, particularly `Deploy central API` and `Deploy Maliks Quote`.
+5. Open `https://maliks-quote.moyanamoses006.workers.dev/` in a normal Chrome tab (not the old installed app shortcut) first. If that works, reinstall/reopen the standalone app as needed.
 
-## Exactly what changes
+## What to expect
+- The page loads its startup code as `/quote-app.js` instead of embedding an inline executable script.
+- A valid `/api/session` response opens the Build a Customer Quotation workspace without entering a second password.
+- An unauthenticated response displays a clear error, leaving the employee sign-in alternative available.
+- If the session request stalls, a 15-second deadline displays a retry message rather than leaving the page on "Checking…".
+- If the script does not run at all, the static page tells you the app script was not loaded, helping distinguish a browser issue from an Access login issue.
 
-- Updates only `maliks-operations/src/mobile-quote-frontend.mjs` (the Quote Worker frontend).
-- Adds a **Continue with Cloudflare Access** button that rechecks `/api/session`.
-- Rechecks the authorised session when the installed app window resumes (focus/pageshow/visibility).
-- Displays the actual error if the session isn't available and retains the existing Member Team employee login fallback.
-- Prevents simultaneous session checks and preserves existing quotation, staff role, branch, password and payment controls.
-- Adds a focused automated test: `maliks-operations/tests/phase25-quote-access-resume.test.mjs`.
-
-**No changes to:** `maliks-core-api`, Zero Trust policies/AUD secrets, Member Team passwords, D1 tables, Sales, Tills, Cash Office or Dispatch.
-
-## Install
-
-1. Extract the ZIP into the root of your `maliksgroupza` GitHub project, keeping the folder paths inside the ZIP.
-2. Replace the existing `maliks-operations/src/mobile-quote-frontend.mjs` and add the new test file.
-3. Commit and push the two files.
-4. Go to **GitHub Actions → Deploy Maliks Department Applications → Run workflow** (select `main`, check the worker names confirmation).
-5. Confirm `npm test`, `Deploy central API` and **`Deploy Maliks Quote`** are green.
-6. Open `https://maliks-quote.moyanamoses006.workers.dev/` and click **Continue with Cloudflare Access** if it doesn't open automatically.
-
-## What success looks like
-
-The top of the page says **Build a customer quotation**, shows a **Branch / Store** selector, **New Quote / Saved Quote / Branch Quotes** tabs and **Scan the price card**.
-
-If you see a message under **Cloudflare Access**, its full error text identifies the next real failure. Do not send passwords or verification codes.
-
-## Verified source base
-
-Quote source is based on live GitHub blob `a4010fe8022b3580db7685c4ebe949363154f35a` from `mos00000006/maliksgroupza`. If your repository has changed that file after this patch was prepared, compare first instead of overwriting newer changes.
+## Tests
+Local `npm test`: 226 passed, 0 failed (includes new regression tests for script route and CSP).
+Browser execution test: Quote workspace shown with mocked valid session; login error shown with mocked 401; no browser JavaScript errors. These checks do not prove that your live Cloudflare browser session works until after deployment.

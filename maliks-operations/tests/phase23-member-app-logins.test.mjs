@@ -189,10 +189,11 @@ test('An employee with a verified password but no app grant receives a clear 403
 test('Maliks Quote supports changing temporary employee passwords without needing Sales first',async()=>{
  const {default:quote}=await import('../src/mobile-quote-frontend.mjs');
  const html=await (await quote.fetch(new Request('https://quote.test/'),{})).text();
+ const js=await (await quote.fetch(new Request('https://quote.test/quote-app.js'),{})).text();
  for(const keyword of ['change-password-form','/api/auth/change-password','Choose your permanent password','Check login status']){
    // The login help links to the Member Team administrator by description.
    if(keyword==='Check login status')continue;
-   assert.ok(html.includes(keyword),keyword);
+   assert.ok((html+js).includes(keyword),keyword);
  }
  const result=await quote.fetch(new Request('https://quote.test/api/auth/change-password',{method:'POST',headers:{origin:'https://quote.test','content-type':'application/json',cookie:'__Host-maliks_session='+('A'.repeat(43))},body:'{}'}),
    {CORE:{fetch:async req=>Response.json({ok:true,app:req.headers.get('x-maliks-app')})}});

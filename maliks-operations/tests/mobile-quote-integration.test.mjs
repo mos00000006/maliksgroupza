@@ -48,9 +48,10 @@ test('Maliks Quote website contains responsive QR, scanner, save, WhatsApp/email
  const res=await mobileFrontend.fetch(new Request('https://maliks-quote.test/'),{});assert.equal(res.status,200);
  const html=await res.text();for(const term of ['MALIKS <span>QUOTE</span>','id="camera"','Start camera scan','Add scanned product','Save quotation','Branch Quotes','WhatsApp','Email','@media print'])assert.ok(html.includes(term),term);
  assert.doesNotMatch(html,/\/api\/payments|\/api\/dispatch-jobs/);
- const match=html.match(/<script>([\s\S]*?)<\/script>/);assert.ok(match);
+ const script=await mobileFrontend.fetch(new Request('https://maliks-quote.test/quote-app.js'),{});assert.equal(script.status,200);
+ const scriptSource=await script.text();assert.match(scriptSource,/function mobileQuoteBrowser/);
  const folder=mkdtempSync(join(tmpdir(),'maliks-quote-'));
- try{const file=join(folder,'test-script.js');writeFileSync(file,match[1]);execFileSync(process.execPath,['--check',file]);}
+ try{const file=join(folder,'test-script.js');writeFileSync(file,scriptSource);execFileSync(process.execPath,['--check',file]);}
  finally{rmSync(folder,{recursive:true,force:true});}
  const logo=await mobileFrontend.fetch(new Request('https://maliks-quote.test/powerbuild-logo.png'),{});
  assert.equal(logo.status,200);assert.equal(logo.headers.get('content-type'),'image/png');
