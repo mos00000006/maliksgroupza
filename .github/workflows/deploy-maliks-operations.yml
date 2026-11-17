@@ -87,6 +87,8 @@ jobs:
         run: npm run deploy:pos
       - name: Deploy Maliks Sales (separate Worker)
         run: npm run deploy:sales
+      - name: Deploy Maliks Quote (mobile QR quotations)
+        run: npm run deploy:quote
       - name: Deploy Maliks Member Team (separate Worker)
         run: npm run deploy:member
       - name: Deploy Tills

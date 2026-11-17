@@ -1,0 +1,26 @@
+MALIKS QUOTE - CLOUDFLARE DEPLOYMENT WORKFLOW FIX
+
+The mobile Quote files are in GitHub, but the production workflow omits
+`npm run deploy:quote`. This patch adds it immediately after Sales deployment.
+
+INSTALL
+1. In your `maliksgroupza` repository, replace ONLY
+   `.github/workflows/deploy-maliks-operations.yml` with the file in this ZIP.
+2. Commit and push this change to the MAIN branch.
+3. Before deploying, use Cloudflare Zero Trust Access to allow your authorised
+   sales employees at maliks-quote.moyanamoses006.workers.dev. The Quote Worker
+   uses the existing Sales/POS Access audience; update the protected hostnames
+   rather than exposing customer quotations publicly.
+4. On GitHub choose Actions > Deploy Maliks Department Applications > Run workflow
+   > select main > tick the required Worker-names confirmation > Run workflow.
+5. Wait for the GitHub run to be marked successful. The log must show
+   `Deploy Maliks Quote (mobile QR quotations)` succeeding.
+6. Open https://maliks-quote.moyanamoses006.workers.dev/ and sign in.
+
+CAUTION
+The existing workflow also runs migrations and redeploys the other Maliks
+Workers. Confirm the correct Cloudflare account, D1 database and secrets first.
+This patch does not publish anything by itself or guarantee that Cloudflare Access
+is already configured.
+
+No application source files were changed.
