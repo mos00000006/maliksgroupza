@@ -267,7 +267,12 @@ const screen=()=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><me
 <section id="view-history" class="screen" hidden><div class="panel"><p class="gold-label">Branch quotation register</p><h2>Saved quotations</h2><p class="intro">Open or print saved quotations created by authorised sales staff at this branch. The PC Sales workspace also has this queue.</p><div id="history-list"></div></div></section></main>
 <footer id="footer" class="footer-bar" hidden><div class="inner"><div><small id="bar-count" style="display:block;color:var(--muted);font-size:11px">0 items</small><b id="bar-total">R 0,00</b></div><button type="button" class="btn secondary small" id="new-quote">Clear</button><button type="button" class="btn dark" id="review-save">Review &amp; Save</button></div></footer><section id="print-sheet" hidden></section>
 <script src="/quote-app.js" defer></script></body></html>`;
-const quoteBrowserScript=`${mobileQuoteBrowser.toString()};(${mobileQuoteBrowser.name})();`;
+// Wrangler/esbuild may add __name() calls inside mobileQuoteBrowser when it
+// bundles this Worker. Function.toString() then captures those calls without
+// the bundler's module-scoped helper. Supply the harmless function-name helper
+// inside the separately served script, BEFORE the captured function executes.
+// This restores startup without weakening authentication or browser CSP.
+const quoteBrowserScript=`const __name=(target,_label)=>target;\n${mobileQuoteBrowser.toString()};(${mobileQuoteBrowser.name})();`;
 const routeMap=Object.freeze({'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue',
   '/api/quotes':'/v1/quotes','/api/quote/tag':'/v1/quote/tag','/api/quote/branch-queue':'/v1/quote/branch-queue',
   '/api/auth/login':'/v1/auth/login','/api/auth/logout':'/v1/auth/logout','/api/auth/change-password':'/v1/auth/change-password'});
