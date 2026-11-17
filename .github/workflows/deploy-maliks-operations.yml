@@ -95,3 +95,5 @@ jobs:
         run: npm run deploy:cashoffice
       - name: Deploy Dispatch
         run: npm run deploy:dispatch
+      - name: Deploy Maliks Quote (Mobile)
+        run: npm run deploy:quote
