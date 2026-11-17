@@ -1969,6 +1969,22 @@ function page(app){
          status.textContent='Administrator password saved for '+saved.employee+'. You can now sign in to Maliks POS Professional using this email and your chosen password.';
        }catch(ex){err(ex.message);}finally{pw.value='';confirm.value='';set.disabled=false;}
      });
+     const healthStatus=h('p','','muted');healthStatus.setAttribute('role','status');
+     const check=h('button','Check my employee login','secondary');check.type='button';
+     check.addEventListener('click',async()=>{
+       check.disabled=true;healthStatus.textContent='Checking Maliks employee credentials…';
+       try{
+         const report=await api('/api/team/login-health?self=1');
+         healthStatus.textContent='Employee: '+report.employee_email+' · Password: '+(report.password_ready?'Set':'NOT SET')+
+          ' · Temporary password: '+(report.password_needs_change?'Needs change':'No')+
+          ' · Sales + Quote: '+(report.apps?.pos?'Allowed':'Not allowed')+
+          ' · Store: '+(report.branch_assigned?'Assigned':'Missing')+
+          ' · Login lockout: '+(report.login_locked_for_seconds?'Active':'None')+
+          '. '+report.advice;
+       }catch(ex){healthStatus.textContent='Login check unavailable: '+ex.message+' Use Cloudflare Access to sign in to Member Team.';}
+       finally{check.disabled=false;}
+     });
+     admin.append(check,healthStatus);
      admin.append(f);main.append(admin);
    }
    const form=h('form');form.autocomplete='off';const fields=h('div',undefined,'bar');
@@ -2048,6 +2064,21 @@ function page(app){
          }else if(!person.active&&data.can_reactivate){
            const b=h('button','Reactivate','secondary small-btn');b.addEventListener('click',()=>void changeStatus(person,'REACTIVATE',b));action.append(b);
          }
+         if(person.active&&data.can_manage_apps){
+           const check=h('button','Check login status','secondary small-btn');check.type='button';
+           check.addEventListener('click',async()=>{
+             check.disabled=true;permissionsNotice.textContent='Checking login for '+person.name+'…';
+             try{
+               const info=await api('/api/team/login-health?'+new URLSearchParams({branch,member_id:String(person.id)}));
+               permissionsNotice.textContent=person.name+' · Password: '+(info.password_ready?'Set':'NOT SET')+
+                 ' · Temporary password: '+(info.password_needs_change?'Needs change':'No')+
+                 ' · Sales + Quote: '+(info.apps?.pos?'Allowed':'Not allowed')+
+                 ' · Store: '+(info.branch_assigned?'Assigned':'Missing')+
+                 ' · Lockout: '+(info.login_locked_for_seconds?'Active':'None')+'. '+info.advice;
+             }catch(ex){permissionsNotice.textContent='Login status unavailable: '+ex.message;}
+             finally{check.disabled=false;}
+           });action.append(check);
+         }
          if(person.active&&data.can_manage_apps&&!person.app_access_locked&&person.email.toLowerCase()!==currentUserEmail){
            const access=h('button','Manage app logins','secondary small-btn');access.type='button';
            access.addEventListener('click',()=>editAppPermissions(person,data.apps||[]));action.append(access);
@@ -2088,7 +2119,7 @@ function page(app){
  function signInView(){
    E('branch-panel').hidden=true;E('signed-in').textContent='Employee sign in';E('access').textContent='Not signed in';
    const root=E('app-content');root.replaceChildren();const p=panel('Sign in to '+(APP==='member'?'Maliks Member Team':APP==='sales'?'Maliks Sales':APP==='pos'?'Maliks POS Professional':'Maliks '+APP));p.classList.add('login-panel');const logo=h('img');logo.src='/powerbuild-logo.png';logo.alt='PowerBuild';logo.className='login-logo';p.prepend(logo);
-   p.append(h('p','Enter the email and password issued by your store manager.','muted'));
+   p.append(h('p','Use the employee email and password configured in Maliks Member Team. Your main Group Hub password may be different. If you cannot sign in, ask the Member Team administrator to click Check login status or Issue password.','muted'));
    const f=h('form');f.autocomplete='on';const email=h('input');email.type='email';email.autocomplete='username';email.required=true;email.placeholder='Employee email';
    const pw=h('input');pw.type='password';pw.autocomplete='current-password';pw.required=true;pw.placeholder='Password';
    const btn=h('button','Sign in');btn.type='submit';const notice=h('p','','muted');
@@ -2163,7 +2194,7 @@ export default {
      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
      '/api/stock-control':'/v1/stock-control','/api/stock-control/action':'/v1/stock-control/action',
      '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action','/api/supplier-invoices':'/v1/supplier-invoices','/api/supplier-invoices/action':'/v1/supplier-invoices/action',
-     '/api/team':'/v1/team','/api/team/change':'/v1/team/change','/api/team/apps':'/v1/team/apps','/api/team/password-reset':'/v1/team/password-reset',
+     '/api/team':'/v1/team','/api/team/change':'/v1/team/change','/api/team/apps':'/v1/team/apps','/api/team/login-health':'/v1/team/login-health','/api/team/password-reset':'/v1/team/password-reset',
      '/api/auth/login':'/v1/auth/login','/api/auth/logout':'/v1/auth/logout','/api/auth/change-password':'/v1/auth/change-password','/api/auth/bootstrap':'/v1/auth/bootstrap'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
@@ -2174,7 +2205,7 @@ export default {
    if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
    // The Member Team Worker is isolated from POS, payments and sales.
-   if(kind==='member' && !['/v1/session','/v1/team','/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Team app only.'},{status:403});
+   if(kind==='member' && !['/v1/session','/v1/team','/v1/team/login-health','/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Team app only.'},{status:403});
    if(kind!=='member' && path.startsWith('/v1/team'))return Response.json({error:'Team app only.'},{status:403});
    // The dedicated Sales Worker may only access the quotation/catalogue APIs.
    if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find','/v1/quote/branch-queue','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Department access denied.'},{status:403});

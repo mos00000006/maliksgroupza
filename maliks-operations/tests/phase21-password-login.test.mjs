@@ -158,7 +158,7 @@ test('public Worker shows employee login, forwards only cookie session, and sets
 test('ordinary sales staff cannot sign in to Member Team even with a valid password',async()=>{
  const e=env();const issued=await data(await issueTemporaryPassword(post('/v1/team/password-reset',{request_id:id(11),branch,member_id:3}),e,ctx()));
  const login=await data(await loginPassword(post('/v1/auth/login',{email:'sales@example.com',password:issued.body.temporary_password}),e,'member','10.0.0.10'));
- assert.equal(login.status,401);assert.equal(e.DB.sqlite.prepare('SELECT COUNT(*) n FROM maliks_pos_staff_sessions').get().n,0);
+ assert.equal(login.status,403);assert.equal(e.DB.sqlite.prepare('SELECT COUNT(*) n FROM maliks_pos_staff_sessions').get().n,0);
 });
 test('native-only rollout flag is configured separately from Cloudflare Access bootstrap',()=>{
  const core=readFileSync(new URL('../src/core.mjs',import.meta.url),'utf8');

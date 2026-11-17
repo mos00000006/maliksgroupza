@@ -49,6 +49,14 @@ const body=async req=>{
   return value;
 };
 const rateBucket=async(type,value)=>type+':'+await digest(value);
+// If the Workers request has no reliable Cloudflare client address, never
+// group the entire workforce into one shared 'unknown' IP lockout bucket.
+const realClientIp=value=>typeof value==='string'&&value.trim()&&value.trim().toLowerCase()!=='unknown'&&
+  value.trim().toLowerCase()!=='undefined'&&value.trim().length<=100?value.trim():null;
+async function clearAccountLockout(db,address){
+  await db.prepare('DELETE FROM maliks_pos_login_attempts WHERE bucket=?')
+    .bind(await rateBucket('user',String(address||'').trim().toLowerCase())).run();
+}
 async function throttled(db,bucket,max,now){
   const r=await db.prepare('SELECT attempts,window_until FROM maliks_pos_login_attempts WHERE bucket=?').bind(bucket).first();
   return Boolean(r&&Number(r.window_until)>now&&Number(r.attempts)>=max);
@@ -72,24 +80,42 @@ export async function loginPassword(req,env,app,ip=''){
   let data;try{data=await body(req);}catch(e){return fail(e.message);}
   const userEmail=email(data.email),pass=data.password;
   if(!userEmail||typeof pass!=='string'||pass.length>128)return fail('Invalid email or password.',401);
-  const now=Date.now(),userBucket=await rateBucket('user',userEmail),ipBucket=await rateBucket('ip',String(ip||'unknown').slice(0,100));
-  if(await throttled(env.DB,userBucket,5,now)||await throttled(env.DB,ipBucket,30,now))return fail('Too many login attempts. Please try again later.',429);
-  const record=await env.DB.prepare(`SELECT t.id,t.email,t.active,t.role,t.department,t.access_scope,t.workspace_access,c.salt,c.password_hash,c.iterations,c.auth_version,c.must_change
-    FROM team_members t LEFT JOIN maliks_pos_staff_credentials_v2 c ON c.member_id=t.id
-    WHERE lower(t.email)=? LIMIT 1`).bind(userEmail).first();
-  // Run a PBKDF2 operation for unknown accounts too, reducing email enumeration.
-  const credential=record?.password_hash?record:await hashPassword('dummy-password-for-constant-work');
-  const match=await verifyPassword(pass,credential);
-  if(match&&record)await attachAppPermissions(env.DB,record);
-  if(!match||!canUseApp(record,app)){
-    await Promise.all([failedAttempt(env.DB,userBucket,now),failedAttempt(env.DB,ipBucket,now)]);
-    return fail('Invalid email or password.',401);
+  const now=Date.now(),userBucket=await rateBucket('user',userEmail);
+  const safeIp=realClientIp(ip),ipBucket=safeIp?await rateBucket('ip',safeIp):null;
+  try{
+    if(await throttled(env.DB,userBucket,5,now)||(ipBucket&&await throttled(env.DB,ipBucket,30,now)))
+      return fail('Too many login attempts. Retry after the 15-minute security window, or ask Member Team to reset your account.',429);
+    const record=await env.DB.prepare(`SELECT t.id,t.email,t.active,t.role,t.department,t.access_scope,t.workspace_access,
+      c.salt,c.password_hash,c.iterations,c.auth_version,c.must_change
+      FROM team_members t LEFT JOIN maliks_pos_staff_credentials_v2 c ON c.member_id=t.id
+      WHERE lower(trim(t.email))=? LIMIT 1`).bind(userEmail).first();
+    // Perform PBKDF2 for unknown accounts to reduce account enumeration.
+    const credential=record?.password_hash?record:await hashPassword('dummy-password-for-constant-work');
+    let match=false;
+    try{match=await verifyPassword(pass,credential);}catch{
+      // Corrupt legacy credential data must not crash the worker or disclose a hash.
+      console.error('Maliks login credential verification failed (invalid credential encoding).');
+      return fail('Employee credential needs administrator reset in Maliks Member Team.',503);
+    }
+    if(!match){
+      await Promise.all([failedAttempt(env.DB,userBucket,now),...(ipBucket?[failedAttempt(env.DB,ipBucket,now)]:[])]);
+      return fail('Invalid employee email or password. This login uses a Maliks Member Team employee password, not the Group Hub password.',401);
+    }
+    await attachAppPermissions(env.DB,record);
+    if(!canUseApp(record,app)){
+      // Credentials already verified, so disclosing that the app grant is missing
+      // does not permit account enumeration or unnecessary failed-login lockouts.
+      return fail('Password verified, but this Maliks application is not enabled for your account. Ask Member Team to grant app access.',403);
+    }
+    const token=random(32),tokenHash=await digest(token);
+    await env.DB.prepare(`INSERT INTO maliks_pos_staff_sessions(token_hash,member_id,app,auth_version,expires_at,created_at)
+      VALUES (?,?,?,?,?,?)`).bind(tokenHash,record.id,app,record.auth_version,now+SESSION_MS,new Date(now).toISOString()).run();
+    await clearAccountLockout(env.DB,userEmail);
+    return response({ok:true,token,password_change_required:Number(record.must_change)===1});
+  }catch(error){
+    console.error('Maliks shared login storage failure:',String(error?.message||'unknown').slice(0,140));
+    return fail('Maliks employee login service unavailable. Check the Phase 21b credential database and Core Worker deployment.',503);
   }
-  const token=random(32),tokenHash=await digest(token);
-  await env.DB.prepare(`INSERT INTO maliks_pos_staff_sessions(token_hash,member_id,app,auth_version,expires_at,created_at)
-    VALUES (?,?,?,?,?,?)`).bind(tokenHash,record.id,app,record.auth_version,now+SESSION_MS,new Date(now).toISOString()).run();
-  await env.DB.prepare('DELETE FROM maliks_pos_login_attempts WHERE bucket=?').bind(userBucket).run();
-  return response({ok:true,token,password_change_required:Number(record.must_change)===1});
 }
 export async function verifySession(env,app,token){
   if(!token||!/^[A-Za-z0-9_-]{43}$/.test(token))return null;
@@ -111,7 +137,7 @@ export async function changeOwnPassword(req,env,auth){
   if(!validPassword(data.new_password)||data.new_password===data.current_password)return fail('Choose a different password of at least 14 characters.',400);
   const row=await env.DB.prepare(`SELECT t.id,t.email,c.salt,c.password_hash,c.iterations,c.auth_version
     FROM team_members t JOIN maliks_pos_staff_credentials_v2 c ON c.member_id=t.id
-    WHERE lower(t.email)=? AND t.active=1`).bind(auth.email).first();
+    WHERE lower(trim(t.email))=? AND t.active=1`).bind(auth.email).first();
   if(!row||typeof data.current_password!=='string'||!await verifyPassword(data.current_password,row))return fail('Current password incorrect.',403);
   const hashed=await hashPassword(data.new_password),now=new Date().toISOString();
   const steps=[
@@ -125,6 +151,7 @@ export async function changeOwnPassword(req,env,auth){
   ];
   const results=await env.DB.batch(steps);
   if(Number(results[0]?.meta?.changes)!==1)return fail('Password was changed in another session. Sign in again.',409);
+  await clearAccountLockout(env.DB,auth.email);
   return response({ok:true,sign_in_again:true});
 }
 export async function issueTemporaryPassword(req,env,ctx){
@@ -154,6 +181,7 @@ export async function issueTemporaryPassword(req,env,ctx){
       VALUES (?,?,?,?,?,'ISSUE_TEMPORARY',?)`).bind(data.request_id.toLowerCase(),target.id,target.email,branch,actor,now)
   ];
   try{await env.DB.batch(steps);}catch(e){if(/UNIQUE|constraint/i.test(e.message))return fail('Password issuance already processed.',409);throw e;}
+  await clearAccountLockout(env.DB,target.email);
   return response({ok:true,employee:target.email,temporary_password,must_change_password:true});
 }
 
@@ -167,7 +195,7 @@ export async function bootstrapOwnPassword(req,env,auth){
   if(!validPassword(data.new_password))return fail('Use a password of at least 14 characters (maximum 128).',400);
   if(data.new_password!==data.confirm_password)return fail('The two passwords do not match.',400);
   try{
-    const actor=await env.DB.prepare(`SELECT id,email,role,department,active FROM team_members WHERE lower(email)=? LIMIT 1`)
+    const actor=await env.DB.prepare(`SELECT id,email,role,department,active FROM team_members WHERE lower(trim(email))=? LIMIT 1`)
       .bind(String(auth.email||'').trim().toLowerCase()).first();
     if(!actor||Number(actor.active)!==1||!['Owner / Admin','Developer / Technical Admin'].includes(actor.role))return fail('Your signed-in account is not an active Owner / Technical Admin. Check the Hub role assignment.',403);
     // A missing migration previously threw an uncaught Worker exception, which
@@ -190,10 +218,70 @@ export async function bootstrapOwnPassword(req,env,auth){
       env.DB.prepare(`INSERT INTO maliks_pos_password_audit(request_id,member_id,member_email,branch,actor_email,action,created_at)
         VALUES (?,?,?,?,?,'CHANGE_PASSWORD',?)`).bind(crypto.randomUUID(),actor.id,actor.email,auditBranch,actor.email,now)
     ]);
+    // A verified Access administrator setting a NEW password should not remain
+    // locked out because of earlier failed logins with their previous password.
+    await clearAccountLockout(env.DB,actor.email);
     // No plaintext or temporary password is ever returned to the browser.
     return response({ok:true,employee:actor.email,password_set:true,sign_in_again:true});
   }catch(e){
     console.error('Maliks administrator password setup failed:',String(e?.message||'Unknown error').slice(0,200));
     return fail('Could not save administrator password. Check the Phase 21b D1 migration and Core Worker logs.',503);
   }
+}
+
+
+// Access-verified administrators may inspect credential readiness without ever
+// retrieving a password hash, salt, bearer token or recovery secret.
+export async function loginAccountHealth(req,env,ctx){
+  if(ctx?.app!=='member'||ctx?.auth_method!=='access'||
+     !['Owner / Admin','Developer / Technical Admin'].includes(ctx.member?.role))
+    return fail('Sign in through Cloudflare Access as an Owner or Technical Admin.',403);
+  const params=new URL(req.url).searchParams;
+  let target;
+  if(params.get('self')==='1'){
+    target=await env.DB.prepare(`SELECT id,name,email,role,department,active,access_scope,workspace_access
+      FROM team_members WHERE id=?`).bind(ctx.member.id).first();
+  }else{
+    const branch=matchingBranch(ctx.branches,params.get('branch'));
+    const id=Number(params.get('member_id'));
+    if(!branch||!Number.isSafeInteger(id)||id<1)return fail('Select an authorised branch and employee.',403);
+    target=await env.DB.prepare(`SELECT id,name,email,role,department,active,access_scope,workspace_access
+      FROM team_members WHERE id=? AND lower(department)=lower(?) LIMIT 1`).bind(id,branch).first();
+  }
+  if(!target)return fail('Employee not found in the authorised store.',404);
+  const schema=await env.DB.prepare(`SELECT name FROM sqlite_master WHERE type='table'
+    AND name IN ('maliks_pos_staff_credentials_v2','maliks_pos_staff_sessions','maliks_pos_login_attempts')`).all();
+  const tables=new Set(schema.results.map(x=>x.name));
+  const schemaReady=['maliks_pos_staff_credentials_v2','maliks_pos_staff_sessions','maliks_pos_login_attempts'].every(x=>tables.has(x));
+  if(!schemaReady)return response({employee:target.name,credential_service_ready:false,
+    remediation:'Run the Phase 21 and 21b D1 migrations, then redeploy Maliks Core.'},503);
+  const credential=await env.DB.prepare(`SELECT iterations,must_change,updated_at
+    FROM maliks_pos_staff_credentials_v2 WHERE member_id=?`).bind(target.id).first();
+  const legacyExists=await env.DB.prepare(`SELECT name FROM sqlite_master
+    WHERE type='table' AND name='maliks_pos_staff_credentials'`).first();
+  const legacy=legacyExists?await env.DB.prepare(`SELECT member_id FROM maliks_pos_staff_credentials WHERE member_id=?`).bind(target.id).first():null;
+  const userBucket=await rateBucket('user',String(target.email||'').trim().toLowerCase());
+  const lock=await env.DB.prepare('SELECT attempts,window_until FROM maliks_pos_login_attempts WHERE bucket=?')
+    .bind(userBucket).first();
+  const lockSeconds=lock&&Number(lock.attempts)>=5?Math.max(0,Math.ceil((Number(lock.window_until)-Date.now())/1000)):0;
+  await attachAppPermissions(env.DB,target);
+  // For stored employees, the effective app access is still checked again on
+  // every login/session. This is a status report, never a permission grant.
+  const appAccess=Object.fromEntries(['management','pos','tills','cashoffice','dispatch','member']
+    .map(app=>[app,canUseApp(target,app)]));
+  const passwordReady=!!credential&&Number(credential.iterations)===ITERATIONS;
+  const branchAssigned=ctx.branches.length>0&&
+    (['Owner / Admin','Developer / Technical Admin'].includes(target.role)||
+      ctx.branches.some(b=>b.toLowerCase()===String(target.department||'').toLowerCase()));
+  return response({employee:target.name,employee_email:String(target.email||'').trim(),role:target.role,
+    employee_active:Number(target.active)===1,credential_service_ready:true,
+    password_ready:passwordReady,password_needs_change:!!credential&&Number(credential.must_change)===1,
+    password_updated_at:credential?.updated_at||null,legacy_password_only:!!legacy&&!credential,
+    login_locked_for_seconds:lockSeconds,branch_assigned:branchAssigned,apps:appAccess,
+    advice:!passwordReady?'Set or issue a NEW employee password from Member Team. The Group Hub password is separate.':
+      Number(credential.must_change)===1?'Temporary password is set. Sign in and change the temporary password before using the app.':
+      lockSeconds?'Employee sign-in is temporarily rate-limited. An authorised password reset clears this employee lockout.':
+      !appAccess.pos?'Grant Maliks Sales + Quote access in Member Team.':
+      !branchAssigned?'Assign an active store in the Group Hub.':
+      'Employee credential and access settings appear ready. If login still fails, inspect the secure Core Worker logs.'});
 }

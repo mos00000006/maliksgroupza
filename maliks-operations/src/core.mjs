@@ -16,7 +16,7 @@ import {resolveMobilePriceTag,listBranchSalesQuotes} from './mobile-quote-domain
 import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
 import {canManageTeam,listTeam,changeTeam,setTeamAppAccess} from './team-domain.mjs';
 import {listStockControl,createStockControl,stockControlAction} from './stock-control-domain.mjs';
-import {loginPassword,verifySession,logoutPassword,changeOwnPassword,issueTemporaryPassword,bootstrapOwnPassword} from './password-auth-domain.mjs';
+import {loginPassword,verifySession,logoutPassword,changeOwnPassword,issueTemporaryPassword,bootstrapOwnPassword,loginAccountHealth} from './password-auth-domain.mjs';
 
 const HEADERS={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const denied=(msg='Access denied.',status=403)=>Response.json({error:msg},{status,headers:HEADERS});
@@ -500,6 +500,7 @@ export default {
         mode:auth.app==='member'?'MEMBER_TEAM':auth.app==='management'?'MASTER_FILES':auth.app==='tills'?'PAID_SALES_PILOT':auth.app==='cashoffice'?'INDEPENDENT_RECEIPT_REVIEW':auth.app==='dispatch'?'DISPATCH_QUEUE':'QUOTATIONS',live_payment:env.P9_APPROVAL_ENABLED==='true',stock_posting:false,
       });
       if(path==='/v1/team'&&req.method==='GET')return await listTeam(req,env,context);
+      if(path==='/v1/team/login-health'&&req.method==='GET')return await loginAccountHealth(req,env,context);
       if(path==='/v1/team/change'&&req.method==='POST')return await changeTeam(req,env,context);
       if(path==='/v1/team/apps'&&req.method==='POST')return await setTeamAppAccess(req,env,context);
       if(path==='/v1/team/password-reset'&&req.method==='POST')return await issueTemporaryPassword(req,env,context);

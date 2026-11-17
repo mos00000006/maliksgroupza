@@ -154,15 +154,28 @@ function mobileQuoteBrowser(){
     catch(e){root.replaceChildren(el('p','muted','Could not load branch quotes: '+e.message));}}
   function changeBranch(){stopCamera();state.branch=$('branch').value;state.basket=[];state.pending=null;state.saved=null;state.history=[];renderBasket();showTab('new');message('Branch changed. Prices will now use '+state.branch+'.');}
   async function startSession(){
-    try{const data=await request('/api/session');if(data.password_change_required){$('login').hidden=false;setText('login-help','Change your temporary password in Maliks Sales before using this app.');return;}
+    try{const data=await request('/api/session');if(data.password_change_required){$('login').hidden=true;$('workspace').hidden=true;$('change-password').hidden=false;setText('password-help','A temporary password must be changed before you can create quotations.');return;}
       state.session=data;const branchInput=$('branch');branchInput.replaceChildren();for(const b of data.branches||[]){const opt=el('option','',b);opt.value=b;branchInput.append(opt);}
       if(!data.branches?.length)throw Error('No assigned branch. Contact Head Office.');
       const params=new URLSearchParams(location.search);const requested=params.get('branch');if(requested&&data.branches.some(x=>x.toLowerCase()===requested.toLowerCase()))branchInput.value=data.branches.find(x=>x.toLowerCase()===requested.toLowerCase());
       state.branch=branchInput.value;setText('staff-name',data.user.name+' · '+data.user.role);
-      $('login').hidden=true;$('workspace').hidden=false;renderBasket();
+      $('login').hidden=true;$('change-password').hidden=true;$('workspace').hidden=false;renderBasket();
       const token=params.get('tag');if(token){const qr=new URL('/p/'+encodeURIComponent(token),'https://maliks.co.za');if(params.get('tag_branch'))qr.searchParams.set('branch',params.get('tag_branch'));await addScanned(qr.href);}
     }catch(e){$('login').hidden=false;$('workspace').hidden=true;setText('login-help',e.message);}
   }
+  $('change-password-form').addEventListener('submit',async event=>{
+    event.preventDefault();const button=$('change-password-submit');
+    const current=$('change-current').value,next=$('change-new').value,confirmation=$('change-confirm').value;
+    if(next.length<14||next!==confirmation){setText('password-help','New password must have at least 14 characters and match the confirmation.');return;}
+    button.disabled=true;setText('password-help','Saving employee password…');
+    try{
+      await request('/api/auth/change-password',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({current_password:current,new_password:next})});
+      $('change-current').value='';$('change-new').value='';$('change-confirm').value='';
+      try{await request('/api/auth/logout',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});}catch{}
+      location.reload();
+    }catch(e){setText('password-help',e.message);}finally{button.disabled=false;}
+  });
   $('branch').addEventListener('change',changeBranch);
   for(const id of ['new','saved','history'])$('tab-'+id).addEventListener('click',()=>showTab(id));
   $('camera-start').addEventListener('click',()=>void startCamera());
@@ -183,7 +196,8 @@ function mobileQuoteBrowser(){
 
 const screen=()=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Maliks Quote — Mobile Sales</title><meta name="theme-color" content="#0A2A3F"><meta name="application-name" content="Maliks Quote"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Maliks Quote"><meta name="apple-mobile-web-app-status-bar-style" content="default"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/quote-icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><style>${css}</style></head>
 <body><header class="top"><div class="top-inner"><div class="brand"><img src="/powerbuild-logo.png" width="54" height="54" alt="PowerBuild"><div><strong>MALIKS <span>QUOTE</span></strong><small>ACCOUNTING &amp; POS SOLUTIONS · PROFESSIONAL</small></div></div><span class="secure"><i></i>SECURE SALES</span><span class="user" id="staff-name"></span></div></header>
-<section id="login" class="app"><div class="panel" style="max-width:420px;margin:35px auto"><p class="gold-label">Authorised sales only</p><h1>Sign in to Maliks Quote</h1><p class="intro">Use your existing Maliks Sales employee credentials. Staff accounts are restricted to assigned branches.</p><form id="login-form"><div class="field"><label for="login-email">Staff email</label><input id="login-email" type="email" autocomplete="username" required></div><div class="field"><label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" required></div><button id="login-button" class="btn dark block" type="submit">Sign in securely</button></form><p id="login-help" class="muted" aria-live="polite"></p></div></section>
+<section id="login" class="app"><div class="panel" style="max-width:420px;margin:35px auto"><p class="gold-label">Authorised sales only</p><h1>Sign in to Maliks Quote</h1><p class="intro">Use your Maliks Member Team employee email and password (not necessarily your Group Hub password). Staff accounts are restricted to authorised branches. If login fails, an administrator can check your login status or issue a new password from Member Team.</p><form id="login-form"><div class="field"><label for="login-email">Staff email</label><input id="login-email" type="email" autocomplete="username" required></div><div class="field"><label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" required></div><button id="login-button" class="btn dark block" type="submit">Sign in securely</button></form><p id="login-help" class="muted" aria-live="polite"></p></div></section>
+<section id="change-password" class="app" hidden><div class="panel" style="max-width:440px;margin:35px auto"><p class="gold-label">First sign-in security</p><h1>Choose your permanent password</h1><p class="intro">Change the temporary Maliks Member Team password here. This password will work in Maliks Sales and Maliks Quote once your app permissions are enabled.</p><form id="change-password-form"><div class="field"><label for="change-current">Temporary password</label><input id="change-current" type="password" autocomplete="current-password" required></div><div class="field"><label for="change-new">New password (14+ characters)</label><input id="change-new" type="password" minlength="14" maxlength="128" autocomplete="new-password" required></div><div class="field"><label for="change-confirm">Confirm new password</label><input id="change-confirm" type="password" minlength="14" maxlength="128" autocomplete="new-password" required></div><button id="change-password-submit" class="btn dark block" type="submit">Save new password</button></form><p id="password-help" aria-live="polite" class="muted"></p></div></section>
 <main id="workspace" class="app" hidden><div class="page-heading"><div><p class="gold-label">Mobile sales · scan to quote</p><h1>Build a customer quotation</h1><p>Live branch pricing · quotation only, no payment</p></div><button class="btn secondary small" type="button" id="logout">Sign out</button></div>
 <div class="row" style="margin-bottom:18px"><div class="field" style="max-width:400px"><label for="branch">Branch / Store</label><select id="branch"></select></div></div>
 <div class="tabs" role="navigation" aria-label="Quotation navigation"><button class="btn active" id="tab-new" type="button">New Quote</button><button class="btn secondary" id="tab-saved" type="button">Saved Quote</button><button class="btn secondary" id="tab-history" type="button">Branch Quotes</button></div>
@@ -200,7 +214,7 @@ const screen=()=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><me
 <script>${mobileQuoteBrowser.toString()};(${mobileQuoteBrowser.name})();</script></body></html>`;
 const routeMap=Object.freeze({'/api/session':'/v1/session','/api/catalogue':'/v1/catalogue',
   '/api/quotes':'/v1/quotes','/api/quote/tag':'/v1/quote/tag','/api/quote/branch-queue':'/v1/quote/branch-queue',
-  '/api/auth/login':'/v1/auth/login','/api/auth/logout':'/v1/auth/logout'});
+  '/api/auth/login':'/v1/auth/login','/api/auth/logout':'/v1/auth/logout','/api/auth/change-password':'/v1/auth/change-password'});
 export default {
   async fetch(request,env){
     const url=new URL(request.url);const path=url.pathname;
@@ -215,7 +229,7 @@ export default {
     const target=routeMap[path];if(!target)return Response.json({error:'Unknown endpoint.'},{status:404});
     const method=request.method;
     const permitted=method==='GET'&&['/api/session','/api/catalogue','/api/quote/tag','/api/quote/branch-queue'].includes(path)||
-      method==='POST'&&['/api/quotes','/api/auth/login','/api/auth/logout'].includes(path);
+      method==='POST'&&['/api/quotes','/api/auth/login','/api/auth/logout','/api/auth/change-password'].includes(path);
     if(!permitted)return Response.json({error:'Operation not permitted in Maliks Quote.'},{status:405});
     if(method==='POST'&&request.headers.get('origin')!==url.origin)return Response.json({error:'Invalid request origin.'},{status:403});
     const access=request.headers.get('cf-access-jwt-assertion');
