@@ -1,60 +1,55 @@
-# MALIKS QUOTE — REAL POWERBUILD LOGO INSTALL ICON
+# MALIKS MEMBER TEAM — SHARED EMPLOYEE LOGIN & APP ACCESS PATCH (Phase 23)
 
-## Fix
-The mobile Maliks Quote Worker previously served a browser favicon only. Without an install manifest and declared Android/iPhone home-screen icons, browser installation may create a generic initial-letter "M" tile.
+## What has changed
 
-The updated Worker includes:
-- The **real original PowerBuild logo**, kept intact, against your standard navy `#0A2A3F`.
-- PWA install manifest at `/manifest.webmanifest`, app name **Maliks Quote**, standalone display mode.
-- Standard PNG app icons at `/quote-icon-192.png` and `/quote-icon-512.png`.
-- Android adaptive/maskable icon at `/quote-icon-maskable-512.png`.
-- Apple touch icon at `/apple-touch-icon.png`, with iPhone home-screen metadata.
-- Public icon endpoints for browser installation **without exposing sales/quotation data**.
-- No modification to your QR codes, products, quotation saving, Sales linking or permissions.
-- Icons are embedded in the Worker source; **no extra Cloudflare R2 bucket or asset binding is needed**.
+- Member Team now shows **Maliks Apps — Login & Access** links to authorised Maliks Workers.
+- The employee list has **Manage app logins** (Owner / Admin or Developer / Technical Admin only).
+- Assign app access individually. Six server-enforced permissions cover **Maliks POS Professional**, **Maliks Sales + Maliks Quote**, **Maliks Tills**, **Maliks Cash Office**, **Maliks Dispatch**, and **Maliks Member Team**.
+- **Maliks Sales and Maliks Quote share one permission**, since they both use the existing Sales (`pos`) identity at the private Core API.
+- A Developer / Technical Admin and Owner / Admin retain protected full access across all six Worker identities and their assigned company branches. They use their existing employee email/password, not a special shared password.
+- Every app grant/change is audited. Changing an employee’s app permissions invalidates all that employee’s existing app sessions so they must sign in again using the **same** existing password.
+- Legacy role-derived permissions remain in effect until an administrator explicitly saves an employee’s app matrix. After saving, both allowed and denied apps are explicitly stored.
+- Member Team administration remains restricted to management roles, even if a non-manager somehow obtains a Member Team permission request.
+- The pre-existing per-app password and secure, host-only browser sessions remain unchanged. Separate `workers.dev` origins require separate sign-ins. **This is shared credentials, not automatic one-click SSO between sites.**
 
-## Add files to the EXISTING `maliksgroupza` repository
-Extract this ZIP into the repository **root**, preserving these exact paths:
-```
-maliksgroupza/
-  maliks-operations/
-    src/
-      mobile-quote-frontend.mjs        # replace existing Quote frontend
-      quote-app-icons.mjs              # new: embedded original logo icons
-      quote-app-manifest.mjs           # new: mobile install metadata
-    tests/
-      quote-app-install-icon.test.mjs  # new: tests
-```
-Do not create another nested `maliksgroupza` folder. Do not replace the main Hub `app/` files. If you have made other edits to `mobile-quote-frontend.mjs` after the previous Quote ZIP, compare the included `CHANGES.diff` and merge those edits rather than overwriting them blindly.
+## Important scope limitation
 
-## Test
-From `maliksgroupza/maliks-operations`, run:
-```powershell
-npm install
-npm test
-```
+This patch shares logins across the **separate Maliks Operations Workers** listed above. It does **not** unify the main **Maliks Group Hub** identity with the Operations employee-password database. The Hub’s Cloudflare Access / Hub authentication configuration is a separate system and still applies. Cloudflare Access must allow the employee to reach each Worker hostname; granting access within Member Team does not bypass Cloudflare Access policies.
 
-## Deploy
-The new icon becomes available **only after the Maliks Quote Worker is deployed**. If your GitHub Actions deployment workflow already contains `npm run deploy:quote` after Sales, run that workflow after verifying Cloudflare credentials and Access protection. Alternatively, with existing secure Wrangler configuration:
-```powershell
-npm run config
-npm run deploy:quote
-```
-`npm run config` requires the existing Cloudflare/Access/D1 environment variables set up for your project. It is unnecessary to redeploy Core or alter D1 for this icon-only patch.
+## Install the patch in your existing GitHub repository
 
-Once the Worker is live, check:
-- `https://maliks-quote.moyanamoses006.workers.dev/`
-- `https://maliks-quote.moyanamoses006.workers.dev/manifest.webmanifest`
-- `https://maliks-quote.moyanamoses006.workers.dev/quote-icon-512.png`
+1. Back up your `maliksgroupza` project and the `maliks-group-hub-db` Cloudflare D1 database. Prefer making a Git branch.
+2. Extract this ZIP **into the root of `maliksgroupza`**, merging the included `.github/workflows/` and `maliks-operations/` folders with the existing folders. Do **not** create another nested repository folder. Replace only files contained in the ZIP; leave the main Hub and your other files unchanged.
+3. From the **`maliks-operations`** folder run:
+   ```powershell
+   npm install
+   npm test
+   ```
+4. The supplied `.github/workflows/deploy-maliks-operations.yml` applies the new **Phase 23** additive D1 migration **before** deploying the updated Core Worker. It also includes the Maliks Quote deployment step that was missing from the last checked GitHub workflow. Verify your Cloudflare account, worker names, secret values, D1 binding and Access policies before running the complete workflow.
+5. Go to **GitHub → Actions → Deploy Maliks Department Applications → Run workflow**, and confirm the name-check requirement as prompted. This workflow redeploys the other department Workers as well.
+6. For a *targeted manual deployment* instead, after supplying the existing Cloudflare environment variables and generating `.generated/` configs, run:
+   ```powershell
+   npm run config
+   npm run migrate:phase23
+   npm run deploy:core
+   npm run deploy:member
+   ```
+   Only do this if the target D1 database is correct and your credentials/Access setup is already configured. The new migration creates two tables and indexes; it does not replace `team_members`, passwords or the Group Hub.
+7. Log in to `https://maliks-member-team.moyanamoses006.workers.dev/` as the Owner / Admin or Developer / Technical Admin. Choose a branch, click **Manage app logins** for an employee, tick authorised apps and **Save app logins**.
+8. Have the employee sign out and sign in at the newly authorised site using their **existing same email and password**. First-time employees still need their one-time temporary password and must change it.
+9. To set your own administrator password for the first time, use the existing Member Team **Set my administrator password** function while authenticated through verified Cloudflare Access. The password reset/bootstrapping rules remain deliberately restricted.
 
-## Reinstall the shortcut to refresh the generic M icon
-**Android (Chrome):** Remove/uninstall the old home-screen Maliks Quote shortcut, open the deployed site in Chrome and choose the browser menu > **Install app** or **Add to Home screen**. The icon should display the PowerBuild logo and the name "Maliks Quote".
+## Tested
 
-**iPhone (Safari):** Remove the previous Maliks Quote home-screen icon, open the deployed site in Safari, then use Share > **Add to Home Screen**. iOS will use the PowerBuild Apple touch icon.
+`npm test` on the matching project source: **214 passed, 0 failed** (including six new Phase 23 tests). The new tests verify permission grants and denials, developer all-app access, audited updates and replay, store isolation, own-account restrictions, shared-password app-specific sessions, revoked sessions, and the Member Team frontend route.
 
-**PC:** If you had installed the app in Chrome/Edge, uninstall the old installed app and reinstall from the deployed site to pick up the new icon.
+The patch is a local artifact and has **not** been committed, merged, migrated or deployed on your live Cloudflare account.
 
-If the link still shows Cloudflare "There is nothing here yet", the Quote Worker has not been deployed to that hostname. Complete deployment before trying to install the app.
+## Troubleshooting
 
-## Verification
-This icon patch was tested against the reconstructed project based on the existing `maliksgroupza` files and the preceding POS/Quote patches. **208 automated tests passed, 0 failures.** This does not prove successful Cloudflare production deployment.
+- If app access changes do not save, confirm Phase 23 migration ran on the correct database and Core was redeployed.
+- If the employee cannot open a Worker at all, check **Cloudflare Access application hostname and policy**. App permissions in D1 cannot bypass Cloudflare Access.
+- If employee password login is rejected, verify credentials were issued in Member Team and the employee has changed any temporary password.
+- If an employee can open Sales but not Quote, check that the `maliks-quote` Worker was deployed and covered by the required Cloudflare Access policy. They both rely on `pos` permission.
+- If the employee has already signed in elsewhere, a permission change revokes those sessions by design.
+- This patch is **not** single sign-on (SSO). Each distinct Worker requires a sign-in with the same credentials, unless Cloudflare Access has its own identity SSO configured separately.

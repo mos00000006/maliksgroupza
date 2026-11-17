@@ -81,6 +81,8 @@ jobs:
         run: npm run migrate:phase21
       - name: Apply Cloudflare-compatible password schema (Phase 21b)
         run: npm run migrate:phase21b
+      - name: Apply audited employee app-login permissions schema (Phase 23)
+        run: npm run migrate:phase23
       - name: Deploy central API — private Worker
         run: npm run deploy:core
       - name: Deploy Maliks POS Professional (management suite)
@@ -97,5 +99,3 @@ jobs:
         run: npm run deploy:cashoffice
       - name: Deploy Dispatch
         run: npm run deploy:dispatch
-      - name: Deploy Maliks Quote (Mobile)
-        run: npm run deploy:quote

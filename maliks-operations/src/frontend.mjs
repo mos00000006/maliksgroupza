@@ -251,6 +251,16 @@ function page(app){
  </main></div><script type="module">
  const APP=${JSON.stringify(app)};
  const MEMBER_TEAM_URL='https://maliks-member-team.moyanamoses006.workers.dev';
+ const MALIKS_APP_LINKS=[
+   ['management','Maliks POS Professional','https://maliks-pos.moyanamoses006.workers.dev/'],
+   ['pos','Maliks Sales','https://maliks-sales.moyanamoses006.workers.dev/'],
+   ['pos','Maliks Quote','https://maliks-quote.moyanamoses006.workers.dev/'],
+   ['tills','Maliks Tills','https://maliks-tills.moyanamoses006.workers.dev/'],
+   ['cashoffice','Maliks Cash Office','https://maliks-cash-office.moyanamoses006.workers.dev/'],
+   ['dispatch','Maliks Dispatch','https://maliks-dispatch.moyanamoses006.workers.dev/'],
+   ['member','Maliks Member Team','https://maliks-member-team.moyanamoses006.workers.dev/']
+ ];
+ let loggedInMaliksApps=[];
  const CASH_OFFICE_URL='https://maliks-cash-office.moyanamoses006.workers.dev/';
  let currentUserRole='';
  const SUITE_NAV=${JSON.stringify(SUITE_NAV)};
@@ -1923,6 +1933,17 @@ function page(app){
  }
  function teamView(){
    const root=E('app-content');
+   const launcher=panel('Maliks Apps — Login & Access');
+   launcher.append(h('p','One employee email and password works in every authorised Maliks application. Each separate website still requires its own secure sign-in. Maliks Quote shares Sales access.','muted'));
+   const appLinks=h('div',undefined,'bar');
+   for(const [id,name,url] of MALIKS_APP_LINKS){
+     if(!loggedInMaliksApps.includes(id))continue;
+     const link=h('a',name,'secondary small-btn');link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+     link.style.cssText='display:inline-flex;text-decoration:none;align-items:center;justify-content:center;padding:10px 14px;border-radius:8px;';
+     appLinks.append(link);
+   }
+   if(!appLinks.children.length)appLinks.append(h('p','No other apps assigned to this account.','muted'));
+   launcher.append(appLinks);root.append(launcher);
    const main=panel('Employees and store access');
    main.append(h('p','Add staff to their correct branch, or deactivate staff who have left. Deactivation blocks Maliks department API access immediately.','muted'));
    const toolbar=h('div',undefined,'bar');const refresh=h('button','Refresh employees','secondary');
@@ -1976,20 +1997,60 @@ function page(app){
      catch(ex){err(ex.message);}finally{save.disabled=false;}
    });main.append(form);
    const status=h('p','Loading employees…','muted');status.id='team-status';main.append(status);
+   const permissionsPanel=h('section',undefined,'panel');permissionsPanel.hidden=true;main.append(permissionsPanel);
+   const permissionsNotice=h('p','','muted');permissionsNotice.setAttribute('role','status');main.append(permissionsNotice);
    const list=h('div');list.id='team-list';main.append(list);
+   function editAppPermissions(person,apps){
+     permissionsPanel.hidden=false;permissionsPanel.replaceChildren(h('h3','App login permissions · '+person.name));
+     permissionsPanel.append(h('p','Same password for the selected apps. Granting Cash Office or Tills enables transaction access for this employee: approve only when their responsibilities require it. Member Team access still requires a management role.','muted'));
+     const form=h('form');const choices=h('div',undefined,'shift-form');
+     const controls=[];
+     for(const app of apps){
+       const wrap=h('label');wrap.style.cssText='display:flex;gap:9px;align-items:center;padding:10px;border:1px solid #dce4ea;border-radius:8px;';
+       const check=h('input');check.type='checkbox';check.checked=(person.apps||[]).includes(app.id);
+       if(app.id==='member'&&!['Store Manager','Regional Manager','Operations Manager'].includes(person.role)){
+         check.checked=false;check.disabled=true;
+       }
+       wrap.append(check,h('span',app.label));choices.append(wrap);controls.push([app.id,check]);
+     }
+     form.append(choices);const buttons=h('div',undefined,'bar');
+     const submit=h('button','Save app logins');submit.type='submit';const close=h('button','Cancel','secondary');close.type='button';
+     close.addEventListener('click',()=>{permissionsPanel.hidden=true;});
+     buttons.append(submit,close);form.append(buttons);permissionsPanel.append(form);
+     const feedback=h('p','','muted');feedback.setAttribute('role','status');permissionsPanel.append(feedback);
+     let pending=null;
+     for(const [,check] of controls)check.addEventListener('change',()=>{pending=null;feedback.textContent='';});
+     form.addEventListener('submit',async event=>{
+       event.preventDefault();if(!pending)pending={branch,member_id:person.id,apps:controls.filter(([,check])=>check.checked&&!check.disabled).map(([id])=>id),request_id:crypto.randomUUID()};
+       if(!window.confirm('Update app login access for '+person.name+'? Their existing Maliks sessions will be signed out.'))return;
+       submit.disabled=true;feedback.textContent='Saving permissions…';err('');
+       try{
+         await api('/api/team/apps',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(pending)});
+         pending=null;permissionsPanel.hidden=true;permissionsNotice.textContent='App login permissions saved for '+person.name+'. Their other sessions were revoked; they can use the same employee password to sign in to the assigned apps.';
+         await loadTeam();
+       }catch(e){feedback.textContent='Save failed: '+e.message+' Retry retains the same request ID.';submit.disabled=false;}
+     });
+     permissionsPanel.scrollIntoView({block:'start',behavior:'smooth'});
+   }
    const audit=h('div');audit.id='team-audit';main.append(audit);root.append(main);
    async function loadTeam(){
      const selected=branch;status.textContent='Loading employees…';
      try{const data=await api('/api/team?branch='+encodeURIComponent(selected));if(branch!==selected||!E('team-list'))return;
        role.replaceChildren();for(const r of data.can_assign_roles||[]){const o=h('option',r);o.value=r;role.append(o);}
-       list.replaceChildren();const tbl=h('table');const head=h('tr');for(const title of ['Name','Email','Role','Status','Action'])cell(head,title,'th');tbl.append(head);
+       list.replaceChildren();const tbl=h('table');const head=h('tr');for(const title of ['Name','Email','Role','App logins','Status','Action'])cell(head,title,'th');tbl.append(head);
        for(const person of data.staff||[]){const row=h('tr');
-         for(const value of [person.name,person.email,person.role,person.active?'Active':'Inactive'])cell(row,value);
+         for(const value of [person.name,person.email,person.role])cell(row,value);
+         cell(row,(person.apps||[]).length+' assigned'+(person.app_access_locked?' · All apps':''));
+         cell(row,person.active?'Active':'Inactive');
          const action=h('td');
          if(person.active&&person.email.toLowerCase()!==currentUserEmail){
            const b=h('button','Deactivate','secondary small-btn');b.addEventListener('click',()=>void changeStatus(person,'DEACTIVATE',b));action.append(b);
          }else if(!person.active&&data.can_reactivate){
            const b=h('button','Reactivate','secondary small-btn');b.addEventListener('click',()=>void changeStatus(person,'REACTIVATE',b));action.append(b);
+         }
+         if(person.active&&data.can_manage_apps&&!person.app_access_locked&&person.email.toLowerCase()!==currentUserEmail){
+           const access=h('button','Manage app logins','secondary small-btn');access.type='button';
+           access.addEventListener('click',()=>editAppPermissions(person,data.apps||[]));action.append(access);
          }
          if(person.active&&(data.can_reactivate||(data.can_assign_roles||[]).includes(person.role))){
            const pw=h('button','Issue password','secondary small-btn');pw.type='button';pw.addEventListener('click',async()=>{
@@ -2060,7 +2121,7 @@ function page(app){
    const session=await api('/api/session');
    if(session.password_change_required){changePasswordView();}
    else{
-     masterPermissions=session.master_permissions||{};stockPricePermission=session.stock_price_permission===true;purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};currentUserEmail=String(session.user.email||'').toLowerCase();currentUserRole=session.user.role;E('signed-in').textContent=APP==='sales'?session.user.name:session.user.name+' · '+session.user.role;
+     loggedInMaliksApps=session.app_login_access||[];masterPermissions=session.master_permissions||{};stockPricePermission=session.stock_price_permission===true;purchasePermissions=session.purchase_permissions||{};inventoryPermissions=session.inventory_permissions||{};supplierInvoicePermissions=session.supplier_invoice_permissions||{};currentUserEmail=String(session.user.email||'').toLowerCase();currentUserRole=session.user.role;E('signed-in').textContent=APP==='sales'?session.user.name:session.user.name+' · '+session.user.role;
      E('access').textContent=APP==='sales'?session.branches.join(', '):session.branches.length+' assigned branch(es)'+(['pos','member'].includes(APP)?'':session.live_payment?' · Payment pilot ENABLED':' · Payment pilot DISABLED');const select=E('branch');select.replaceChildren();
      for(const b of session.branches){const o=h('option',b);o.value=b;select.append(o);}select.disabled=APP==='sales'&&session.branches.length===1;branch=select.value;
      if(APP==='cashoffice'){
@@ -2102,18 +2163,18 @@ export default {
      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
      '/api/stock-control':'/v1/stock-control','/api/stock-control/action':'/v1/stock-control/action',
      '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action','/api/supplier-invoices':'/v1/supplier-invoices','/api/supplier-invoices/action':'/v1/supplier-invoices/action',
-     '/api/team':'/v1/team','/api/team/change':'/v1/team/change','/api/team/password-reset':'/v1/team/password-reset',
+     '/api/team':'/v1/team','/api/team/change':'/v1/team/change','/api/team/apps':'/v1/team/apps','/api/team/password-reset':'/v1/team/password-reset',
      '/api/auth/login':'/v1/auth/login','/api/auth/logout':'/v1/auth/logout','/api/auth/change-password':'/v1/auth/change-password','/api/auth/bootstrap':'/v1/auth/bootstrap'};
    const path=pathMap[url.pathname];
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
-   if((path==='/v1/team'&&req.method!=='GET')||(['/v1/team/change','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path)&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/cashup-reconciliation/review','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if((path==='/v1/team'&&req.method!=='GET')||(['/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path)&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/cashup-reconciliation/review','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/apps','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // The Professional suite cannot submit Sales transactions through its old POS origin.
    if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
    // The Member Team Worker is isolated from POS, payments and sales.
-   if(kind==='member' && !['/v1/session','/v1/team','/v1/team/change','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Team app only.'},{status:403});
+   if(kind==='member' && !['/v1/session','/v1/team','/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Team app only.'},{status:403});
    if(kind!=='member' && path.startsWith('/v1/team'))return Response.json({error:'Team app only.'},{status:403});
    // The dedicated Sales Worker may only access the quotation/catalogue APIs.
    if(kind==='sales' && !['/v1/session','/v1/catalogue','/v1/quotes','/v1/quotes/find','/v1/quote/branch-queue','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Department access denied.'},{status:403});

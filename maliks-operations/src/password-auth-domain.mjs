@@ -1,6 +1,6 @@
 // Phase 21: staff email/password authentication, revocable sessions and manager-issued
 // one-time temporary credentials. Keep all identity/authorisation checks on Core.
-import {matchingBranch,canUseApp} from './policy.mjs';
+import {matchingBranch,canUseApp,attachAppPermissions} from './policy.mjs';
 import {canManageTeam,STORE_STAFF_ROLES} from './team-domain.mjs';
 
 // Cloudflare Workers WebCrypto rejects PBKDF2 calls above 100,000 iterations.
@@ -80,6 +80,7 @@ export async function loginPassword(req,env,app,ip=''){
   // Run a PBKDF2 operation for unknown accounts too, reducing email enumeration.
   const credential=record?.password_hash?record:await hashPassword('dummy-password-for-constant-work');
   const match=await verifyPassword(pass,credential);
+  if(match&&record)await attachAppPermissions(env.DB,record);
   if(!match||!canUseApp(record,app)){
     await Promise.all([failedAttempt(env.DB,userBucket,now),failedAttempt(env.DB,ipBucket,now)]);
     return fail('Invalid email or password.',401);

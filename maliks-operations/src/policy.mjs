@@ -7,15 +7,51 @@ const DEPARTMENT_ROLES = {
   dispatch: new Set(['Dispatch','Dispatcher','Dispatch Head','Dispatch Manager','Checker','Driver']),
 };
 export const APPS = Object.freeze(['pos','tills','cashoffice','dispatch','management','member']);
+// One account/password across every Maliks Worker. Per-origin session cookies remain separate.
+// Sales + Maliks Quote both map to 'pos' inside the private Core API.
+export const APP_LOGIN_TARGETS = Object.freeze([
+  {id:'management',label:'Maliks POS Professional',url:'https://maliks-pos.moyanamoses006.workers.dev/'},
+  {id:'pos',label:'Maliks Sales + Quote',url:'https://maliks-sales.moyanamoses006.workers.dev/'},
+  {id:'tills',label:'Maliks Tills',url:'https://maliks-tills.moyanamoses006.workers.dev/'},
+  {id:'cashoffice',label:'Maliks Cash Office',url:'https://maliks-cash-office.moyanamoses006.workers.dev/'},
+  {id:'dispatch',label:'Maliks Dispatch',url:'https://maliks-dispatch.moyanamoses006.workers.dev/'},
+  {id:'member',label:'Maliks Member Team',url:'https://maliks-member-team.moyanamoses006.workers.dev/'}
+]);
+// Migration-safe: pre-existing staff retain their original role-based permissions
+// until an administrator explicitly saves a six-app access matrix.
+export async function attachAppPermissions(db,member){
+  if(!member||!Number.isSafeInteger(member.id))return member;
+  try {
+    const {results}=await db.prepare('SELECT app,allowed FROM maliks_member_app_access WHERE member_id=?')
+      .bind(member.id).all();
+    member.app_permissions=results||[];
+  }catch(e){
+    if(!/no such table: maliks_member_app_access/i.test(String(e?.message||e)))throw e;
+    member.app_permissions=[];
+  }
+  return member;
+}
+
 const MANAGEMENT_ONLY = new Set(['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager','Stock Controller','Warehouse Manager','Warehouse Management','Purchasing Manager','Buyer','Finance Manager','Creditors Clerk','Debtors Clerk','Credit Controller','Receiving Clerk','Receiving Manager','Receiving Supervisor','Receiving','GRV Clerk']);
 export function canUseApp(member, app) {
   if (!APPS.includes(app) || !member || Number(member.active) !== 1) return false;
-  if (app === 'member') return ['Owner / Admin','Developer / Technical Admin','Operations Manager','Store Manager','Regional Manager'].includes(member.role);
+  // Technical and Owner admins are fully entitled across all Maliks Workers;
+  // no browser-supplied role or application checkbox can create this privilege.
+  if (['Developer / Technical Admin','Owner / Admin'].includes(member.role)) return true;
+  const eligibleMember=['Operations Manager','Store Manager','Regional Manager'].includes(member.role);
+  // Member Team administration still requires an actual management job role.
+  if (app==='member'&&!eligibleMember) return false;
+  if (Array.isArray(member.app_permissions)) {
+    const override=member.app_permissions.find(x=>x?.app===app);
+    if(override!==undefined)return Number(override.allowed)===1;
+  }
+  if (app === 'member') return eligibleMember;
   if (app === 'management') return MANAGEMENT_ONLY.has(member.role) || (member.role === 'Executive / EXCO' && member.access_scope === 'Full company');
   if (MANAGEMENT.has(member.role)) return true;
   if (member.role === 'Executive / EXCO' && member.access_scope === 'Full company') return true;
   return DEPARTMENT_ROLES[app].has(member.role);
 }
+
 export function allowedBranches(member, branches) {
   if (!member) return [];
   const fullCompany = ['Owner / Admin','Developer / Technical Admin'].includes(member.role) ||

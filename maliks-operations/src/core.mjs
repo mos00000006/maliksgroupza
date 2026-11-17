@@ -1,5 +1,5 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import { APPS, canUseApp, allowedBranches, matchingBranch, limitSearch } from './policy.mjs';
+import { APPS, canUseApp, allowedBranches, matchingBranch, limitSearch, attachAppPermissions } from './policy.mjs';
 import { validateQuoteLines, calculateQuote, canonicalQuotePayload, quoteNumber, quoteListStatement, quoteLookupStatement } from './quote-domain.mjs';
 import { validateRequestId, validateTillCode, validateMoneyCents, validateCloseNote, validateShiftId, shiftForClient, shiftListStatement } from './shift-domain.mjs';
 import {validateReviewDecision,validateReviewNote,latestReviewsStatement,reviewHistoryStatement,reviewForClient} from './review-domain.mjs';
@@ -14,7 +14,7 @@ import {canUsePurchase,listPurchaseOrders,purchaseAudit,savePurchaseOrder,action
 import {canUseSupplierInvoice,listSupplierInvoices,captureSupplierInvoice,supplierInvoiceAction} from './supplier-invoice-domain.mjs';
 import {resolveMobilePriceTag,listBranchSalesQuotes} from './mobile-quote-domain.mjs';
 import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
-import {canManageTeam,listTeam,changeTeam} from './team-domain.mjs';
+import {canManageTeam,listTeam,changeTeam,setTeamAppAccess} from './team-domain.mjs';
 import {listStockControl,createStockControl,stockControlAction} from './stock-control-domain.mjs';
 import {loginPassword,verifySession,logoutPassword,changeOwnPassword,issueTemporaryPassword,bootstrapOwnPassword} from './password-auth-domain.mjs';
 
@@ -45,8 +45,9 @@ async function identity(request,env) {
 }
 
 async function memberAndBranches(env,email,app){
-  const member=await env.DB.prepare(`SELECT name,email,role,department,access_scope,workspace_access,active
+  const member=await env.DB.prepare(`SELECT id,name,email,role,department,access_scope,workspace_access,active
     FROM team_members WHERE lower(email)=? AND active=1 LIMIT 1`).bind(email).first();
+  await attachAppPermissions(env.DB,member);
   if(!canUseApp(member,app))return null;
   const {results}=await env.DB.prepare("SELECT name FROM workspaces WHERE type='Store' AND active=1 ORDER BY name").all();
   let branches=allowedBranches(member,results.map(r=>r.name));
@@ -490,6 +491,7 @@ export default {
         app:auth.app,user:{name:access.member.name,role:access.member.role,email:access.member.email},branches:access.branches,
         password_change_required:auth.method==='password'&&auth.must_change_password,
         team_permissions:auth.app==='member'?{manage:canManageTeam(access.member)}:undefined,
+        app_login_access:auth.app==='member'?APPS.filter(app=>canUseApp(access.member,app)):undefined,
         stock_price_permission:auth.app==='management'?canEditStockPrice(access.member):false,
         master_permissions:auth.app==='management'?Object.fromEntries(MASTER_KINDS.map(k=>[k,{read:canUseMaster(access.member,k),write:canUseMaster(access.member,k,true)}])):undefined,
         purchase_permissions:auth.app==='management'?{read:canUsePurchase(access.member),write:canUsePurchase(access.member,'write'),approve:canUsePurchase(access.member,'approve')}:undefined,
@@ -499,6 +501,7 @@ export default {
       });
       if(path==='/v1/team'&&req.method==='GET')return await listTeam(req,env,context);
       if(path==='/v1/team/change'&&req.method==='POST')return await changeTeam(req,env,context);
+      if(path==='/v1/team/apps'&&req.method==='POST')return await setTeamAppAccess(req,env,context);
       if(path==='/v1/team/password-reset'&&req.method==='POST')return await issueTemporaryPassword(req,env,context);
       if(path==='/v1/quote/tag'&&req.method==='GET')return await resolveMobilePriceTag(req,env,context);
       if(path==='/v1/quote/branch-queue'&&req.method==='GET'){await env.DB.prepare(createQuoteTable).run();return await listBranchSalesQuotes(req,env,context);}
