@@ -1220,17 +1220,34 @@ export default function Home() {
     }
     setDraft({ ...draft, assignee: value.slice(5), assignee_email: "" });
   };
-  const openNotification = async (item: HubNotification) => {
-    await fetch("/api/notifications", {
+  // Open notifications without waiting on the mark-as-read network request.
+  // The task detail panel is visible immediately using the already loaded task.
+  const openNotification = (item: HubNotification) => {
+    setNotificationsOpen(false);
+    setNotifications((current) =>
+      current.map((entry) =>
+        entry.id === item.id
+          ? { ...entry, read_at: entry.read_at || new Date().toISOString() }
+          : entry,
+      ),
+    );
+    void fetch("/api/notifications", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ id: item.id }),
-    });
-    setNotificationsOpen(false);
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Unable to mark notification as read");
+        return loadNotifications();
+      })
+      .catch(() => {
+        // A failed read receipt must not block opening the task.
+        void loadNotifications().catch(() => {});
+      });
+
     if (item.notification_type === "EmployeeAttendance") {
       setActive("Employee Records");
       setSearch("");
-      await loadNotifications();
       return;
     }
     if (
@@ -1239,7 +1256,6 @@ export default function Home() {
     ) {
       setActive("Store Specials");
       setSearch("");
-      await loadNotifications();
       return;
     }
     if (
@@ -1249,7 +1265,6 @@ export default function Home() {
       setActive("Store Specials");
       setSearch("");
       window.setTimeout(() => window.dispatchEvent(new Event("open-promotion-planning")), 0);
-      await loadNotifications();
       return;
     }
     if (item.notification_type === "OnboardingReminder") {
@@ -1257,15 +1272,30 @@ export default function Home() {
         () => window.dispatchEvent(new Event("open-onboarding-setup")),
         0,
       );
-      await loadNotifications();
       return;
     }
     const task = tasks.find((t) => t.id === item.task_id);
+    setReturnWorkspaceAfterTask("");
     if (task) {
-      setReturnWorkspaceAfterTask("");
-      await detail(task);
+      // detail() shows the cached task immediately and refreshes it afterward.
+      void detail(task).catch(() => {
+        flash("Task opened, but its latest details could not be refreshed.");
+      });
+    } else if (Number.isSafeInteger(item.task_id) && item.task_id > 0) {
+      // Notifications can reference tasks absent from the currently loaded list.
+      void fetch(`/api/tasks/${item.task_id}`)
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Task unavailable");
+          const data = await response.json();
+          if (!data.task) throw new Error("Task unavailable");
+          setSelected(data.task as Task);
+          setComments(data.comments || []);
+          setFiles(data.attachments || []);
+        })
+        .catch(() => flash("This task could not be opened. Check its access or status."));
+    } else {
+      flash("This notification does not link to an available task.");
     }
-    await loadNotifications();
   };
   const markAllRead = async () => {
     await fetch("/api/notifications", {
@@ -2759,10 +2789,9 @@ export default function Home() {
             </header>
             <div className="notificationList">
               {notifications.map((item) => (
-                <button
+                <div
                   key={item.id}
-                  className={item.read_at ? "" : "unread"}
-                  onClick={() => void openNotification(item)}
+                  className={item.read_at ? "notificationEntry" : "notificationEntry unread"}
                 >
                   <i>{item.read_at ? "✓" : "●"}</i>
                   <span>
@@ -2778,16 +2807,23 @@ export default function Home() {
                             : `${item.project || "Task"} · Due ${item.due || "not set"} · ${new Date(item.created_at).toLocaleString()}`}
                     </small>
                   </span>
-                  <em>
+                  <button
+                    type="button"
+                    className="notificationOpenBtn"
+                    onClick={() => openNotification(item)}
+                  >
                     {item.notification_type === "EmployeeAttendance"
-                      ? "View employee records →"
+                      ? "View records"
                       : item.notification_type === "StoreSpecialUpcoming" || item.notification_type === "StoreSpecialStarted"
-                        ? "View store special →"
+                        ? "View special"
                         : item.notification_type === "PromotionPlanningOpened" || item.notification_type === "PromotionPlanningReminder"
-                          ? "Open promotion planning →"
-                          : "Open task →"}
-                  </em>
-                </button>
+                          ? "Open promotion"
+                          : item.notification_type === "OnboardingReminder"
+                            ? "Open setup"
+                            : "Open Task"}
+                    <span aria-hidden="true">→</span>
+                  </button>
+                </div>
               ))}
               {!notifications.length && (
                 <div className="moduleEmpty">

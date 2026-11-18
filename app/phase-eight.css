@@ -170,7 +170,7 @@
   padding: 8px;
 }
 
-.notificationList > button {
+.notificationList > .notificationEntry {
   display: grid;
   grid-template-columns: 28px 1fr auto;
   align-items: center;
@@ -185,15 +185,15 @@
   text-align: left;
 }
 
-.notificationList > button:hover {
+.notificationList > .notificationEntry:hover {
   background: #f5f9ff;
 }
 
-.notificationList > button.unread {
+.notificationList > .notificationEntry.unread {
   background: #edf5ff;
 }
 
-.notificationList > button > i {
+.notificationList > .notificationEntry > i {
   display: grid;
   place-items: center;
   width: 27px;
@@ -212,26 +212,54 @@
 }
 
 .notificationList b {
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .notificationList p {
   margin-top: 4px;
   color: #5f6d7b;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .notificationList small {
   margin-top: 5px;
   color: #8993a0;
-  font-size: 7px;
+  font-size: 9px;
 }
 
-.notificationList em {
-  color: var(--blue);
-  font-size: 7px;
-  font-style: normal;
+/* Large, accessible action; tapping it opens the task before read-receipt sync. */
+.notificationList .notificationOpenBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: auto;
+  min-width: 115px;
+  min-height: 38px;
+  padding: 9px 13px;
+  border: 1px solid #0a2a3f;
+  border-radius: 9px;
+  background: #0a2a3f;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 3px 8px #0a2a3f20;
+  transition: background-color .15s ease, transform .15s ease;
 }
+
+.notificationList .notificationOpenBtn:hover {
+  background: #174866;
+  transform: translateY(-1px);
+}
+
+.notificationList .notificationOpenBtn:active { transform: translateY(0); }
+.notificationList .notificationOpenBtn:focus-visible {
+  outline: 3px solid #d4a017;
+  outline-offset: 2px;
+}
+.notificationList .notificationOpenBtn span { color: #d4a017; font-size: 14px; }
 
 .execBar {
   width: 100%;
@@ -1295,12 +1323,14 @@ button.personLoad:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .notificationList > button {
-    grid-template-columns: 28px 1fr;
+  .notificationList > .notificationEntry {
+    grid-template-columns: 28px minmax(0, 1fr);
   }
 
-  .notificationList em {
+  .notificationList .notificationOpenBtn {
     grid-column: 2;
+    justify-self: start;
+    margin-top: 3px;
   }
 
   .financialBreakdownBody {
