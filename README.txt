@@ -1,23 +1,38 @@
-MALIKS POS — SUPPLIERS REPORTING ACTIVATION (18 NOV 2026)
+MALIKS POS — SUPPLIERS MASTER FILES (3 OPTIONS) — 18 NOVEMBER 2026
 
-Source: user-supplied maliksgroupza ZIP (18 Nov 2026 10:40).
+This patch activates:
+  Suppliers > Master Files > Claims (supplier claim type/code register)
+  Suppliers > Master Files > Suppliers Returns Reasons
+  Suppliers > Master Files > Statements Recon Reasons
 
-Copy maliks-operations/src/frontend.mjs into the matching path in your GitHub repository, replacing that file. Commit and push to deploy using your established workflow.
+Each is a real, branch-scoped reference register with create, edit, deactivate,
+search and audited change history. Claim types are NOT supplier claim transactions;
+there is no credit note, inventory, AP, VAT or general ledger posting.
 
-New active menu entries:
-- Suppliers > Reporting > Master (supplier register)
-- Suppliers > Reporting > Transactions (purchase orders and supplier invoices)
-- Suppliers > Reporting > Purchases (purchase order register)
-- Suppliers > Master Files > Invoices and Debit Notes Details (invoice detail register)
+REPLACE / ADD THESE FILES at the root of your existing GitHub project:
+  maliks-operations/src/frontend.mjs                    REPLACE
+  maliks-operations/src/reference-master-domain.mjs    REPLACE
+  maliks-operations/sql/phase34_supplier_extended_masters.sql   ADD
+  maliks-operations/package.json                        REPLACE (adds migrate:phase34 script)
+  maliks-operations/tests/phase34-supplier-master-files.test.mjs ADD
 
-Each report provides branch-based records, search, refresh, CSV and print controls.
-READ ONLY. No financial ledger, statement, creditor balances or payments are posted.
+IMPORTANT: Before using the screens, run the new additive Phase 34 database migration
+from the maliks-operations directory using an authorised terminal:
+  npm run config
+  npm run migrate:phase34
 
-Unfinished Suppliers menu options remain disabled deliberately until their server-side data models, authorisations and accounting controls are implemented; enabling their links alone would give a false appearance of working finance features.
+The usual Cloudflare Wrangler environment/configuration must be available.
+Do NOT run the migration if .generated/core.json points to the wrong database.
+Deploy the Core worker and POS worker after the migration:
+  npm run deploy:core
+  npm run deploy:pos
 
-Validation: node --check on changed source successful.
+Your existing deployment procedure may handle config and deployment separately.
+GitHub committing/pushing alone does NOT automatically execute this Phase 34
+migration because the new SQL file is not part of the Hub's standard migrations.
 
-CORRECTION — 18 NOV 2026:
-This corrected patch fixes the generated POS browser script syntax error in the CSV export newline separator.
-Validation in supplied project: 288 of 290 tests pass. The 2 remaining tests could not run because the third-party 'jose' dependency is not installed in this isolated verification environment (offline npm cache does not contain it). All browser JavaScript parsing tests pass.
-No server files, database migrations, or financial posting logic are changed.
+Validation: 9/9 focused reference-master tests passed. Full operations suite:
+290/292 passed; the other two involve unavailable 'jose' dependency in local
+execution environment, not this patch. Node --check passed for both changed JS files.
+
+No financial posting is introduced.

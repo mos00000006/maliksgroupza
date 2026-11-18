@@ -1364,6 +1364,7 @@ function page(app){
  // Phase 27 — live debtor/supplier reference masters; independent of financial postings.
  const REFERENCE_LABELS={debtor_category:'Debtor Categories',debtor_classification:'Debtor Classifications',
    supplier_category:'Supplier Categories',supplier_classification:'Supplier Classifications',
+   supplier_claim:'Supplier Claims (Types)',supplier_return_reason:'Supplier Returns Reasons',supplier_statement_recon_reason:'Statements Reconciliation Reasons',
    region:'Regions',area:'Areas',delivery_method:'Delivery Methods',
    debtor_route:'Debtor Routes',debtor_return_reason:'Debtor Return Reasons',
    debtor_invoice_classification:'Debtor Invoicing Classifications',
@@ -1376,6 +1377,7 @@ function page(app){
    const domain=kind.startsWith('supplier_')?'supplier':'debtor';
    const canWrite=Boolean(masterPermissions[domain]?.write);
    const title=REFERENCE_LABELS[kind]||'Reference master';
+   const isSupplierClaim=kind==='supplier_claim';
    const top=h('div',undefined,'suite-workspace-bar');top.append(h('h3',title+' · '+selectedBranch));
    if(kind==='region'||kind==='area'){
      const tabs=h('div',undefined,'suite-master-actions');
@@ -1384,7 +1386,7 @@ function page(app){
        tab.addEventListener('click',()=>suiteReferenceMaster(key));tabs.append(tab);
      }top.append(tabs);
    }
-   detail.append(top,h('p',kind==='debtor_invoice_note'?'Maintain reusable invoice note templates for this branch. These are reference records; they do not automatically appear on invoices until invoice templates are linked.':'Maintain codes, descriptions and active status for this branch. Changes are audited; no transactions or existing customer records are posted or altered.','muted'));
+   detail.append(top,h('p',isSupplierClaim?'Maintain supplier claim categories or claim codes only. This is a master-file register, not a submitted supplier claim, credit note or accounting posting.':kind==='debtor_invoice_note'?'Maintain reusable invoice note templates for this branch. These are reference records; they do not automatically appear on invoices until invoice templates are linked.':'Maintain codes, descriptions and active status for this branch. Changes are audited; no transactions or existing customer records are posted or altered.','muted'));
    const status=h('p','','muted');status.setAttribute('role','status');detail.append(status);
    const controls=h('div',undefined,'bar');
    const query=h('input');query.type='search';query.placeholder='Search code, description or notes';query.maxLength=100;
@@ -2233,7 +2235,7 @@ function page(app){
  ${DEBTOR_SETTINGS_CLIENT_SCRIPT}
  function isConnectedSuiteAction(id,item){
    if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
-   if(id==='suppliers')return ['Suppliers','Categories','Classifications','Purchase Orders','Invoices and Debit Notes','Invoices and Debit Notes Details','Master','Transactions','Purchases','Audits','Supplier Master CSV File Export'].includes(item);
+   if(id==='suppliers')return ['Suppliers','Categories','Classifications','Claims','Suppliers Returns Reasons','Statements Recon Reasons','Purchase Orders','Invoices and Debit Notes','Invoices and Debit Notes Details','Master','Transactions','Purchases','Audits','Supplier Master CSV File Export'].includes(item);
    if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export','Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements','Master','Transactions','Sales','Ledger','Statements','Control Account','Age Analysis','Debtors PDCs','Current Agents','Block Sales','Reprint Documents','Reprint Journals','Labelling','Delete Expired Quotations','Debtors Master CSV File Import','Settings','Numbering'].includes(item);
    if(id==='backoffice')return item==='Till Cash-Up';
    if(id==='system')return ['User Permissions','Branch Access'].includes(item);
@@ -2279,7 +2281,7 @@ function page(app){
          if(id==='suppliers'&&(['Master','Transactions','Purchases','Invoices and Debit Notes Details'].includes(item))){suiteSupplierReport(item);return;}
          if(id==='debtors'&&section==='Settings'&&['Settings','Numbering'].includes(item)){suiteDebtorSettings(item);return;}
          if(id==='debtors'&&['Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements'].includes(item)){suiteDebtorTransactions(item);return;}
-         const referenceKind=id==='debtors'?({'Routes':'debtor_route','Categories':'debtor_category','Classifications':'debtor_classification','Regions and Areas':'region','Delivery Methods':'delivery_method','Debtors Returns Reasons':'debtor_return_reason','Debtors Invoicing Classifications':'debtor_invoice_classification','Debtors Invoicing Additional Notes':'debtor_invoice_note'}[item]):id==='suppliers'?({'Categories':'supplier_category','Classifications':'supplier_classification'}[item]):null;
+         const referenceKind=id==='debtors'?({'Routes':'debtor_route','Categories':'debtor_category','Classifications':'debtor_classification','Regions and Areas':'region','Delivery Methods':'delivery_method','Debtors Returns Reasons':'debtor_return_reason','Debtors Invoicing Classifications':'debtor_invoice_classification','Debtors Invoicing Additional Notes':'debtor_invoice_note'}[item]):id==='suppliers'?({'Categories':'supplier_category','Classifications':'supplier_classification','Claims':'supplier_claim','Suppliers Returns Reasons':'supplier_return_reason','Statements Recon Reasons':'supplier_statement_recon_reason'}[item]):null;
          if(referenceKind){suiteReferenceMaster(referenceKind);return;}
          const masterKind=id==='stock'&&item==='Stock Master'?'stock':id==='suppliers'&&item==='Suppliers'?'supplier':id==='debtors'&&item==='Debtors'?'debtor':null;
          if(masterKind){suiteMasterView(masterKind);return;}

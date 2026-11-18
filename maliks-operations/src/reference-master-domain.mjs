@@ -5,14 +5,16 @@ import {canUseMaster} from './master-domain.mjs';
 export const REFERENCE_KINDS=Object.freeze({
   debtor_category:'debtor',debtor_classification:'debtor',
   supplier_category:'supplier',supplier_classification:'supplier',
+  supplier_claim:'supplier',supplier_return_reason:'supplier',supplier_statement_recon_reason:'supplier',
   region:'debtor',area:'debtor',delivery_method:'debtor',
   debtor_route:'debtor',debtor_return_reason:'debtor',
   debtor_invoice_classification:'debtor',debtor_invoice_note:'debtor',
 });
 // Phase 29 kinds are stored separately: the existing Phase 27 table has a kind CHECK
 // constraint, so never rebuild that live table or risk disturbing existing data.
+const SUPPLIER_EXTRA_KINDS=new Set(['supplier_claim','supplier_return_reason','supplier_statement_recon_reason']);
 const EXTRA_KINDS=new Set(['debtor_route','debtor_return_reason','debtor_invoice_classification','debtor_invoice_note']);
-const referenceTable=kind=>EXTRA_KINDS.has(kind)?'maliks_pos_debtor_extra_masters':'maliks_pos_reference_masters';
+const referenceTable=kind=>SUPPLIER_EXTRA_KINDS.has(kind)?'maliks_pos_supplier_extra_masters':EXTRA_KINDS.has(kind)?'maliks_pos_debtor_extra_masters':'maliks_pos_reference_masters';
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff'};
 const ok=(value,status=200)=>Response.json(value,{status,headers});
 const fail=(message,status=400)=>ok({error:message},status);
