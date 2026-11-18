@@ -1,14 +1,18 @@
-CATALOGUE PDF FIX + PRATLEY PRODUCT IMPORT PATCH
+MALIKS POS — SUPPLIERS REPORTING ACTIVATION (18 NOV 2026)
 
-Files in this patch:
-- app/catalogue-pdf.ts: reserves a clear text area below each product image and enlarges the yellow CODE badge.
-- drizzle/0068_pratley_adhesives_catalogue.sql: imports 68 Pratley products with manufacturer codes into Adhesives & Chemicals.
+Source: user-supplied maliksgroupza ZIP (18 Nov 2026 10:40).
 
-Apply the patch:
-1. Extract this ZIP.
-2. Copy the included app/ and drizzle/ folders into the root of the existing Hub repository, merging folders and replacing app/catalogue-pdf.ts.
-3. Commit and push the changes to the main branch.
-4. In GitHub, open the repository's Actions tab and wait for the "Deploy Maliks Group Hub" workflow to finish successfully. That workflow prepares the production configuration, applies D1 migrations, and deploys the Hub using the repository's GitHub secrets.
-5. Refresh the Hub and search for Pratley or code 60211.
+Copy maliks-operations/src/frontend.mjs into the matching path in your GitHub repository, replacing that file. Commit and push to deploy using your established workflow.
 
-Do not run npm run db:migrate:production from a local PowerShell terminal unless you have configured the required Cloudflare and Hub secrets locally. The local command reads those values from environment variables; GitHub Actions receives them from repository secrets. The product import uses INSERT OR IGNORE, preserves existing catalogue records, and leaves prices and images unchanged. New Pratley products have blank images and prices for entry in the Hub.
+New active menu entries:
+- Suppliers > Reporting > Master (supplier register)
+- Suppliers > Reporting > Transactions (purchase orders and supplier invoices)
+- Suppliers > Reporting > Purchases (purchase order register)
+- Suppliers > Master Files > Invoices and Debit Notes Details (invoice detail register)
+
+Each report provides branch-based records, search, refresh, CSV and print controls.
+READ ONLY. No financial ledger, statement, creditor balances or payments are posted.
+
+Unfinished Suppliers menu options remain disabled deliberately until their server-side data models, authorisations and accounting controls are implemented; enabling their links alone would give a false appearance of working finance features.
+
+Validation: node --check on changed source successful.

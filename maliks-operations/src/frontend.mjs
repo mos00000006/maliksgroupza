@@ -1992,6 +1992,71 @@ function page(app){
    void load();
  }
 
+ // Suppliers reporting: operational documents only; no fabricated creditor ledger or AP balance.
+ function suiteSupplierReport(menuItem){
+   const w=invWorkspace('Suppliers · '+menuItem,'READ ONLY · Operational supplier and purchasing records. No creditor, VAT, GL, payment or statement posting is currently available.');
+   w.form.hidden=true;
+   const permitted=Boolean(masterPermissions.supplier?.read);
+   if(!permitted){w.message('Supplier master reporting permission denied.');return;}
+   const actions=h('div',undefined,'suite-master-actions');
+   const search=invField(actions,'Search supplier / document','search');search.placeholder='Filter visible records';
+   const run=invButton('Refresh report',()=>void load(),'suite-primary');
+   const download=invButton('Export CSV',downloadCSV);download.disabled=true;
+   const print=invButton('Print report',()=>window.print());print.disabled=true;
+   actions.append(run,download,print);w.list.append(actions);
+   const status=h('p','','muted');status.setAttribute('role','status');w.list.append(status);
+   const area=h('div');w.list.append(area);
+   let columns=[],rows=[];
+   const clean=value=>String(value??'');
+   const date=value=>value?String(value).slice(0,10):'—';
+   const include=row=>!search.value.trim()||row.some(v=>clean(v).toLowerCase().includes(search.value.trim().toLowerCase()));
+   async function load(){
+     if(!w.valid())return;
+     run.disabled=true;download.disabled=true;print.disabled=true;status.textContent='Loading operational records…';w.message('');
+     try{
+       if(menuItem==='Master'){
+         const result=await api('/api/master/records?'+new URLSearchParams({branch,kind:'supplier'}));
+         if(!w.valid())return;
+         columns=['Code','Supplier','Contact','Telephone','Email','VAT registration','Status'];
+         rows=(result.records||[]).map(r=>[r.code,r.name,r.details?.contact_name||'',r.details?.phone||'',r.details?.email||'',r.details?.vat_number||'',r.active?'Active':'Inactive']);
+       }else if(menuItem==='Purchases'){
+         if(!purchasePermissions.read)throw Error('Purchase-order reporting permission denied.');
+         const result=await api('/api/purchase-orders?branch='+encodeURIComponent(branch));
+         if(!w.valid())return;
+         columns=['Purchase order','Supplier','Status','Expected date','Estimated order value','Lines'];
+         rows=(result.orders||[]).map(r=>[r.number,r.supplier_name,r.status,date(r.expected_date),money(r.total_cents),r.lines?.length||0]);
+       }else if(menuItem==='Transactions'){
+         if(!purchasePermissions.read||!supplierInvoicePermissions.read)throw Error('Purchase-order and supplier-invoice reporting permissions required.');
+         const [p,i]=await Promise.all([api('/api/purchase-orders?branch='+encodeURIComponent(branch)),api('/api/supplier-invoices?branch='+encodeURIComponent(branch))]);
+         if(!w.valid())return;
+         columns=['Document type','Reference','Supplier','Date','Status','Value / Declared total','Accounting'];
+         rows=[...(p.orders||[]).map(x=>['Purchase order',x.number,x.supplier_name,date(x.created_at),x.status,money(x.total_cents),'NOT POSTED']),
+           ...(i.invoices||[]).map(x=>['Supplier invoice',x.invoice_number,x.supplier_name,date(x.invoice_date),x.status,money(x.gross_cents),'NOT POSTED'])];
+       }else{
+         if(!supplierInvoicePermissions.read)throw Error('Supplier-invoice reporting permission denied.');
+         const result=await api('/api/supplier-invoices?branch='+encodeURIComponent(branch));
+         if(!w.valid())return;
+         columns=['Supplier invoice','Supplier','PO ID','Invoice date','Status','Net','Declared VAT','Gross','Exceptions'];
+         rows=(result.invoices||[]).map(r=>[r.invoice_number,r.supplier_name,r.po_id,date(r.invoice_date),r.status,money(r.net_cents),money(r.declared_vat_cents),money(r.gross_cents),(r.exceptions||[]).join('; ')]);
+       }
+       rows=rows.filter(include);invTable(area,columns,rows);
+       status.textContent=rows.length+' operational records shown · '+branch+' · No accounting balances certified.';
+       download.disabled=!rows.length;print.disabled=!rows.length;
+     }catch(e){if(w.valid()){area.replaceChildren();status.textContent='Report unavailable';w.message(e.message);}}
+     finally{if(w.valid())run.disabled=false;}
+   }
+   function downloadCSV(){
+     if(!rows.length)return;
+     const protect=x=>{let t=clean(x);if(/^[=+@\-]/.test(t.trimStart()))t="'"+t;return '"'+t.replace(/"/g,'""')+'"';};
+     const csv=String.fromCharCode(0xfeff)+[['Maliks POS Suppliers',menuItem],['Branch',branch],['Accounting','NOT POSTED'],columns,...rows].map(r=>r.map(protect).join(',')).join('\r\n');
+     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=h('a');a.href=url;
+     a.download='suppliers-'+menuItem.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+branch.replace(/[^a-z0-9-]/gi,'-')+'.csv';
+     document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+   }
+   search.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();void load();}});
+   void load();
+ }
+
  function suiteStockBalances(){
    const w=invWorkspace('Stock-on-Hand','Operational quantities include posted GRVs, transfers, independently approved adjustments and stock counts. Sales deductions and returns are not yet integrated.');w.form.hidden=true;
    let stockPage=1;const refresh=invButton('Refresh stock balances',()=>void load(),'suite-primary');
@@ -2168,7 +2233,7 @@ function page(app){
  ${DEBTOR_SETTINGS_CLIENT_SCRIPT}
  function isConnectedSuiteAction(id,item){
    if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
-   if(id==='suppliers')return ['Suppliers','Categories','Classifications','Purchase Orders','Invoices and Debit Notes','Audits','Supplier Master CSV File Export'].includes(item);
+   if(id==='suppliers')return ['Suppliers','Categories','Classifications','Purchase Orders','Invoices and Debit Notes','Invoices and Debit Notes Details','Master','Transactions','Purchases','Audits','Supplier Master CSV File Export'].includes(item);
    if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export','Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements','Master','Transactions','Sales','Ledger','Statements','Control Account','Age Analysis','Debtors PDCs','Current Agents','Block Sales','Reprint Documents','Reprint Journals','Labelling','Delete Expired Quotations','Debtors Master CSV File Import','Settings','Numbering'].includes(item);
    if(id==='backoffice')return item==='Till Cash-Up';
    if(id==='system')return ['User Permissions','Branch Access'].includes(item);
@@ -2211,6 +2276,7 @@ function page(app){
          if(id==='debtors'&&section==='Utilities'&&item!=='Debtors Master CSV/Text File Export'){suiteDebtorUtility(item);return;}
          if(id==='system'&&['User Permissions','Branch Access'].includes(item)){window.location.assign(MEMBER_TEAM_URL);return;}
          if(id==='debtors'&&section==='Reporting'&&item!=='Audits'){suiteDebtorReport(item);return;}
+         if(id==='suppliers'&&(['Master','Transactions','Purchases','Invoices and Debit Notes Details'].includes(item))){suiteSupplierReport(item);return;}
          if(id==='debtors'&&section==='Settings'&&['Settings','Numbering'].includes(item)){suiteDebtorSettings(item);return;}
          if(id==='debtors'&&['Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements'].includes(item)){suiteDebtorTransactions(item);return;}
          const referenceKind=id==='debtors'?({'Routes':'debtor_route','Categories':'debtor_category','Classifications':'debtor_classification','Regions and Areas':'region','Delivery Methods':'delivery_method','Debtors Returns Reasons':'debtor_return_reason','Debtors Invoicing Classifications':'debtor_invoice_classification','Debtors Invoicing Additional Notes':'debtor_invoice_note'}[item]):id==='suppliers'?({'Categories':'supplier_category','Classifications':'supplier_classification'}[item]):null;
