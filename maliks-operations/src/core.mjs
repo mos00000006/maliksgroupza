@@ -18,6 +18,7 @@ import {canManageTeam,listTeam,changeTeam,setTeamAppAccess} from './team-domain.
 import {listReferences,saveReference,referenceAudit} from './reference-master-domain.mjs';
 import {listDebtorTransactions,createDebtorTransaction,actionDebtorTransaction,listDebtorTransactionAudit} from './debtor-transaction-domain.mjs';
 import {getDebtorReport} from './debtor-report-domain.mjs';
+import {listDebtorUtility,changeDebtorUtility} from './debtor-utilities-domain.mjs';
 import {listStockControl,createStockControl,stockControlAction} from './stock-control-domain.mjs';
 import {loginPassword,verifySession,logoutPassword,changeOwnPassword,issueTemporaryPassword,bootstrapOwnPassword,loginAccountHealth} from './password-auth-domain.mjs';
 
@@ -514,6 +515,8 @@ export default {
       if(path==='/v1/quote/tag'&&req.method==='GET')return await resolveMobilePriceTag(req,env,context);
       if(path==='/v1/quote/branch-queue'&&req.method==='GET'){await env.DB.prepare(createQuoteTable).run();return await listBranchSalesQuotes(req,env,context);}
       if(path==='/v1/debtor-reports'&&req.method==='GET')return await getDebtorReport(req,env,context);
+      if(path==='/v1/debtor-utilities'&&req.method==='GET')return await listDebtorUtility(req,env,context);
+      if(path==='/v1/debtor-utilities'&&req.method==='POST')return await changeDebtorUtility(req,env,context);
       if(path==='/v1/debtor-transactions'&&req.method==='GET')return await listDebtorTransactions(req,env,context);
       if(path==='/v1/debtor-transactions'&&req.method==='POST')return await createDebtorTransaction(req,env,context);
       if(path==='/v1/debtor-transactions/action'&&req.method==='POST')return await actionDebtorTransaction(req,env,context);

@@ -90,6 +90,8 @@ jobs:
         run: npm run migrate:phase29
       - name: Apply non-posting Debtors transaction registers (Phase 30)
         run: npm run migrate:phase30
+      - name: Apply Debtors utilities registers and audits (Phase 32)
+        run: npm run migrate:phase32
       - name: Deploy central API — private Worker
         run: npm run deploy:core
       - name: Deploy Maliks POS Professional (management suite)
