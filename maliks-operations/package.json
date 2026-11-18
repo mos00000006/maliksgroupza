@@ -39,6 +39,7 @@
     "migrate:phase32": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase32_debtor_utilities.sql --config .generated/core.json",
     "migrate:phase33": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase33_debtor_settings_numbering.sql --config .generated/core.json",
     "migrate:phase34": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase34_supplier_extended_masters.sql --config .generated/core.json",
+    "migrate:phase38": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase38_supplier_settings_numbering.sql --config .generated/core.json",
     "migrate:phase35": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase35_supplier_transaction_registers.sql --config .generated/core.json"
   },
   "dependencies": {
