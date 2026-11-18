@@ -102,6 +102,8 @@ jobs:
         run: npm run migrate:phase38
       - name: Apply Suppliers operational month-end review schema (Phase 39)
         run: npm run migrate:phase39
+      - name: Apply Stock settings and numbering schema (Phase 42)
+        run: npm run migrate:phase42
       - name: Deploy central API — private Worker
         run: npm run deploy:core
       - name: Deploy Maliks POS Professional (management suite)

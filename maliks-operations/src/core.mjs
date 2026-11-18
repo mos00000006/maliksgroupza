@@ -23,6 +23,7 @@ import {getDebtorReport} from './debtor-report-domain.mjs';
 import {listDebtorUtility,changeDebtorUtility} from './debtor-utilities-domain.mjs';
 import {getDebtorSettings,changeDebtorSettings} from './debtor-settings-domain.mjs';
 import {getSupplierSettings,changeSupplierSettings} from './supplier-settings-domain.mjs';
+import {getStockSettings,changeStockSettings} from './stock-settings-domain.mjs';
 import {listStockControl,createStockControl,stockControlAction} from './stock-control-domain.mjs';
 import {loginPassword,verifySession,logoutPassword,changeOwnPassword,issueTemporaryPassword,bootstrapOwnPassword,loginAccountHealth} from './password-auth-domain.mjs';
 
@@ -524,6 +525,8 @@ export default {
       if(path==='/v1/debtor-settings'&&req.method==='POST')return await changeDebtorSettings(req,env,context);
       if(path==='/v1/supplier-settings'&&req.method==='GET')return await getSupplierSettings(req,env,context);
       if(path==='/v1/supplier-settings'&&req.method==='POST')return await changeSupplierSettings(req,env,context);
+      if(path==='/v1/stock-settings'&&req.method==='GET')return await getStockSettings(req,env,context);
+      if(path==='/v1/stock-settings'&&req.method==='POST')return await changeStockSettings(req,env,context);
       if(path==='/v1/supplier-month-end'&&req.method==='GET')return await getSupplierMonthEnd(req,env,context);
       if(path==='/v1/supplier-month-end'&&req.method==='POST')return await recordSupplierMonthEnd(req,env,context);
       if(path==='/v1/debtor-utilities'&&req.method==='POST')return await changeDebtorUtility(req,env,context);
