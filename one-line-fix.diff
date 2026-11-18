@@ -1,0 +1,11 @@
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -2430,7 +2430,7 @@
+                     <p className="taskControlHint">Approved and signed off. See the activity timeline for the approving manager and timestamp.</p>
+                   ) : selected.status === "Complete" && selected.approval_status === "Awaiting approval" ? (
+                     <>
+-                      <p className="taskControlHint">Awaiting an authorised manager's review of the completed work and evidence.</p>
++                      <p className="taskControlHint">Awaiting an authorised manager&apos;s review of the completed work and evidence.</p>
+                       {["Owner / Admin", "Developer / Technical Admin", "Store Manager", "Regional Manager", "Operations Manager"].includes(currentUser.role || "") || (currentUser.role === "Executive / EXCO" && currentUser.access_scope === "Full company") ? (
+                         <div className="taskApprovalButtons">
+                           <button className="taskApprove" onClick={() => void approveTask(selected.id)}>✓ Approve & Sign Off</button>
