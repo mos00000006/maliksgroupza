@@ -1,0 +1,141 @@
+--- a/maliks-operations/src/frontend.mjs
++++ b/maliks-operations/src/frontend.mjs
+@@ -1896,6 +1896,86 @@
+    if(!inventoryPermissions.count)w.form.hidden=true;
+    void loadPOs();void loadReceipts();
+  }
++ // Phase 31: live read-only Debtors reports. Non-posting drafts never become balances.
++ const DEBTOR_REPORT_MENUS={Master:'master',Transactions:'transactions',Sales:'sales',Ledger:'ledger',Statements:'statements',
++   'Control Account':'control','Age Analysis':'age','Debtors PDCs':'pdcs'};
++ function suiteDebtorReport(menuItem){
++   const report=DEBTOR_REPORT_MENUS[menuItem];if(!report)return;
++   const w=invWorkspace('Debtors Reporting · '+menuItem,'READ ONLY — reports use branch-scoped records. Draft transactions are never treated as paid, posted or allocated.');
++   w.form.hidden=true;
++   const filters=h('div',undefined,'suite-master-form');w.list.append(filters);
++   const search=invField(filters,'Search account / customer / reference','search');search.placeholder='Leave blank for all records';
++   const from=invField(filters,'From date (optional)','date');const to=invField(filters,'To date (optional)','date');
++   if(['master','statements','age'].includes(report)){from.parentElement.hidden=true;to.parentElement.hidden=true;}
++   const buttons=h('div',undefined,'suite-master-actions');buttons.style.gridColumn='1/-1';filters.append(buttons);
++   const refresh=invButton('Run report',()=>{page=1;void load();},'suite-primary');
++   const csv=invButton('Export current page · CSV',exportCSV);const print=invButton('Print current page',printCurrent);
++   csv.disabled=true;print.disabled=true;buttons.append(refresh,csv,print);
++   const intro=h('p','The selected branch and report sources are verified by Maliks Core. Customer statements and aged balances require future debtor-ledger integration.','suite-master-note');w.list.append(intro);
++   const status=h('p','Loading report…','muted');status.setAttribute('role','status');w.list.append(status);
++   const summaries=h('div',undefined,'suite-master-actions');w.list.append(summaries);
++   const tables=h('div');w.list.append(tables);
++   const pager=h('div',undefined,'suite-master-actions');const prev=invButton('Previous page',()=>{if(page>1){page--;void load();}});
++   const indicator=h('span','Page 1');const next=invButton('Next page',()=>{page++;void load();});pager.append(prev,indicator,next);w.list.append(pager);
++   let page=1,last=null;
++   const valid=()=>w.valid();
++   function displayValue(v){return String(v??'');}
++   async function load(){
++     if(!valid())return;refresh.disabled=true;csv.disabled=true;print.disabled=true;status.textContent='Loading '+menuItem+'…';w.message('');
++     const p=new URLSearchParams({branch,mode:report,page:String(page)});
++     if(search.value.trim())p.set('search',search.value.trim());
++     if(from.value&&!from.parentElement.hidden)p.set('from',from.value);
++     if(to.value&&!to.parentElement.hidden)p.set('to',to.value);
++     try{
++       const data=await api('/api/debtor-reports?'+p.toString());if(!valid())return;
++       if(data.mode!==report||data.branch!==branch||data.financial_posting!==false||data.accounting_complete!==false)
++         throw Error('Unexpected reporting response. No balance is certified.');
++       last=data;summaries.replaceChildren();tables.replaceChildren();
++       for(const metric of data.summary||[]){const box=h('div',undefined,'suite-master-note');box.append(h('strong',metric.key+': '),h('span',displayValue(metric.value)));summaries.append(box);}
++       const warning=h('p',data.disclaimer||'Data source not certified','training-warning');tables.append(warning);
++       for(const reportSection of data.sections||[]){
++         const part=h('section',undefined,'suite-report-section');part.append(h('h4',reportSection.name));
++         const view=h('div');invTable(view,reportSection.columns||[],reportSection.rows||[]);part.append(view);
++         if(reportSection.more)part.append(h('p','Additional records available on the next page.','muted'));
++         tables.append(part);
++       }
++       prev.disabled=page===1;next.disabled=!(data.sections||[]).some(s=>s.more);
++       indicator.textContent='Page '+page+' · '+new Date(data.generated_at).toLocaleString('en-ZA');
++       status.textContent='Report loaded for '+data.branch+' · '+(data.sections||[]).reduce((n,s)=>n+(s.rows||[]).length,0)+' displayed rows';
++       csv.disabled=false;print.disabled=false;
++     }catch(e){if(valid()){status.textContent='Unable to load report';w.message(e.message);last=null;tables.replaceChildren();summaries.replaceChildren();}}
++     finally{refresh.disabled=false;}
++   }
++   function exportCSV(){
++     if(!last)return;
++     const protect=v=>{let x=String(v??'');if(['=','+','-','@'].includes(x.trimStart().charAt(0)))x="'"+x;return '"'+x.replace(/"/g,'""')+'"';};
++     const lines=[["Maliks POS · Debtors "+menuItem],["Branch",last.branch],["Generated",last.generated_at],["Page",String(last.page)],["Warning",last.disclaimer]];
++     for(const item of last.sections){lines.push([],[item.name],item.columns);for(const row of item.rows)lines.push(row.map(displayValue));}
++     const out=String.fromCharCode(0xfeff)+lines.map(row=>row.map(protect).join(',')).join(String.fromCharCode(13,10));
++     const u=URL.createObjectURL(new Blob([out],{type:'text/csv;charset=utf-8'}));const link=h('a');link.href=u;
++     link.download='maliks-debtors-'+report+'-'+last.branch.replace(/[^a-z0-9-]/gi,'-').slice(0,70)+'-page-'+page+'.csv';
++     document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);
++   }
++   function printCurrent(){
++     if(!last)return;
++     const win=window.open('','_blank');if(!win){w.message('Allow pop-ups to print this report.');return;}
++     const d=win.document;d.title='Maliks Debtors · '+menuItem;const style=d.createElement('style');
++     style.textContent='body{font:12px Arial,sans-serif;color:#102a40;margin:22mm 14mm;}h1{font-size:23px}h2{font-size:16px;margin-top:26px}table{border-collapse:collapse;width:100%;font-size:10px}th,td{border:1px solid #ccd3dc;padding:7px;text-align:left;overflow-wrap:anywhere}th{background:#eaeef3} .warning{border:1px solid #d49f2b;padding:12px;background:#fff8e3;}@page{size:A4 landscape;margin:12mm}';d.head.append(style);
++     const add=(tag,text,parent=d.body,cls='')=>{const x=d.createElement(tag);x.textContent=String(text??'');if(cls)x.className=cls;parent.append(x);return x;};
++     add('h1','MALIKS POS · DEBTORS REPORT');add('p',last.branch+' · '+menuItem+' · Page '+page+' · '+new Date(last.generated_at).toLocaleString('en-ZA'));
++     add('p',last.disclaimer,d.body,'warning');
++     for(const s of last.sections){add('h2',s.name);const t=d.createElement('table');const thead=d.createElement('tr');
++       for(const title of s.columns)add('th',title,thead);t.append(thead);
++       for(const row of s.rows){const tr=d.createElement('tr');for(const val of row)add('td',val,tr);t.append(tr);}d.body.append(t);
++     }
++     win.focus();win.setTimeout(()=>win.print(),250);
++   }
++   search.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();page=1;void load();}});
++   for(const input of [from,to])input.addEventListener('change',()=>{page=1;void load();});
++   if(!masterPermissions.debtor?.read){w.message('Debtor reporting access denied.');return;}
++   void load();
++ }
++
+  function suiteStockBalances(){
+    const w=invWorkspace('Stock-on-Hand','Operational quantities include posted GRVs, transfers, independently approved adjustments and stock counts. Sales deductions and returns are not yet integrated.');w.form.hidden=true;
+    let stockPage=1;const refresh=invButton('Refresh stock balances',()=>void load(),'suite-primary');
+@@ -2071,7 +2151,7 @@
+  function isConnectedSuiteAction(id,item){
+    if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
+    if(id==='suppliers')return ['Suppliers','Categories','Classifications','Purchase Orders','Invoices and Debit Notes','Audits','Supplier Master CSV File Export'].includes(item);
+-   if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export','Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements'].includes(item);
++   if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export','Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements','Master','Transactions','Sales','Ledger','Statements','Control Account','Age Analysis','Debtors PDCs'].includes(item);
+    if(id==='backoffice')return item==='Till Cash-Up';
+    if(id==='system')return ['User Permissions','Branch Access'].includes(item);
+    if(id==='widget')return ['Management Dashboard','Branch Dashboard','Stock Overview'].includes(item);
+@@ -2111,6 +2191,7 @@
+          if(id==='suppliers'&&item==='Supplier Master CSV File Export'){suiteMasterExport('supplier');return;}
+          if(id==='debtors'&&item==='Debtors Master CSV/Text File Export'){suiteMasterExport('debtor');return;}
+          if(id==='system'&&['User Permissions','Branch Access'].includes(item)){window.location.assign(MEMBER_TEAM_URL);return;}
++         if(id==='debtors'&&section==='Reporting'&&item!=='Audits'){suiteDebtorReport(item);return;}
+          if(id==='debtors'&&['Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements'].includes(item)){suiteDebtorTransactions(item);return;}
+          const referenceKind=id==='debtors'?({'Routes':'debtor_route','Categories':'debtor_category','Classifications':'debtor_classification','Regions and Areas':'region','Delivery Methods':'delivery_method','Debtors Returns Reasons':'debtor_return_reason','Debtors Invoicing Classifications':'debtor_invoice_classification','Debtors Invoicing Additional Notes':'debtor_invoice_note'}[item]):id==='suppliers'?({'Categories':'supplier_category','Classifications':'supplier_classification'}[item]):null;
+          if(referenceKind){suiteReferenceMaster(referenceKind);return;}
+@@ -2420,6 +2501,7 @@
+      '/api/cashup-reconciliation':'/v1/cashup-reconciliation','/api/cashup-reconciliation/review':'/v1/cashup-reconciliation/review',
+      '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
+      '/api/debtor-transactions':'/v1/debtor-transactions','/api/debtor-transactions/action':'/v1/debtor-transactions/action','/api/debtor-transactions/audit':'/v1/debtor-transactions/audit',
++     '/api/debtor-reports':'/v1/debtor-reports',
+      '/api/reference-masters':'/v1/reference-masters','/api/reference-masters/audit':'/v1/reference-masters/audit','/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue','/api/master/catalogue/sync':'/v1/master/catalogue/sync',
+      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
+      '/api/stock-control':'/v1/stock-control','/api/stock-control/action':'/v1/stock-control/action',
+@@ -2432,7 +2514,7 @@
+    if((path==='/v1/team'&&req.method!=='GET')||(['/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path)&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
+    if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/cashup-reconciliation/review','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/debtor-transactions','/api/debtor-transactions/action','/api/reference-masters','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/apps','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+    // The Professional suite cannot submit Sales transactions through its old POS origin.
+-   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/reference-masters') && !path.startsWith('/v1/debtor-transactions') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
++   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/reference-masters') && !path.startsWith('/v1/debtor-transactions') && path!=='/v1/debtor-reports' && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
+    // The Member Team Worker is isolated from POS, payments and sales.
+    if(kind==='member' && !['/v1/session','/v1/team','/v1/team/login-health','/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Team app only.'},{status:403});
+--- a/maliks-operations/src/core.mjs
++++ b/maliks-operations/src/core.mjs
+@@ -17,6 +17,7 @@
+ import {canManageTeam,listTeam,changeTeam,setTeamAppAccess} from './team-domain.mjs';
+ import {listReferences,saveReference,referenceAudit} from './reference-master-domain.mjs';
+ import {listDebtorTransactions,createDebtorTransaction,actionDebtorTransaction,listDebtorTransactionAudit} from './debtor-transaction-domain.mjs';
++import {getDebtorReport} from './debtor-report-domain.mjs';
+ import {listStockControl,createStockControl,stockControlAction} from './stock-control-domain.mjs';
+ import {loginPassword,verifySession,logoutPassword,changeOwnPassword,issueTemporaryPassword,bootstrapOwnPassword,loginAccountHealth} from './password-auth-domain.mjs';
+ 
+@@ -512,6 +513,7 @@
+       if(path==='/v1/team/password-reset'&&req.method==='POST')return await issueTemporaryPassword(req,env,context);
+       if(path==='/v1/quote/tag'&&req.method==='GET')return await resolveMobilePriceTag(req,env,context);
+       if(path==='/v1/quote/branch-queue'&&req.method==='GET'){await env.DB.prepare(createQuoteTable).run();return await listBranchSalesQuotes(req,env,context);}
++      if(path==='/v1/debtor-reports'&&req.method==='GET')return await getDebtorReport(req,env,context);
+       if(path==='/v1/debtor-transactions'&&req.method==='GET')return await listDebtorTransactions(req,env,context);
+       if(path==='/v1/debtor-transactions'&&req.method==='POST')return await createDebtorTransaction(req,env,context);
+       if(path==='/v1/debtor-transactions/action'&&req.method==='POST')return await actionDebtorTransaction(req,env,context);
