@@ -2093,13 +2093,13 @@ function page(app){
    actions.append(run,download,print);w.list.append(actions);
    const status=h('p','','muted');status.setAttribute('role','status');w.list.append(status);
    const area=h('div');w.list.append(area);
-   let columns=[],rows=[];
+   let columns=[],rows=[],reportNote='';
    const clean=value=>String(value??'');
    const date=value=>value?String(value).slice(0,10):'—';
    const include=row=>!search.value.trim()||row.some(v=>clean(v).toLowerCase().includes(search.value.trim().toLowerCase()));
    async function load(){
      if(!w.valid())return;
-     run.disabled=true;download.disabled=true;print.disabled=true;status.textContent='Loading operational records…';w.message('');
+     run.disabled=true;download.disabled=true;print.disabled=true;reportNote='';status.textContent='Loading operational records…';w.message('');
      try{
        if(menuItem==='Master'){
          const result=await api('/api/master/records?'+new URLSearchParams({branch,kind:'supplier'}));
@@ -2119,6 +2119,45 @@ function page(app){
          columns=['Document type','Reference','Supplier','Date','Status','Value / Declared total','Accounting'];
          rows=[...(p.orders||[]).map(x=>['Purchase order',x.number,x.supplier_name,date(x.created_at),x.status,money(x.total_cents),'NOT POSTED']),
            ...(i.invoices||[]).map(x=>['Supplier invoice',x.invoice_number,x.supplier_name,date(x.invoice_date),x.status,money(x.gross_cents),'NOT POSTED'])];
+       }else if(['Ledger','Statements','Control Account','Age Analysis','Payments','Suppliers PDC'].includes(menuItem)){
+         // Phase 36: distinguish operational evidence from a creditor subledger.
+         // No outstanding amounts, bank clearing or accounting posting may be inferred from these records.
+         if(menuItem==='Suppliers PDC'){
+           columns=['Cheque reference','Supplier','Due date','Amount','Bank status'];
+           rows=[];
+           reportNote='No supplier PDCs are shown because no maintained supplier PDC register exists. This is not a zero-balance report.';
+         }else if(menuItem==='Payments'){
+           const data=await api('/api/supplier-transactions?'+new URLSearchParams({branch,kind:'PAYMENT'}));
+           const reverse=await api('/api/supplier-transactions?'+new URLSearchParams({branch,kind:'REVERSAL'}));
+           if(!w.valid())return;
+           columns=['Type','Reference','Supplier code','Date','Requested amount','Review status','Financial status'];
+           rows=[...(data.records||data.transactions||[]),...(reverse.records||reverse.transactions||[])].map(r=>[r.kind,r.reference,r.supplier_code||'—',date(r.event_date),money(r.amount_cents),r.status,'NOT PAID / NOT POSTED']);
+           reportNote='Payment preparations and reversals only. Review approval does not prove bank payment, supplier allocation or ledger posting.';
+         }else if(menuItem==='Ledger'){
+           const [invoices,journals]=await Promise.all([
+             api('/api/supplier-invoices?branch='+encodeURIComponent(branch)),
+             api('/api/supplier-transactions?'+new URLSearchParams({branch,kind:'JOURNAL'}))
+           ]);
+           if(!w.valid())return;
+           columns=['Source','Reference','Supplier','Date','Declared amount','Status','Accounting status'];
+           rows=[...(invoices.invoices||[]).map(r=>['Verified invoice evidence',r.invoice_number,r.supplier_name,date(r.invoice_date),money(r.gross_cents),r.status,'NOT AP/GL POSTED']),
+             ...(journals.records||journals.transactions||[]).map(r=>['Journal preparation',r.reference,r.supplier_code,date(r.event_date),money(r.amount_cents),r.status,'NOT POSTED'])];
+           reportNote='Operational evidence only — NOT a creditor ledger. No opening balance, allocations, posted AP or reconciled GL data are available.';
+         }else if(menuItem==='Statements'||menuItem==='Age Analysis'){
+           const result=await api('/api/supplier-invoices?branch='+encodeURIComponent(branch));
+           if(!w.valid())return;
+           columns=['Supplier','Invoice','Invoice date','Declared invoice total','Matching status','Outstanding balance'];
+           rows=(result.invoices||[]).map(r=>[r.supplier_name,r.invoice_number,date(r.invoice_date),money(r.gross_cents),r.status,'NOT AVAILABLE']);
+           reportNote=menuItem==='Statements'?'Supplier statements cannot be issued: opening balances, posted supplier credits and allocations are not connected. Invoice records shown are NOT a statement.':'Age buckets cannot be computed from invoice totals; they require posted outstanding balances and allocation history. Dates shown are invoice dates only.';
+         }else if(menuItem==='Control Account'){
+           const [invoices,orders]=await Promise.all([
+             api('/api/supplier-invoices?branch='+encodeURIComponent(branch)),api('/api/purchase-orders?branch='+encodeURIComponent(branch))
+           ]);
+           if(!w.valid())return;
+           columns=['Operational evidence','Number of documents','Accounting status'];
+           rows=[['Supplier invoices captured',(invoices.invoices||[]).length,'NOT AP POSTED'],['Purchase orders',(orders.orders||[]).length,'NOT GL POSTED'],['Creditor control-account balance','NOT AVAILABLE','NOT RECONCILED']];
+           reportNote='Document counts only. A creditor control balance and reconciliation cannot be calculated before double-entry AP/GL posting and allocation are implemented.';
+         }
        }else{
          if(!supplierInvoicePermissions.read)throw Error('Supplier-invoice reporting permission denied.');
          const result=await api('/api/supplier-invoices?branch='+encodeURIComponent(branch));
@@ -2127,8 +2166,8 @@ function page(app){
          rows=(result.invoices||[]).map(r=>[r.invoice_number,r.supplier_name,r.po_id,date(r.invoice_date),r.status,money(r.net_cents),money(r.declared_vat_cents),money(r.gross_cents),(r.exceptions||[]).join('; ')]);
        }
        rows=rows.filter(include);invTable(area,columns,rows);
-       status.textContent=rows.length+' operational records shown · '+branch+' · No accounting balances certified.';
-       download.disabled=!rows.length;print.disabled=!rows.length;
+       status.textContent=rows.length+' operational records shown · '+branch+' · No accounting balances certified.'+(reportNote?' '+reportNote:'');
+       download.disabled=!rows.length||menuItem==='Suppliers PDC';print.disabled=!rows.length||menuItem==='Suppliers PDC';
      }catch(e){if(w.valid()){area.replaceChildren();status.textContent='Report unavailable';w.message(e.message);}}
      finally{if(w.valid())run.disabled=false;}
    }
@@ -2320,7 +2359,7 @@ function page(app){
  ${DEBTOR_SETTINGS_CLIENT_SCRIPT}
  function isConnectedSuiteAction(id,item){
    if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
-   if(id==='suppliers')return ['Suppliers','Categories','Classifications','Claims','Suppliers Returns Reasons','Statements Recon Reasons','Purchase Orders','Invoices and Debit Notes','Invoices and Debit Notes Details','Payments and Reversals','Journals','Rebates','Payments Reconciliation','Master','Transactions','Purchases','Audits','Supplier Master CSV File Export'].includes(item);
+   if(id==='suppliers')return ['Suppliers','Categories','Classifications','Claims','Suppliers Returns Reasons','Statements Recon Reasons','Purchase Orders','Invoices and Debit Notes','Invoices and Debit Notes Details','Payments and Reversals','Journals','Rebates','Payments Reconciliation','Master','Transactions','Ledger','Statements','Control Account','Age Analysis','Payments','Suppliers PDC','Purchases','Audits','Supplier Master CSV File Export'].includes(item);
    if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export','Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements','Master','Transactions','Sales','Ledger','Statements','Control Account','Age Analysis','Debtors PDCs','Current Agents','Block Sales','Reprint Documents','Reprint Journals','Labelling','Delete Expired Quotations','Debtors Master CSV File Import','Settings','Numbering'].includes(item);
    if(id==='backoffice')return item==='Till Cash-Up';
    if(id==='system')return ['User Permissions','Branch Access'].includes(item);
@@ -2363,7 +2402,7 @@ function page(app){
          if(id==='debtors'&&section==='Utilities'&&item!=='Debtors Master CSV/Text File Export'){suiteDebtorUtility(item);return;}
          if(id==='system'&&['User Permissions','Branch Access'].includes(item)){window.location.assign(MEMBER_TEAM_URL);return;}
          if(id==='debtors'&&section==='Reporting'&&item!=='Audits'){suiteDebtorReport(item);return;}
-         if(id==='suppliers'&&(['Master','Transactions','Purchases','Invoices and Debit Notes Details'].includes(item))){suiteSupplierReport(item);return;}
+         if(id==='suppliers'&&section==='Reporting'&&item!=='Audits'||id==='suppliers'&&item==='Invoices and Debit Notes Details'){suiteSupplierReport(item);return;}
          if(id==='debtors'&&section==='Settings'&&['Settings','Numbering'].includes(item)){suiteDebtorSettings(item);return;}
          if(id==='debtors'&&['Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements'].includes(item)){suiteDebtorTransactions(item);return;}
          if(id==='suppliers'&&section==='Transactions'&&['Payments and Reversals','Journals','Rebates','Payments Reconciliation'].includes(item)){suiteSupplierTransactions(item);return;}
