@@ -2322,6 +2322,49 @@ function page(app){
    }catch(e){if(w.valid())w.message(e.message);}}
    void load();
  }
+ // Phase 40 — five Stock screens, safely grounded in existing branch inventory.
+ // Financial sales, live promotion pricing and return authorisation are not invented.
+ function suiteStockExpansion(item){
+   const notices={
+     'Departments':'Catalogue department overview. Group Hub category is used as the current grouping; department master codes are not yet stored separately.',
+     'Stock Groups':'Group Hub category groupings of active branch-linked stock. This is not a separate editable stock-group master.',
+     'Stock Returns':'Return-related adjustments must be captured with a documented reason and independently approved in Stock Adjustments. This view shows existing stock movements, not an independently posted supplier/customer return.',
+     'Sales':'Confirmed POS sales deductions are not connected to this stock register. Quantities below are operational stock on hand, not sales quantities or revenue.',
+     'Promotions':'Promotional pricing, effective dates and automatic till discounts are not implemented. This is a read-only product register for planning promotions; no prices are changed.'
+   };
+   const w=invWorkspace(item,notices[item]);w.form.hidden=true;
+   const bar=h('div',undefined,'suite-master-actions'),search=invField(bar,'Search code / description','search');
+   const refresh=invButton('Refresh',()=>{page=1;void load();},'secondary');bar.append(refresh);
+   const table=h('div'),pager=h('div',undefined,'suite-master-actions');
+   let page=1;const prev=invButton('Previous',()=>{if(page>1){page--;void load();}},'secondary');
+   const next=invButton('Next',()=>{page++;void load();},'secondary');pager.append(prev,next);
+   w.list.append(bar,table,pager);
+   if(item==='Stock Returns'){
+     const link=invButton('Open controlled Stock Adjustments',()=>{suiteWorkspaceStart('Stock Adjustments');suiteStockControl('ADJUSTMENT');},'suite-primary');
+     w.list.insertBefore(link,table);
+   }
+   search.addEventListener('change',()=>{page=1;void load();});
+   async function load(){try{
+     const data=await api('/api/inventory?branch='+encodeURIComponent(branch)+'&page='+page+'&q='+encodeURIComponent(search.value.trim()));
+     if(!w.valid())return;const items=data.items||[];
+     prev.disabled=page<=1;next.disabled=page>=data.pages;pager.hidden=page===1&&data.pages<=1;
+     if(item==='Departments'||item==='Stock Groups'){
+       const groups=new Map();
+       for(const s of items){const key=String(s.category||'Uncategorised');const group=groups.get(key)||{count:0,quantity:0};group.count++;group.quantity+=Number(s.qty_milli||0);groups.set(key,group);}
+       invTable(table,['Hub category','Products on this page','On hand on this page'],[...groups].sort((a,b)=>a[0].localeCompare(b[0])).map(([name,g])=>[name,g.count,invQty(g.quantity)]));
+       w.message('Grouping is per page of linked products; it is not a complete branch category total.');
+     }else if(item==='Stock Returns'){
+       const movements=(data.movements||[]).filter(m=>/RETURN|ADJUST/i.test(String(m.movement_type||'')));
+       invTable(table,['Date','Stock','Movement','Quantity','Document'],movements.map(m=>[showDate(m.created_at),m.code,m.movement_type,(Number(m.quantity_delta_milli)>0?'+':'')+invQty(m.quantity_delta_milli),String(m.document_id??'—')]));
+       w.message('Only existing adjustment/return-labelled movements are shown. A stock adjustment is not proof of a customer refund or supplier credit.');
+     }else if(item==='Sales'){
+       invTable(table,['Code','Description','On hand','Sales quantity','Sales revenue'],items.map(s=>[s.code,s.name,invQty(s.qty_milli),'Not integrated','Not integrated']));
+     }else{
+       invTable(table,['Code','Product','Category','Current branch price','Promotion status'],items.map(s=>[s.code,s.name,s.category||'—',s.selling_price_cents!=null?money(s.selling_price_cents):'Not set','No promotion engine']));
+     }
+   }catch(e){if(w.valid())w.message(e.message);}}
+   void load();
+ }
  function suiteTransfers(){
    const w=invWorkspace('Stock Transfers','Create at source → independent manager sends (deducts stock) → destination independently receives (adds stock).');
    const controls=h('div',undefined,'suite-master-form');w.form.append(h('h4','New inter-branch transfer'),controls);
@@ -2425,7 +2468,7 @@ function page(app){
  ${SUPPLIER_SETTINGS_CLIENT_SCRIPT}
  ${SUPPLIER_MONTH_END_CLIENT_SCRIPT}
  function isConnectedSuiteAction(id,item){
-   if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
+   if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits','Departments','Stock Groups','Stock Returns','Sales','Promotions'].includes(item);
    if(id==='suppliers')return ['Settings','Numbering','Suppliers','Categories','Classifications','Claims','Suppliers Returns Reasons','Statements Recon Reasons','Purchase Orders','Invoices and Debit Notes','Invoices and Debit Notes Details','Payments and Reversals','Journals','Rebates','Payments Reconciliation','Master','Transactions','Ledger','Statements','Control Account','Age Analysis','Payments','Suppliers PDC','Purchases','Audits','Supplier Master CSV File Export','Control Agents','Statement Reconciliation','Reprint Documents','Reprint Unallocated Balances to Unpaid Invoices','Housekeeping','Suppliers Month End','Suppliers Month End History'].includes(item);
    if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export','Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements','Master','Transactions','Sales','Ledger','Statements','Control Account','Age Analysis','Debtors PDCs','Current Agents','Block Sales','Reprint Documents','Reprint Journals','Labelling','Delete Expired Quotations','Debtors Master CSV File Import','Settings','Numbering'].includes(item);
    if(id==='backoffice')return item==='Till Cash-Up';
@@ -2489,6 +2532,7 @@ function page(app){
          if(id==='stock'&&item==='Stock Take'){suiteStockControl('STOCKTAKE');return;}
          if(id==='stock'&&item==='Daily Stock Count'){suiteStockControl('STOCKTAKE');return;}
          if(id==='stock'&&item==='Opening Stock Count'){suiteStockControl('OPENING');return;}
+         if(id==='stock'&&['Departments','Stock Groups','Stock Returns','Sales','Promotions'].includes(item)){suiteStockExpansion(item);return;}
          if(id==='stock'&&item==='Stock Valuations'){suiteStockReport('valuation');return;}
          if(id==='stock'&&item==='Re-Order'){suiteStockReport('reorder');return;}
          if(id==='stock'&&item==='Transactions'){suiteStockReport('transactions');return;}
