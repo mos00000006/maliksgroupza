@@ -112,10 +112,10 @@ test('invalid checklist input and cross-origin writes are refused',async()=>{
  assert.equal((await checklist.POST(req,context)).status,403);
 });
 test('Hub task window contains progress, evidence, manager actions and timeline',()=>{
- const ui=read('../app/page.tsx');
+ const ui=read('app/page.tsx');
  for(const field of ['Task Checklist','taskProgressTrack','Completion Evidence','Manager Sign-off','Submit for Approval','Return for Correction','Activity Timeline','updateChecklist'])
   assert.ok(ui.includes(field),field);
- const css=read('../app/phase-eight.css');assert.match(css,/\.taskChecklistRow/);
+ const css=read('app/phase-eight.css');assert.match(css,/\.taskChecklistRow/);
 });
 test('task APIs log comments and evidence and approval rules include store managers',()=>{
  assert.match(read('app/api/tasks/[id]/comments/route.ts'),/COMMENT_ADDED/);

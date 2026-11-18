@@ -1,0 +1,9 @@
+--- a/tests/hub-task-controls-phase28.test.mjs
++++ b/tests/hub-task-controls-phase28.test.mjs
+@@
+ test('Hub task window contains progress, evidence, manager actions and timeline',()=>{
+- const ui=read('../app/page.tsx');
++ const ui=read('app/page.tsx');
+@@
+- const css=read('../app/phase-eight.css');assert.match(css,/\.taskChecklistRow/);
++ const css=read('app/phase-eight.css');assert.match(css,/\.taskChecklistRow/);
