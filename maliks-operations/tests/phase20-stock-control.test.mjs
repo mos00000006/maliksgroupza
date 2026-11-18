@@ -17,6 +17,7 @@ const get=path=>new Request('https://pos.example'+path);
 const result=async r=>({status:r.status,body:await r.json()});
 class D1{
  constructor(){this.sqlite=new DatabaseSync(':memory:');for(const name of ['phase15_master_files.sql','phase16_purchase_orders.sql','phase17_inventory_flow.sql','phase20_stock_control.sql'])this.sqlite.exec(readFileSync(new URL('../sql/'+name,import.meta.url),'utf8'));
+ this.sqlite.exec('CREATE TABLE catalogue_products(id INTEGER PRIMARY KEY,code TEXT,active INTEGER);\n CREATE TABLE powerbuild_price_tags(product_id INTEGER,published INTEGER,token TEXT,price_cents INTEGER);\n CREATE TABLE busterbuild_price_tags(product_id INTEGER,published INTEGER,token TEXT,price_cents INTEGER);\n CREATE TABLE price_tag_branch_prices(product_id INTEGER,brand TEXT,branch_name TEXT,price_cents INTEGER);');
  this.sqlite.exec(`CREATE TABLE workspaces(name TEXT,type TEXT,active INTEGER);INSERT INTO workspaces VALUES('Branch A','Store',1),('Branch B','Store',1);
  INSERT INTO maliks_pos_master_records(id,kind,branch,code,name,active,details_json,version,created_by_email,updated_by_email,created_at,updated_at,create_request_id,create_payload_hash,last_request_id) VALUES
  (2,'stock','Branch A','STK1','Test stock',1,'{"unit":"each","category":"Tools","cost_cents":500,"reorder_min":5}',1,'a','a','x','x','a','a','a'),
