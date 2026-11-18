@@ -22,7 +22,7 @@ const json=async res=>res.json();
 test('Phase 27 schema is additive, idempotent and has unique branch code/audit',()=>{
  const env=new D1();env.db.exec(readFileSync(new URL('../sql/phase27_reference_master_files.sql',import.meta.url),'utf8'));
  assert.ok(env.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='maliks_pos_reference_masters'").get());
- assert.equal(Object.keys(REFERENCE_KINDS).length,11);
+ assert.equal(Object.keys(REFERENCE_KINDS).length,14); // Phase 34 adds three supplier reference kinds
  const schema=readFileSync(new URL('../sql/phase27_reference_master_files.sql',import.meta.url),'utf8');
  assert.doesNotMatch(schema.replace(/^--.*$/gm,''),/^\s*(DROP|ALTER|DELETE)\s/mi);
 });
