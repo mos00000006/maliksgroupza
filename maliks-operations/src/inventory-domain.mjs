@@ -87,6 +87,43 @@ export async function listInventory(req,env,c){
  const page=pageRaw,perPage=150;
  const tagTable=/buster\s*build/i.test(branch)?'busterbuild_price_tags':'powerbuild_price_tags';
  const priceBrand=/buster\s*build/i.test(branch)?'busterbuild':'powerbuild';
+ // A price-label search needs only current branch stock, its active catalogue link,
+ // and its published price-card token. Do not load historical movements, all store
+ // destinations, or a full inventory report for each scanned barcode.
+ if(query.get('labels')==='1'){
+  const {results:items}=await env.DB.prepare(`SELECT m.id AS stock_id,m.code,m.name,
+    json_extract(m.details_json,'$.unit') AS unit,
+    json_extract(m.details_json,'$.category') AS category,
+    json_extract(m.details_json,'$.barcode') AS barcode,
+    COALESCE(CAST(json_extract(m.details_json,'$.selling_price_cents') AS INTEGER),0) AS selling_price_cents
+    FROM maliks_pos_master_records m
+    WHERE m.kind='stock' AND m.active=1 AND lower(m.branch)=lower(?)
+      AND (?='' OR instr(lower(m.code),?)>0 OR instr(lower(m.name),?)>0
+           OR instr(lower(COALESCE(json_extract(m.details_json,'$.barcode'),'')),?)>0)
+    ORDER BY m.name LIMIT 60`)
+    .bind(branch,term,term,term,term).all();
+  if(items.length){
+   const codes=[...new Set(items.map(item=>String(item.code).toLowerCase()))];
+   const placeholders=codes.map(()=>'?').join(',');
+   const {results:prices}=await env.DB.prepare(`SELECT p.code,tag.token AS label_qr_token,
+     tag.price_cents AS tag_price_cents,bp.price_cents AS branch_price_cents
+     FROM catalogue_products p
+     LEFT JOIN ${tagTable} tag ON tag.product_id=p.id AND tag.published=1
+     LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
+     WHERE p.active=1 AND lower(p.code) IN (${placeholders}) ORDER BY p.id DESC`)
+     .bind(priceBrand,branch,...codes).all();
+   const priceByCode=new Map();
+   for(const p of prices){const code=String(p.code).toLowerCase();if(!priceByCode.has(code))priceByCode.set(code,p);}
+   for(const item of items){
+    const p=priceByCode.get(String(item.code).toLowerCase());
+    if(!p)continue;
+    item.label_qr_token=p.label_qr_token||null;
+    const cents=p.branch_price_cents??p.tag_price_cents;
+    if(cents!==null&&cents!==undefined&&Number.isSafeInteger(Number(cents))&&Number(cents)>=0)item.selling_price_cents=Number(cents);
+   }
+  }
+  return json({branch,items,page:1,pages:1,total:items.length,movements:[],destinations:[],accounting_posted:false});
+ }
  const {results}=await env.DB.prepare(`SELECT m.id AS stock_id,m.code,m.name,json_extract(m.details_json,'$.unit') AS unit,
  COALESCE(b.qty_milli,0) AS qty_milli,COALESCE(b.version,0) AS stock_version,
  json_extract(m.details_json,'$.category') AS category,json_extract(m.details_json,'$.barcode') AS barcode,
