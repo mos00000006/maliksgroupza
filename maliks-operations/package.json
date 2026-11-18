@@ -32,7 +32,9 @@
     "migrate:phase21b": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase21b_cloudflare_pbkdf2.sql --config .generated/core.json",
     "migrate:phase22": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase22_cashup_reconciliation.sql --config .generated/core.json",
     "deploy:quote": "wrangler deploy --config .generated/quote.json",
-    "migrate:phase23": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase23_member_app_access.sql --config .generated/core.json"
+    "migrate:phase23": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase23_member_app_access.sql --config .generated/core.json",
+    "migrate:phase27": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase27_reference_master_files.sql --config .generated/core.json",
+    "migrate:phase29": "wrangler d1 execute maliks-group-hub-db --remote --yes --file sql/phase29_debtor_extended_masters.sql --config .generated/core.json"
   },
   "dependencies": {
     "jose": "^6.1.0"

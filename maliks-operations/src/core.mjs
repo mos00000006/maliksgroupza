@@ -15,6 +15,7 @@ import {canUseSupplierInvoice,listSupplierInvoices,captureSupplierInvoice,suppli
 import {resolveMobilePriceTag,listBranchSalesQuotes} from './mobile-quote-domain.mjs';
 import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,listTransfers,createTransfer,transferAction} from './inventory-domain.mjs';
 import {canManageTeam,listTeam,changeTeam,setTeamAppAccess} from './team-domain.mjs';
+import {listReferences,saveReference,referenceAudit} from './reference-master-domain.mjs';
 import {listStockControl,createStockControl,stockControlAction} from './stock-control-domain.mjs';
 import {loginPassword,verifySession,logoutPassword,changeOwnPassword,issueTemporaryPassword,bootstrapOwnPassword,loginAccountHealth} from './password-auth-domain.mjs';
 
@@ -510,6 +511,9 @@ export default {
       if(path==='/v1/team/password-reset'&&req.method==='POST')return await issueTemporaryPassword(req,env,context);
       if(path==='/v1/quote/tag'&&req.method==='GET')return await resolveMobilePriceTag(req,env,context);
       if(path==='/v1/quote/branch-queue'&&req.method==='GET'){await env.DB.prepare(createQuoteTable).run();return await listBranchSalesQuotes(req,env,context);}
+      if(path==='/v1/reference-masters'&&req.method==='GET')return await listReferences(req,env,context);
+      if(path==='/v1/reference-masters'&&req.method==='POST')return await saveReference(req,env,context);
+      if(path==='/v1/reference-masters/audit'&&req.method==='GET')return await referenceAudit(req,env,context);
       if(path==='/v1/master/records'&&req.method==='GET')return await listMasterRecords(req,env,context);
       if(path==='/v1/master/records'&&req.method==='POST')return await saveMasterRecord(req,env,context);
       if(path==='/v1/master/audit'&&req.method==='GET')return await listMasterAudit(req,env,context);

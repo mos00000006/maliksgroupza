@@ -1,45 +1,61 @@
-# PowerBuild Hub — Task Accountability Upgrade (Phase 28)
+# MALIKS POS PROFESSIONAL — ALL DEBTORS MASTER FILES (PHASE 27 + 29)
 
-## What the patch activates
+**Cumulative replacement patch**: includes the original Phase 27 activation plus Phase 29. You do not need to install Phase 27 separately.
 
-The existing **Task Details** window now supports:
+## What this patch activates
 
-1. **Task Checklist:** add up to 40 steps, tick off completed steps, remove incorrect steps, and view a live progress bar.
-2. **Completion Evidence:** use the existing photos, PDF, Word and Excel attachment uploader. A checklist-managed task cannot be submitted as complete until all steps are ticked and at least one file has been uploaded.
-3. **Manager Approval & Sign-off:** retains the existing Approvals workflow and adds actions directly in Task Details for authorised managers: Approve & Sign Off, Return for Correction, or Reject (reason required for rejection). Approval actions are recorded by actor and timestamp.
-4. **Activity Timeline:** lists checklist updates, task submission, manager decisions, newly added comments, new uploaded evidence, task creation and assignment changes.
+Within **Maliks POS Professional > Debtors > Master Files**, all eight formerly grey menu options become live:
 
-Existing task descriptions, comments, attachments, branch access controls, notifications and task statuses are preserved. Legacy tasks *without* checklists retain their existing approval submission rules.
+| POS option | Stored register |
+|---|---|
+| Routes | Debtor Routes |
+| Categories | Debtor Categories |
+| Classifications | Debtor Classifications |
+| Regions and Areas | Regions tab + Areas tab; each Area belongs to an active Region |
+| Delivery Methods | Debtor Delivery Methods |
+| Debtors Returns Reasons | Debtor Returns Reasons |
+| Debtors Invoicing Classifications | Debtor Invoicing Classifications |
+| Debtors Invoicing Additional Notes | Reusable note templates (up to 1,000 characters) |
 
-This phase does **not** change printouts, brand logos, other POS apps, recurring schedules or overdue escalation settings.
+Also retains Phase 27 **Suppliers > Master Files > Categories and Classifications**.
 
-## Install into GitHub
+Each register supports: Add, edit, search, active/inactive, code uniqueness within each branch and register, read/write permissions, version checks and audit history. A Region cannot be deactivated while it has active Areas. **The master lists do not automatically change invoices, delivery jobs or debtor accounts**: linking selected codes to individual accounts and transaction templates is a separate feature.
 
-1. Extract the ZIP at the **root** of your existing `mos00000006/maliksgroupza` checkout, so files land in `app/`, `db/`, `drizzle/` and `tests/`.
-2. Replace matching files and keep the new files, including `app/api/tasks/[id]/checklist/route.ts` and `drizzle/0069_task_checklist_activity.sql`.
-3. Commit and push to the `main` branch.
-4. The workflow `.github/workflows/deploy.yml` (**Deploy Maliks Group Hub**) should run automatically. If it does not, use **Actions → Deploy Maliks Group Hub → Run workflow**.
-5. Check that **Validate and build**, **Apply database migrations** and **Deploy full Hub** all complete successfully before testing.
-6. Refresh PowerBuild Hub. Open a task and confirm the Task Checklist, Manager Sign-off and Activity Timeline sections are visible.
+## Install — from the repo root
 
-No GitHub secrets need to be added. The new D1 migration is additive and does not delete old tasks or comments.
+1. Back up or commit current changes to `mos00000006/maliksgroupza`.
+2. Extract this ZIP **into the repo root** so `maliks-operations/` and `.github/` match their existing folders. Merge and replace the nine listed files; do **not** create an extra nested `maliksgroupza/` folder.
+3. Commit the files to `main` and push.
+4. Go to GitHub Actions → **Deploy Maliks Department Applications** → **Run workflow**. Select `main`, tick the required Worker names confirmation, and run.
+5. Confirm **npm test**, **migrate:phase27**, **migrate:phase29**, **Deploy central API**, and **Deploy Maliks POS Professional** all succeed (green).
+6. Refresh `https://maliks-pos.moyanamoses006.workers.dev/` in Chrome. Open **Debtors > Master Files**, pick an authorised branch, and test each menu option.
 
-## How to use it
+## Files included
 
-- Open the task → **Task Checklist** → add steps and tick each completed item.
-- Upload a photograph, signed checklist or other document in **Documents & pictures**.
-- Click **Submit for Approval**. If a checklist exists, unfinished steps or missing attachments are rejected with a clear explanation.
-- A manager with approval permission for that workspace can choose **Approve & Sign Off**, **Return for Correction**, or **Reject**. Return/reject prompts ask for a reason.
-- **Activity Timeline** records new actions with the employee's name and time. Previous historical events are not retrospectively backfilled.
+- `maliks-operations/src/frontend.mjs`: activates menu buttons, routes to record screens, includes new note editor.
+- `maliks-operations/src/core.mjs`: management-only reference-master endpoints (Phase 27).
+- `maliks-operations/src/reference-master-domain.mjs`: branch-scoped validation, CRUD and audits, with safe split storage for existing/new kinds.
+- `maliks-operations/sql/phase27_reference_master_files.sql`: original base reference tables (additive).
+- `maliks-operations/sql/phase29_debtor_extended_masters.sql`: additional debtor master table (additive; no rebuild of Phase 27).
+- `maliks-operations/package.json`: migration scripts.
+- `.github/workflows/deploy-maliks-operations.yml`: runs Phase 27 then Phase 29 before Core/POS deploy.
+- `maliks-operations/tests/phase27-reference-master.test.mjs` and `tests/phase29-all-debtor-masters.test.mjs`: regression checks.
 
-## Authorisation
+## Database safety / limitations
 
-Existing branch/workspace access continues to apply. Owners, Technical Administrators, approved EXCO users, Store Managers, Regional Managers and Operations Managers may sign off within their assigned workspace scope. Read-only employees cannot change checklists. Non-management users cannot approve or reject.
+This patch **does not drop, overwrite or migrate existing debtor, supplier, posted invoice, till, stock or payment records**. Phase 29 uses a separate table because an existing Phase 27 table has a constrained kind column. Both migrations use CREATE IF NOT EXISTS and are safe to rerun.
 
-## Tests
+Read and write requests are restricted to authorised `management` app users and assigned branches; debtor master permissions apply. Nothing in this patch changes employee passwords, Cloudflare Access secrets or department login settings.
 
-The ZIP includes `tests/hub-task-controls-phase28.test.mjs`, which exercises the new endpoints against an in-memory SQLite D1-like adapter. 12 local targeted tests passed during patch preparation. GitHub Actions must still run the complete project validation/build before deployment.
+## Verification and conflict prevention
 
-## Rollback
+In this environment, `node --test tests/phase29-all-debtor-masters.test.mjs` passed **7/7 targeted tests**. All changed JavaScript and test files passed `node --check`. The full GitHub suite and production deployment must still be confirmed by the GitHub workflow; the local npm install timed out.
 
-Restore the previous versions of the modified files, commit and redeploy the Hub. Leave the additive D1 tables intact, since removing them would delete checklist/audit history; the prior Hub can safely ignore them.
+The cumulative patch's existing files were based on the following *current GitHub main* blobs (checked 2026-11-18):
+
+- `maliks-operations/src/frontend.mjs`: `608b8bb8bd45323d31c4e2a659d47a354714f1be`
+- `maliks-operations/src/core.mjs`: `f31365796f164a42c9a1f0bfb592ad6be5478cab`
+- `maliks-operations/package.json`: `43b1abc2d8c751c582b79a9e97d9910c0acbea3b`
+- `.github/workflows/deploy-maliks-operations.yml`: `9bb3bfb85573398a719980243e57de4ee0b09c12`
+
+If these SHA hashes changed after the patch was prepared, review and merge the latest changes rather than blindly overwriting them.

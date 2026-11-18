@@ -1357,6 +1357,146 @@ function page(app){
    supplier:[['contact_name','Contact person','text'],['phone','Phone','text'],['email','Email','email'],['vat_number','VAT number','text'],['payment_terms_days','Payment terms (days)','integer']],
    debtor:[['contact_name','Contact person','text'],['phone','Phone','text'],['email','Email','email'],['credit_limit_cents','Credit limit (R)','money'],['payment_terms_days','Payment terms (days)','integer']]
  };
+ // Phase 27 — live debtor/supplier reference masters; independent of financial postings.
+ const REFERENCE_LABELS={debtor_category:'Debtor Categories',debtor_classification:'Debtor Classifications',
+   supplier_category:'Supplier Categories',supplier_classification:'Supplier Classifications',
+   region:'Regions',area:'Areas',delivery_method:'Delivery Methods',
+   debtor_route:'Debtor Routes',debtor_return_reason:'Debtor Return Reasons',
+   debtor_invoice_classification:'Debtor Invoicing Classifications',
+   debtor_invoice_note:'Debtor Invoicing Additional Notes'};
+ function suiteReferenceMaster(kind){
+   const selectedBranch=branch;
+   const detail=E('suite-feature-detail');if(!detail)return;
+   detail.className='suite-feature-detail suite-master-workspace';detail.hidden=false;detail.replaceChildren();
+   const valid=()=>branch===selectedBranch&&detail.isConnected;
+   const domain=kind.startsWith('supplier_')?'supplier':'debtor';
+   const canWrite=Boolean(masterPermissions[domain]?.write);
+   const title=REFERENCE_LABELS[kind]||'Reference master';
+   const top=h('div',undefined,'suite-workspace-bar');top.append(h('h3',title+' · '+selectedBranch));
+   if(kind==='region'||kind==='area'){
+     const tabs=h('div',undefined,'suite-master-actions');
+     for(const [key,label] of [['region','Regions'],['area','Areas']]){
+       const tab=h('button',label,key===kind?'small-btn':'secondary small-btn');tab.type='button';
+       tab.addEventListener('click',()=>suiteReferenceMaster(key));tabs.append(tab);
+     }top.append(tabs);
+   }
+   detail.append(top,h('p',kind==='debtor_invoice_note'?'Maintain reusable invoice note templates for this branch. These are reference records; they do not automatically appear on invoices until invoice templates are linked.':'Maintain codes, descriptions and active status for this branch. Changes are audited; no transactions or existing customer records are posted or altered.','muted'));
+   const status=h('p','','muted');status.setAttribute('role','status');detail.append(status);
+   const controls=h('div',undefined,'bar');
+   const query=h('input');query.type='search';query.placeholder='Search code, description or notes';query.maxLength=100;
+   const search=h('button','Search','secondary');search.type='button';
+   const refresh=h('button','Refresh','secondary');refresh.type='button';
+   const add=h('button','+ New '+(kind==='area'?'Area':'Record'),'small-btn');add.type='button';add.hidden=!canWrite;
+   const auditButton=h('button','Audit history','secondary');auditButton.type='button';
+   controls.append(query,search,refresh,add,auditButton);detail.append(controls);
+   const editor=h('section',undefined,'panel');editor.hidden=true;detail.append(editor);
+   const listing=h('div');detail.append(listing);
+   const auditPanel=h('div');auditPanel.hidden=true;detail.append(auditPanel);
+   let editing=null,requestId=null;
+   const show=(message,success=false)=>{status.textContent=message||'';status.className=success?'success':'error';};
+   const toList=()=>{editor.hidden=true;listing.hidden=false;auditPanel.hidden=true;};
+   async function regions(){
+     const data=await api('/api/reference-masters?'+new URLSearchParams({branch:selectedBranch,kind:'region'}));
+     if(!valid())return[];
+     return data.records||[];
+   }
+   async function openEditor(record=null){
+     if(!valid()||!canWrite)return;
+     editing=record;requestId=null;editor.hidden=false;listing.hidden=true;auditPanel.hidden=true;editor.replaceChildren();
+     editor.append(h('h3',record?'Edit '+record.code:'Add '+title));
+     const form=h('form');form.className='suite-master-form';
+     const fields={};
+     const field=(label,name,value,required,max)=>{
+       const wrap=h('label');wrap.append(h('span',label));const input=h('input');input.type='text';
+       input.value=value||'';input.required=Boolean(required);input.maxLength=max;input.name=name;
+       wrap.append(input);form.append(wrap);fields[name]=input;return input;
+     };
+     field('Code','code',record?.code||'',true,32);
+     field('Description / Name','name',record?.name||'',true,120);
+     if(kind==='debtor_invoice_note'){
+       const wrap=h('label');wrap.append(h('span','Invoice note text (required, up to 1000 characters)'));
+       const note=h('textarea');note.name='description';note.rows=5;note.maxLength=1000;note.required=true;note.value=record?.description||'';
+       wrap.append(note);form.append(wrap);fields.description=note;
+     }else field('Notes (optional)','description',record?.description||'',false,250);
+     let regionSelect=null;
+     if(kind==='area'){
+       const wrap=h('label');wrap.append(h('span','Region (required)'));
+       regionSelect=h('select');regionSelect.required=true;regionSelect.name='region';
+       const first=h('option','Select region');first.value='';regionSelect.append(first);
+       wrap.append(regionSelect);form.append(wrap);
+       try{
+         const all=await regions();if(!valid())return;
+         for(const region of all.filter(x=>x.active||x.id===record?.parent_region_id)){
+           const opt=h('option',region.code+' · '+region.name+(region.active?'':' (inactive)'));
+           opt.value=String(region.id);regionSelect.append(opt);
+         }
+         if(record?.parent_region_id)regionSelect.value=String(record.parent_region_id);
+         if(!all.some(x=>x.active))editor.append(h('p','Create and activate a Region before adding an Area.','muted'));
+       }catch(e){show('Regions unavailable: '+e.message);return;}
+     }
+     const statusField=h('label');statusField.append(h('span','Status'));
+     const active=h('select');for(const [v,label] of [['true','Active'],['false','Inactive']]){
+       const option=h('option',label);option.value=v;active.append(option);
+     }active.value=record?.active===false?'false':'true';statusField.append(active);form.append(statusField);
+     const buttons=h('div',undefined,'suite-master-actions');const save=h('button','Save '+title,'small-btn');save.type='submit';
+     const cancel=h('button','Cancel','secondary small-btn');cancel.type='button';
+     cancel.addEventListener('click',toList);buttons.append(save,cancel);form.append(buttons);editor.append(form);
+     form.addEventListener('input',()=>{requestId=null;});
+     form.addEventListener('change',()=>{requestId=null;});
+     form.addEventListener('submit',async event=>{
+       event.preventDefault();if(!valid())return;
+       const payload={kind,branch:selectedBranch,code:fields.code.value.trim(),name:fields.name.value.trim(),
+         description:fields.description.value.trim(),active:active.value==='true',request_id:requestId||crypto.randomUUID()};
+       if(kind==='area'){
+         payload.parent_region_id=Number(regionSelect.value);
+         if(!Number.isSafeInteger(payload.parent_region_id)||payload.parent_region_id<1){show('Select a valid active region.');return;}
+       }
+       if(record){payload.id=record.id;payload.version=record.version;}
+       requestId=payload.request_id;save.disabled=true;show('Saving…');
+       try{const response=await api('/api/reference-masters',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+         if(!valid())return;requestId=null;toList();await load();show(response.record.code+' saved successfully. The change was audited.',true);
+       }catch(e){if(valid())show(e.message);}finally{save.disabled=false;}
+     });
+     form.scrollIntoView({block:'nearest',behavior:'smooth'});
+   }
+   async function load(){
+     if(!valid())return;toList();listing.replaceChildren(h('p','Loading '+title.toLowerCase()+'…','muted'));
+     try{
+       const data=await api('/api/reference-masters?'+new URLSearchParams({branch:selectedBranch,kind,q:query.value.trim()}));
+       if(!valid())return;listing.replaceChildren();const rows=data.records||[];
+       listing.append(h('p',rows.length+' record(s) for '+selectedBranch,'muted'));
+       if(!rows.length){listing.append(h('p','No records found. Use New to create a master-file code.','empty'));return;}
+       const table=h('table');const head=h('tr');const cols=['Code','Description'];
+       if(kind==='area')cols.push('Region');cols.push('Notes','Status','Updated','Action');
+       for(const heading of cols)cell(head,heading,'th');table.append(head);
+       for(const row of rows){const tr=h('tr');cell(tr,row.code);cell(tr,row.name);
+         if(kind==='area')cell(tr,row.region_name||'—');
+         cell(tr,row.description||'—');cell(tr,row.active?'Active':'Inactive');cell(tr,showDate(row.updated_at));
+         const actions=h('td');if(canWrite){const edit=h('button','Edit','secondary small-btn');edit.type='button';
+           edit.addEventListener('click',()=>void openEditor(row));actions.append(edit);}else actions.textContent='Read only';
+         tr.append(actions);table.append(tr);
+       }
+       const scroll=h('div',undefined,'scroll');scroll.append(table);listing.append(scroll);
+     }catch(e){if(valid()){listing.replaceChildren();show(e.message);}}
+   }
+   async function showAudit(){
+     if(!valid())return;editor.hidden=true;listing.hidden=true;auditPanel.hidden=false;
+     auditPanel.replaceChildren(h('p','Loading audit…','muted'));
+     try{const data=await api('/api/reference-masters/audit?'+new URLSearchParams({branch:selectedBranch,kind}));
+       if(!valid())return;auditPanel.replaceChildren();
+       const back=h('button','Back to records','secondary small-btn');back.type='button';back.addEventListener('click',()=>void load());
+       auditPanel.append(back,h('h3','Last 50 changes · '+title));
+       if(!data.audit?.length){auditPanel.append(h('p','No changes recorded yet.','muted'));return;}
+       const table=h('table');const head=h('tr');for(const col of ['When','Action','Code','User','Version'])cell(head,col,'th');table.append(head);
+       for(const item of data.audit){const tr=h('tr');for(const value of [showDate(item.created_at),item.action,item.after.code,item.actor_name,item.after.version])cell(tr,value);table.append(tr);}
+       const scroll=h('div',undefined,'scroll');scroll.append(table);auditPanel.append(scroll);
+     }catch(e){if(valid())show(e.message);}
+   }
+   search.addEventListener('click',()=>void load());query.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void load();}});
+   refresh.addEventListener('click',()=>void load());add.addEventListener('click',()=>void openEditor());
+   auditButton.addEventListener('click',()=>void showAudit());void load();
+ }
+
  let masterPermissions={};
  let stockPricePermission=false;
  let purchasePermissions={};
@@ -1844,8 +1984,8 @@ function page(app){
  ${SUITE_INSIGHTS_CLIENT_SCRIPT}
  function isConnectedSuiteAction(id,item){
    if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
-   if(id==='suppliers')return ['Suppliers','Purchase Orders','Invoices and Debit Notes','Audits','Supplier Master CSV File Export'].includes(item);
-   if(id==='debtors')return ['Debtors','Audits','Debtors Master CSV/Text File Export'].includes(item);
+   if(id==='suppliers')return ['Suppliers','Categories','Classifications','Purchase Orders','Invoices and Debit Notes','Audits','Supplier Master CSV File Export'].includes(item);
+   if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export'].includes(item);
    if(id==='backoffice')return item==='Till Cash-Up';
    if(id==='system')return ['User Permissions','Branch Access'].includes(item);
    if(id==='widget')return ['Management Dashboard','Branch Dashboard','Stock Overview'].includes(item);
@@ -1885,6 +2025,8 @@ function page(app){
          if(id==='suppliers'&&item==='Supplier Master CSV File Export'){suiteMasterExport('supplier');return;}
          if(id==='debtors'&&item==='Debtors Master CSV/Text File Export'){suiteMasterExport('debtor');return;}
          if(id==='system'&&['User Permissions','Branch Access'].includes(item)){window.location.assign(MEMBER_TEAM_URL);return;}
+         const referenceKind=id==='debtors'?({'Routes':'debtor_route','Categories':'debtor_category','Classifications':'debtor_classification','Regions and Areas':'region','Delivery Methods':'delivery_method','Debtors Returns Reasons':'debtor_return_reason','Debtors Invoicing Classifications':'debtor_invoice_classification','Debtors Invoicing Additional Notes':'debtor_invoice_note'}[item]):id==='suppliers'?({'Categories':'supplier_category','Classifications':'supplier_classification'}[item]):null;
+         if(referenceKind){suiteReferenceMaster(referenceKind);return;}
          const masterKind=id==='stock'&&item==='Stock Master'?'stock':id==='suppliers'&&item==='Suppliers'?'supplier':id==='debtors'&&item==='Debtors'?'debtor':null;
          if(masterKind){suiteMasterView(masterKind);return;}
          if(item==='Purchase Orders'&&(id==='stock'||id==='suppliers')){suitePurchaseOrders();return;}
@@ -2190,7 +2332,7 @@ export default {
      '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview',
      '/api/cashup-reconciliation':'/v1/cashup-reconciliation','/api/cashup-reconciliation/review':'/v1/cashup-reconciliation/review',
      '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
-     '/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue','/api/master/catalogue/sync':'/v1/master/catalogue/sync',
+     '/api/reference-masters':'/v1/reference-masters','/api/reference-masters/audit':'/v1/reference-masters/audit','/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue','/api/master/catalogue/sync':'/v1/master/catalogue/sync',
      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
      '/api/stock-control':'/v1/stock-control','/api/stock-control/action':'/v1/stock-control/action',
      '/api/inventory':'/v1/inventory','/api/receipts':'/v1/receipts','/api/receipts/action':'/v1/receipts/action','/api/transfers':'/v1/transfers','/api/transfers/action':'/v1/transfers/action','/api/supplier-invoices':'/v1/supplier-invoices','/api/supplier-invoices/action':'/v1/supplier-invoices/action',
@@ -2200,9 +2342,9 @@ export default {
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
    if((path==='/v1/team'&&req.method!=='GET')||(['/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path)&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/cashup-reconciliation/review','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/apps','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/cashup-reconciliation/review','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/reference-masters','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/apps','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // The Professional suite cannot submit Sales transactions through its old POS origin.
-   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/reference-masters') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
    // The Member Team Worker is isolated from POS, payments and sales.
    if(kind==='member' && !['/v1/session','/v1/team','/v1/team/login-health','/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Team app only.'},{status:403});
