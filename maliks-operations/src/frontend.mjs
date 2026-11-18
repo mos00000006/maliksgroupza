@@ -2079,6 +2079,69 @@ function page(app){
    void load();
  }
 
+
+ // Phase 37 — supplier utilities are read-only operational tools; financial functions stay non-posting.
+ function suiteSupplierUtility(menuItem){
+   const w=invWorkspace('Suppliers · '+menuItem,'Branch-controlled operational utility. This does not post AP/GL, clear bank payments, allocate invoices or alter supplier balances.');
+   w.form.hidden=true;
+   const search=invField(w.list,'Search supplier, reference or status');
+   const actions=h('div',undefined,'suite-master-actions');
+   const run=invButton('Refresh',()=>void load(),'suite-primary');
+   const print=invButton('Print displayed evidence',()=>window.print());print.disabled=true;
+   actions.append(run,print);w.list.append(actions);
+   const note=h('p','','muted');note.setAttribute('role','status');w.list.append(note);
+   const area=h('div');w.list.append(area);
+   let columns=[],rows=[],explanation='';
+   const field=x=>String(x===null||x===undefined?'':x);
+   const matching=r=>!search.value.trim()||r.some(x=>field(x).toLowerCase().includes(search.value.trim().toLowerCase()));
+   async function load(){
+     if(!w.valid())return;
+     run.disabled=true;print.disabled=true;w.message('');note.textContent='Loading authorised branch records…';
+     try{
+       rows=[];columns=[];explanation='';
+       if(menuItem==='Control Agents'){
+         if(!masterPermissions.supplier?.read)throw Error('Supplier-master read permission required.');
+         const data=await api('/api/master/records?'+new URLSearchParams({branch,kind:'supplier'}));
+         if(!w.valid())return;
+         columns=['Supplier code','Supplier','Contact / control agent','Telephone','Email','Status'];
+         rows=(data.records||[]).map(r=>[r.code,r.name,r.details?.contact_name||'NOT RECORDED',r.details?.phone||'',r.details?.email||'',r.active?'Active':'Inactive']);
+         explanation='Control-agent directory is sourced from supplier master contact details. No separate agent appointment or approval register is maintained.';
+       }else if(menuItem==='Statement Reconciliation'){
+         if(!supplierInvoicePermissions.read)throw Error('Supplier-invoice read permission required.');
+         const data=await api('/api/supplier-invoices?branch='+encodeURIComponent(branch));
+         if(!w.valid())return;
+         columns=['Supplier','Invoice','Invoice date','Declared total','Verification','Reconciliation'];
+         rows=(data.invoices||[]).map(r=>[r.supplier_name,r.invoice_number,field(r.invoice_date).slice(0,10),money(r.gross_cents),r.status,'NOT RECONCILED']);
+         explanation='Review invoice evidence against an external supplier statement. No supplier statement upload, opening balance, credit allocation or formal reconciliation posting is connected; reconciliation is NOT completed by this screen.';
+       }else if(menuItem==='Reprint Documents'){
+         if(!purchasePermissions.read||!supplierInvoicePermissions.read)throw Error('Purchase and supplier-invoice read permissions required.');
+         const [p,i]=await Promise.all([api('/api/purchase-orders?branch='+encodeURIComponent(branch)),api('/api/supplier-invoices?branch='+encodeURIComponent(branch))]);
+         if(!w.valid())return;
+         columns=['Document','Reference','Supplier','Status','Recorded amount','Print status'];
+         rows=[...(p.orders||[]).map(r=>['Purchase order',r.number,r.supplier_name,r.status,money(r.total_cents),'OPERATIONAL COPY']),...(i.invoices||[]).map(r=>['Supplier invoice record',r.invoice_number,r.supplier_name,r.status,money(r.gross_cents),'RECORD SUMMARY ONLY'])];
+         explanation='Print creates an operational evidence list, not an original supplier tax invoice, approved purchase order facsimile or proof of payment.';
+       }else if(menuItem==='Reprint Unallocated Balances to Unpaid Invoices'){
+         if(!supplierInvoicePermissions.read)throw Error('Supplier-invoice read permission required.');
+         const data=await api('/api/supplier-invoices?branch='+encodeURIComponent(branch));
+         if(!w.valid())return;
+         columns=['Supplier','Invoice','Invoice date','Declared invoice total','Verification','Unallocated / unpaid balance'];
+         rows=(data.invoices||[]).map(r=>[r.supplier_name,r.invoice_number,field(r.invoice_date).slice(0,10),money(r.gross_cents),r.status,'NOT AVAILABLE']);
+         explanation='Only invoice evidence may be printed. Unallocated and unpaid balances cannot be certified until supplier AP posting, payment allocations and opening balances exist.';
+       }else if(menuItem==='Housekeeping'){
+         columns=['Check','Result','Action'];
+         rows=[['Supplier financial posting','NOT ENABLED','No posting or deletion performed'],['Invoice and purchasing records','Retained','No automatic purge'],['Supplier transaction preparations','Retained','Audit preserved']];
+         explanation='Safe diagnostics only. This screen does not delete, reverse, archive or alter financial/operational records.';
+       }else throw Error('Unknown Suppliers utility');
+       rows=rows.filter(matching);invTable(area,columns,rows);
+       note.textContent=rows.length+' rows · '+branch+' · '+explanation;
+       print.disabled=!rows.length;
+     }catch(e){if(w.valid()){area.replaceChildren();note.textContent='Utility unavailable';w.message(e.message);}}
+     finally{if(w.valid())run.disabled=false;}
+   }
+   search.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();void load();}});
+   void load();
+ }
+
  // Suppliers reporting: operational documents only; no fabricated creditor ledger or AP balance.
  function suiteSupplierReport(menuItem){
    const w=invWorkspace('Suppliers · '+menuItem,'READ ONLY · Operational supplier and purchasing records. No creditor, VAT, GL, payment or statement posting is currently available.');
@@ -2359,7 +2422,7 @@ function page(app){
  ${DEBTOR_SETTINGS_CLIENT_SCRIPT}
  function isConnectedSuiteAction(id,item){
    if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
-   if(id==='suppliers')return ['Suppliers','Categories','Classifications','Claims','Suppliers Returns Reasons','Statements Recon Reasons','Purchase Orders','Invoices and Debit Notes','Invoices and Debit Notes Details','Payments and Reversals','Journals','Rebates','Payments Reconciliation','Master','Transactions','Ledger','Statements','Control Account','Age Analysis','Payments','Suppliers PDC','Purchases','Audits','Supplier Master CSV File Export'].includes(item);
+   if(id==='suppliers')return ['Suppliers','Categories','Classifications','Claims','Suppliers Returns Reasons','Statements Recon Reasons','Purchase Orders','Invoices and Debit Notes','Invoices and Debit Notes Details','Payments and Reversals','Journals','Rebates','Payments Reconciliation','Master','Transactions','Ledger','Statements','Control Account','Age Analysis','Payments','Suppliers PDC','Purchases','Audits','Supplier Master CSV File Export','Control Agents','Statement Reconciliation','Reprint Documents','Reprint Unallocated Balances to Unpaid Invoices','Housekeeping'].includes(item);
    if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export','Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements','Master','Transactions','Sales','Ledger','Statements','Control Account','Age Analysis','Debtors PDCs','Current Agents','Block Sales','Reprint Documents','Reprint Journals','Labelling','Delete Expired Quotations','Debtors Master CSV File Import','Settings','Numbering'].includes(item);
    if(id==='backoffice')return item==='Till Cash-Up';
    if(id==='system')return ['User Permissions','Branch Access'].includes(item);
@@ -2398,6 +2461,7 @@ function page(app){
          if(id==='help'){suiteHelpView(item);return;}
          if(id==='stock'&&item==='Stock Master CSV/Text File Export'){suiteMasterExport('stock');return;}
          if(id==='suppliers'&&item==='Supplier Master CSV File Export'){suiteMasterExport('supplier');return;}
+         if(id==='suppliers'&&section==='Utilities'){suiteSupplierUtility(item);return;}
          if(id==='debtors'&&item==='Debtors Master CSV/Text File Export'){suiteMasterExport('debtor');return;}
          if(id==='debtors'&&section==='Utilities'&&item!=='Debtors Master CSV/Text File Export'){suiteDebtorUtility(item);return;}
          if(id==='system'&&['User Permissions','Branch Access'].includes(item)){window.location.assign(MEMBER_TEAM_URL);return;}
