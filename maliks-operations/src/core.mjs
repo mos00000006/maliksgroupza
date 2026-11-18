@@ -1,3 +1,4 @@
+import {getSupplierMonthEnd,recordSupplierMonthEnd} from './supplier-month-end-domain.mjs';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { APPS, canUseApp, allowedBranches, matchingBranch, limitSearch, attachAppPermissions } from './policy.mjs';
 import { validateQuoteLines, calculateQuote, canonicalQuotePayload, quoteNumber, quoteListStatement, quoteLookupStatement } from './quote-domain.mjs';
@@ -523,6 +524,8 @@ export default {
       if(path==='/v1/debtor-settings'&&req.method==='POST')return await changeDebtorSettings(req,env,context);
       if(path==='/v1/supplier-settings'&&req.method==='GET')return await getSupplierSettings(req,env,context);
       if(path==='/v1/supplier-settings'&&req.method==='POST')return await changeSupplierSettings(req,env,context);
+      if(path==='/v1/supplier-month-end'&&req.method==='GET')return await getSupplierMonthEnd(req,env,context);
+      if(path==='/v1/supplier-month-end'&&req.method==='POST')return await recordSupplierMonthEnd(req,env,context);
       if(path==='/v1/debtor-utilities'&&req.method==='POST')return await changeDebtorUtility(req,env,context);
       if(path==='/v1/supplier-transactions'&&req.method==='GET')return await listSupplierTransactions(req,env,context);
       if(path==='/v1/supplier-transactions'&&req.method==='POST')return await createSupplierTransaction(req,env,context);
