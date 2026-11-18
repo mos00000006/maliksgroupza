@@ -85,16 +85,23 @@ export async function listInventory(req,env,c){
  const q=limitSearch(query.get('q')||'');if(q===null)return fail('Search too long.');const term=q.toLowerCase();
  const pageRaw=Number(query.get('page')||1);if(!Number.isSafeInteger(pageRaw)||pageRaw<1||pageRaw>10000)return fail('Invalid page.');
  const page=pageRaw,perPage=150;
+ const tagTable=/buster\s*build/i.test(branch)?'busterbuild_price_tags':'powerbuild_price_tags';
+ const priceBrand=/buster\s*build/i.test(branch)?'busterbuild':'powerbuild';
  const {results}=await env.DB.prepare(`SELECT m.id AS stock_id,m.code,m.name,json_extract(m.details_json,'$.unit') AS unit,
  COALESCE(b.qty_milli,0) AS qty_milli,COALESCE(b.version,0) AS stock_version,
  json_extract(m.details_json,'$.category') AS category,json_extract(m.details_json,'$.barcode') AS barcode,
  COALESCE(CAST(json_extract(m.details_json,'$.cost_cents') AS INTEGER),0) AS cost_cents,
- COALESCE(CAST(json_extract(m.details_json,'$.reorder_min') AS INTEGER),0) AS reorder_min
+ COALESCE(CAST(json_extract(m.details_json,'$.reorder_min') AS INTEGER),0) AS reorder_min,
+ tag.token AS label_qr_token,
+ COALESCE(bp.price_cents,tag.price_cents,CAST(json_extract(m.details_json,'$.selling_price_cents') AS INTEGER),0) AS selling_price_cents
  FROM maliks_pos_master_records m LEFT JOIN maliks_pos_stock_balances b ON b.stock_master_id=m.id AND lower(b.branch)=lower(m.branch)
- WHERE m.kind='stock' AND lower(m.branch)=lower(?) AND m.active=1 AND (?='' OR instr(lower(m.code),?)>0 OR instr(lower(m.name),?)>0)
- ORDER BY m.name LIMIT ? OFFSET ?`).bind(branch,term,term,term,perPage,(page-1)*perPage).all();
+ LEFT JOIN catalogue_products p ON lower(p.code)=lower(m.code) AND p.active=1
+ LEFT JOIN ${tagTable} tag ON tag.product_id=p.id AND tag.published=1
+ LEFT JOIN price_tag_branch_prices bp ON bp.product_id=p.id AND bp.brand=? AND lower(bp.branch_name)=lower(?)
+ WHERE m.kind='stock' AND lower(m.branch)=lower(?) AND m.active=1 AND (?='' OR instr(lower(m.code),?)>0 OR instr(lower(m.name),?)>0 OR instr(lower(COALESCE(json_extract(m.details_json,'$.barcode'),'')),?)>0)
+ ORDER BY m.name LIMIT ? OFFSET ?`).bind(priceBrand,branch,branch,term,term,term,term,perPage,(page-1)*perPage).all();
  const totalRow=await env.DB.prepare(`SELECT COUNT(*) AS total FROM maliks_pos_master_records m
- WHERE m.kind='stock' AND lower(m.branch)=lower(?) AND m.active=1 AND (?='' OR instr(lower(m.code),?)>0 OR instr(lower(m.name),?)>0)`).bind(branch,term,term,term).first();
+ WHERE m.kind='stock' AND lower(m.branch)=lower(?) AND m.active=1 AND (?='' OR instr(lower(m.code),?)>0 OR instr(lower(m.name),?)>0 OR instr(lower(COALESCE(json_extract(m.details_json,'$.barcode'),'')),?)>0)`).bind(branch,term,term,term,term).first();
  const {results:movements}=await env.DB.prepare(`SELECT * FROM (
  SELECT m.id,m.movement_type,m.document_id,m.quantity_delta_milli,m.created_at,m.actor_email,s.code
  FROM maliks_pos_stock_movements m LEFT JOIN maliks_pos_master_records s ON s.id=m.stock_master_id

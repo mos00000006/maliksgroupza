@@ -1,3 +1,5 @@
+import { STOCK_LABEL_CLIENT_SCRIPT } from './stock-labelling-ui.mjs';
+import { STOCK_LABEL_QR_JS } from './stock-label-qr.mjs';
 import {STOCK_SETTINGS_CLIENT_SCRIPT} from './stock-settings-ui.mjs';
 import {SUPPLIER_MONTH_END_CLIENT_SCRIPT} from './supplier-month-end-ui.mjs';
 import {SUPPLIER_SETTINGS_CLIENT_SCRIPT} from './supplier-settings-ui.mjs';
@@ -255,7 +257,7 @@ function page(app){
  <div class="notice" id="workstation-notice">${d.hint}</div><div id="error" role="alert" hidden></div>
  <div class="panel" id="branch-panel"><div class="bar"><div><label for="branch">Assigned branch</label><select id="branch" disabled><option>Authorising…</option></select></div><div><label>Application access</label><p class="muted" id="access">Verification in progress…</p></div></div></div>
  <div id="app-content"></div>
- </main></div><script type="module">
+ </main></div><script src="/stock-label-qr.js" defer></script><script type="module">
  const APP=${JSON.stringify(app)};
  const MEMBER_TEAM_URL='https://maliks-member-team.moyanamoses006.workers.dev';
  const MALIKS_APP_LINKS=[
@@ -2326,7 +2328,9 @@ function page(app){
  // Phase 40 — five Stock screens, safely grounded in existing branch inventory.
  // Financial sales, live promotion pricing and return authorisation are not invented.
  // Phase 41: Stock Utilities (branch-scoped read/preview only). No destructive or posting operations.
- function suiteStockUtility(item){
+ ${STOCK_LABEL_CLIENT_SCRIPT}
+  function suiteStockUtility(item){
+   if(item==='Labelling'){suiteStockLabelling();return;}
    if(item==='Promotions'){suiteStockExpansion('Promotions');return;}
    const explanations={
      'Labelling':'Printable stock-code / barcode label register. Prices are indicative branch prices; product labels do not post stock or change prices.',
@@ -2905,6 +2909,7 @@ export default {
    const kind=String(env.APP_TYPE||'').toLowerCase();
    if(!APPS[kind])return new Response('Misconfigured application.',{status:503});
    const url=new URL(req.url);
+   if(url.pathname==='/stock-label-qr.js' && req.method==='GET')return new Response(STOCK_LABEL_QR_JS,{headers:{'content-type':'application/javascript; charset=utf-8','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/powerbuild-logo.png' && req.method==='GET')return new Response(POWERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/busterbuild-logo.png' && req.method==='GET')return new Response(BUSTERBUILD_LOGO_BYTES,{headers:{'content-type':'image/png','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
    if(url.pathname==='/' && req.method==='GET')return new Response(page(kind),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}});
