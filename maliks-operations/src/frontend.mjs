@@ -2324,6 +2324,86 @@ function page(app){
  }
  // Phase 40 — five Stock screens, safely grounded in existing branch inventory.
  // Financial sales, live promotion pricing and return authorisation are not invented.
+ // Phase 41: Stock Utilities (branch-scoped read/preview only). No destructive or posting operations.
+ function suiteStockUtility(item){
+   if(item==='Promotions'){suiteStockExpansion('Promotions');return;}
+   const explanations={
+     'Labelling':'Printable stock-code / barcode label register. Prices are indicative branch prices; product labels do not post stock or change prices.',
+     'Pricing Utilities':'Read-only cost and selling-price comparison. Pricing changes require the authorised Stock Master or Hub process.',
+     'Master Utilities':'Review linked stock master details and missing metadata. This tool does not rewrite catalogue masters.',
+     'Freeze Onhands':'Capture a dated CSV snapshot for external stock-count reconciliation. A genuine server-side stock freeze/transaction lock is NOT enabled.',
+     'Reprint Documents':'Read-only purchase-order and stock-movement evidence. Original posted document reprinting is not yet integrated.',
+     'Link Pictures':'Check whether stock records have catalogue image links. This screen does not upload or overwrite Hub images.',
+     'Serial Number Tracking':'Review item-level barcodes / codes. Individual serial-number registrations and movement tracking are NOT implemented.',
+     'Stock Master CSV File Import':'Local CSV validation preview only. It does NOT import or modify master data. Use the authorised Hub linking workflow.',
+     'Delete Stock Items':'Protected stock master audit view. Deletion is NOT permitted: stock with references and movements must remain auditable.',
+     'Delete Stock Purchase Orders':'Protected PO document review. Hard deletion is NOT permitted; approved/cancelled PO records must remain in audit history.'
+   };
+   const w=invWorkspace(item,explanations[item]);w.form.hidden=true;
+   const actions=h('div',undefined,'suite-master-actions');w.list.append(actions);
+   const filter=invField(actions,'Filter by stock code or description','search');filter.maxLength=100;
+   const reload=invButton('Refresh',()=>{page=1;void load();});actions.append(reload);
+   const table=h('div');w.list.append(table);
+   const pager=h('div',undefined,'suite-master-actions');w.list.append(pager);
+   let page=1,rows=[],totalPages=1;
+   const prev=invButton('Previous page',()=>{if(page>1){page--;void load();}});
+   const next=invButton('Next page',()=>{if(page<totalPages){page++;void load();}});
+   pager.append(prev,next);
+   filter.addEventListener('change',()=>{page=1;void load();});
+   const exportModes=['Freeze Onhands','Pricing Utilities','Master Utilities','Labelling','Link Pictures','Serial Number Tracking'];
+   if(exportModes.includes(item)){
+     const exportBtn=invButton('Export displayed page as CSV',()=>{
+       if(!rows.length){w.message('No records to export.');return;}
+       const fields=['code','name','category','unit','barcode','qty_milli','cost_cents','selling_price_cents'];
+       const guard=v=>{const t=String(v??'');return t.length&&[61,43,45,64,9,13].includes(t.charCodeAt(0))?"'"+t:t;};
+       const csv=[fields,...rows.map(x=>fields.map(k=>guard(x[k])))].map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join(String.fromCharCode(13,10));
+       const blob=new Blob([String.fromCharCode(65279)+csv],{type:'text/csv;charset=utf-8'});
+       const u=URL.createObjectURL(blob);const a=h('a');a.href=u;a.download='maliks-stock-'+item.toLowerCase().replace(/[^a-z]+/g,'-')+'-'+branch.replace(/[^a-z0-9-]/gi,'-')+'-page-'+page+'.csv';a.click();URL.revokeObjectURL(u);
+     });actions.append(exportBtn);
+   }
+   if(item==='Labelling'){
+     actions.append(invButton('Print displayed label register',()=>window.print()));
+     w.list.append(h('p','Printing uses your browser print settings. For production QR/price tags use the linked Maliks Group Hub Price Tag Studio.','muted'));
+   }
+   if(item==='Pricing Utilities')actions.append(invButton('Open authorised Stock Master',()=>{suiteWorkspaceStart('Stock Master');suiteMasterView('stock');}));
+   if(item==='Master Utilities'||item==='Link Pictures')actions.append(invButton('Open Stock Master',()=>{suiteWorkspaceStart('Stock Master');suiteMasterView('stock');}));
+   if(item==='Reprint Documents'||item==='Delete Stock Purchase Orders')actions.append(invButton('Open Purchase Orders',()=>{suiteWorkspaceStart('Purchase Orders');suitePurchaseOrders();}));
+   if(item==='Freeze Onhands')w.list.append(h('p','CSV is a point-in-time browser export, NOT a guaranteed consistent database snapshot or stock lock. Reconcile movements separately.','muted'));
+   if(item==='Delete Stock Items')w.list.append(h('p','Use the existing master status and audit procedures. No hard-delete endpoint is exposed.','muted'));
+   if(item==='Stock Master CSV File Import'){
+     const selector=invField(actions,'Choose CSV to validate','file');selector.accept='.csv,text/csv';
+     const preview=h('div');w.list.append(h('h4','Import preview — no database writes'),preview);
+     selector.addEventListener('change',async()=>{
+       preview.replaceChildren();const f=selector.files&&selector.files[0];if(!f)return;
+       if(f.size>2*1024*1024){w.message('CSV exceeds the 2 MB preview limit.');return;}
+       try{const text=await f.text();if(!w.valid())return;
+         const lines=text.replace(/^\uFEFF/,'').split(String.fromCharCode(10)).map(x=>x.replace(String.fromCharCode(13),'')).filter(x=>x.trim());
+         const headers=(lines[0]||'').split(',').map(x=>x.trim().replace(/^"|"$/g,'').toLowerCase());
+         if(!headers.includes('code')||!headers.includes('name')){w.message('CSV must contain code and name headers. This is a preview; no records were imported.');return;}
+         invTable(preview,['Row','Preview / validation'],lines.slice(1,101).map((line,i)=>[i+2,line.length>500?'Oversized row':line.slice(0,200)]));
+         w.message('Validated basic CSV headers; '+(lines.length-1)+' data line(s). Quoted multiline CSV is not supported by this preview. No data has been saved.',true);
+       }catch(e){w.message(e.message);}
+     });
+   }
+   async function load(){
+     try{
+       const data=await api('/api/inventory?branch='+encodeURIComponent(branch)+'&page='+page+'&q='+encodeURIComponent(filter.value.trim()));
+       if(!w.valid())return;rows=data.items||[];totalPages=Number(data.pages)||1;
+       prev.disabled=page<=1;next.disabled=page>=totalPages;pager.hidden=totalPages<=1;
+       const baseCols=['Code','Description','Category','On hand'];
+       const baseRows=rows.map(x=>[x.code,x.name,x.category||'—',invQty(x.qty_milli)]);
+       if(item==='Labelling')invTable(table,['Stock code','Label description','Barcode','Unit'],rows.map(x=>[x.code,x.name,x.barcode||'No barcode',x.unit||'each']));
+       else if(item==='Pricing Utilities')invTable(table,['Code','Description','Cost','Selling','Markup (on cost)'],rows.map(x=>[x.code,x.name,x.cost_cents>0?money(x.cost_cents):'Not set',x.selling_price_cents!=null?money(x.selling_price_cents):'Not set',x.cost_cents>0&&x.selling_price_cents!=null?((x.selling_price_cents-x.cost_cents)/x.cost_cents*100).toFixed(1)+'%':'—']));
+       else if(item==='Master Utilities')invTable(table,['Code','Description','Category','Master data checks'],rows.map(x=>[x.code,x.name,x.category||'—',[!x.barcode?'Missing barcode':'',!x.unit?'Missing unit':'',!x.category?'Missing category':''].filter(Boolean).join('; ')||'Basic fields populated']));
+       else if(item==='Link Pictures')invTable(table,['Code','Description','Category','Image status'],rows.map(x=>[x.code,x.name,x.category||'—',x.image_url?'Image URL supplied':'No image link in inventory response']));
+       else if(item==='Serial Number Tracking')invTable(table,['Code','Description','Barcode','Serial registry'],rows.map(x=>[x.code,x.name,x.barcode||'—','Not implemented']));
+       else if(item==='Freeze Onhands')invTable(table,['Stock code','Description','On hand at refresh','Stock version'],rows.map(x=>[x.code,x.name,invQty(x.qty_milli),x.stock_version??'—']));
+       else if(item==='Reprint Documents'||item==='Delete Stock Purchase Orders')invTable(table,['Code','Description','On hand','Document handling'],baseRows.map(r=>[...r.slice(0,3),'Use Purchase Orders workspace']));
+       else invTable(table,[...baseCols,'Delete status'],baseRows.map(r=>[...r,'Hard delete disabled']));
+     }catch(e){if(w.valid())w.message(e.message);}
+   }
+   if(item!=='Stock Master CSV File Import')void load();else{filter.parentNode.hidden=true;reload.hidden=true;pager.hidden=true;}
+ }
  function suiteStockExpansion(item){
    const notices={
      'Departments':'Catalogue department overview. Group Hub category is used as the current grouping; department master codes are not yet stored separately.',
@@ -2468,7 +2548,7 @@ function page(app){
  ${SUPPLIER_SETTINGS_CLIENT_SCRIPT}
  ${SUPPLIER_MONTH_END_CLIENT_SCRIPT}
  function isConnectedSuiteAction(id,item){
-   if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits','Departments','Stock Groups','Stock Returns','Sales','Promotions'].includes(item);
+   if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits','Departments','Stock Groups','Stock Returns','Sales','Promotions','Labelling','Pricing Utilities','Master Utilities','Freeze Onhands','Reprint Documents','Link Pictures','Serial Number Tracking','Stock Master CSV File Import','Delete Stock Items','Delete Stock Purchase Orders'].includes(item);
    if(id==='suppliers')return ['Settings','Numbering','Suppliers','Categories','Classifications','Claims','Suppliers Returns Reasons','Statements Recon Reasons','Purchase Orders','Invoices and Debit Notes','Invoices and Debit Notes Details','Payments and Reversals','Journals','Rebates','Payments Reconciliation','Master','Transactions','Ledger','Statements','Control Account','Age Analysis','Payments','Suppliers PDC','Purchases','Audits','Supplier Master CSV File Export','Control Agents','Statement Reconciliation','Reprint Documents','Reprint Unallocated Balances to Unpaid Invoices','Housekeeping','Suppliers Month End','Suppliers Month End History'].includes(item);
    if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export','Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements','Master','Transactions','Sales','Ledger','Statements','Control Account','Age Analysis','Debtors PDCs','Current Agents','Block Sales','Reprint Documents','Reprint Journals','Labelling','Delete Expired Quotations','Debtors Master CSV File Import','Settings','Numbering'].includes(item);
    if(id==='backoffice')return item==='Till Cash-Up';
@@ -2507,6 +2587,7 @@ function page(app){
          if(id==='widget'&&item==='Stock Overview'){suiteStockBalances();return;}
          if(id==='help'){suiteHelpView(item);return;}
          if(id==='stock'&&item==='Stock Master CSV/Text File Export'){suiteMasterExport('stock');return;}
+         if(id==='stock'&&section==='Utilities'&&['Promotions','Labelling','Pricing Utilities','Master Utilities','Freeze Onhands','Reprint Documents','Link Pictures','Serial Number Tracking','Stock Master CSV File Import','Delete Stock Items','Delete Stock Purchase Orders'].includes(item)){suiteStockUtility(item);return;}
          if(id==='suppliers'&&item==='Supplier Master CSV File Export'){suiteMasterExport('supplier');return;}
          if(id==='suppliers'&&section==='Utilities'){suiteSupplierUtility(item);return;}
          if(id==='debtors'&&item==='Debtors Master CSV/Text File Export'){suiteMasterExport('debtor');return;}
