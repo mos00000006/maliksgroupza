@@ -1689,6 +1689,92 @@ function page(app){
    const tb=h('tbody');for(const row of rows){const r=h('tr');for(const item of row){const td=h('td');if(item instanceof Node)td.append(item);else td.textContent=String(item??'');r.append(td);}tb.append(r);}t.append(tb);
    const scroll=h('div',undefined,'scroll');scroll.append(t);container.append(scroll);
  };
+
+ // Phase 30: live debtor transaction registers. ALL entries are non-posting.
+ function suiteDebtorTransactions(menuItem){
+   const kinds=menuItem==='Payments and Reversals'?['PAYMENT','REVERSAL']:
+     menuItem==='Journals'?['JOURNAL']:menuItem==='PDC Register'?['PDC']:['GROUP_SETTLEMENT'];
+   const w=invWorkspace(menuItem,'Controlled transaction capture and independent review. NOT a receipt, bank confirmation, debtor balance adjustment, VAT entry or GL posting.');
+   const fields=h('div',undefined,'suite-master-form');w.form.append(h('h4','New transaction preparation'),fields);
+   const table=h('div');w.list.append(h('h4','Transaction register · Prepared only, never financially posted'),table);
+   const toolbar=h('div',undefined,'suite-master-actions');w.list.insertBefore(toolbar,table);
+   const typeSelect=invSelect(fields,'Transaction type',kinds,x=>x,x=>({PAYMENT:'Payment preparation',REVERSAL:'Payment reversal request',JOURNAL:'Balanced journal preparation',PDC:'Post-dated cheque register',GROUP_SETTLEMENT:'Group invoice settlement preparation'})[x]);
+   const ref=invField(fields,'Unique transaction reference (e.g. TX-001)');
+   const debtor=invField(fields,'Debtor account code');
+   const amount=invField(fields,'Amount (R)','number','0.00');amount.min='0.01';amount.step='0.01';
+   const eventDate=invField(fields,'Transaction / received date','date',new Date().toISOString().slice(0,10));
+   const description=invField(fields,'Purpose / description');
+   const extras=h('div',undefined,'suite-master-form');extras.style.gridColumn='1/-1';fields.append(extras);
+   const save=invButton('Save transaction draft',()=>void create(),'suite-primary');
+   const actions=h('div',undefined,'suite-master-form-buttons');actions.style.gridColumn='1/-1';actions.append(save);fields.append(actions);
+   const more={};
+   function special(){
+     extras.replaceChildren();for(const k of Object.keys(more))delete more[k];
+     const kind=typeSelect.value;debtor.parentElement.hidden=kind==='JOURNAL';
+     function field(key,label,type){more[key]=invField(extras,label,type||'text');if(type==='date')more[key].value=eventDate.value;}
+     if(kind==='PAYMENT'){field('method','Payment method');more.method.remove();
+       more.method=invSelect(extras,'Payment method',['EFT','CASH','CARD','CHEQUE','OTHER'],x=>x,x=>x);
+       field('bank_reference','Bank / external receipt reference (optional)');}
+     if(kind==='REVERSAL'){field('original_reference','Original payment / document number');field('reason','Reason for reversal (10+ characters)');}
+     if(kind==='JOURNAL'){field('debit_account','Debit GL account code');field('credit_account','Credit GL account code');}
+     if(kind==='PDC'){field('bank','Cheque bank name');field('cheque_number','Cheque number');field('cheque_date','Post-dated cheque date','date');}
+     if(kind==='GROUP_SETTLEMENT'){field('group_account','Group account code');field('invoice_number','Invoice reference');}
+   }
+   typeSelect.addEventListener('change',()=>{special();void load();});special();
+   const refresh=invButton('Refresh transaction list',()=>void load());toolbar.append(refresh);
+   const note=h('p','The REVIEWED status means independently checked for accounting processing; it DOES NOT mean paid, posted, bank-cleared or allocated.','muted');w.list.append(note);
+   const canWrite=Boolean(masterPermissions.debtor?.write),canRead=Boolean(masterPermissions.debtor?.read);
+   if(!canWrite)w.form.hidden=true;
+   if(!canRead){w.message('Debtors transaction register access denied.');return;}
+   async function create(){
+     save.disabled=true;try{
+       const n=Number(amount.value);if(!Number.isFinite(n)||n<=0||Math.abs(n*100-Math.round(n*100))>0.00001)throw Error('Enter a valid amount in rand and cents.');
+       const detail={};for(const [k,el] of Object.entries(more))detail[k]=el.value;
+       const data=await invPost('/api/debtor-transactions',{kind:typeSelect.value,branch,reference:ref.value,debtor_code:debtor.value,
+         amount_cents:Math.round(n*100),event_date:eventDate.value,description:description.value,details:detail});
+       if(w.valid()){w.message('Saved '+data.record.reference+' as DRAFT. NO financial posting occurred.',true);ref.value='';description.value='';await load();}
+     }catch(e){if(w.valid())w.message(e.message);}finally{save.disabled=false;}
+   }
+   async function act(record,action){
+     let reason='';if(action==='REJECT'){
+       reason=window.prompt('Enter the reason for rejection (minimum 8 characters):','')||'';
+       if(reason.trim().length<8){w.message('Rejection reason must contain at least 8 characters.');return;}
+     }
+     if(!window.confirm(action+' '+record.reference+'? This does NOT post or settle money.'))return;
+     try{const data=await invPost('/api/debtor-transactions/action',{branch,id:record.id,version:record.version,action,reason});
+       if(w.valid()){w.message(data.record.reference+' → '+data.record.status+'. No financial posting occurred.',true);await load();}
+     }catch(e){if(w.valid())w.message(e.message);}
+   }
+   async function audit(record){try{
+     const data=await api('/api/debtor-transactions/audit?'+new URLSearchParams({branch,id:String(record.id)}));
+     if(!w.valid())return;const dialog=h('section',undefined,'suite-master-editor');dialog.append(h('h4','Audit trail · '+record.reference));
+     const lines=h('div');invTable(lines,['Event','By','From → To','Reason','Date'],data.events.map(x=>[
+       x.action,x.actor_name+' ('+x.actor_email+')',(x.status_from||'—')+' → '+x.status_to,x.reason||'—',showDate(x.created_at)]));dialog.append(lines);
+     dialog.append(invButton('Close audit',()=>dialog.remove()));w.list.append(dialog);dialog.scrollIntoView({behavior:'smooth'});
+   }catch(e){w.message(e.message);}}
+   async function load(){try{
+     const types=typeSelect.value==='PAYMENT'||typeSelect.value==='REVERSAL'?['PAYMENT','REVERSAL']:[typeSelect.value];
+     const lists=await Promise.all(types.map(kind=>api('/api/debtor-transactions?'+new URLSearchParams({branch,kind}))));
+     if(!w.valid())return;const records=lists.flatMap(x=>x.records).sort((a,b)=>b.id-a.id);
+     invTable(table,['Reference','Type / Debtor','Amount','Date','Status','Created / Reviewed','Actions'],records.map(r=>{
+       const buttons=h('div',undefined,'suite-master-actions');
+       buttons.append(invButton('Audit',()=>void audit(r)));
+       if(canWrite&&r.status==='DRAFT'&&r.created_by_email===currentUserEmail){
+         buttons.append(invButton('Submit',()=>void act(r,'SUBMIT')));
+         buttons.append(invButton('Cancel',()=>void act(r,'CANCEL')));
+       }
+       if(canWrite&&r.status==='SUBMITTED'&&r.created_by_email!==currentUserEmail &&
+          ['Owner / Admin','Developer / Technical Admin','Operations Manager','Regional Manager','Store Manager'].includes(currentUserRole)){
+         buttons.append(invButton('Review',()=>void act(r,'REVIEW')));
+         buttons.append(invButton('Reject',()=>void act(r,'REJECT')));
+       }
+       return [r.reference,r.kind.replaceAll('_',' ')+' · '+(r.debtor_code||'GL accounts'),money(r.amount_cents),
+         r.event_date,r.status+' · NOT POSTED',r.created_by_name+(r.reviewed_by_email?' / '+r.reviewed_by_email:''),buttons];
+     }));
+   }catch(e){if(w.valid())w.message(e.message);}}
+   void load();
+ }
+
  function suitePurchaseOrders(){
    const w=invWorkspace('Purchase Orders','Draft → Submit → Independent approval. Values are estimated cost only; VAT and supplier accounting are not posted.');
    const controls=h('div',undefined,'suite-master-form');w.form.append(h('h4','Create purchase order'),controls);
@@ -1985,7 +2071,7 @@ function page(app){
  function isConnectedSuiteAction(id,item){
    if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
    if(id==='suppliers')return ['Suppliers','Categories','Classifications','Purchase Orders','Invoices and Debit Notes','Audits','Supplier Master CSV File Export'].includes(item);
-   if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export'].includes(item);
+   if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export','Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements'].includes(item);
    if(id==='backoffice')return item==='Till Cash-Up';
    if(id==='system')return ['User Permissions','Branch Access'].includes(item);
    if(id==='widget')return ['Management Dashboard','Branch Dashboard','Stock Overview'].includes(item);
@@ -2025,6 +2111,7 @@ function page(app){
          if(id==='suppliers'&&item==='Supplier Master CSV File Export'){suiteMasterExport('supplier');return;}
          if(id==='debtors'&&item==='Debtors Master CSV/Text File Export'){suiteMasterExport('debtor');return;}
          if(id==='system'&&['User Permissions','Branch Access'].includes(item)){window.location.assign(MEMBER_TEAM_URL);return;}
+         if(id==='debtors'&&['Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements'].includes(item)){suiteDebtorTransactions(item);return;}
          const referenceKind=id==='debtors'?({'Routes':'debtor_route','Categories':'debtor_category','Classifications':'debtor_classification','Regions and Areas':'region','Delivery Methods':'delivery_method','Debtors Returns Reasons':'debtor_return_reason','Debtors Invoicing Classifications':'debtor_invoice_classification','Debtors Invoicing Additional Notes':'debtor_invoice_note'}[item]):id==='suppliers'?({'Categories':'supplier_category','Classifications':'supplier_classification'}[item]):null;
          if(referenceKind){suiteReferenceMaster(referenceKind);return;}
          const masterKind=id==='stock'&&item==='Stock Master'?'stock':id==='suppliers'&&item==='Suppliers'?'supplier':id==='debtors'&&item==='Debtors'?'debtor':null;
@@ -2332,6 +2419,7 @@ export default {
      '/api/till-shifts':'/v1/till-shifts','/api/till-shifts/open':'/v1/till-shifts/open','/api/till-shifts/close':'/v1/till-shifts/close','/api/till-reviews':'/v1/till-reviews','/api/tender-preparations':'/v1/tender-preparations','/api/cashup-preview':'/v1/cashup-preview',
      '/api/cashup-reconciliation':'/v1/cashup-reconciliation','/api/cashup-reconciliation/review':'/v1/cashup-reconciliation/review',
      '/api/payment-evidence':'/v1/payment-evidence','/api/payment-evidence/history':'/v1/payment-evidence/history','/api/payments':'/v1/payments','/api/payments/quick-confirm':'/v1/payments/quick-confirm','/api/payments/verify':'/v1/payments/verify','/api/invoices':'/v1/invoices','/api/dispatch-jobs':'/v1/dispatch-jobs','/api/dispatch-jobs/action':'/v1/dispatch-jobs/action',
+     '/api/debtor-transactions':'/v1/debtor-transactions','/api/debtor-transactions/action':'/v1/debtor-transactions/action','/api/debtor-transactions/audit':'/v1/debtor-transactions/audit',
      '/api/reference-masters':'/v1/reference-masters','/api/reference-masters/audit':'/v1/reference-masters/audit','/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue','/api/master/catalogue/sync':'/v1/master/catalogue/sync',
      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
      '/api/stock-control':'/v1/stock-control','/api/stock-control/action':'/v1/stock-control/action',
@@ -2342,9 +2430,9 @@ export default {
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
    if((path==='/v1/team'&&req.method!=='GET')||(['/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path)&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/cashup-reconciliation/review','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/reference-masters','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/apps','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/cashup-reconciliation/review','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/debtor-transactions','/api/debtor-transactions/action','/api/reference-masters','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/apps','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // The Professional suite cannot submit Sales transactions through its old POS origin.
-   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/reference-masters') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/reference-masters') && !path.startsWith('/v1/debtor-transactions') && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
    // The Member Team Worker is isolated from POS, payments and sales.
    if(kind==='member' && !['/v1/session','/v1/team','/v1/team/login-health','/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Team app only.'},{status:403});
