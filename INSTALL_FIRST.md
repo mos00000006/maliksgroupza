@@ -1,57 +1,55 @@
-# Maliks POS Professional — Debtors Utilities (Phase 32)
+# Maliks POS Professional — Debtors Settings + Numbering (Phase 33)
 
-## Scope
-Activate the seven previously disabled entries under **Debtors → Utilities**, preserving **Debtors Master CSV/Text File Export** and all Phase 27/29/30/31 features.
+## Install
+1. Open `mos00000006/maliksgroupza` and use the **main** branch.
+2. Extract this ZIP **at the repository root**, retaining the `maliks-operations/` and `.github/` folders. Replace existing matching files and add new files.
+3. Commit and push to `main`.
+4. Open GitHub Actions → `Deploy Maliks Department Applications` (`.github/workflows/deploy-maliks-operations.yml`). Click **Run workflow**, select `main`, and confirm the existing Worker names when prompted.
+5. Wait for **npm test**, **npm run config**, **Apply Debtors branch settings and numbering schema (Phase 33)**, **Deploy central API**, and **Deploy Maliks POS Professional** to pass. Do not treat a failed migration as deployed.
+6. Open `https://maliks-pos.moyanamoses006.workers.dev/`, sign in to POS Professional, choose an authorised branch, and go to **Debtors → Settings → Settings** or **Debtors → Settings → Numbering**.
 
-### Functionality
-1. **Current Agents:** audited, branch-specific directory of agents, with add, edit and active/inactive controls. This is not Member Team login administration.
-2. **Block Sales:** record a manager/credit-controller sales-block flag and mandatory reason for an active debtor master account; audit all changes. **Important: Sales and Tills currently do not attach a debtor account code to walk-in sales. The flag is administrative only until the account-selection/checkout enforcement step is added. Do not assume blocked accounts are automatically refused at checkout.**
-3. **Reprint Documents:** list branch quotations and confirmed internal pilot invoices, and print a copy with status and totals. Quotes are clearly marked NOT PAID; internal invoices do not automatically certify banking or statutory VAT compliance.
-4. **Reprint Journals:** print copies of captured non-posting debtor journal preparations with clear `NOT POSTED` notice.
-5. **Labelling:** select active debtor master records and generate an A4, eight-label-per-page filing sheet. The print layout uses the supplied Buster Build logo for Buster Build and PowerBuild for other branches.
-6. **Delete Expired Quotations:** safely **archive** eligible unlinked quotations older than 90 days, with a mandatory reason and audit record. The quotation remains stored; it is NOT physically deleted or fully hidden from every legacy Sales/Tills screen. Quotes linked to any payment or invoice cannot be archived.
-7. **Debtors Master CSV File Import:** download a CSV template, inspect and validate account data, create up to 50 **new** debtor master records at a time and retain master/utility audit history. Existing account codes block the entire batch; no existing customer is overwritten. The import does not create opening balances or financial transactions.
+## Activated features
+### Settings
+- Branch defaults: payment terms (0–365 days), default credit limit, statement cutoff day (1–28), invoice note and statement note.
+- **Payment terms and credit limit prefill the New Debtor form only.** Staff can still edit those values.
+- Existing debtor records and documents are never rewritten.
+- Statement cutoff and saved invoice/statement note text are NOT automatically applied to statements/invoices; these require subsequent document-generation integration.
+- Audited edits with optimistic version control. Authorised Debtors managers only.
 
-The existing **Debtors Master CSV/Text File Export** remains unchanged.
+### Numbering
+- Six separate branch-controlled series: Debtor Account, Payment Preparation, Reversal Request, Journal Preparation, PDC Register, Group Settlement.
+- Custom prefix (e.g. `DBT-`), minimum numeric width (4–10), and forward-only next-value configuration.
+- **Reserve next reference** increments a series atomically in Cloudflare D1, stores who reserved it, and prevents reuse. A retried request ID returns the same reservation.
+- Existing numeric IDs and Q-/invoice numbering remain untouched. Reservations must currently be entered manually into the associated records; no automatic numbering claim is made.
+- Prefix and width are locked after the series has reserved a number, to preserve reference integrity.
 
-## Install into GitHub
-1. Back up any uncommitted project changes.
-2. Extract `Maliks_POS_Debtors_Utilities_Phase32_Activation_PATCH.zip` into the **root** of `mos00000006/maliksgroupza` (the folder containing `maliks-operations/`). Keep the directory layout intact. Replace matching files.
-3. Commit and push changes to `main`.
-4. Visit https://github.com/mos00000006/maliksgroupza/actions/workflows/deploy-maliks-operations.yml, run **Deploy Maliks Department Applications**, check the required worker-name confirmation, then run the workflow on `main`.
-5. Verify **npm test**, **Apply Debtors utilities registers and audits (Phase 32)**, **Deploy central API**, and **Deploy Maliks POS Professional** succeed.
-6. Open https://maliks-pos.moyanamoses006.workers.dev/ and select Debtors → Utilities, choose your assigned store, then test Current Agents and CSV Import using test-only account codes.
+## Safety controls
+- Core API, authenticated employee context, branch scope, manager write permission and same-origin validation.
+- Read-only access for authorised management staff who lack editing permission.
+- No payment, VAT, debtor balance, invoice, stock or GL posting.
+- Additive SQLite/D1 tables only; migration is rerunnable.
+- No new Cloudflare secrets or Access policy edits.
 
-## Exact current GitHub base files checked
-- `maliks-operations/src/frontend.mjs`: `300966f6ab608e85b88a4e103ab78cb4e0cc220e`
-- `maliks-operations/src/core.mjs`: `1e26d46df5cda92c4ad4b67cbf5b2a2b809ce299`
-- `maliks-operations/package.json`: `dd8e0f69c5cfb9094b72dc6db75b024c449cbe02`
-- `.github/workflows/deploy-maliks-operations.yml`: `2fdfbc943dfbb1e9b904ed83dd6b713d326beac2`
-
-If later edits change these files, merge them instead of blindly overwriting.
-
-## Files included
-- `maliks-operations/src/frontend.mjs` (menu activation, public proxy, Buster Build logo route, injected browser UI)
-- `maliks-operations/src/core.mjs` (protected GET/POST utilities routes)
-- `maliks-operations/src/debtor-utilities-ui.mjs` (seven browser workspaces)
-- `maliks-operations/src/debtor-utilities-domain.mjs` (branch-scoped, server-validated utility operations)
-- `maliks-operations/src/busterbuild-logo.mjs` (embedded supplied, resized PNG; no external image server)
-- `maliks-operations/sql/phase32_debtor_utilities.sql` (additive migration)
+## Files installed
+- `maliks-operations/src/frontend.mjs` (POS menu, browser UI wiring and protected proxy)
+- `maliks-operations/src/core.mjs` (new private API routes)
+- `maliks-operations/src/debtor-settings-domain.mjs` (new)
+- `maliks-operations/src/debtor-settings-ui.mjs` (new)
+- `maliks-operations/sql/phase33_debtor_settings_numbering.sql` (new)
+- `maliks-operations/tests/phase33-debtor-settings.test.mjs` (new)
+- `maliks-operations/tests/phase33-debtor-settings-ui.test.mjs` (new)
 - `maliks-operations/package.json` (migration command)
-- `.github/workflows/deploy-maliks-operations.yml` (run migration before Core deployment)
-- `maliks-operations/tests/phase32-debtor-utilities.test.mjs`
-- `maliks-operations/tests/phase32-debtor-utility-ui.test.mjs`
-- `PHASE32_CHANGES.diff` and this guide
+- `.github/workflows/deploy-maliks-operations.yml` (apply Phase 33 migration before Core deployment)
 
-## Data safety
-- All mutations require POS management employee login, authorised branch and same-origin browser writes.
-- Block / archive operations require a manager or credit controller.
-- Database changes are additive and can be rerun.
-- CSV import uses atomic D1 batches and audits; no upsert or financial posting.
-- Archive is non-destructive, and no financial entry is posted.
-- This patch creates **no posted debtor ledger, bank entry, invoice allocation, stock movement or general-ledger posting**.
-- No new Cloudflare secrets are required.
+## Tests
+- 17 new Phase 33 tests passed locally.
+- 61 targeted and regression tests passed locally across Phases 29–33.
+- Complete GitHub Actions test suite and production deployment must still be confirmed.
 
-## Testing
-- Local: **44 targeted and regression tests passed, 0 failed** across the existing Phase 29–31 Debtors controls plus new Phase 32 functions.
-- The entire GitHub CI suite and live Cloudflare deployment must still succeed. This ZIP has not been deployed automatically.
+## Source/version protection
+The patch was based on current `main` file revisions at creation:
+- `maliks-operations/src/frontend.mjs`: `77f6ada8ab4a7bbe68709c69c9ca153b89e10409`
+- `maliks-operations/src/core.mjs`: `2f0d6cbd3737671cb328c912f9f56c235352d8a9`
+- `maliks-operations/package.json`: `f14df79ee02d4f81143181fd07057062cdcc68fc`
+- `.github/workflows/deploy-maliks-operations.yml`: `1263f0a512c5200f0645c62ecc79dc8711e6cfa6`
+If GitHub changes these files later, review the included diff and merge instead of blindly overwriting.

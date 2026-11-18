@@ -1,4 +1,5 @@
 import {DEBTOR_UTILITIES_CLIENT_SCRIPT} from './debtor-utilities-ui.mjs';
+import {DEBTOR_SETTINGS_CLIENT_SCRIPT} from './debtor-settings-ui.mjs';
 import { POWERBUILD_LOGO_BASE64 } from './powerbuild-logo.mjs';
 import { BUSTERBUILD_LOGO_BASE64 } from './busterbuild-logo.mjs';
 import { SUITE_INSIGHTS_CLIENT_SCRIPT } from './suite-insights.mjs';
@@ -1446,6 +1447,18 @@ function page(app){
      cancel.addEventListener('click',toList);buttons.append(save,cancel);form.append(buttons);editor.append(form);
      form.addEventListener('input',()=>{requestId=null;});
      form.addEventListener('change',()=>{requestId=null;});
+     // Phase 33: apply saved branch terms and credit-limit defaults ONLY when
+     // opening a NEW debtor account. Never overwrite an existing record or staff edits.
+     if(kind==='debtor'&&!record){
+       let manuallyChanged=false;
+       controls.credit_limit_cents.addEventListener('input',()=>{manuallyChanged=true;});
+       controls.payment_terms_days.addEventListener('input',()=>{manuallyChanged=true;});
+       void api('/api/debtor-settings?'+new URLSearchParams({branch:selectedBranch,mode:'settings'})).then(result=>{
+         if(!valid()||!editor.contains(form)||manuallyChanged||!result.settings)return;
+         controls.credit_limit_cents.value=(Number(result.settings.default_credit_limit_cents||0)/100).toFixed(2);
+         controls.payment_terms_days.value=String(result.settings.default_terms_days??30);
+       }).catch(()=>{}); // Defaults are optional; do not block creation if unavailable.
+     }
      form.addEventListener('submit',async event=>{
        event.preventDefault();if(!valid())return;
        const payload={kind,branch:selectedBranch,code:fields.code.value.trim(),name:fields.name.value.trim(),
@@ -2152,10 +2165,11 @@ function page(app){
 
  ${SUITE_INSIGHTS_CLIENT_SCRIPT}
  ${DEBTOR_UTILITIES_CLIENT_SCRIPT}
+ ${DEBTOR_SETTINGS_CLIENT_SCRIPT}
  function isConnectedSuiteAction(id,item){
    if(id==='stock')return ['Stock Master','Purchase Orders','Goods Received Vouchers (GRV)','Stock Transfers','Stock Adjustments','Stock Take','Daily Stock Count','Opening Stock Count','Onhands','Stock Valuations','Re-Order','Transactions','Master','Categories','Units','Barcodes','Minimum / Maximum Stock Levels','Stock Master CSV/Text File Export','Audits'].includes(item);
    if(id==='suppliers')return ['Suppliers','Categories','Classifications','Purchase Orders','Invoices and Debit Notes','Audits','Supplier Master CSV File Export'].includes(item);
-   if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export','Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements','Master','Transactions','Sales','Ledger','Statements','Control Account','Age Analysis','Debtors PDCs','Current Agents','Block Sales','Reprint Documents','Reprint Journals','Labelling','Delete Expired Quotations','Debtors Master CSV File Import'].includes(item);
+   if(id==='debtors')return ['Debtors','Routes','Categories','Classifications','Regions and Areas','Delivery Methods','Debtors Returns Reasons','Debtors Invoicing Classifications','Debtors Invoicing Additional Notes','Audits','Debtors Master CSV/Text File Export','Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements','Master','Transactions','Sales','Ledger','Statements','Control Account','Age Analysis','Debtors PDCs','Current Agents','Block Sales','Reprint Documents','Reprint Journals','Labelling','Delete Expired Quotations','Debtors Master CSV File Import','Settings','Numbering'].includes(item);
    if(id==='backoffice')return item==='Till Cash-Up';
    if(id==='system')return ['User Permissions','Branch Access'].includes(item);
    if(id==='widget')return ['Management Dashboard','Branch Dashboard','Stock Overview'].includes(item);
@@ -2197,6 +2211,7 @@ function page(app){
          if(id==='debtors'&&section==='Utilities'&&item!=='Debtors Master CSV/Text File Export'){suiteDebtorUtility(item);return;}
          if(id==='system'&&['User Permissions','Branch Access'].includes(item)){window.location.assign(MEMBER_TEAM_URL);return;}
          if(id==='debtors'&&section==='Reporting'&&item!=='Audits'){suiteDebtorReport(item);return;}
+         if(id==='debtors'&&section==='Settings'&&['Settings','Numbering'].includes(item)){suiteDebtorSettings(item);return;}
          if(id==='debtors'&&['Payments and Reversals','Journals','PDC Register','Group Accounts Invoice Settlements'].includes(item)){suiteDebtorTransactions(item);return;}
          const referenceKind=id==='debtors'?({'Routes':'debtor_route','Categories':'debtor_category','Classifications':'debtor_classification','Regions and Areas':'region','Delivery Methods':'delivery_method','Debtors Returns Reasons':'debtor_return_reason','Debtors Invoicing Classifications':'debtor_invoice_classification','Debtors Invoicing Additional Notes':'debtor_invoice_note'}[item]):id==='suppliers'?({'Categories':'supplier_category','Classifications':'supplier_classification'}[item]):null;
          if(referenceKind){suiteReferenceMaster(referenceKind);return;}
@@ -2509,6 +2524,7 @@ export default {
      '/api/debtor-transactions':'/v1/debtor-transactions','/api/debtor-transactions/action':'/v1/debtor-transactions/action','/api/debtor-transactions/audit':'/v1/debtor-transactions/audit',
      '/api/debtor-reports':'/v1/debtor-reports',
      '/api/debtor-utilities':'/v1/debtor-utilities',
+     '/api/debtor-settings':'/v1/debtor-settings',
      '/api/reference-masters':'/v1/reference-masters','/api/reference-masters/audit':'/v1/reference-masters/audit','/api/master/records':'/v1/master/records','/api/master/audit':'/v1/master/audit','/api/master/catalogue':'/v1/master/catalogue','/api/master/catalogue/sync':'/v1/master/catalogue/sync',
      '/api/purchase-orders':'/v1/purchase-orders','/api/purchase-orders/action':'/v1/purchase-orders/action','/api/purchase-orders/audit':'/v1/purchase-orders/audit',
      '/api/stock-control':'/v1/stock-control','/api/stock-control/action':'/v1/stock-control/action',
@@ -2519,9 +2535,9 @@ export default {
    if(!path)return Response.json({error:'Unknown API.'},{status:404});
    if(!['GET','POST'].includes(req.method))return Response.json({error:'Method not allowed.'},{status:405});
    if((path==='/v1/team'&&req.method!=='GET')||(['/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path)&&req.method!=='POST'))return Response.json({error:'Method not allowed.'},{status:405});
-   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/cashup-reconciliation/review','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/debtor-transactions','/api/debtor-transactions/action','/api/debtor-utilities','/api/reference-masters','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/apps','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
+   if(req.method==='POST' && !['/api/quotes','/api/till-shifts/open','/api/till-shifts/close','/api/till-reviews','/api/cashup-reconciliation/review','/api/tender-preparations','/api/payment-evidence','/api/payments','/api/payments/quick-confirm','/api/payments/verify','/api/dispatch-jobs/action','/api/debtor-transactions','/api/debtor-transactions/action','/api/debtor-utilities','/api/reference-masters','/api/debtor-settings','/api/master/records','/api/master/catalogue/sync','/api/purchase-orders','/api/purchase-orders/action','/api/receipts','/api/receipts/action','/api/stock-control','/api/stock-control/action','/api/transfers','/api/transfers/action','/api/supplier-invoices','/api/supplier-invoices/action','/api/team/change','/api/team/apps','/api/team/password-reset','/api/auth/login','/api/auth/logout','/api/auth/change-password','/api/auth/bootstrap'].includes(url.pathname))return Response.json({error:'Method not allowed.'},{status:405});
    // The Professional suite cannot submit Sales transactions through its old POS origin.
-   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/reference-masters') && !path.startsWith('/v1/debtor-transactions') && path!=='/v1/debtor-reports' && path!=='/v1/debtor-utilities' && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
+   if(kind==='pos' && path!=='/v1/session' && !path.startsWith('/v1/auth/') && !path.startsWith('/v1/master/') && !path.startsWith('/v1/reference-masters') && !path.startsWith('/v1/debtor-transactions') && path!=='/v1/debtor-reports' && path!=='/v1/debtor-utilities' && path!=='/v1/debtor-settings' && !path.startsWith('/v1/purchase-orders') && !['/v1/inventory','/v1/stock-control','/v1/stock-control/action','/v1/receipts','/v1/receipts/action','/v1/transfers','/v1/transfers/action','/v1/supplier-invoices','/v1/supplier-invoices/action'].includes(path))return Response.json({error:'This function belongs to a separate secured application.'},{status:403});
    if(kind==='pos' && path==='/v1/master/catalogue' && req.method!=='GET')return Response.json({error:'Read-only catalogue lookup.'},{status:405});
    // The Member Team Worker is isolated from POS, payments and sales.
    if(kind==='member' && !['/v1/session','/v1/team','/v1/team/login-health','/v1/team/change','/v1/team/apps','/v1/team/password-reset','/v1/auth/login','/v1/auth/logout','/v1/auth/change-password','/v1/auth/bootstrap'].includes(path))return Response.json({error:'Team app only.'},{status:403});
