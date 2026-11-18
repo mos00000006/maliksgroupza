@@ -15,6 +15,26 @@ export const tasks = sqliteTable("tasks", {
   taskType: text("task_type").notNull().default("General"),
   taskGroup: text("task_group").notNull().default("Store Tasks"),
 });
+export const taskChecklistItems = sqliteTable("task_checklist_items", {
+  id: integer("id").primaryKey({autoIncrement:true}),
+  taskId: integer("task_id").notNull(),
+  body: text("body").notNull(),
+  position: integer("position").notNull().default(0),
+  done: integer("done").notNull().default(0),
+  doneBy: text("done_by").notNull().default(""),
+  doneAt: text("done_at").notNull().default(""),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+export const taskActivity = sqliteTable("task_activity", {
+  id: integer("id").primaryKey({autoIncrement:true}),
+  taskId: integer("task_id").notNull(),
+  action: text("action").notNull(),
+  details: text("details").notNull().default(""),
+  actorName: text("actor_name").notNull(),
+  actorEmail: text("actor_email").notNull().default(""),
+  createdAt: text("created_at").notNull(),
+});
 export const comments = sqliteTable("comments", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   taskId: integer("task_id").notNull(),

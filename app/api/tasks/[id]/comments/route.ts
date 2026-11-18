@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getAuthenticatedUser } from "../../../../auth";
+import { addTaskActivity } from "../../task-controls";
 import { canAccessWorkspace, canWrite, getHubMember } from "../../../access";
 export async function POST(
   req: Request,
@@ -29,5 +30,6 @@ export async function POST(
       new Date().toISOString(),
     )
     .first();
+  await addTaskActivity(Number(id),"COMMENT_ADDED",body.trim().slice(0,160),user?.displayName||user?.email||"Hub User",user?.email||"");
   return Response.json({ comment: c }, { status: 201 });
 }

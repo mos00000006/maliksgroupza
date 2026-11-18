@@ -152,6 +152,7 @@ export function canApproveTasks(member: HubMember | null | undefined) {
     member &&
       (member.role === "Owner / Admin" ||
         member.role === "Developer / Technical Admin" ||
+        ["Store Manager", "Regional Manager", "Operations Manager"].includes(member.role) ||
         (member.role === "Executive / EXCO" && member.access_scope === "Full company")),
   );
 }

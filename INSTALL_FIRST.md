@@ -1,49 +1,45 @@
-# Maliks Group Hub — Fast Open Task Button (18 November 2026)
+# PowerBuild Hub — Task Accountability Upgrade (Phase 28)
 
-## What this patch fixes
+## What the patch activates
 
-In the **My Hub Inbox** modal, the previous row was a tiny, text-only "Open task →" link. Its click handler waited for `/api/notifications` to finish marking the notification read **before** opening the task. On a slow connection this made the action feel unresponsive.
+The existing **Task Details** window now supports:
 
-This patch:
+1. **Task Checklist:** add up to 40 steps, tick off completed steps, remove incorrect steps, and view a live progress bar.
+2. **Completion Evidence:** use the existing photos, PDF, Word and Excel attachment uploader. A checklist-managed task cannot be submitted as complete until all steps are ticked and at least one file has been uploaded.
+3. **Manager Approval & Sign-off:** retains the existing Approvals workflow and adds actions directly in Task Details for authorised managers: Approve & Sign Off, Return for Correction, or Reject (reason required for rejection). Approval actions are recorded by actor and timestamp.
+4. **Activity Timeline:** lists checklist updates, task submission, manager decisions, newly added comments, new uploaded evidence, task creation and assignment changes.
 
-- Gives each notification a **real Open Task button** in navy, with a gold arrow; other alert types have an appropriate action label.
-- Makes the button easier to see and touch, including on mobile screens, and adds a clear keyboard-focus indicator.
-- Closes the inbox and displays an already-loaded task **immediately**, without waiting for the mark-as-read network call.
-- Saves the read receipt in the background and refreshes the inbox afterwards.
-- Tries to load a task directly if it was not in the current list, instead of silently doing nothing.
-- Keeps notification destinations, access controls, and existing task APIs unchanged.
+Existing task descriptions, comments, attachments, branch access controls, notifications and task statuses are preserved. Legacy tasks *without* checklists retain their existing approval submission rules.
 
-## Install
+This phase does **not** change printouts, brand logos, other POS apps, recurring schedules or overdue escalation settings.
 
-**Extract the ZIP into the ROOT of your existing `maliksgroupza` GitHub repository.** Merge the `app/` and `tests/` folders. Replace only the following files:
+## Install into GitHub
 
-1. `app/page.tsx`
-2. `app/phase-eight.css`
+1. Extract the ZIP at the **root** of your existing `mos00000006/maliksgroupza` checkout, so files land in `app/`, `db/`, `drizzle/` and `tests/`.
+2. Replace matching files and keep the new files, including `app/api/tasks/[id]/checklist/route.ts` and `drizzle/0069_task_checklist_activity.sql`.
+3. Commit and push to the `main` branch.
+4. The workflow `.github/workflows/deploy.yml` (**Deploy Maliks Group Hub**) should run automatically. If it does not, use **Actions → Deploy Maliks Group Hub → Run workflow**.
+5. Check that **Validate and build**, **Apply database migrations** and **Deploy full Hub** all complete successfully before testing.
+6. Refresh PowerBuild Hub. Open a task and confirm the Task Checklist, Manager Sign-off and Activity Timeline sections are visible.
 
-The third file is a new test: `tests/hub-inbox-open-task-fast.test.mjs`.
+No GitHub secrets need to be added. The new D1 migration is additive and does not delete old tasks or comments.
 
-These two replaced files were based on GitHub's `main` as inspected on 18 November 2026:
+## How to use it
 
-- `app/page.tsx` original Git blob: `b7d80728e8b6b746859f9ae73a82b0f157346e1b`
-- `app/phase-eight.css` original Git blob: `103ccf300689746d66d49be7b8c3a6e4ed72bdb1`
+- Open the task → **Task Checklist** → add steps and tick each completed item.
+- Upload a photograph, signed checklist or other document in **Documents & pictures**.
+- Click **Submit for Approval**. If a checklist exists, unfinished steps or missing attachments are rejected with a clear explanation.
+- A manager with approval permission for that workspace can choose **Approve & Sign Off**, **Return for Correction**, or **Reject**. Return/reject prompts ask for a reason.
+- **Activity Timeline** records new actions with the employee's name and time. Previous historical events are not retrospectively backfilled.
 
-If those files have changed since this patch was created, reconcile the changes rather than overwriting newer edits.
+## Authorisation
 
-### Check locally (optional)
+Existing branch/workspace access continues to apply. Owners, Technical Administrators, approved EXCO users, Store Managers, Regional Managers and Operations Managers may sign off within their assigned workspace scope. Read-only employees cannot change checklists. Non-management users cannot approve or reject.
 
-```bash
-node --test tests/hub-inbox-open-task-fast.test.mjs
-```
+## Tests
 
-### Deploy
+The ZIP includes `tests/hub-task-controls-phase28.test.mjs`, which exercises the new endpoints against an in-memory SQLite D1-like adapter. 12 local targeted tests passed during patch preparation. GitHub Actions must still run the complete project validation/build before deployment.
 
-1. Commit and push the files to `main` in `mos00000006/maliksgroupza`.
-2. The **Deploy Maliks Group Hub** workflow (`.github/workflows/deploy.yml`) runs on pushes to `main`. Check that workflow's result. **Do not use the separate Maliks Operations/POS workflow for this Hub-only change.**
-3. After a successful Hub deployment, reload the PowerBuild Hub app (Ctrl+Shift+R in Chrome; close and reopen the installed desktop app if needed).
-4. Open **My Hub Inbox** and click the navy **Open Task** button.
+## Rollback
 
-## Verification
-
-- 4 targeted Node tests passed locally.
-- `app/page.tsx` successfully transpiled with TypeScript JSX syntax validation.
-- Not deployed or verified against the live Cloudflare Hub. No new secrets or database changes are required by the patch itself.
+Restore the previous versions of the modified files, commit and redeploy the Hub. Leave the additive D1 tables intact, since removing them would delete checklist/audit history; the prior Hub can safely ignore them.

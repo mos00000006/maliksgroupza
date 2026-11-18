@@ -1,3 +1,4 @@
+import { addTaskActivity } from "./task-controls";
 import { env } from "cloudflare:workers";
 import { getAuthenticatedUser } from "../../auth";
 import { createApprovalRequestedNotifications, createTaskCreatedNotifications, initTeamTables } from "../team/shared";
@@ -176,6 +177,7 @@ export async function POST(req: Request) {
     )
     .first<Record<string, string | number>>();
   if (out) {
+    await addTaskActivity(Number(out.id),"CREATED","Task created: "+String(out.title),user?.displayName||user?.email||"Hub User",user?.email||"");
     await createTaskCreatedNotifications({
       taskId: Number(out.id),
       taskTitle: String(out.title),

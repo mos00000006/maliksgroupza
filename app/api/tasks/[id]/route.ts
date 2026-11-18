@@ -6,6 +6,7 @@ import {
   createReturnedToWorkNotifications,
   createTaskApprovedNotifications,
 } from "../../team/shared";
+import { addTaskActivity, taskReadyForApproval } from "../task-controls";
 import {
   canAccessWorkspace,
   canApproveTasks,
@@ -83,6 +84,7 @@ export async function PATCH(
   const user = await getAuthenticatedUser();
   const actor = user?.displayName || user?.email || "Hub User";
   const taskId = Number(existing.id);
+  const actorEmail = user?.email || "";
   const taskTitle = String(existing.title);
   const workspace = String(p.project || existing.project);
 
@@ -110,13 +112,14 @@ export async function PATCH(
       )
         .bind(id)
         .run();
+      await addTaskActivity(taskId,"APPROVED","Manager sign-off recorded",actor,actorEmail);
       await createTaskApprovedNotifications({
         taskId,
         taskTitle,
         workspace,
         approvedBy: actor,
       });
-    } else if (p.approval_action === "return") {
+    } else if (p.approval_action === "return" || p.approval_action === "reject") {
       if (
         String(existing.status) !== "Complete" ||
         String(existing.approval_status || "") !== "Awaiting approval"
@@ -126,11 +129,15 @@ export async function PATCH(
           { status: 409 },
         );
 
+      const rejected=p.approval_action==="reject";
+      if(rejected&&String(p.reason||"").trim().length<5)
+        return Response.json({error:"A rejection reason of at least 5 characters is required."},{status:400});
       await env.DB.prepare(
-        "UPDATE tasks SET status='Returned',approval_status='Returned to work' WHERE id=?",
+        "UPDATE tasks SET status='Returned',approval_status=? WHERE id=?",
       )
-        .bind(id)
+        .bind(rejected?"Rejected":"Returned to work",id)
         .run();
+      await addTaskActivity(taskId,rejected?"REJECTED":"RETURNED",String(p.reason||(rejected?"Rejected":"Returned for correction")),actor,actorEmail);
       await createReturnedToWorkNotifications({
         taskId,
         taskTitle,
@@ -152,6 +159,11 @@ export async function PATCH(
       { error: "Returned status can only be set from Approvals." },
       { status: 400 },
     );
+
+  if (p.status === "Complete" && String(existing.status) !== "Complete") {
+    const readiness = await taskReadyForApproval(taskId);
+    if (!readiness.ok) return Response.json({error:readiness.error},{status:409});
+  }
 
   const allowed = [
     "title",
@@ -179,6 +191,7 @@ export async function PATCH(
       )
         .bind(id)
         .run();
+      await addTaskActivity(taskId,"SUBMITTED_FOR_APPROVAL","Task completed and submitted for manager review",actor,actorEmail);
       await createApprovalRequestedNotifications({
         taskId,
         taskTitle,
@@ -186,12 +199,15 @@ export async function PATCH(
         completedBy: actor,
       });
     } else {
+      await addTaskActivity(taskId,"STATUS_CHANGED",String(existing.status)+" → "+p.status,actor,actorEmail);
       await env.DB.prepare("UPDATE tasks SET approval_status='' WHERE id=?")
         .bind(id)
         .run();
     }
   }
 
+  if (p.assignee !== undefined && p.assignee!==existing.assignee)
+    await addTaskActivity(taskId,"ASSIGNEE_CHANGED",String(existing.assignee)+" → "+p.assignee,actor,actorEmail);
   if (p.assignee_email) {
     const newEmail = p.assignee_email.trim().toLowerCase();
     const oldEmail = String(existing.assignee_email || "").trim().toLowerCase();
@@ -252,7 +268,12 @@ export async function DELETE(
       .map((objectKey: string) => env.BUCKET.delete(objectKey)),
   );
 
+  const actor = await getAuthenticatedUser();
+  // Keep the separate audit history even after a deleted task disappears from work queues.
+  await addTaskActivity(Number(id),"DELETED",`Task deleted: ${existing.title}`,
+    actor?.displayName||actor?.email||"Hub User",actor?.email||"");
   const statements = [
+    env.DB.prepare("DELETE FROM task_checklist_items WHERE task_id=?").bind(id),
     env.DB.prepare("DELETE FROM comments WHERE task_id=?").bind(id),
     env.DB.prepare("DELETE FROM attachments WHERE task_id=?").bind(id),
   ];

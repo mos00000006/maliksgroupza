@@ -37,6 +37,13 @@ type Task = {
   created_at: string;
 };
 type Comment = { id: number; body: string; author: string; created_at: string };
+type TaskChecklistItem = {
+  id: number; body: string; position: number; done: number;
+  done_by: string; done_at: string; created_by: string; created_at: string;
+};
+type TaskActivityEntry = {
+  id: number; action: string; details: string; actor_name: string; created_at: string;
+};
 type Attachment = {
   id: number;
   name: string;
@@ -418,6 +425,11 @@ export default function Home() {
     [deleteBusy, setDeleteBusy] = useState(false),
     [comments, setComments] = useState<Comment[]>([]),
     [files, setFiles] = useState<Attachment[]>([]),
+    [taskChecklist, setTaskChecklist] = useState<TaskChecklistItem[]>([]),
+    [taskActivity, setTaskActivity] = useState<TaskActivityEntry[]>([]),
+    [newChecklistItem, setNewChecklistItem] = useState(""),
+    [taskControlsBusy, setTaskControlsBusy] = useState(false),
+    [taskControlsError, setTaskControlsError] = useState(""),
     [comment, setComment] = useState(""),
     [teamOpen, setTeamOpen] = useState(false),
     [workspaceOpen, setWorkspaceOpen] = useState(false),
@@ -924,6 +936,8 @@ export default function Home() {
       body: JSON.stringify({ status: value }),
     });
     if (!response.ok) {
+      const j = await response.json().catch(() => ({}));
+      flash(j.error || "Could not update task status");
       await load();
       if (current) setSelected((item) => (item?.id === id ? current : item));
       return;
@@ -935,6 +949,7 @@ export default function Home() {
       );
       setSelected((item) => (item?.id === id ? result.task : item));
     }
+    if (selected?.id === id && result.task) void detail(result.task);
     if (value === "Complete") flash("Task completed and sent to Approvals");
   };
   const approveTask = async (id: number) => {
@@ -956,13 +971,17 @@ export default function Home() {
       setSelected((item) => (item?.id === id ? result.task : item));
     }
     void loadNotifications();
+    if (selected?.id === id && result.task) void detail(result.task);
     flash("Task approved");
   };
   const returnTaskToWork = async (id: number) => {
+    const reason = window.prompt("Reason for returning this task for correction:");
+    if (reason === null) return;
+    if (reason.trim().length < 5) { flash("Enter a reason of at least 5 characters."); return; }
     const response = await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ approval_action: "return" }),
+      body: JSON.stringify({ approval_action: "return", reason: reason.trim() }),
     });
     if (!response.ok) {
       flash("This task could not be returned to work");
@@ -977,7 +996,28 @@ export default function Home() {
       setSelected((item) => (item?.id === id ? result.task : item));
     }
     void loadNotifications();
+    if (selected?.id === id && result.task) void detail(result.task);
     flash(`Task returned to work at ${result.task?.project || "the workspace"}`);
+  };
+  const rejectTask = async (id: number) => {
+    const reason = window.prompt("State the reason this task is rejected:");
+    if (reason === null) return;
+    if (reason.trim().length < 5) { flash("Enter a rejection reason of at least 5 characters."); return; }
+    const response = await fetch(`/api/tasks/${id}`, {
+      method: "PATCH", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ approval_action: "reject", reason: reason.trim() }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      flash(data.error || "Task could not be rejected."); return;
+    }
+    const data = await response.json();
+    if (data.task) {
+      setTasks((current) => current.map((task) => task.id === id ? data.task : task));
+      if (selected?.id === id) void detail(data.task);
+    }
+    void loadNotifications();
+    flash("Task rejected and returned for correction.");
   };
   const updateTaskAssignee = async (task: Task, value: string) => {
     const member = value.startsWith("member:")
@@ -1007,16 +1047,57 @@ export default function Home() {
   };
   const detail = async (t: Task) => {
     setSelected(t);
-    const r = await fetch(`/api/tasks/${t.id}`);
-    const j = await r.json();
-    setSelected(j.task);
-    setComments(j.comments || []);
-    setFiles(j.attachments || []);
+    setTaskControlsError("");
+    try {
+      const [r, controls] = await Promise.all([
+        fetch(`/api/tasks/${t.id}`),
+        fetch(`/api/tasks/${t.id}/checklist`),
+      ]);
+      const j = await r.json();
+      if (!r.ok || !j.task) throw new Error(j.error || "Task could not load.");
+      setSelected(j.task);
+      setComments(j.comments || []);
+      setFiles(j.attachments || []);
+      if (!controls.ok) {
+        const message = await controls.json().catch(() => ({}));
+        throw new Error(message.error || "Checklist and activity history could not load.");
+      }
+      const data = await controls.json();
+      setTaskChecklist(data.checklist || []);
+      setTaskActivity(data.activity || []);
+    } catch (e) {
+      setTaskControlsError(e instanceof Error ? e.message : "Task details could not load.");
+    }
+  };
+  const updateChecklist = async (payload: Record<string, unknown>) => {
+    if (!selected || taskControlsBusy || readOnlyAccess) return;
+    setTaskControlsBusy(true);
+    setTaskControlsError("");
+    try {
+      const response = await fetch(`/api/tasks/${selected.id}/checklist`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Checklist could not be updated.");
+      setTaskChecklist(data.checklist || []);
+      setTaskActivity(data.activity || []);
+      if (payload.action === "add") setNewChecklistItem("");
+    } catch (e) {
+      setTaskControlsError(e instanceof Error ? e.message : "Checklist update failed.");
+    } finally {
+      setTaskControlsBusy(false);
+    }
   };
   const closeTaskDetail = () => {
     setSelected(null);
     setComments([]);
     setFiles([]);
+    setTaskChecklist([]);
+    setTaskActivity([]);
+    setNewChecklistItem("");
+    setTaskControlsError("");
     if (returnWorkspaceAfterTask) {
       setWorkspaceTarget(returnWorkspaceAfterTask);
       setWorkspaceCreate(false);
@@ -2292,8 +2373,7 @@ export default function Home() {
                       value={selected.status}
                       onChange={(e) => {
                         const s = e.target.value as Status;
-                        status(selected.id, s);
-                        setSelected({ ...selected, status: s });
+                        void status(selected.id, s);
                       }}
                     >
                       <option>Not started</option>
@@ -2303,6 +2383,79 @@ export default function Home() {
                       <option>Complete</option>
                     </select>
                   </span>
+                </div>
+                <div className="taskControlPanel">
+                  <div className="taskControlHeading">
+                    <h3>Task Checklist</h3>
+                    <strong>{taskChecklist.filter((item) => !!item.done).length} / {taskChecklist.length} completed</strong>
+                  </div>
+                  <div className="taskProgressTrack" role="progressbar"
+                    aria-valuemin={0} aria-valuemax={100}
+                    aria-valuenow={taskChecklist.length ? Math.round(taskChecklist.filter((item) => !!item.done).length / taskChecklist.length * 100) : 0}>
+                    <span style={{width: `${taskChecklist.length ? Math.round(taskChecklist.filter((item) => !!item.done).length / taskChecklist.length * 100) : 0}%`}} />
+                  </div>
+                  {taskChecklist.map((item) => (
+                    <div className="taskChecklistRow" key={item.id}>
+                      <label>
+                        <input type="checkbox" checked={!!item.done}
+                          disabled={readOnlyAccess || taskControlsBusy || selected.status === "Complete"}
+                          onChange={(event) => void updateChecklist({ action: "toggle", item_id: item.id, done: event.target.checked })}/>
+                        <span className={item.done ? "taskChecklistDone" : ""}>{item.body}</span>
+                      </label>
+                      {!readOnlyAccess && selected.status !== "Complete" && (
+                        <button className="taskChecklistRemove" disabled={taskControlsBusy}
+                          aria-label={`Remove ${item.body}`} onClick={() => void updateChecklist({ action: "remove", item_id: item.id })}>×</button>
+                      )}
+                    </div>
+                  ))}
+                  {!taskChecklist.length && <p className="taskControlHint">No checklist yet. Add clear actions staff must finish and verify.</p>}
+                  {!readOnlyAccess && selected.status !== "Complete" && (
+                    <div className="taskChecklistAdd">
+                      <input type="text" maxLength={240} value={newChecklistItem}
+                        placeholder="Add a step, e.g. Manager verifies daily stock count"
+                        onChange={(event) => setNewChecklistItem(event.target.value)}
+                        onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void updateChecklist({ action: "add", text: newChecklistItem }); } }} />
+                      <button disabled={taskControlsBusy || !newChecklistItem.trim()}
+                        onClick={() => void updateChecklist({ action: "add", text: newChecklistItem })}>
+                        Add Step
+                      </button>
+                    </div>
+                  )}
+                  <p className="taskControlHint">For checklist-managed tasks, every step and at least one photo/document must be attached before approval.</p>
+                  {taskControlsError && <p className="taskControlError" role="alert">{taskControlsError}</p>}
+                </div>
+                <div className="taskControlPanel taskApprovalPanel">
+                  <div className="taskControlHeading"><h3>Manager Sign-off</h3><span>{selected.approval_status || "Not submitted"}</span></div>
+                  {selected.approval_status === "Approved" ? (
+                    <p className="taskControlHint">Approved and signed off. See the activity timeline for the approving manager and timestamp.</p>
+                  ) : selected.status === "Complete" && selected.approval_status === "Awaiting approval" ? (
+                    <>
+                      <p className="taskControlHint">Awaiting an authorised manager's review of the completed work and evidence.</p>
+                      {["Owner / Admin", "Developer / Technical Admin", "Store Manager", "Regional Manager", "Operations Manager"].includes(currentUser.role || "") || (currentUser.role === "Executive / EXCO" && currentUser.access_scope === "Full company") ? (
+                        <div className="taskApprovalButtons">
+                          <button className="taskApprove" onClick={() => void approveTask(selected.id)}>✓ Approve & Sign Off</button>
+                          <button className="taskReturn" onClick={() => void returnTaskToWork(selected.id)}>↩ Return for Correction</button>
+                          <button className="taskReject" onClick={() => void rejectTask(selected.id)}>✕ Reject</button>
+                        </div>
+                      ) : null}
+                    </>
+                  ) : !readOnlyAccess ? (
+                    <button className="taskSubmitApproval"
+                      onClick={() => void status(selected.id, "Complete")}>Submit for Approval</button>
+                  ) : null}
+                </div>
+                <div className="taskControlPanel">
+                  <div className="taskControlHeading"><h3>Activity Timeline</h3><span>{taskActivity.length} recent events</span></div>
+                  <ol className="taskActivityList">
+                    {taskActivity.map((entry) => (
+                      <li key={entry.id}>
+                        <strong>{entry.action.replaceAll("_", " ").toLowerCase()}</strong>
+                        <span>{entry.details || "—"}</span>
+                        <small>{entry.actor_name} · {new Date(entry.created_at).toLocaleString()}</small>
+                      </li>
+                    ))}
+                    {!taskActivity.length && <li className="taskActivityEmpty">No activity recorded yet. New actions will appear here.</li>}
+                  </ol>
                 </div>
                 <h3>Updates & comments</h3>
                 <div className="commentBox">
@@ -2329,6 +2482,7 @@ export default function Home() {
               </section>
               <aside className="files">
                 <h3>Documents & pictures</h3>
+                <p className="taskEvidenceHint"><b>Completion Evidence</b> — Upload photos, signed count sheets, PDFs or supporting documents. {files.length} file(s) attached.</p>
                 <button
                   className="uploadBtn"
                   onClick={() => upload.current?.click()}

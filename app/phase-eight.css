@@ -1442,3 +1442,34 @@ button.personLoad:focus-visible {
   .taskNotificationPopup img { width: 40px; height: 40px; }
   .taskNotificationPopup em { display: none; }
 }
+
+/* Hub task checklist, evidence review and manager sign-off */
+.taskControlPanel { border:1px solid #dce6ef; border-radius:12px; background:#fbfcff; padding:16px; margin:19px 0; }
+.taskControlHeading { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+.taskControlHeading h3 { margin:0; font-size:17px; color:#0b304e; }
+.taskControlHeading > span,.taskControlHeading > strong { font-size:12px; color:#657487; }
+.taskProgressTrack { height:9px; border-radius:20px; background:#e3eaf1; overflow:hidden; margin:0 0 12px; }
+.taskProgressTrack span { display:block; height:100%; background:#d5a526; transition:width .25s; }
+.taskChecklistRow { display:flex; align-items:center; justify-content:space-between; padding:8px 0; gap:10px; border-bottom:1px solid #e6ecf3; }
+.taskChecklistRow label { display:flex; align-items:flex-start; gap:10px; flex:1; min-width:0; cursor:pointer; font-size:13px; color:#1b3046; line-height:1.45; }
+.taskChecklistRow input[type='checkbox'] { width:18px; height:18px; margin:1px 0 0; flex:0 0 18px; accent-color:#0b304e; }
+.taskChecklistDone { text-decoration:line-through; color:#687b8a; }
+.taskChecklistRemove { border:1px solid #e8d4d7; color:#9c2736; background:white; border-radius:7px; min-width:32px; height:32px; cursor:pointer; }
+.taskChecklistAdd { display:flex; gap:9px; margin:12px 0 7px; }
+.taskChecklistAdd input { flex:1; min-width:0; font-size:13px; padding:10px; }
+.taskChecklistAdd button,.taskSubmitApproval,.taskApprove { background:#0c2c46; color:white; border:0; border-radius:8px; padding:11px 15px; font-weight:750; cursor:pointer; }
+.taskChecklistAdd button:disabled { opacity:.5; cursor:not-allowed; }
+.taskControlHint,.taskEvidenceHint { font-size:12px; color:#566b7b; line-height:1.6; margin:10px 0; }
+.taskControlError { border:1px solid #edc2c6; border-radius:8px; background:#fff1f2; color:#a22131; padding:11px; font-size:13px; }
+.taskApprovalPanel { background:#fffdf6; border-color:#efdba0; }
+.taskApprovalButtons { display:flex; gap:10px; flex-wrap:wrap; margin-top:11px; }
+.taskReturn { border:1px solid #cbd8e4; border-radius:8px; padding:10px 15px; background:white; color:#193149; font-weight:700; cursor:pointer; }
+.taskActivityList { list-style:none; padding:0 0 0 14px; margin:4px 0; border-left:2px solid #d3ac46; }
+.taskActivityList li { position:relative; padding:3px 0 15px 15px; display:flex; flex-direction:column; gap:4px; }
+.taskActivityList li:before { content:''; position:absolute; left:-20px; top:9px; width:9px; height:9px; border-radius:100%; background:#d4ad45; border:2px solid #fff; }
+.taskActivityList strong { font-size:12px; text-transform:capitalize; color:#15344c; }
+.taskActivityList span,.taskActivityList small { font-size:12px; line-height:1.4; color:#63768a; overflow-wrap:anywhere; }
+.taskActivityList .taskActivityEmpty { color:#627688; font-size:12px; }
+@media(max-width:640px) { .taskChecklistAdd {flex-direction:column;} .taskApprovalButtons>button {flex:1 1 100%;} }
+
+.taskReject { border:1px solid #ebb8bd; color:#a32631; background:#fff1f2; border-radius:8px; padding:10px 15px; font-weight:700; cursor:pointer; }
