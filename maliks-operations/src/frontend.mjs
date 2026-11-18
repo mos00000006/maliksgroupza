@@ -2849,9 +2849,23 @@ function page(app){
    const pw=h('input');pw.type='password';pw.autocomplete='current-password';pw.required=true;pw.placeholder='Password';
    const btn=h('button','Sign in');btn.type='submit';const notice=h('p','','muted');
    f.append(h('label','Email address'),email,h('label','Password'),pw,btn,notice);
-   f.addEventListener('submit',async event=>{event.preventDefault();btn.disabled=true;notice.textContent='Signing in…';err('');
-     try{await api('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:email.value,password:pw.value})});pw.value='';location.reload();}
-     catch(ex){notice.textContent='';err(ex.message);}finally{btn.disabled=false;}
+   f.addEventListener('submit',async event=>{
+     event.preventDefault();
+     if(btn.disabled)return;
+     btn.disabled=true;btn.textContent='Signing in…';notice.textContent='Checking your employee access…';err('');
+     const controller=new AbortController();
+     const timeout=setTimeout(()=>controller.abort(),20000);
+     try{
+       await api('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:email.value,password:pw.value}),signal:controller.signal});
+       pw.value='';notice.textContent='Sign-in accepted. Opening Maliks POS…';
+       location.reload();
+     }catch(ex){
+       const message=controller.signal.aborted?'Sign-in timed out after 20 seconds. The private Core login service did not respond. Check the Core Worker and its D1 connection; your password has NOT been changed.':String(ex?.message||'Unable to sign in. Please check Maliks Member Team access.');
+       notice.textContent=message;notice.setAttribute('role','alert');
+       err(message);
+     }finally{
+       clearTimeout(timeout);btn.disabled=false;btn.textContent='Sign in';
+     }
    });p.append(f);root.append(p);
  }
  function changePasswordView(){
