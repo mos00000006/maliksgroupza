@@ -16,3 +16,8 @@ READ ONLY. No financial ledger, statement, creditor balances or payments are pos
 Unfinished Suppliers menu options remain disabled deliberately until their server-side data models, authorisations and accounting controls are implemented; enabling their links alone would give a false appearance of working finance features.
 
 Validation: node --check on changed source successful.
+
+CORRECTION — 18 NOV 2026:
+This corrected patch fixes the generated POS browser script syntax error in the CSV export newline separator.
+Validation in supplied project: 288 of 290 tests pass. The 2 remaining tests could not run because the third-party 'jose' dependency is not installed in this isolated verification environment (offline npm cache does not contain it). All browser JavaScript parsing tests pass.
+No server files, database migrations, or financial posting logic are changed.

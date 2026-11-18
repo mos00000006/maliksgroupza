@@ -2048,7 +2048,7 @@ function page(app){
    function downloadCSV(){
      if(!rows.length)return;
      const protect=x=>{let t=clean(x);if(/^[=+@\-]/.test(t.trimStart()))t="'"+t;return '"'+t.replace(/"/g,'""')+'"';};
-     const csv=String.fromCharCode(0xfeff)+[['Maliks POS Suppliers',menuItem],['Branch',branch],['Accounting','NOT POSTED'],columns,...rows].map(r=>r.map(protect).join(',')).join('\r\n');
+     const csv=String.fromCharCode(0xfeff)+[['Maliks POS Suppliers',menuItem],['Branch',branch],['Accounting','NOT POSTED'],columns,...rows].map(r=>r.map(protect).join(',')).join('\\r\\n');
      const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=h('a');a.href=url;
      a.download='suppliers-'+menuItem.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+branch.replace(/[^a-z0-9-]/gi,'-')+'.csv';
      document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
