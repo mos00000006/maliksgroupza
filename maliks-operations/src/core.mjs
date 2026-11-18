@@ -17,6 +17,7 @@ import {canUseInventory,listInventory,listReceipts,countReceipt,receiptAction,li
 import {canManageTeam,listTeam,changeTeam,setTeamAppAccess} from './team-domain.mjs';
 import {listReferences,saveReference,referenceAudit} from './reference-master-domain.mjs';
 import {listDebtorTransactions,createDebtorTransaction,actionDebtorTransaction,listDebtorTransactionAudit} from './debtor-transaction-domain.mjs';
+import {listSupplierTransactions,createSupplierTransaction,actionSupplierTransaction,listSupplierTransactionAudit} from './supplier-transaction-domain.mjs';
 import {getDebtorReport} from './debtor-report-domain.mjs';
 import {listDebtorUtility,changeDebtorUtility} from './debtor-utilities-domain.mjs';
 import {getDebtorSettings,changeDebtorSettings} from './debtor-settings-domain.mjs';
@@ -520,6 +521,10 @@ export default {
       if(path==='/v1/debtor-settings'&&req.method==='GET')return await getDebtorSettings(req,env,context);
       if(path==='/v1/debtor-settings'&&req.method==='POST')return await changeDebtorSettings(req,env,context);
       if(path==='/v1/debtor-utilities'&&req.method==='POST')return await changeDebtorUtility(req,env,context);
+      if(path==='/v1/supplier-transactions'&&req.method==='GET')return await listSupplierTransactions(req,env,context);
+      if(path==='/v1/supplier-transactions'&&req.method==='POST')return await createSupplierTransaction(req,env,context);
+      if(path==='/v1/supplier-transactions/action'&&req.method==='POST')return await actionSupplierTransaction(req,env,context);
+      if(path==='/v1/supplier-transactions/audit'&&req.method==='GET')return await listSupplierTransactionAudit(req,env,context);
       if(path==='/v1/debtor-transactions'&&req.method==='GET')return await listDebtorTransactions(req,env,context);
       if(path==='/v1/debtor-transactions'&&req.method==='POST')return await createDebtorTransaction(req,env,context);
       if(path==='/v1/debtor-transactions/action'&&req.method==='POST')return await actionDebtorTransaction(req,env,context);
