@@ -1,23 +1,27 @@
-MALIKS POS — PHASE 43 CI TEST FIX (18 November 2026)
+Maliks POS Phase 51 – Compact Horizontal Retail Sticker Patch
 
-Your GitHub Actions log showed four failures in Phase 17/20 tests:
-  'no such table: catalogue_products'
+Purpose:
+- Change single-sticker printing to a compact horizontal retail label layout matching the user sample.
+- Keep two-up portrait roll mode intact.
 
-CAUSE: Phase 43 enhanced the existing inventory list query to join published catalogue QR tokens and branch prices. The Phase 17 and Phase 20 isolated SQLite test databases were still created with old migration-only schemas, without the Hub catalogue / published price-tag tables. The tests therefore failed before the assertions could run.
+Main changes:
+1. Single 40x24 / 50x30 sticker modes now print in compact horizontal layout:
+   - description at top
+   - barcode in middle
+   - stock code / meta below barcode
+   - price at bottom
+2. Default compact settings for single-sticker mode:
+   - Branch logo OFF
+   - Unit / Size OFF
+   - QR OFF
+   - Barcode ON
+   - Stock code ON
+3. Preview note updated.
 
-FIX: Update ONLY two test files to give their isolated in-memory SQLite databases four minimal empty Hub tables:
-  catalogue_products
-  powerbuild_price_tags
-  busterbuild_price_tags
-  price_tag_branch_prices
+Install:
+- Replace maliks-operations/src/stock-labelling-ui.mjs with the file in this patch.
+- Deploy normally.
 
-No application source code, production D1 migrations, real stock data, prices, QR links or existing functionality is changed. Both old stock controls and the new label generator keep their behavior.
-
-INSTALL:
-1. Extract this ZIP.
-2. Copy the two files under maliks-operations/tests/ into exactly the same paths in your GitHub repository.
-3. Commit and push; GitHub Actions should execute the full suite. Do not deploy any database migration for this fix.
-
-VERIFICATION:
-15 affected Phase 17 + 20 tests passed in a local Node.js run.
-A broader local suite passed 322 tests; two test files could not load without the jose dependency. Your complete GitHub environment had already loaded those files and reported 334 passing / four failing, so rerun GitHub Actions to confirm all 338.
+Notes:
+- Two-up portrait mode is not changed.
+- If physical feed direction is still wrong on the GK420d, use the existing single-label orientation option.
