@@ -11,6 +11,6 @@ test('label preview and printer use the same isolated fixed grid layout',()=>{
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/label43-qr/);
  assert.doesNotMatch(STOCK_LABEL_CLIENT_SCRIPT,/class="price"/);
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/transform:scale\(1\.65\)/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:40,height:24,columns:1/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:50,height:30,columns:1/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:40,height:24/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:50,height:30/);
 });

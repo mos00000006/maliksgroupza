@@ -29,11 +29,11 @@ test('branch published QR token and live pricing are read securely from inventor
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/busterbuild-logo\.png/);
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/powerbuild-logo\.png/);
 });
-test('GK420d label batch respects 40x24 single-label roll layout, quantity and no financial posting',()=>{
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:40,height:24,columns:1/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:50,height:30,columns:1/);
+test('GK420d creates real 40x24 and 50x30 PDF pages, with no page HTML print',()=>{
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:40,height:24/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:50,height:30/);
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/Maximum 500 labels/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/\^PW/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/makeStickerPdf/);
  assert.doesNotMatch(STOCK_LABEL_CLIENT_SCRIPT,/window\.print\(/);
  assert.doesNotMatch(STOCK_LABEL_CLIENT_SCRIPT,/invPost\(/);
 });
