@@ -18,7 +18,7 @@ test('portrait compensated PDF has exactly one physical label image per page',as
  const start=source.indexOf(' function makeStickerPdf('),end=source.indexOf(' let sending=false;');
  assert.ok(start>=0&&end>start);
  const make=(mode)=>vm.runInNewContext(source.slice(start,end)+'\nmakeStickerPdf',{
-  printOrientation:{value:mode},TextEncoder,Blob,Uint8Array,Map
+  fmt:{value:'40x24'},printOrientation:{value:mode},TextEncoder,Blob,Uint8Array,Map
  });
  const sample={bytes:Uint8Array.from([0xff,0xd8,0xff,0xd9]),width:480,height:288};
  for(const [mode,width,height] of [

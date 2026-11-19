@@ -7,7 +7,7 @@ test('Phase 48: switch from Zebra Browser Print to Chrome PDF without page metad
  new vm.Script(s);
  assert.match(s,/const printButton=invButton\('Print GK420d Labels \(Chrome\)'/);
  assert.match(s,/viewer\.location\.replace\(url\)/);
- assert.match(s,/one 40 × 24 mm/);
+ assert.match(s,/Two portrait stickers side by side/);
  assert.doesNotMatch(s,/ZEBRA_BRIDGE|zebraDevice|window\.print\(/);
 });
 test('Phase 48: PDF generator embeds exact media sizes with reusable product images',()=>{

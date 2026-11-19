@@ -11,6 +11,9 @@ test('label preview and printer use the same isolated fixed grid layout',()=>{
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/label43-qr/);
  assert.doesNotMatch(STOCK_LABEL_CLIENT_SCRIPT,/class="price"/);
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/transform:scale\(1\.65\)/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:40,height:24/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:50,height:30/);
+ // Keep the historical single-label previews but also assert the portrait two-up variant.
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/--label-w:40mm;--label-h:24mm/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/--label-w:50mm;--label-h:30mm/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/label43-sticker\.label43-portrait/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/function makeTwoUpPdf\(/);
 });

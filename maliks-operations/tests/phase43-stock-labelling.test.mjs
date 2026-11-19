@@ -29,9 +29,13 @@ test('branch published QR token and live pricing are read securely from inventor
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/busterbuild-logo\.png/);
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/powerbuild-logo\.png/);
 });
-test('GK420d creates real 40x24 and 50x30 PDF pages, with no page HTML print',()=>{
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:40,height:24/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:50,height:30/);
+test('GK420d preserves single 40x24 / 50x30 choices and adds a separate two-up portrait roll mode',()=>{
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/\['40x24','Single 40 × 24 mm sticker'\]/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/\['50x30','Single 50 × 30 mm sticker'\]/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/\['two-up','Two portrait stickers side by side/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/function labelGeometry\(\)/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:2\*labelW\+gap,height:labelH/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/function makeTwoUpPdf\(/);
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/Maximum 500 labels/);
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/makeStickerPdf/);
  assert.doesNotMatch(STOCK_LABEL_CLIENT_SCRIPT,/window\.print\(/);
