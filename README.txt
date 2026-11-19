@@ -1,34 +1,42 @@
-Maliks POS – Phase 53: REAL two-across horizontal label correction
+MALIKS POS — PHASE 54 / DEBTORS TEST COMPATIBILITY FIX
+Date: 19 November 2026
 
-Root cause:
-The preceding compact-horizontal patch only changed SINGLE label mode. Your
-selected TWO-ACROSS mode still rendered portrait/upright artwork. This patch
-fixes the two-across output directly.
+WHAT THIS FIXES
+A Phase 32 Debtors utility test incorrectly expected its two API routes to
+appear immediately beside each other in frontend.mjs. Activating Back Office
+Phase 54 inserts an unrelated API route between them. The original test then
+fails even though the Debtors APIs remain correctly available.
 
-Changes:
-- Two-across roll: draw the stock label HORIZONTALLY first and rotate the
-  complete design 90 degrees into each individual portrait sticker.
-- Landscape like your padlock label is selected by default; opposite direction
-  and upright portrait are alternatives in the new Two-up sticker text direction.
-- Includes existing PowerBuild/Buster Build logo and published MaliksQuote QR,
-  description, current branch price, barcode and stock code.
-- On-screen preview now displays the same JPEG that is sent to the PDF.
-- Does not change PDF media size or printer calibration; each physical row still
-  has two separate print positions, never one design stretched across both.
-- No database migration, stock update, pricing or financial posting changes.
+WHAT THIS PATCH CHANGES
+Only: maliks-operations/tests/phase32-debtor-utility-ui.test.mjs
+The outdated adjacent-route assertion becomes two separate assertions
+requiring BOTH Debtors API routes to remain present.
+All five original Debtors utility tests are preserved.
 
-Install:
-Copy maliks-operations/src/stock-labelling-ui.mjs into the matching GitHub
-repository location. Copy the supplied test into maliks-operations/tests.
-Commit, push, deploy Maliks Department Applications.
+NOT INCLUDED / NOT CHANGED
+No edits to live POS, Core, users, QR labelling, financial posting or D1.
+The Phase 54 frontend/Core/workflow files should already be staged from the
+previous apply-phase54.mjs repair. Do not overwrite those existing changes.
 
-Printer:
-Choose Two portrait stickers side by side; keep Horizontal like your padlock
-label. Set exact dimensions measured from the roll (defaults 24 x 40 mm per
-sticker with 2 mm between) and use the full row width in the Windows GK420d
-printing preferences (e.g., 50 x 40 mm if those are the real dimensions).
-In Chrome PDF Print: GK420d, Actual size 100%, no auto rotation/fit.
-First test with quantity 1 and scan the QR and barcode before bulk printing.
+INSTALL ON GITHUB CODESPACES
+1. Upload this ZIP into the root of the 'maliksgroupza' Codespace workspace.
+2. In the terminal run:
+   cd /workspaces/maliksgroupza
+   unzip -o Maliks_POS_Phase54_Final_Debtors_Test_Compatibility_Fix_20261119.zip
+   cd maliks-operations
+   npm test > /tmp/maliks-test.log 2>&1
+   grep -E '^not ok|^# tests |^# pass |^# fail ' /tmp/maliks-test.log
 
-The actual roll measurements are unverified; a wrong driver page size can
-still cause clipping or misalignment regardless of software design.
+3. If '# fail 0', commit the staged Phase 54 changes INCLUDING this test:
+   cd /workspaces/maliksgroupza
+   git add maliks-operations/src/frontend.mjs maliks-operations/src/core.mjs \
+     maliks-operations/package.json .github/workflows/deploy-maliks-operations.yml \
+     maliks-operations/tests/phase32-debtor-utility-ui.test.mjs
+   git commit -m "Fix Phase 54 Back Office wiring and Debtors route compatibility test"
+   git push origin main
+
+NOTES
+- If any tests still fail, read the 'not ok' lines. This patch addresses the
+  specific stale Phase 32 assertion, not every possible unrelated test issue.
+- This patch was verified against the saved project snapshot plus the staged
+  Phase 54 integrations. Focused result: 13 tests, 13 passing.

@@ -23,7 +23,8 @@ test('backend utility routes remain management-only, with double department gate
  const f=read('../src/frontend.mjs'),c=read('../src/core.mjs'),d=read('../src/debtor-utilities-domain.mjs');
  assert.match(f,/\/api\/debtor-utilities':'\/v1\/debtor-utilities'/);
  assert.match(f,/path!=='\/v1\/debtor-utilities'/);
- assert.match(f,/\/api\/debtor-utilities','\/api\/reference-masters'/);
+ assert.match(f,/\/api\/debtor-utilities/);
+ assert.match(f,/\/api\/reference-masters/);
  assert.match(c,/path==='\/v1\/debtor-utilities'&&req.method==='GET'/);
  assert.match(c,/path==='\/v1\/debtor-utilities'&&req.method==='POST'/);
  assert.match(d,/ctx.app==='management'/);assert.match(d,/requireOrigin\(req\)/);
