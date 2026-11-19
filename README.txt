@@ -1,15 +1,34 @@
-Maliks POS — Phase 52 GitHub test-only correction (19 November 2026)
+Maliks POS – Phase 53: REAL two-across horizontal label correction
 
-Source: user-supplied GitHub Actions log showing 359 passed / 2 failed of 361.
+Root cause:
+The preceding compact-horizontal patch only changed SINGLE label mode. Your
+selected TWO-ACROSS mode still rendered portrait/upright artwork. This patch
+fixes the two-across output directly.
 
-Fixes:
-- phase44-stock-label-layout.test.mjs: removes outdated Phase 44 CSS measurements, validates Phase 51/52 compact layout and two-up portrait label.
-- phase47-zebra-direct-print.test.mjs: updates obsolete barcode SVG variable name, checks both single and portrait barcode/QR paths and confirms PowerBuild/Buster branding remains on by default.
+Changes:
+- Two-across roll: draw the stock label HORIZONTALLY first and rotate the
+  complete design 90 degrees into each individual portrait sticker.
+- Landscape like your padlock label is selected by default; opposite direction
+  and upright portrait are alternatives in the new Two-up sticker text direction.
+- Includes existing PowerBuild/Buster Build logo and published MaliksQuote QR,
+  description, current branch price, barcode and stock code.
+- On-screen preview now displays the same JPEG that is sent to the PDF.
+- Does not change PDF media size or printer calibration; each physical row still
+  has two separate print positions, never one design stretched across both.
+- No database migration, stock update, pricing or financial posting changes.
 
-Installation:
-1. Copy ONLY the two files inside maliks-operations/tests/ into the matching GitHub paths.
-2. Commit and push. Run npm test in GitHub Actions.
+Install:
+Copy maliks-operations/src/stock-labelling-ui.mjs into the matching GitHub
+repository location. Copy the supplied test into maliks-operations/tests.
+Commit, push, deploy Maliks Department Applications.
 
-No production source changes. No database migration. Do not overwrite stock-labelling-ui.mjs with any previous phase.
-The src/ file in this build folder was used for local validation ONLY and is intentionally NOT included in the ZIP.
-This fixes CI assertions; it does not prove correct physical GK420d printing or barcode/QR scan quality.
+Printer:
+Choose Two portrait stickers side by side; keep Horizontal like your padlock
+label. Set exact dimensions measured from the roll (defaults 24 x 40 mm per
+sticker with 2 mm between) and use the full row width in the Windows GK420d
+printing preferences (e.g., 50 x 40 mm if those are the real dimensions).
+In Chrome PDF Print: GK420d, Actual size 100%, no auto rotation/fit.
+First test with quantity 1 and scan the QR and barcode before bulk printing.
+
+The actual roll measurements are unverified; a wrong driver page size can
+still cause clipping or misalignment regardless of software design.
