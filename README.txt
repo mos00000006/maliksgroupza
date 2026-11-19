@@ -1,18 +1,15 @@
-Maliks POS Professional — Phase 52: Keep PowerBuild/Buster Build logo and MaliksQuote QR
+Maliks POS — Phase 52 GitHub test-only correction (19 November 2026)
 
-Fixes Phase 51 defaults that incorrectly switched OFF the branch logo and QR.
+Source: user-supplied GitHub Actions log showing 359 passed / 2 failed of 361.
 
-Changes:
-- Branch logo option is ON by default (PowerBuild for other branches, Buster Build for Buster).
-- QR -> MaliksQuote is ON by default (requires an existing published Hub price-card token).
-- QR is allocated 8.8 mm on 40 x 24 mm landscape, and 9.2 mm on 50 x 30 mm landscape.
-- Compact horizontal print arrangement is retained: description, barcode, stock code and price.
-- Existing two-across portrait mode, print dimensions, and Chrome PDF logic are unchanged.
+Fixes:
+- phase44-stock-label-layout.test.mjs: removes outdated Phase 44 CSS measurements, validates Phase 51/52 compact layout and two-up portrait label.
+- phase47-zebra-direct-print.test.mjs: updates obsolete barcode SVG variable name, checks both single and portrait barcode/QR paths and confirms PowerBuild/Buster branding remains on by default.
 
-INSTALL
-1. Extract this ZIP into the existing GitHub project keeping the folder paths.
-2. Replace maliks-operations/src/stock-labelling-ui.mjs.
-3. Add maliks-operations/tests/phase52-brand-qr-labels.test.mjs.
-4. Commit and push; run the usual Maliks POS deployment workflow.
+Installation:
+1. Copy ONLY the two files inside maliks-operations/tests/ into the matching GitHub paths.
+2. Commit and push. Run npm test in GitHub Actions.
 
-NOTE: Small QR codes may be difficult to scan at 203 dpi, especially with long URLs. Test one sticker with your phone and adjust physical media calibration if needed. Do not print a made-up QR when the product has no published token.
+No production source changes. No database migration. Do not overwrite stock-labelling-ui.mjs with any previous phase.
+The src/ file in this build folder was used for local validation ONLY and is intentionally NOT included in the ZIP.
+This fixes CI assertions; it does not prove correct physical GK420d printing or barcode/QR scan quality.

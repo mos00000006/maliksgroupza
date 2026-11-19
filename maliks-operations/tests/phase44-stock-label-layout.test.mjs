@@ -1,19 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { STOCK_LABEL_CLIENT_SCRIPT } from '../src/stock-labelling-ui.mjs';
-test('label preview and printer use the same isolated fixed grid layout',()=>{
- new vm.Script(STOCK_LABEL_CLIENT_SCRIPT);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/grid-template-rows:5\.5mm 5\.2mm 2mm/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/grid-template-rows:7mm 6\.5mm 2\.5mm/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/label43-price/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/label43-head/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/label43-qr/);
- assert.doesNotMatch(STOCK_LABEL_CLIENT_SCRIPT,/class="price"/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/transform:scale\(1\.65\)/);
- // Keep the historical single-label previews but also assert the portrait two-up variant.
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/--label-w:40mm;--label-h:24mm/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/--label-w:50mm;--label-h:30mm/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/label43-sticker\.label43-portrait/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/function makeTwoUpPdf\(/);
+import { STOCK_LABEL_CLIENT_SCRIPT as script } from '../src/stock-labelling-ui.mjs';
+
+test('compact single-label preview keeps an isolated print layout and both size options',()=>{
+  new vm.Script(script);
+  assert.match(script,/label43-sticker\{/);
+  assert.match(script,/grid-template-rows:6\.8mm 6\.2mm 3mm/);
+  assert.match(script,/grid-template-rows:8\.2mm 7\.6mm 3\.8mm/);
+  assert.match(script,/--label-w:40mm;--label-h:24mm/);
+  assert.match(script,/--label-w:50mm;--label-h:30mm/);
+  assert.match(script,/label43-preview \.label43-sticker\{transform:scale\(1\.65\)/);
+  assert.match(script,/label43-head/);
+  assert.match(script,/label43-price/);
+  assert.match(script,/label43-qr/);
+  assert.doesNotMatch(script,/class="price"/);
+});
+
+test('two-up portrait label remains available with separate per-sticker images',()=>{
+  assert.match(script,/label43-sticker\.label43-portrait/);
+  assert.match(script,/function makeTwoUpPdf\(/);
+  assert.match(script,/async function portraitStickerJpeg\(/);
+  assert.match(script,/const g=labelGeometry\(\),w=g\.labelW,h=g\.labelH/);
 });
