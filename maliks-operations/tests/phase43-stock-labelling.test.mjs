@@ -33,6 +33,7 @@ test('GK420d label batch respects 40x24 single-label roll layout, quantity and n
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:40,height:24,columns:1/);
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/width:50,height:30,columns:1/);
  assert.match(STOCK_LABEL_CLIENT_SCRIPT,/Maximum 500 labels/);
- assert.match(STOCK_LABEL_CLIENT_SCRIPT,/@page\s*\{\s*size:/);
+ assert.match(STOCK_LABEL_CLIENT_SCRIPT,/\^PW/);
+ assert.doesNotMatch(STOCK_LABEL_CLIENT_SCRIPT,/window\.print\(/);
  assert.doesNotMatch(STOCK_LABEL_CLIENT_SCRIPT,/invPost\(/);
 });
