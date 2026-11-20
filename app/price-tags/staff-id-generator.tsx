@@ -3,7 +3,7 @@ import {useEffect,useRef,useState} from "react";
 import {toJpeg} from "../lib/vendor/html-to-image.mjs";
 import {staffIdPdf,staffIdSize,type IdOrientation} from "../lib/staff-id-export";
 import {jpegPagePdf} from "../lib/staff-card-export";
-import {staffIdSheetSlots,STAFF_ID_A4,type StaffIdSheetSlot} from "../lib/staff-id-a4";
+import {staffIdSheetSlots,STAFF_ID_A4,STAFF_ID_A4_CAPACITY,type StaffIdSheetSlot} from "../lib/staff-id-a4";
 import qrcode from "../lib/vendor/qrcode.mjs";
 import {priceTagResponse} from "../lib/price-tag-response";
 import type {StaffIdDetails,StaffIdRecord} from "../lib/staff-id-verification";
@@ -31,7 +31,7 @@ function Artwork({brand,orientation,details,photo,zoom,position,verificationUrl}
   <footer>{buster?'BUSTERBUILD':'POWERBUILD'} · STAFF IDENTIFICATION</footer>
  </article>;
 }
-// Five individual ISO ID-1 cards are positioned in physical millimetres on A4.
+// Six ISO ID-1 cards are positioned in physical millimetres on A4 (2 columns × 3 rows).
 // Back positions mirror the columns for long-edge duplex printing.
 function BackArtwork({brand,branch,orientation}:{brand:TagBrand;branch:string;orientation:IdOrientation}){
  const buster=brand==='busterbuild',portrait=orientation==='portrait';
@@ -48,7 +48,7 @@ function BackArtwork({brand,branch,orientation}:{brand:TagBrand;branch:string;or
 type SheetSide='front'|'back';
 function A4Sheet({brand,orientation,staff,side,mirrorBack=false}:{brand:TagBrand;orientation:IdOrientation;staff:StaffIdRecord[];side:SheetSide;mirrorBack?:boolean}){
  const slots=staffIdSheetSlots(orientation,side==='back'&&mirrorBack);
- return <div className={styles.idA4Sheet} data-staff-a4={side} aria-label={`A4 five staff ID card ${side} sheet`}>
+ return <div className={styles.idA4Sheet} data-staff-a4={side} aria-label={`A4 ${STAFF_ID_A4_CAPACITY} staff ID card ${side} sheet`}>
   {staff.map((row,i)=>{
    const slot:StaffIdSheetSlot=slots[i];if(!slot)return null;
    return <div key={`${row.token}-${i}`} className={styles.idA4Slot} style={{left:`${slot.xMm/STAFF_ID_A4.widthMm*100}%`,top:`${slot.yMm/STAFF_ID_A4.heightMm*100}%`,width:`${slot.widthMm/STAFF_ID_A4.widthMm*100}%`,height:`${slot.heightMm/STAFF_ID_A4.heightMm*100}%`}}>
@@ -79,13 +79,13 @@ export default function StaffIdGenerator({brand,onBack}:{brand:TagBrand;onBack:(
  const refreshList=async()=>{try{const result=await priceTagResponse(await fetch(`/api/price-tags/staff-ids?brand=${brand}&q=${encodeURIComponent(search)}`,{cache:'no-store'}),'Saved cards could not load.');setStaffList(result.staff as StaffSummary[]);setListMessage('');}catch(error){setListMessage(error instanceof Error?error.message:'Could not load saved cards.');}};
  const loadStaff=async(token:string)=>{setBusy(true);setMessage('Loading saved staff card…');try{const result=await priceTagResponse(await fetch(`/api/price-tags/staff-ids?brand=${brand}&token=${token}`,{cache:'no-store'}),'Staff card could not load.');const row=result.staff as StaffIdRecord;setDetails({name:row.name,employeeId:row.employeeId,role:row.role,department:row.department,branch:row.branch,expiry:row.expiry,startDate:row.startDate});setSaved(row);setActive(row.active);setPhoto(row.photoUrl);setZoom(row.photoZoom);setPosition(row.photoPosition);setPhotoChanged(false);setDirty(false);setMessage(row.active?'Saved staff card loaded.':'Verification is deactivated for this staff card.');}catch(error){setMessage(error instanceof Error?error.message:'Staff card could not load.');}finally{setBusy(false);}};
  const addToSheet=async(token:string)=>{
-  if(sheetStaff.length>=5){setSheetMessage('A4 sheet already has 5 cards. Remove one before adding another.');return;}
+  if(sheetStaff.length>=STAFF_ID_A4_CAPACITY){setSheetMessage(`A4 sheet already has ${STAFF_ID_A4_CAPACITY} cards. Remove one before adding another.`);return;}
   if(sheetStaff.some(x=>x.token===token)){setSheetMessage('This staff member is already on the A4 sheet.');return;}
   setSheetBusy(true);setSheetMessage('Adding saved staff card…');
   try{const result=await priceTagResponse(await fetch(`/api/price-tags/staff-ids?brand=${brand}&token=${encodeURIComponent(token)}`,{cache:'no-store'}),'Could not load staff card.');
    const row=result.staff as StaffIdRecord;if(!row.active){setSheetMessage('This staff card is deactivated. Reactivate it before printing.');return;}
    if(!row.photoUrl||!row.branch){setSheetMessage('This staff card needs a photo and branch before printing.');return;}
-   setSheetStaff(list=>list.length>=5||list.some(x=>x.token===row.token)?list:[...list,row]);setSheetMessage(`Added ${row.name} to the A4 sheet.`);
+   setSheetStaff(list=>list.length>=STAFF_ID_A4_CAPACITY||list.some(x=>x.token===row.token)?list:[...list,row]);setSheetMessage(`Added ${row.name} to the A4 sheet.`);
   }catch(e){setSheetMessage(e instanceof Error?e.message:'Could not add staff card.');}finally{setSheetBusy(false);}
  };
  const downloadA4=async(side:SheetSide)=>{
@@ -142,7 +142,7 @@ export default function StaffIdGenerator({brand,onBack}:{brand:TagBrand;onBack:(
   <div className={styles.editor}>
    <form ref={form} className={styles.panel} onSubmit={e=>{e.preventDefault();void saveStaff();}}><fieldset disabled={busy}>
     <h2>Saved staff cards</h2><div className={styles.savedSearch}><label>Find employee number or name<input value={search} onChange={e=>setSearch(e.target.value)} maxLength={100}/></label><button type="button" onClick={()=>void refreshList()}>Search saved cards</button></div>
-    {listMessage&&<p className={styles.note}>{listMessage}</p>}<div className={styles.savedList}>{staffList.map(row=><div key={row.token} className={styles.savedCardRow}><button type="button" onClick={()=>void loadStaff(row.token)}>{row.employee_id} · {row.name}{!row.active?' — verification disabled':''}</button><button type="button" disabled={sheetBusy||sheetStaff.length>=5||!row.active||sheetStaff.some(x=>x.token===row.token)} onClick={()=>void addToSheet(row.token)}>Add to A4</button></div>)}</div><button type="button" onClick={newStaff}>+ New staff card</button>
+    {listMessage&&<p className={styles.note}>{listMessage}</p>}<div className={styles.savedList}>{staffList.map(row=><div key={row.token} className={styles.savedCardRow}><button type="button" onClick={()=>void loadStaff(row.token)}>{row.employee_id} · {row.name}{!row.active?' — verification disabled':''}</button><button type="button" disabled={sheetBusy||sheetStaff.length>=STAFF_ID_A4_CAPACITY||!row.active||sheetStaff.some(x=>x.token===row.token)} onClick={()=>void addToSheet(row.token)}>Add to A4</button></div>)}</div><button type="button" onClick={newStaff}>+ New staff card</button>
     <h2>1. Layout &amp; staff details</h2><label>Card layout<select value={orientation} onChange={e=>{setOrientation(e.target.value as IdOrientation);setMessage('');}}><option value="portrait">Portrait — 53.98 × 85.60 mm</option><option value="landscape">Landscape — 85.60 × 53.98 mm</option></select></label>
     {field('Staff member full name','name',70,true)}{field('Employee number','employeeId',32,true)}{field('Job title (optional)','role',60)}{field('Department (optional)','department',60)}<label>Branch / store<select value={details.branch} required onChange={e=>change('branch',e.target.value)}><option value="">Select a branch</option>{details.branch&&!selectableBranches.includes(details.branch)&&<option value={details.branch}>{details.branch} (saved)</option>}{selectableBranches.map(name=><option key={name} value={name}>{name}</option>)}</select></label>{branchError&&<p className={styles.note}>{branchError}</p>}
     <label>Employment start date (optional)<input type="date" value={details.startDate} onChange={e=>change('startDate',e.target.value)}/></label>
@@ -151,12 +151,12 @@ export default function StaffIdGenerator({brand,onBack}:{brand:TagBrand;onBack:(
     {photo&&<><label>Photo zoom — {zoom}%<input type="range" min="100" max="200" step="5" value={zoom} onChange={e=>{setZoom(Number(e.target.value));setDirty(true);}}/></label><label>Photo vertical position<input type="range" min="0" max="100" step="1" value={position} onChange={e=>{setPosition(Number(e.target.value));setDirty(true);}}/></label><div className={styles.photoActions}><button type="button" onClick={()=>{setZoom(100);setPosition(50);setDirty(true);}}>Reset crop</button><button type="button" onClick={()=>{setPhoto('');setDirty(true);setMessage('Photo removed. Add a photo before downloading.');}}>Remove photo</button></div></>}
     <h2>3. Employment verification</h2><label className={styles.check}><input type="checkbox" checked={active} onChange={e=>{setActive(e.target.checked);setDirty(true);}}/>Currently employed — enable public verification</label><p className={styles.note}>Saving an enabled record makes this photo and work details visible to anyone scanning its QR. Disable verification when the employee leaves. Expired cards do not confirm employment.</p>
    </fieldset><div className={styles.actions}><button type="submit" disabled={busy}>{busy?'Saving…':active?'Save staff verification & generate QR':'Save & deactivate verification'}</button><button type="button" disabled={busy} onClick={()=>void download('pdf')}>Download PDF</button><button type="button" disabled={busy} onClick={()=>void download('jpg')}>Download JPG</button></div>
-    <section className={styles.sheetBuilder} aria-label="Five staff ID cards on A4">
-      <h2>4. A4 printing — 5 staff ID cards</h2>
-      <p className={styles.note}>Standard bank-card size (ISO ID-1): 85.60 × 53.98 mm. Five cards on an A4 sheet: 2 columns × 3 rows, with one empty position for cutting. The five back positions match the front positions.</p>
-      <div className={styles.sheetButtons}><button type="button" disabled={!saved||dirty||sheetBusy||sheetStaff.length>=5} onClick={()=>saved&&void addToSheet(saved.token)}>Add current saved employee</button><button type="button" disabled={sheetBusy||sheetStaff.length===0} onClick={()=>setSheetStaff([])}>Clear A4</button></div>
+    <section className={styles.sheetBuilder} aria-label="Six staff ID cards on A4">
+      <h2>4. A4 printing — 6 staff ID cards</h2>
+      <p className={styles.note}>Standard bank-card size (ISO ID-1): 85.60 × 53.98 mm. Six cards on an A4 sheet: 2 columns × 3 rows. All six back positions match the front positions.</p>
+      <div className={styles.sheetButtons}><button type="button" disabled={!saved||dirty||sheetBusy||sheetStaff.length>=STAFF_ID_A4_CAPACITY} onClick={()=>saved&&void addToSheet(saved.token)}>Add current saved employee</button><button type="button" disabled={sheetBusy||sheetStaff.length===0} onClick={()=>setSheetStaff([])}>Clear A4</button></div>
       <div className={styles.sheetQueue}>{sheetStaff.map((staff,index)=><div key={staff.token} className={styles.sheetQueueRow}><span><b>{index+1}. {staff.name}</b><small>{staff.employeeId} · {staff.branch}</small></span><button type="button" disabled={sheetBusy} onClick={()=>setSheetStaff(current=>current.filter(row=>row.token!==staff.token))}>Remove</button></div>)}</div>
-      <p className={styles.note}>{sheetStaff.length}/5 saved staff selected. Select additional employees under Saved staff cards above. You can download each side separately for manual two-sided printing.</p>
+      <p className={styles.note}>{sheetStaff.length}/{STAFF_ID_A4_CAPACITY} saved staff selected. Select additional employees under Saved staff cards above. You can download each side separately for manual two-sided printing.</p>
       <label className={styles.check}><input type="checkbox" checked={sheetMirror} onChange={e=>setSheetMirror(e.target.checked)}/>Mirror back columns for long-edge duplex printing</label>
       <div className={styles.sheetButtons}><button type="button" disabled={!sheetStaff.length||sheetBusy} onClick={()=>void downloadA4('front')}>Download A4 FRONT PDF</button><button type="button" disabled={!sheetStaff.length||sheetBusy} onClick={()=>void downloadA4('back')}>Download A4 BACK PDF</button></div>
       {sheetMessage&&<p role="status" className={styles.message}>{sheetMessage}</p>}
@@ -166,6 +166,6 @@ export default function StaffIdGenerator({brand,onBack}:{brand:TagBrand;onBack:(
    </form>
    <section className={`${styles.panel} ${styles.previewPanel}`}><div className={styles.previewHeader}><h2>Live preview</h2><span>{size.width} × {size.height} mm</span></div><div className={`${styles.preview} ${orientation==='landscape'?styles.widePreview:''}`}><Artwork brand={brand} orientation={orientation} details={details} photo={photo} zoom={zoom} position={position} verificationUrl={dirty?'':verificationUrl}/></div><p className={styles.note}>Preview is enlarged for editing. Switch layouts without losing the staff details or photo.</p></section>
   </div>
-  <section className={`${styles.panel} ${styles.sheetPreviewPanel}`}><div className={styles.previewHeader}><h2>A4 staff ID print preview</h2><span>210 × 297 mm · {sheetStaff.length}/5 cards</span></div><div className={styles.sheetTabs}><button type="button" aria-pressed={sheetSide==='front'} onClick={()=>setSheetSide('front')}>Front</button><button type="button" aria-pressed={sheetSide==='back'} onClick={()=>setSheetSide('back')}>Back</button></div><div className={styles.sheetPreview}><A4Sheet brand={brand} orientation={orientation} staff={sheetStaff} side={sheetSide} mirrorBack={sheetMirror}/></div><p className={styles.note}>Card outlines are cutting guides. The printed PDF retains the exact card dimensions.</p></section>
+  <section className={`${styles.panel} ${styles.sheetPreviewPanel}`}><div className={styles.previewHeader}><h2>A4 staff ID print preview</h2><span>210 × 297 mm · {sheetStaff.length}/{STAFF_ID_A4_CAPACITY} cards</span></div><div className={styles.sheetTabs}><button type="button" aria-pressed={sheetSide==='front'} onClick={()=>setSheetSide('front')}>Front</button><button type="button" aria-pressed={sheetSide==='back'} onClick={()=>setSheetSide('back')}>Back</button></div><div className={styles.sheetPreview}><A4Sheet brand={brand} orientation={orientation} staff={sheetStaff} side={sheetSide} mirrorBack={sheetMirror}/></div><p className={styles.note}>Card outlines are cutting guides. The printed PDF retains the exact card dimensions.</p></section>
  </div><div ref={exportRef} className={styles.exportStage} style={{width:size.pixelsWide/2,height:size.pixelsHigh/2}} aria-hidden="true"><Artwork brand={brand} orientation={orientation} details={details} photo={photo} zoom={zoom} position={position} verificationUrl={dirty?'':verificationUrl}/></div><div ref={sheetExportRef} className={styles.sheetExportStage} aria-hidden="true"><A4Sheet brand={brand} orientation={orientation} staff={sheetStaff} side="front"/><A4Sheet brand={brand} orientation={orientation} staff={sheetStaff} side="back" mirrorBack={sheetMirror}/></div></main>;
 }
