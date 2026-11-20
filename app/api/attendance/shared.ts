@@ -14,5 +14,22 @@ export async function rate(key:string,max:number){const window=Math.floor(Date.n
 export type Branch={id:string;workspace:string;token:string;latitude:number;longitude:number;radius:number;active:number};
 export type Account={id:string;branch_id:string;employee_number:string;first_name:string;last_name:string;phone:string;job_title:string;salt:string;pin_hash:string;employee_id:number|null;status:string;state:string;last_event:string|null;version:number;created_at:string};
 export function nextState(state:string,action:string){const transitions:Record<string,Record<string,string>>={out:{in:'in'},in:{break:'break',out:'out'},break:{resume:'in',out:'out'}};return transitions[state]?.[action]||null;}
-export function location(branch:Branch,b:Record<string,unknown>){const lat=Number(b.latitude),lon=Number(b.longitude),accuracy=Number(b.accuracy);if(b.latitude==null||b.longitude==null||b.accuracy==null||![lat,lon,accuracy].every(Number.isFinite)||Math.abs(lat)>90||Math.abs(lon)>180||accuracy<0||accuracy>10000)return {status:'unavailable',distance:null,accuracy:null};const rad=(v:number)=>v*Math.PI/180;const a=Math.sin(rad(lat-branch.latitude)/2)**2+Math.cos(rad(lat))*Math.cos(rad(branch.latitude))*Math.sin(rad(lon-branch.longitude)/2)**2;const distance=Math.round(6371000*2*Math.atan2(Math.sqrt(a),Math.sqrt(Math.max(0,1-a))));return{status:accuracy>100?'inaccurate':distance<=branch.radius?'inside':'outside',distance,accuracy:Math.round(accuracy)};}
+// Security policy: no attendance is accepted unless fresh, reasonably accurate GPS
+// places the phone in the configured branch area. Even legacy 300m/2km branch
+// settings are capped to 150m for clocking; managers should configure 75-100m.
+export const MAX_CLOCK_RADIUS_M=150;
+export const MAX_CLOCK_ACCURACY_M=60;
+export const effectiveClockRadius=(branch:Branch)=>Math.min(MAX_CLOCK_RADIUS_M,Math.max(0,Number(branch.radius)||0));
+export function location(branch:Branch,b:Record<string,unknown>){
+ const lat=Number(b.latitude),lon=Number(b.longitude),accuracy=Number(b.accuracy);
+ if(b.latitude==null||b.longitude==null||b.accuracy==null||![lat,lon,accuracy].every(Number.isFinite)||Math.abs(lat)>90||Math.abs(lon)>180||accuracy<0||accuracy>10000)return {status:'unavailable',distance:null,accuracy:null,latitude:null,longitude:null};
+ const rad=(v:number)=>v*Math.PI/180;
+ const a=Math.sin(rad(lat-branch.latitude)/2)**2+Math.cos(rad(lat))*Math.cos(rad(branch.latitude))*Math.sin(rad(lon-branch.longitude)/2)**2;
+ const distance=Math.round(6371000*2*Math.atan2(Math.sqrt(a),Math.sqrt(Math.max(0,1-a))));
+ const allowed=effectiveClockRadius(branch);
+ const status=accuracy>MAX_CLOCK_ACCURACY_M?'inaccurate':distance<=allowed?'inside':'outside';
+ // Only one location fix is received on clock action; no continuous tracking.
+ return{status,distance,accuracy:Math.round(accuracy),latitude:Number(lat.toFixed(5)),longitude:Number(lon.toFixed(5))};
+}
+
 export function failure(error:unknown){console.error('Attendance service',error);return json({error:'Attendance could not be loaded or saved. Check your connection and retry. If setup is new, ask your administrator to apply migration 0042.'},503);}

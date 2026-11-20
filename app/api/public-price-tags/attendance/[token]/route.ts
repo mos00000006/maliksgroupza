@@ -1,5 +1,5 @@
 import {env} from 'cloudflare:workers';
-import {type Branch,type Account,json,validToken,secret,hash,pinHash,sameOrigin,body,text,rate,now,day,nextState,location,failure} from '../../../attendance/shared';
+import {type Branch,type Account,json,validToken,secret,hash,pinHash,sameOrigin,body,text,rate,now,day,nextState,location,effectiveClockRadius,failure} from '../../../attendance/shared';
 async function branch(req:Request){const token=new URL(req.url).pathname.split('/').filter(Boolean).at(-1)||'';return validToken(token)?env.DB.prepare('SELECT * FROM attendance_branches WHERE token=? AND active=1').bind(token).first<Branch>():null;}
 const cookieName='attendance_session';
 function cookie(req:Request){return req.headers.get('cookie')?.split(';').map(x=>x.trim()).find(x=>x.startsWith(cookieName+'='))?.slice(cookieName.length+1)||'';}
@@ -29,12 +29,26 @@ const duplicate=await env.DB.prepare('SELECT id FROM attendance_events WHERE acc
 if(!nextState(a.state,action))return json({error:'This clock action is no longer available. Refresh your status.'},409);
 
 const geo=location(b,data),id=crypto.randomUUID(),time=now(),date=day(new Date(time)),state=nextState(a.state,action)!;
+if(geo.status!=='inside'){
+ // Rejected attempts are visible to authorised managers, but never change staff
+ // state or write an 'At work' attendance / payroll record.
+ await env.DB.prepare('INSERT INTO attendance_location_rejections (id,branch_id,account_id,employee_id,workspace,action,attempted_at,attendance_date,location_status,distance_m,accuracy_m,scan_latitude,scan_longitude) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
+ .bind(id,b.id,a.id,a.employee_id,b.workspace,action,time,date,geo.status,geo.distance,geo.accuracy,geo.latitude,geo.longitude).run();
+ const radius=effectiveClockRadius(b);
+ const error=geo.status==='outside'
+   ?`Clock action rejected. Your phone reports ${geo.distance}m from ${b.workspace}; you must be within ${radius}m. No clock-in was recorded.`
+   :geo.status==='inaccurate'
+     ?`Clock action rejected: phone location accuracy is ${geo.accuracy}m. Move nearer an open area, enable precise location and retry. No attendance was recorded.`
+     :'Clock action rejected: location is required. Enable precise location on your phone and retry at the branch. No attendance was recorded.';
+ return json({error,location_status:geo.status},403);
+}
+
 const reason=`QR attendance: ${action} at ${new Date(time).toLocaleTimeString('en-ZA',{timeZone:'Africa/Johannesburg',hour12:false})}${geo.status==='inside'?'':' — location review required ('+geo.status+')'}`;
 await env.DB.batch([
- env.DB.prepare("INSERT INTO attendance_events (id,account_id,employee_id,workspace,action,occurred_at,attendance_date,location_status,distance_m,accuracy_m,request_key) SELECT ?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM attendance_accounts WHERE id=? AND version=? AND status='approved' AND EXISTS (SELECT 1 FROM employee_records e WHERE e.id=attendance_accounts.employee_id AND e.active=1 AND e.workspace=? AND e.employment_status IN ('Active','On leave')))").bind(id,a.id,a.employee_id,b.workspace,action,time,date,geo.status,geo.distance,geo.accuracy,key,a.id,a.version,b.workspace),
+ env.DB.prepare("INSERT INTO attendance_events (id,account_id,employee_id,workspace,action,occurred_at,attendance_date,location_status,distance_m,accuracy_m,request_key,scan_latitude,scan_longitude) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM attendance_accounts WHERE id=? AND version=? AND status='approved' AND EXISTS (SELECT 1 FROM employee_records e WHERE e.id=attendance_accounts.employee_id AND e.active=1 AND e.workspace=? AND e.employment_status IN ('Active','On leave')))").bind(id,a.id,a.employee_id,b.workspace,action,time,date,geo.status,geo.distance,geo.accuracy,key,geo.latitude,geo.longitude,a.id,a.version,b.workspace),
  env.DB.prepare('UPDATE attendance_accounts SET state=?,last_event=?,version=version+1 WHERE id=? AND version=? AND EXISTS (SELECT 1 FROM attendance_events WHERE id=?)').bind(state,time,a.id,a.version,id),
  env.DB.prepare("INSERT INTO employee_attendance (employee_id,workspace,attendance_date,status,reason,recorded_by,created_at,updated_at) SELECT ?,?,?,'At work',?,'QR attendance',?,? WHERE EXISTS (SELECT 1 FROM attendance_events WHERE id=?) ON CONFLICT(employee_id,attendance_date) DO UPDATE SET reason=excluded.reason,updated_at=excluded.updated_at WHERE employee_attendance.recorded_by='QR attendance'").bind(a.employee_id,b.workspace,date,reason,time,time,id)
 ]);
 if(!await env.DB.prepare('SELECT id FROM attendance_events WHERE id=?').bind(id).first())return json({error:'Your status changed on another device. Refresh before trying again.'},409);
-return json({ok:true,message:geo.status==='inside'?'Attendance saved.':'Attendance saved and flagged for manager location review.'});
+return json({ok:true,message:`Attendance recorded at ${b.workspace}. GPS: ${geo.distance}m from the branch reference point.`});
 }catch(e){return failure(e);}}

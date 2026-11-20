@@ -11,6 +11,7 @@ const root=new URL('../',import.meta.url).pathname,folder=mkdtempSync(join(tmpdi
 const sql=new DatabaseSync(':memory:');
 sql.exec(`CREATE TABLE workspaces(name TEXT,active INTEGER);INSERT INTO workspaces VALUES('PowerBuild Sungate',1),('BusterBuild',1);CREATE TABLE employee_records(id INTEGER PRIMARY KEY AUTOINCREMENT,employee_number TEXT,workspace TEXT,first_name TEXT,last_name TEXT,phone TEXT,job_title TEXT,created_by TEXT,created_at TEXT,updated_at TEXT,active INTEGER DEFAULT 1,employment_status TEXT DEFAULT 'Active',UNIQUE(workspace,employee_number));CREATE TABLE employee_attendance(id INTEGER PRIMARY KEY,employee_id INTEGER,workspace TEXT,attendance_date TEXT,status TEXT,reason TEXT,recorded_by TEXT,created_at TEXT,updated_at TEXT,UNIQUE(employee_id,attendance_date));`);
 sql.exec(readFileSync(root+'drizzle/0042_branch_qr_attendance.sql','utf8'));
+sql.exec(readFileSync(root+'drizzle/0070_attendance_location_verification.sql','utf8'));
 const DB={prepare(query){let args=[];return{bind(...v){args=v;return this;},async first(){return sql.prepare(query).get(...args)||null;},async all(){return{results:sql.prepare(query).all(...args)};},async run(){return {meta:{changes:sql.prepare(query).run(...args).changes}};}};},async batch(list){sql.exec('BEGIN');try{const out=[];for(const s of list)out.push(await s.run());sql.exec('COMMIT');return out;}catch(e){sql.exec('ROLLBACK');throw e;}}};
 globalThis.attendanceEnv={DB};globalThis.attendanceUser={role:'Store Manager',email:'manager@example.test',workspace:'PowerBuild Sungate'};
 const plugin={name:'bindings',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onResolve({filter:/(^|\/)access$/},()=>({path:'access',namespace:'fixture'}));b.onResolve({filter:/employees\/shared$/},()=>({path:'employees',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},a=>({contents:a.path==='env'?'export const env=globalThis.attendanceEnv;':a.path==='access'?`export async function getHubMember(){return globalThis.attendanceUser;}export function canAccessWorkspace(m,w){return m?.workspace===w;}`:`export async function accessibleEmployeeWorkspaces(m){return [{name:m.workspace}];}export const hasEmployeeRecordsAccess=m=>['Store Manager','Human Resource (HR)','Viewer'].includes(m?.role);export const canManageEmployeeFiles=m=>['Store Manager','Human Resource (HR)'].includes(m?.role);export const canRecordEmployeeAttendance=canManageEmployeeFiles;export async function initEmployeeTables(){}` }));}};
@@ -39,10 +40,25 @@ test('branch setup, registration, approval, private sessions and clock records',
  assert.equal(sql.prepare('SELECT status FROM employee_attendance').get().status,'At work');
  await staff({action:'in',requestKey:key,latitude:-26,longitude:28,accuracy:8});assert.equal(sql.prepare('SELECT count(*) n FROM attendance_events').get().n,1);
  assert.equal((await staff({action:'resume',requestKey:crypto.randomUUID()})).status,409);
- assert.equal((await staff({action:'break',requestKey:crypto.randomUUID(),latitude:-27,longitude:28,accuracy:8})).status,200);assert.equal((await manage()).body.events[0].location_status,'outside');
- assert.equal((await staff({action:'resume',requestKey:crypto.randomUUID()})).status,200);
- assert.equal((await staff({action:'out',requestKey:crypto.randomUUID(),latitude:-26,longitude:28,accuracy:300})).status,200);
- const event=sql.prepare("SELECT * FROM attendance_events WHERE action='out'").get();assert.equal(event.location_status,'inaccurate');assert.equal(event.attendance_date,shared.day());assert(!('latitude'in event));
+ // QR photos sent from another location must NOT result in attendance.
+ const outside=await staff({action:'break',requestKey:crypto.randomUUID(),latitude:-27,longitude:28,accuracy:8});
+ assert.equal(outside.status,403);assert.match(outside.body.error,/rejected/i);
+ assert.equal(sql.prepare('SELECT COUNT(*) n FROM attendance_events').get().n,1);
+ assert.equal((await staff()).body.account.state,'in');
+ assert.equal((await manage()).body.rejections[0].location_status,'outside');
+ assert.equal((await manage()).body.rejections[0].scan_latitude,-27);
+ const noGps=await staff({action:'break',requestKey:crypto.randomUUID()});
+ assert.equal(noGps.status,403);assert.equal((await staff()).body.account.state,'in');
+ const inaccurate=await staff({action:'break',requestKey:crypto.randomUUID(),latitude:-26,longitude:28,accuracy:300});
+ assert.equal(inaccurate.status,403);
+ assert.equal(sql.prepare('SELECT count(*) n FROM attendance_location_rejections').get().n,3);
+ // A valid branch-side scan still follows the ordinary state machine.
+ assert.equal((await staff({action:'break',requestKey:crypto.randomUUID(),latitude:-26,longitude:28,accuracy:8})).status,200);
+ assert.equal((await staff({action:'resume',requestKey:crypto.randomUUID(),latitude:-26,longitude:28,accuracy:8})).status,200);
+ assert.equal((await staff({action:'out',requestKey:crypto.randomUUID(),latitude:-26,longitude:28,accuracy:8})).status,200);
+ const event=sql.prepare("SELECT * FROM attendance_events WHERE action='out'").get();
+ assert.equal(event.location_status,'inside');assert.equal(event.attendance_date,shared.day());
+ assert.equal(event.scan_latitude,-26);assert.equal(event.scan_longitude,28);
  assert.equal((await staff()).body.account.state,'out');assert.equal(sql.prepare('SELECT status FROM employee_attendance').get().status,'At work');
  const approvedCookie=cookie;cookie='';assert.equal((await staff()).body.account,null);assert.equal((await staff({action:'in',requestKey:crypto.randomUUID()})).status,403);
  assert.equal((await staff({action:'login',employeeNumber:'SG001',pin:'000000'})).status,401);
@@ -53,7 +69,7 @@ test('scope, CSRF, employment changes, PIN resets, manual attendance and QR repl
  assert.equal((await staff({action:'login',employeeNumber:'SG001',pin:details.pin})).status,200);
  const account=sql.prepare('SELECT * FROM attendance_accounts').get();
  assert.equal((await staff({action:'in',requestKey:crypto.randomUUID()},{origin:'https://evil.example'})).status,403);
- const original=globalThis.attendanceUser;globalThis.attendanceUser=null;assert.equal((await manage()).status,403);globalThis.attendanceUser={...original,role:'Viewer'};assert.equal((await manage({action:'disable',id:account.id})).status,403);globalThis.attendanceUser=original;
+ const original=globalThis.attendanceUser;globalThis.attendanceUser=null;assert.equal((await manage()).status,403);globalThis.attendanceUser={...original,role:'Viewer'};assert.equal((await manage({action:'disable',id:account.id})).status,403);const viewer=(await manage()).body;assert.deepEqual(viewer.rejections,[]);assert(viewer.events.every(x=>x.scan_latitude===null));globalThis.attendanceUser=original;
  sql.prepare('UPDATE employee_records SET workspace=?').run('BusterBuild');assert.equal((await staff({action:'in',requestKey:crypto.randomUUID()})).status,403);sql.prepare('UPDATE employee_records SET workspace=?').run(workspace);
  sql.prepare('UPDATE employee_records SET active=0').run();assert.equal((await staff({action:'in',requestKey:crypto.randomUUID()})).status,403);sql.prepare('UPDATE employee_records SET active=1').run();
  sql.prepare("UPDATE employee_attendance SET status='Late',reason='Manager decision',recorded_by='Manager'").run();await staff({action:'in',requestKey:crypto.randomUUID(),latitude:-26,longitude:28,accuracy:10});assert.equal(sql.prepare('SELECT reason FROM employee_attendance').get().reason,'Manager decision');
@@ -69,6 +85,10 @@ test('public routes, header scope, state and location validation',()=>{
  assert(!guard.attendancePublicRequest(new Request(origin+'/p/attendance/'+t,{method:'POST'})));
  const base=new Response('ok',{headers:{'permissions-policy':'camera=(), microphone=(), geolocation=()'}});const result=guard.attendanceResponse(new Request(origin+'/p/attendance/'+t),base);assert.match(result.headers.get('permissions-policy'),/geolocation=\(self\)/);assert.match(result.headers.get('permissions-policy'),/camera=\(\)/);assert.equal(result.headers.get('cache-control'),'no-store');
  assert.equal(shared.day(new Date('2026-10-24T22:30:00Z')),'2026-10-25');assert.equal(shared.nextState('out','break'),null);assert.equal(shared.nextState('in','break'),'break');assert.equal(shared.location({latitude:-26,longitude:28,radius:300},{}).status,'unavailable');
+ assert.equal(shared.effectiveClockRadius({latitude:-26,longitude:28,radius:300}),150);
+ assert.equal(shared.location({latitude:-26,longitude:28,radius:100},{latitude:-26,longitude:28,accuracy:10}).status,'inside');
+ assert.equal(shared.location({latitude:-26,longitude:28,radius:100},{latitude:-26.003,longitude:28,accuracy:10}).status,'outside');
+ assert.equal(shared.location({latitude:-26,longitude:28,radius:100},{latitude:-26,longitude:28,accuracy:120}).status,'inaccurate');
 });
 test('installer is idempotent and preserves other QR access guards and cron',()=>{
  const fixture=mkdtempSync(join(tmpdir(),'attendance-installer-'));mkdirSync(fixture+'/worker');mkdirSync(fixture+'/app');mkdirSync(fixture+'/scripts');
