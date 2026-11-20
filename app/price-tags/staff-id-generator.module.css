@@ -5,5 +5,38 @@
 
 
 /* A4 five-up ID-1 print sheets: each card is exactly 85.60 × 53.98 mm or rotated. */
-.savedCardRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center}.savedCardRow>button:first-child{text-align:left}.savedCardRow button:last-child{font-size:11px;padding:8px 10px}.sheetBuilder{margin-top:25px;padding:17px;background:#f6f8fb;border:1px solid #d7e2eb;border-radius:12px}.sheetBuilder h2{margin-top:0!important}.sheetButtons,.sheetTabs{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}.sheetButtons button{font-size:12px}.sheetQueue{display:grid;gap:7px;margin:12px 0}.sheetQueueRow{display:flex;justify-content:space-between;gap:9px;align-items:center;border:1px solid #d8e0e8;padding:9px;background:#fff;border-radius:8px}.sheetQueueRow span{display:grid;gap:4px;min-width:0}.sheetQueueRow b,.sheetQueueRow small{overflow-wrap:anywhere}.sheetQueueRow small{color:#607185}.sheetQueueRow button{font-size:11px;padding:8px}.sheetPreviewPanel{margin-top:24px}.sheetTabs button[aria-pressed=true]{background:#0A2A3F;color:#fff;border-color:#0A2A3F}.sheetPreview{max-width:600px;margin:14px auto;background:#e9edf2;padding:14px;border-radius:9px}.idA4Sheet{position:relative;width:100%;aspect-ratio:210/297;background:white;overflow:hidden;box-sizing:border-box}.idA4Slot{position:absolute;box-sizing:border-box;outline:1px dashed #9ea9b1;outline-offset:0;overflow:hidden}.idA4Slot .idCard{width:100%!important;height:100%!important;aspect-ratio:auto!important;box-shadow:none!important}.idBack{position:relative;width:100%;height:100%;background:#0A2A3F;color:#fff;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4%;font-family:Arial,sans-serif;text-align:center;container-type:inline-size}.idBack img{display:block;max-width:67%;width:62%;max-height:53%;height:auto;object-fit:contain;background:transparent;border:0;padding:0;margin:0}.idBack strong{font-size:4cqw;font-weight:800;max-width:88%;line-height:1.2;overflow-wrap:anywhere;color:#fff}.backGoldTop,.backGoldBottom{position:absolute;left:0;right:0;background:#D4A017;height:3%}.backGoldTop{top:0}.backGoldBottom{bottom:0}.busterBack{background:#171918}.busterBack strong{color:#f5cf63}.sheetExportStage{position:fixed;left:-100000px;top:0;pointer-events:none}.sheetExportStage .idA4Sheet{width:1240px;height:1754px;aspect-ratio:auto}.sheetExportStage .idA4Sheet .idBack{box-shadow:none}
-.idBack img{background:#fff;border-radius:1.2cqw;padding:1.2cqw;box-sizing:border-box}.busterBack img{background:transparent;padding:0;border-radius:0}
+.savedCardRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center}.savedCardRow>button:first-child{text-align:left}.savedCardRow button:last-child{font-size:11px;padding:8px 10px}.sheetBuilder{margin-top:25px;padding:17px;background:#f6f8fb;border:1px solid #d7e2eb;border-radius:12px}.sheetBuilder h2{margin-top:0!important}.sheetButtons,.sheetTabs{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}.sheetButtons button{font-size:12px}.sheetQueue{display:grid;gap:7px;margin:12px 0}.sheetQueueRow{display:flex;justify-content:space-between;gap:9px;align-items:center;border:1px solid #d8e0e8;padding:9px;background:#fff;border-radius:8px}.sheetQueueRow span{display:grid;gap:4px;min-width:0}.sheetQueueRow b,.sheetQueueRow small{overflow-wrap:anywhere}.sheetQueueRow small{color:#607185}.sheetQueueRow button{font-size:11px;padding:8px}.sheetPreviewPanel{margin-top:24px}.sheetTabs button[aria-pressed=true]{background:#0A2A3F;color:#fff;border-color:#0A2A3F}.sheetPreview{max-width:600px;margin:14px auto;background:#e9edf2;padding:14px;border-radius:9px}.idA4Sheet{position:relative;width:100%;aspect-ratio:210/297;background:white;overflow:hidden;box-sizing:border-box}.idA4Slot{position:absolute;box-sizing:border-box;outline:1px dashed #9ea9b1;outline-offset:0;overflow:hidden}.idA4Slot .idCard{width:100%!important;height:100%!important;aspect-ratio:auto!important;box-shadow:none!important}/* Reference-style staff ID reverse: blue field, real logo, white branch name.
+   Five-up A4 slots remain exactly CR80 / ISO ID-1 size. */
+.idBack{
+ position:relative;width:100%;height:100%;overflow:hidden;
+ background:#35689A;color:#fff;container-type:inline-size;
+ font-family:Arial,Helvetica,sans-serif;text-align:center;
+}
+.backIdentity{
+ position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+ width:92%;height:88%;gap:5%;
+}
+.backLogo{
+ display:block;box-sizing:border-box;width:auto;max-width:77%;max-height:61%;
+ object-fit:contain;margin:0;padding:0;background:transparent!important;border:0;
+}
+.backBranch{
+ display:block;box-sizing:border-box;max-width:90%;max-height:35%;margin:0;
+ font-size:5cqw;line-height:1.16;font-weight:800;color:#fff;
+ white-space:normal;overflow-wrap:anywhere;overflow:hidden;
+}
+.portraitBack .backIdentity{
+ /* Text reads downward, parallel to the logo, as on the reference portrait card.
+    The pre-rotation order puts the branch on the left and the logo on the right. */
+ width:158.58%;height:63.06%;transform:translate(-50%,-50%) rotate(90deg);
+ flex-direction:column-reverse;gap:4%;
+}
+.portraitBack .backLogo{max-height:53%;max-width:66%}
+.portraitBack .backBranch{max-height:21%;max-width:78%;line-height:1.2}
+.landscapeBack .backLogo{max-width:67%}
+.busterBack{background:#171918}
+.busterBack .backBranch{color:#fff}
+.sheetExportStage{position:fixed;left:-100000px;top:0;pointer-events:none}
+.sheetExportStage .idA4Sheet{width:1240px;height:1754px;aspect-ratio:auto}
+.sheetExportStage .idA4Sheet .idBack{box-shadow:none}

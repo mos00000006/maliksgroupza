@@ -45,3 +45,19 @@ test('TSX and CSS parse without syntax errors',()=>{
  const css=readFileSync(new URL('../app/price-tags/staff-id-generator.module.css',import.meta.url),'utf8');
  for(const phrase of ['.idA4Sheet','.idBack','.busterBack','.sheetExportStage'])assert(css.includes(phrase));
 });
+
+test('ID back matches photographed portrait layout and retains five-card A4 registration',()=>{
+ const tsx=readFileSync(new URL('../app/price-tags/staff-id-generator.tsx',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../app/price-tags/staff-id-generator.module.css',import.meta.url),'utf8');
+ assert.match(tsx,/function BackArtwork\(\{brand,branch,orientation\}/);
+ assert.match(tsx,/styles\.portraitBack/);
+ assert.match(tsx,/styles\.backIdentity/);
+ assert.match(tsx,/stock-operations\/powerbuild-logo\.png/);
+ assert.match(tsx,/branch=\{row\.branch\} orientation=\{orientation\}/);
+ assert(!tsx.includes('className={styles.backGoldTop}'));
+ assert(!tsx.includes('className={styles.backGoldBottom}'));
+ assert.match(css,/\.idBack\s*\{[\s\S]*?background:#35689A/);
+ assert.match(css,/\.portraitBack \.backIdentity\s*\{[\s\S]*?rotate\(90deg\)/);
+ assert.match(css,/\.backBranch\s*\{[\s\S]*?color:#fff/);
+ assert.match(css,/\.busterBack\s*\{background:#171918\}/);
+});

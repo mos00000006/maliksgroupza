@@ -33,13 +33,16 @@ function Artwork({brand,orientation,details,photo,zoom,position,verificationUrl}
 }
 // Five individual ISO ID-1 cards are positioned in physical millimetres on A4.
 // Back positions mirror the columns for long-edge duplex printing.
-function BackArtwork({brand,branch}:{brand:TagBrand;branch:string}){
- const buster=brand==='busterbuild';
- return <div className={`${styles.idBack} ${buster?styles.busterBack:''}`}>
-  <div className={styles.backGoldTop}/>
-  <img src={buster?'/price-tag-assets/busterbuild-logo-white.png':'/powerbuild-logo-transparent.png'} alt={buster?'Buster Build':'PowerBuild'}/>
-  <strong>{branch}</strong>
-  <div className={styles.backGoldBottom}/>
+function BackArtwork({brand,branch,orientation}:{brand:TagBrand;branch:string;orientation:IdOrientation}){
+ const buster=brand==='busterbuild',portrait=orientation==='portrait';
+ // Match the photographed card: one clean blue field, centred logo and white branch.
+ // On portrait stock both items read sideways as in the physical example.
+ const fontSize=Math.min(portrait?7:5,190/Math.max(branch.length,1));
+ return <div className={`${styles.idBack} ${buster?styles.busterBack:''} ${portrait?styles.portraitBack:styles.landscapeBack}`}>
+  <div className={styles.backIdentity}>
+   <strong className={styles.backBranch} style={{fontSize:`${fontSize}cqw`}}>{branch}</strong>
+   <img className={styles.backLogo} src={buster?'/price-tag-assets/busterbuild-logo-white.png':'/stock-operations/powerbuild-logo.png'} alt={buster?'Buster Build':'PowerBuild'}/>
+  </div>
  </div>;
 }
 type SheetSide='front'|'back';
@@ -49,7 +52,7 @@ function A4Sheet({brand,orientation,staff,side,mirrorBack=false}:{brand:TagBrand
   {staff.map((row,i)=>{
    const slot:StaffIdSheetSlot=slots[i];if(!slot)return null;
    return <div key={`${row.token}-${i}`} className={styles.idA4Slot} style={{left:`${slot.xMm/STAFF_ID_A4.widthMm*100}%`,top:`${slot.yMm/STAFF_ID_A4.heightMm*100}%`,width:`${slot.widthMm/STAFF_ID_A4.widthMm*100}%`,height:`${slot.heightMm/STAFF_ID_A4.heightMm*100}%`}}>
-    {side==='front'?<Artwork brand={brand} orientation={orientation} details={row} photo={row.photoUrl} zoom={row.photoZoom} position={row.photoPosition} verificationUrl={typeof window!=='undefined'?`${window.location.origin}/p/staff/${row.token}`:''}/>:<BackArtwork brand={brand} branch={row.branch}/>}
+    {side==='front'?<Artwork brand={brand} orientation={orientation} details={row} photo={row.photoUrl} zoom={row.photoZoom} position={row.photoPosition} verificationUrl={typeof window!=='undefined'?`${window.location.origin}/p/staff/${row.token}`:''}/>:<BackArtwork brand={brand} branch={row.branch} orientation={orientation}/>}
    </div>;
   })}
  </div>;
