@@ -71,7 +71,6 @@ export default function StaffIdGenerator({brand,onBack}:{brand:TagBrand;onBack:(
   return()=>controller.abort();
  },[]);
  const selectableBranches=branches.filter(name=>brand==='busterbuild'?/buster\s*build/i.test(name):!/buster\s*build/i.test(name));
- useEffect(()=>{setSheetStaff([]);setSheetMessage('');},[brand]);
  useEffect(()=>{const controller=new AbortController();fetch(`/api/price-tags/staff-ids?brand=${brand}`,{cache:'no-store',signal:controller.signal}).then(response=>priceTagResponse(response,'Saved staff cards could not load.')).then(json=>setStaffList(json.staff as StaffSummary[])).catch(error=>{if(!controller.signal.aborted)setListMessage(error instanceof Error?error.message:'Could not load saved cards.');});return()=>controller.abort();},[brand]);
  const verificationUrl=saved?`${window.location.origin}/p/staff/${saved.token}`:'';
  const refreshList=async()=>{try{const result=await priceTagResponse(await fetch(`/api/price-tags/staff-ids?brand=${brand}&q=${encodeURIComponent(search)}`,{cache:'no-store'}),'Saved cards could not load.');setStaffList(result.staff as StaffSummary[]);setListMessage('');}catch(error){setListMessage(error instanceof Error?error.message:'Could not load saved cards.');}};
