@@ -7,12 +7,18 @@ export default function PriceTagCard({ tag, url }: { tag: PriceTag; url: string 
   const qr = qrcode(0, "M"); qr.addData(url); qr.make();
   const qrImage = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(qr.createSvgTag({ cellSize: 4, margin: 16, scalable: true }))}`;
   const [whole, cents] = (tag.price_cents / 100).toFixed(2).split(".");
+  // Tiles sized 600 x 1200 mm should appear sideways on the price tag.
+  // Also recognise dimensions in the product name when the size fields are blank.
+  const isLongTile = tag.is_tile && (
+    (Math.min(tag.tile_width_mm, tag.tile_length_mm) === 600 && Math.max(tag.tile_width_mm, tag.tile_length_mm) === 1200) ||
+    /(?:^|\D)(?:600\s*[x×*]\s*1200|1200\s*[x×*]\s*600)\s*(?:mm)?(?:$|\D)/i.test(`${tag.name} ${tag.description}`)
+  );
   return <article className={`${styles.tag} ${tag.brand === "busterbuild" ? styles.busterTag : ""}`} aria-label={`Price tag for ${tag.name}`}>
     <img className={styles.rail} src={tag.brand === "busterbuild" ? "/price-tag-assets/busterbuild-template.jpg" : "/price-tag-assets/powerbuild-rail.png"} alt={tag.brand === "busterbuild" ? "BusterBuild" : "PowerBuild"} />
     <div className={styles.tagMain}>
       {tag.brand !== "busterbuild" && <img className={styles.watermark} src="/powerbuild-logo-transparent.png" alt="" />}
       {tag.branch_name && <div className={styles.branchName}>{tag.branch_name}</div>}
-      <div className={styles.productPicture}><ProductPicture src={tag.image_url} alt={tag.name} removeBackground={!tag.is_tile} /></div>
+      <div className={styles.productPicture}><ProductPicture src={tag.image_url} alt={tag.name} removeBackground={!tag.is_tile} landscapeTile={Boolean(isLongTile)} /></div>
       <h2 className={styles.tagName} style={{ fontSize: tag.name.length > 100 ? "2.1cqw" : tag.name.length > 64 ? "2.6cqw" : undefined }}>{tag.name}</h2>
       <div className={styles.qrBlock}><img src={qrImage} alt="Scan to view product, price and tile smart measure" /><b>Code: {tag.code}</b></div>
       <div className={styles.packDetails}>{tag.is_tile ? <>{tag.pieces_per_box > 0 && <span>{tag.pieces_per_box} {Number(tag.pieces_per_box) === 1 ? "Tile" : "Tiles"} Per Box</span>}<span>{tag.coverage_per_box}m² Per Box</span></> : <>{tag.colour ? <span style={{fontSize:tag.colour.length>40?"2.1cqw":"2.8cqw",lineHeight:1.1,overflowWrap:"anywhere"}}>Colour: {tag.colour}</span> : <span>Scan for product</span>}<span>Price includes VAT</span></>}</div>

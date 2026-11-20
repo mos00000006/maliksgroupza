@@ -9,6 +9,9 @@
 
 /* A bounded image viewport prevents intrinsic image dimensions from covering the name or price. */
 .productPicture{overflow:hidden;contain:paint;min-width:0;min-height:0;isolation:isolate}
+/* Container-relative rotation keeps long-format tile pictures within the image area, including A4 exports. */
+.productPicture{container-type:size}
+.productPicture>img.landscapeTileImage{inset:auto;top:50%;left:50%;width:100cqh;height:100cqw;min-width:0;min-height:0;max-width:none;max-height:none;object-fit:contain;transform:translate(-50%,-50%) rotate(90deg);transform-origin:center}
 .productPicture>img{position:absolute;inset:0;display:block;width:100%;height:100%;min-width:0;min-height:0;max-width:100%;max-height:100%;object-fit:contain;object-position:center;margin:0;padding:0;filter:none;transform:none}
 .chosen{min-width:0;overflow:hidden}.chosen img{flex:0 0 72px;min-width:72px;max-width:72px;height:72px;max-height:72px;object-fit:contain}.chosen>div{min-width:0;overflow-wrap:anywhere}
 
