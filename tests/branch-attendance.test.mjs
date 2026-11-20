@@ -25,7 +25,8 @@ const details={action:'register',employeeNumber:'SG001',firstName:'Moses',lastNa
 test('branch setup, registration, approval, private sessions and clock records',async()=>{
  assert.equal((await manage({action:'setup',latitude:-26,longitude:28,radius:300},'BusterBuild')).status,403);
  assert.equal((await manage({action:'setup',latitude:999,longitude:28,radius:300})).status,400);
- assert.equal((await manage({action:'setup',latitude:-26,longitude:28,radius:300})).status,200);
+ assert.equal((await manage({action:'setup',latitude:-26,longitude:28,radius:300})).status,400); // Out-of-policy radius must be rejected.
+ assert.equal((await manage({action:'setup',latitude:-26,longitude:28,radius:100})).status,200); // Normal branch geofence.
  token=(await manage()).body.branch.token;
  assert.equal((await staff()).body.account,null);
  assert.equal((await staff({...details,consent:false})).status,400);
