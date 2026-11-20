@@ -1,5 +1,5 @@
 export type IdOrientation="portrait"|"landscape";
-export function staffIdSize(orientation:IdOrientation){return orientation==='portrait'?{width:54,height:86,pixelsWide:1080,pixelsHigh:1720}:{width:86,height:54,pixelsWide:1720,pixelsHigh:1080};}
+export function staffIdSize(orientation:IdOrientation){return orientation==='portrait'?{width:53.98,height:85.60,pixelsWide:1080,pixelsHigh:1712}:{width:85.60,height:53.98,pixelsWide:1712,pixelsHigh:1080};}
 // A single JPEG on an exact-size PDF page. No browser printer scaling is involved.
 export function staffIdPdf(jpeg:string,orientation:IdOrientation):Blob {
   const size=staffIdSize(orientation),w=size.width*72/25.4,h=size.height*72/25.4;
