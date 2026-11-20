@@ -25,6 +25,8 @@ const PAGE_W = 595.28;
 const PAGE_H = 841.89;
 const CANVAS_W = 2480;
 const CANVAS_H = 3508;
+// Published PowerBuild company profile: always inserted as page two.
+const COMPANY_PROFILE_IMAGE = "/powerbuild-company-profile-page.png";
 const PRODUCT_PAGE_COLUMNS = 2;
 const PRODUCT_PAGE_ROWS = 3;
 const PRODUCT_PAGE_CAPACITY = PRODUCT_PAGE_COLUMNS * PRODUCT_PAGE_ROWS;
@@ -428,6 +430,16 @@ const drawCoverPage = async (productCount: number, cover: LoadedImage | null) =>
   return canvasToJpeg(canvas, 0.985);
 };
 
+// Keep the approved blue/gold PowerBuild company profile exactly as supplied,
+// filling one A4 page without the browser adding page headers or footers.
+const drawCompanyProfilePage = (profile: LoadedImage) => {
+  const { canvas, ctx } = createPageCanvas();
+  ctx.fillStyle = WHITE;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.drawImage(profile.element, 0, 0, CANVAS_W, CANVAS_H);
+  return canvasToJpeg(canvas, 0.985);
+};
+
 const drawContentsPage = async (
   plans: CategoryPlan[],
   logo: LoadedImage | null,
@@ -485,7 +497,7 @@ const drawContentsPage = async (
     ctx.fillText(text, x + 24, y + 160);
   });
 
-  drawFooter(ctx, 1 + contentsPage, totalPages);
+  drawFooter(ctx, 2 + contentsPage, totalPages);
   return canvasToJpeg(canvas, 0.94);
 };
 
@@ -700,7 +712,7 @@ async function preparePrintableProducts(products: WholesaleCatalogueProduct[], o
   });
 
   const contentsPages = Math.max(1, Math.ceil(grouped.size / CONTENTS_PAGE_CAPACITY));
-  let nextPage = 2 + contentsPages; // Cover + full contents section.
+  let nextPage = 3 + contentsPages; // Cover + company profile + full contents section.
   const plans: CategoryPlan[] = Array.from(grouped.entries()).map(([category, items]) => {
     const productPages = Math.ceil(items.length / PRODUCT_PAGE_CAPACITY);
     const startPage = nextPage;
@@ -716,7 +728,15 @@ async function loadBrandImages() {
   let logo: LoadedImage | null = null;
   try { cover = await loadImageElement("/wholesale-division-cover-v2.png"); } catch { /* Fallback cover */ }
   try { logo = await loadImageElement("/powerbuild-logo-transparent.png"); } catch { /* Text fallback */ }
-  return { cover, logo };
+  let profile: LoadedImage;
+  try {
+    profile = await loadImageElement(COMPANY_PROFILE_IMAGE);
+  } catch {
+    releaseImage(cover);
+    releaseImage(logo);
+    throw new Error("PowerBuild company profile artwork is missing. Please restore public/powerbuild-company-profile-page.png before downloading the catalogue.");
+  }
+  return { cover, logo, profile };
 }
 
 export async function buildWholesaleCataloguePdf(
@@ -726,7 +746,7 @@ export async function buildWholesaleCataloguePdf(
   await tryLoadNexaFonts();
   const plan = await preparePrintableProducts(products, onProgress);
   const { imageMap, plans, contentsPages, totalPages, productCount } = plan;
-  const { cover, logo } = await loadBrandImages();
+  const { cover, logo, profile } = await loadBrandImages();
 
   try {
     onProgress?.("Creating A4 print-ready catalogue...", 45);
@@ -746,8 +766,9 @@ export async function buildWholesaleCataloguePdf(
     };
 
     addPage(await drawCoverPage(productCount, cover), "Pg1");
+    addPage(drawCompanyProfilePage(profile), "Pg2");
     for (let index = 1; index <= contentsPages; index += 1) {
-      addPage(await drawContentsPage(plans, logo, totalPages, index, contentsPages), `Pg${index + 1}`);
+      addPage(await drawContentsPage(plans, logo, totalPages, index, contentsPages), `Pg${index + 2}`);
     }
 
     let built = 0;
@@ -783,6 +804,7 @@ export async function buildWholesaleCataloguePdf(
   } finally {
     releaseImage(cover);
     releaseImage(logo);
+    releaseImage(profile);
     imageMap.forEach(releaseImage);
   }
 }
@@ -793,7 +815,7 @@ export async function buildWholesaleLeafletPages(
 ) {
   await tryLoadNexaFonts();
   const { imageMap, plans, contentsPages, totalPages, productCount } = await preparePrintableProducts(products, onProgress);
-  const { cover, logo } = await loadBrandImages();
+  const { cover, logo, profile } = await loadBrandImages();
   const pages: Blob[] = [];
   const originalOverride = renderScaleOverride;
   // Screen previews are smaller than the 300-DPI downloadable PDF.
@@ -807,6 +829,7 @@ export async function buildWholesaleLeafletPages(
   try {
     onProgress?.("Creating photo-only leaflet...", 44);
     pushPage(await drawCoverPage(productCount, cover));
+    pushPage(drawCompanyProfilePage(profile));
     for (let index = 1; index <= contentsPages; index += 1) {
       pushPage(await drawContentsPage(plans, logo, totalPages, index, contentsPages));
     }
@@ -835,6 +858,7 @@ export async function buildWholesaleLeafletPages(
     renderScaleOverride = originalOverride;
     releaseImage(cover);
     releaseImage(logo);
+    releaseImage(profile);
     imageMap.forEach(releaseImage);
   }
 

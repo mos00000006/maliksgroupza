@@ -44,6 +44,6 @@ test('A4 print PDF is 300dpi, 2 columns x 3 rows, and contains only decodable im
 test('table of contents paginates before catalogue pages are numbered', () => {
   assert.match(pdf, /const CONTENTS_PAGE_CAPACITY = CONTENTS_ROWS_PER_COLUMN \* 2/);
   assert.match(pdf, /Math\.ceil\(grouped\.size \/ CONTENTS_PAGE_CAPACITY\)/);
-  assert.match(pdf, /let nextPage = 2 \+ contentsPages/);
+  assert.match(pdf, /let nextPage = 3 \+ contentsPages/);
   assert.match(pdf, /drawContentsPage\(plans, logo, totalPages, index, contentsPages\)/);
 });
