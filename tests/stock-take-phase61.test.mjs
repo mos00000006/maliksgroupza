@@ -1,0 +1,31 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
+const schema=readFileSync(new URL('../drizzle/0071_stock_take_control_centre.sql',import.meta.url),'utf8');
+test('Phase 61 schema enforces immutable audit and counting stage',()=>{
+ const db=new DatabaseSync(':memory:');db.exec(schema);const id='test-1';
+ db.prepare("INSERT INTO stock_take_sessions(id,reference,branch_name,created_by,created_at) VALUES (?,?,?,?,?)").run(id,'STK-01','TEST','manager','now');
+ db.prepare("INSERT INTO stock_take_lines(session_id,product_id,code,name) VALUES(?,?,?,?)").run(id,10,'P01','Cement');
+ assert.throws(()=>db.prepare("INSERT INTO stock_take_counts(session_id,product_id,location_name,qty_milli,counted_by,counted_at) VALUES(?,?,?,?,?,?)").run(id,10,'Floor',9000,'counter','now'),/not open/);
+ db.prepare("UPDATE stock_take_sessions SET status='Counting' WHERE id=?").run(id);
+ db.prepare("INSERT INTO stock_take_counts(session_id,product_id,location_name,qty_milli,counted_by,counted_at) VALUES(?,?,?,?,?,?)").run(id,10,'Floor',9000,'counter','now');
+ db.prepare("UPDATE stock_take_sessions SET status='Review' WHERE id=?").run(id);
+ assert.throws(()=>db.prepare("UPDATE stock_take_counts SET qty_milli=0 WHERE session_id=?").run(id),/not open/);
+ db.prepare("INSERT INTO stock_take_recounts(session_id,product_id,qty_milli,recounted_by,recounted_at,reason) VALUES(?,?,?,?,?,?)").run(id,10,10000,'other','now','Second count');
+ assert.throws(()=>db.prepare("UPDATE stock_take_recounts SET qty_milli=0").run(),/immutable/);
+ db.prepare("INSERT INTO stock_take_audit(session_id,event_type,actor_email,created_at) VALUES(?,?,?,?)").run(id,'COUNTED','counter','now');
+ assert.throws(()=>db.prepare('DELETE FROM stock_take_audit').run(),/immutable/);
+ assert.throws(()=>db.prepare("UPDATE stock_take_sessions SET status='Draft' WHERE id=?").run(id),/Invalid stock take/);
+ db.close();
+});
+test('Stock Take controls do not change live balances directly',()=>{
+ const route=readFileSync(new URL('../app/api/stock-operations/take/route.ts',import.meta.url),'utf8');
+ const ui=readFileSync(new URL('../app/stock-operations/stock-take-centre.tsx',import.meta.url),'utf8');
+ assert.match(route,/expected_milli/);
+ assert.match(route,/recounted_by/);
+ assert.match(route,/Only manager may reopen review|Only the manager can submit/);
+ assert.doesNotMatch(route,/UPDATE stock_inventory_balances|UPDATE stock_ops_documents|UPDATE catalogue_products/i);
+ assert.match(ui,/Download variance CSV/);
+ assert.match(ui,/Scan barcode with phone/);
+});
