@@ -2,6 +2,8 @@
 import {useEffect,useRef,useState} from "react";
 import {toJpeg} from "../lib/vendor/html-to-image.mjs";
 import {staffIdPdf,staffIdSize,type IdOrientation} from "../lib/staff-id-export";
+import {jpegPagePdf} from "../lib/staff-card-export";
+import {staffIdSheetSlots,STAFF_ID_A4,STAFF_ID_A4_CAPACITY,type StaffIdSheetSlot} from "../lib/staff-id-a4";
 import qrcode from "../lib/vendor/qrcode.mjs";
 import {priceTagResponse} from "../lib/price-tag-response";
 import type {StaffIdDetails,StaffIdRecord} from "../lib/staff-id-verification";
@@ -16,7 +18,7 @@ function Artwork({brand,orientation,details,photo,zoom,position,verificationUrl}
  const expiry=details.expiry?new Date(details.expiry+'T12:00:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}):'';
  return <article data-staff-id className={`${styles.idCard} ${buster?styles.buster:styles.power} ${landscape?styles.landscape:styles.portrait}`} aria-label={`${buster?'BusterBuild':'PowerBuild'} staff ID card preview`}>
   <div className={styles.brandPanel}/><div className={styles.accent}/>
-  <div className={styles.logoFrame}>{buster?<svg viewBox="20 70 270 135" role="img" aria-label="BusterBuild"><image href="/price-tag-assets/busterbuild-logo-white.png" width="300" height="300"/></svg>:<img src="/powerbuild-logo-transparent.png" alt="PowerBuild"/>}</div>
+  <div className={styles.logoFrame}>{buster?<img src="/price-tag-assets/busterbuild-logo-white.png" alt="BusterBuild"/>:<img src="/powerbuild-logo-transparent.png" alt="PowerBuild"/>}</div>
   {details.branch.trim()&&<div className={styles.branch} data-id-fit style={{fontSize:`${Math.min(landscape?1.7:2.8,100/Math.max(details.branch.length,1))}cqw`}}>{details.branch}</div>}
   <span className={styles.badge}>STAFF</span>
   <div className={styles.photo}>{photo?<img src={photo} alt={`Photo of ${details.name.trim()||'staff member'}`} style={{objectPosition:`50% ${position}%`,transform:`scale(${zoom/100})`}}/>:<div className={styles.placeholder}><svg viewBox="0 0 100 120" aria-hidden="true"><circle cx="50" cy="34" r="23"/><path d="M8 116v-12c0-31 18-43 42-43s42 12 42 43v12Z"/></svg><span>Add staff photo</span></div>}</div>
@@ -29,13 +31,75 @@ function Artwork({brand,orientation,details,photo,zoom,position,verificationUrl}
   <footer>{buster?'BUSTERBUILD':'POWERBUILD'} · STAFF IDENTIFICATION</footer>
  </article>;
 }
+// Six ISO ID-1 cards are positioned in physical millimetres on A4 (2 columns × 3 rows).
+// Back positions mirror the columns for long-edge duplex printing.
+function BackArtwork({brand,branch,orientation}:{brand:TagBrand;branch:string;orientation:IdOrientation}){
+ const buster=brand==='busterbuild',portrait=orientation==='portrait';
+ // Match the photographed card: one clean blue field, centred logo and white branch.
+ // On portrait stock both items read sideways as in the physical example.
+ const fontSize=Math.min(portrait?7:5,190/Math.max(branch.length,1));
+ return <div className={`${styles.idBack} ${buster?styles.busterBack:''} ${portrait?styles.portraitBack:styles.landscapeBack}`}>
+  <div className={styles.backIdentity}>
+   <strong className={styles.backBranch} style={{fontSize:`${fontSize}cqw`}}>{branch}</strong>
+   <img className={styles.backLogo} src={buster?'/price-tag-assets/busterbuild-logo-white.png':'/stock-operations/powerbuild-logo.png'} alt={buster?'Buster Build':'PowerBuild'}/>
+  </div>
+ </div>;
+}
+type SheetSide='front'|'back';
+function A4Sheet({brand,orientation,staff,side,mirrorBack=false}:{brand:TagBrand;orientation:IdOrientation;staff:StaffIdRecord[];side:SheetSide;mirrorBack?:boolean}){
+ const slots=staffIdSheetSlots(orientation,side==='back'&&mirrorBack);
+ return <div className={styles.idA4Sheet} data-staff-a4={side} aria-label={`A4 ${STAFF_ID_A4_CAPACITY} staff ID card ${side} sheet`}>
+  {staff.map((row,i)=>{
+   const slot:StaffIdSheetSlot=slots[i];if(!slot)return null;
+   return <div key={`${row.token}-${i}`} className={styles.idA4Slot} style={{left:`${slot.xMm/STAFF_ID_A4.widthMm*100}%`,top:`${slot.yMm/STAFF_ID_A4.heightMm*100}%`,width:`${slot.widthMm/STAFF_ID_A4.widthMm*100}%`,height:`${slot.heightMm/STAFF_ID_A4.heightMm*100}%`}}>
+    {side==='front'?<Artwork brand={brand} orientation={orientation} details={row} photo={row.photoUrl} zoom={row.photoZoom} position={row.photoPosition} verificationUrl={typeof window!=='undefined'?`${window.location.origin}/p/staff/${row.token}`:''}/>:<BackArtwork brand={brand} branch={row.branch} orientation={orientation}/>}
+   </div>;
+  })}
+ </div>;
+}
 export default function StaffIdGenerator({brand,onBack}:{brand:TagBrand;onBack:()=>void}){
  const[details,setDetails]=useState<Details>(initial);const[orientation,setOrientation]=useState<IdOrientation>('portrait');const[photo,setPhoto]=useState('');const[zoom,setZoom]=useState(100),[position,setPosition]=useState(50);const[busy,setBusy]=useState(false),[message,setMessage]=useState('');const form=useRef<HTMLFormElement>(null),exportRef=useRef<HTMLDivElement>(null);
  const[saved,setSaved]=useState<StaffIdRecord|null>(null),[dirty,setDirty]=useState(true),[active,setActive]=useState(true),[photoChanged,setPhotoChanged]=useState(false),[staffList,setStaffList]=useState<StaffSummary[]>([]),[search,setSearch]=useState(''),[listMessage,setListMessage]=useState('');
+ const [branches,setBranches]=useState<string[]>([]),[branchError,setBranchError]=useState('');
+ const [sheetStaff,setSheetStaff]=useState<StaffIdRecord[]>([]),[sheetSide,setSheetSide]=useState<SheetSide>('front'),[sheetMirror,setSheetMirror]=useState(true),[sheetBusy,setSheetBusy]=useState(false),[sheetMessage,setSheetMessage]=useState('');
+ const sheetExportRef=useRef<HTMLDivElement>(null);
+ useEffect(()=>{const controller=new AbortController();
+  fetch('/api/workspaces',{cache:'no-store',signal:controller.signal}).then(async r=>{if(!r.ok)throw Error('Branch directory could not load.');return r.json();}).then(data=>{
+   const rows=Array.isArray(data.workspaces)?data.workspaces:[];
+   const locations=rows.filter((w:{name?:string;type?:string})=>String(w.type||'').toLowerCase()==='store')
+    .map((w:{name?:string})=>String(w.name||'').trim()).filter(Boolean);
+   setBranches([...new Set(locations)]);
+   setBranchError(locations.length?'':'No active store branches are available.');
+  }).catch(e=>{if(!controller.signal.aborted)setBranchError(e instanceof Error?e.message:'Could not load branches.');});
+  return()=>controller.abort();
+ },[]);
+ const selectableBranches=branches.filter(name=>brand==='busterbuild'?/buster\s*build/i.test(name):!/buster\s*build/i.test(name));
  useEffect(()=>{const controller=new AbortController();fetch(`/api/price-tags/staff-ids?brand=${brand}`,{cache:'no-store',signal:controller.signal}).then(response=>priceTagResponse(response,'Saved staff cards could not load.')).then(json=>setStaffList(json.staff as StaffSummary[])).catch(error=>{if(!controller.signal.aborted)setListMessage(error instanceof Error?error.message:'Could not load saved cards.');});return()=>controller.abort();},[brand]);
  const verificationUrl=saved?`${window.location.origin}/p/staff/${saved.token}`:'';
  const refreshList=async()=>{try{const result=await priceTagResponse(await fetch(`/api/price-tags/staff-ids?brand=${brand}&q=${encodeURIComponent(search)}`,{cache:'no-store'}),'Saved cards could not load.');setStaffList(result.staff as StaffSummary[]);setListMessage('');}catch(error){setListMessage(error instanceof Error?error.message:'Could not load saved cards.');}};
  const loadStaff=async(token:string)=>{setBusy(true);setMessage('Loading saved staff card…');try{const result=await priceTagResponse(await fetch(`/api/price-tags/staff-ids?brand=${brand}&token=${token}`,{cache:'no-store'}),'Staff card could not load.');const row=result.staff as StaffIdRecord;setDetails({name:row.name,employeeId:row.employeeId,role:row.role,department:row.department,branch:row.branch,expiry:row.expiry,startDate:row.startDate});setSaved(row);setActive(row.active);setPhoto(row.photoUrl);setZoom(row.photoZoom);setPosition(row.photoPosition);setPhotoChanged(false);setDirty(false);setMessage(row.active?'Saved staff card loaded.':'Verification is deactivated for this staff card.');}catch(error){setMessage(error instanceof Error?error.message:'Staff card could not load.');}finally{setBusy(false);}};
+ const addToSheet=async(token:string)=>{
+  if(sheetStaff.length>=STAFF_ID_A4_CAPACITY){setSheetMessage(`A4 sheet already has ${STAFF_ID_A4_CAPACITY} cards. Remove one before adding another.`);return;}
+  if(sheetStaff.some(x=>x.token===token)){setSheetMessage('This staff member is already on the A4 sheet.');return;}
+  setSheetBusy(true);setSheetMessage('Adding saved staff card…');
+  try{const result=await priceTagResponse(await fetch(`/api/price-tags/staff-ids?brand=${brand}&token=${encodeURIComponent(token)}`,{cache:'no-store'}),'Could not load staff card.');
+   const row=result.staff as StaffIdRecord;if(!row.active){setSheetMessage('This staff card is deactivated. Reactivate it before printing.');return;}
+   if(!row.photoUrl||!row.branch){setSheetMessage('This staff card needs a photo and branch before printing.');return;}
+   setSheetStaff(list=>list.length>=STAFF_ID_A4_CAPACITY||list.some(x=>x.token===row.token)?list:[...list,row]);setSheetMessage(`Added ${row.name} to the A4 sheet.`);
+  }catch(e){setSheetMessage(e instanceof Error?e.message:'Could not add staff card.');}finally{setSheetBusy(false);}
+ };
+ const downloadA4=async(side:SheetSide)=>{
+  if(!sheetStaff.length){setSheetMessage('Add saved staff cards to the A4 sheet first.');return;}
+  setSheetBusy(true);setSheetMessage(`Preparing A4 ${side} PDF…`);
+  try{setSheetSide(side);await document.fonts.ready;await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+   const node=sheetExportRef.current?.querySelector<HTMLElement>(`[data-staff-a4="${side}"]`);if(!node)throw Error('A4 print sheet is unavailable.');
+   await Promise.all(Array.from(node.querySelectorAll('img')).map(async image=>{await image.decode();if(!image.naturalWidth)throw Error('A staff photo or logo could not load.');}));
+   const jpeg=await toJpeg(node,{width:STAFF_ID_A4.pixelsWide/2,height:STAFF_ID_A4.pixelsHigh/2,pixelRatio:2,quality:.98,skipFonts:true,backgroundColor:'#ffffff',style:{width:`${STAFF_ID_A4.pixelsWide/2}px`,height:`${STAFF_ID_A4.pixelsHigh/2}px`,margin:'0',boxShadow:'none'}});
+   const blob=jpegPagePdf(jpeg,STAFF_ID_A4.widthMm,STAFF_ID_A4.heightMm,STAFF_ID_A4.pixelsWide,STAFF_ID_A4.pixelsHigh);
+   const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`${brand==='busterbuild'?'BusterBuild':'PowerBuild'}-Staff-ID-A4-${side}-${sheetStaff.length}-cards.pdf`;document.body.appendChild(link);link.click();link.remove();window.setTimeout(()=>URL.revokeObjectURL(url),60000);
+   setSheetMessage(`${side==='front'?'Front':'Back'} A4 PDF ready: ${sheetStaff.length} staff ID cards, each exactly ${staffIdSize(orientation).width} × ${staffIdSize(orientation).height} mm. Print at Actual Size / 100%.`);
+  }catch(e){setSheetMessage(e instanceof Error?e.message:'A4 PDF could not be created. Check staff photographs and branch logos.');}finally{setSheetBusy(false);}
+ };
  const newStaff=()=>{setDetails(initial);setSaved(null);setPhoto('');setZoom(100);setPosition(50);setActive(true);setDirty(true);setPhotoChanged(false);setMessage('Enter the new employee details and photo.');};
  const saveStaff=async()=>{
   if(!form.current?.reportValidity())return;if(!details.name.trim()||!details.employeeId.trim()||!photo){setMessage('Enter the staff name, employee number and photo.');return;}
@@ -78,18 +142,30 @@ export default function StaffIdGenerator({brand,onBack}:{brand:TagBrand;onBack:(
   <div className={styles.editor}>
    <form ref={form} className={styles.panel} onSubmit={e=>{e.preventDefault();void saveStaff();}}><fieldset disabled={busy}>
     <h2>Saved staff cards</h2><div className={styles.savedSearch}><label>Find employee number or name<input value={search} onChange={e=>setSearch(e.target.value)} maxLength={100}/></label><button type="button" onClick={()=>void refreshList()}>Search saved cards</button></div>
-    {listMessage&&<p className={styles.note}>{listMessage}</p>}<div className={styles.savedList}>{staffList.map(row=><button type="button" key={row.token} onClick={()=>void loadStaff(row.token)}>{row.employee_id} · {row.name}{!row.active?' — verification disabled':''}</button>)}</div><button type="button" onClick={newStaff}>+ New staff card</button>
-    <h2>1. Layout &amp; staff details</h2><label>Card layout<select value={orientation} onChange={e=>{setOrientation(e.target.value as IdOrientation);setMessage('');}}><option value="portrait">Portrait — 54 × 86 mm</option><option value="landscape">Landscape — 86 × 54 mm</option></select></label>
-    {field('Staff member full name','name',70,true)}{field('Employee number','employeeId',32,true)}{field('Job title (optional)','role',60)}{field('Department (optional)','department',60)}{field('Branch / store (optional)','branch',60)}
+    {listMessage&&<p className={styles.note}>{listMessage}</p>}<div className={styles.savedList}>{staffList.map(row=><div key={row.token} className={styles.savedCardRow}><button type="button" onClick={()=>void loadStaff(row.token)}>{row.employee_id} · {row.name}{!row.active?' — verification disabled':''}</button><button type="button" disabled={sheetBusy||sheetStaff.length>=STAFF_ID_A4_CAPACITY||!row.active||sheetStaff.some(x=>x.token===row.token)} onClick={()=>void addToSheet(row.token)}>Add to A4</button></div>)}</div><button type="button" onClick={newStaff}>+ New staff card</button>
+    <h2>1. Layout &amp; staff details</h2><label>Card layout<select value={orientation} onChange={e=>{setOrientation(e.target.value as IdOrientation);setMessage('');}}><option value="portrait">Portrait — 53.98 × 85.60 mm</option><option value="landscape">Landscape — 85.60 × 53.98 mm</option></select></label>
+    {field('Staff member full name','name',70,true)}{field('Employee number','employeeId',32,true)}{field('Job title (optional)','role',60)}{field('Department (optional)','department',60)}<label>Branch / store<select value={details.branch} required onChange={e=>change('branch',e.target.value)}><option value="">Select a branch</option>{details.branch&&!selectableBranches.includes(details.branch)&&<option value={details.branch}>{details.branch} (saved)</option>}{selectableBranches.map(name=><option key={name} value={name}>{name}</option>)}</select></label>{branchError&&<p className={styles.note}>{branchError}</p>}
     <label>Employment start date (optional)<input type="date" value={details.startDate} onChange={e=>change('startDate',e.target.value)}/></label>
     <label>Expiry date (optional)<input type="date" value={details.expiry} onChange={e=>change('expiry',e.target.value)}/></label>
     <h2>2. Staff photo</h2><label>Upload staff photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{const file=e.target.files?.[0];if(file)void upload(file);e.target.value='';}}/></label><p className={styles.note}>Use a clear head-and-shoulders photo. JPG, PNG or WebP, up to 20 MB.</p>
     {photo&&<><label>Photo zoom — {zoom}%<input type="range" min="100" max="200" step="5" value={zoom} onChange={e=>{setZoom(Number(e.target.value));setDirty(true);}}/></label><label>Photo vertical position<input type="range" min="0" max="100" step="1" value={position} onChange={e=>{setPosition(Number(e.target.value));setDirty(true);}}/></label><div className={styles.photoActions}><button type="button" onClick={()=>{setZoom(100);setPosition(50);setDirty(true);}}>Reset crop</button><button type="button" onClick={()=>{setPhoto('');setDirty(true);setMessage('Photo removed. Add a photo before downloading.');}}>Remove photo</button></div></>}
     <h2>3. Employment verification</h2><label className={styles.check}><input type="checkbox" checked={active} onChange={e=>{setActive(e.target.checked);setDirty(true);}}/>Currently employed — enable public verification</label><p className={styles.note}>Saving an enabled record makes this photo and work details visible to anyone scanning its QR. Disable verification when the employee leaves. Expired cards do not confirm employment.</p>
    </fieldset><div className={styles.actions}><button type="submit" disabled={busy}>{busy?'Saving…':active?'Save staff verification & generate QR':'Save & deactivate verification'}</button><button type="button" disabled={busy} onClick={()=>void download('pdf')}>Download PDF</button><button type="button" disabled={busy} onClick={()=>void download('jpg')}>Download JPG</button></div>
+    <section className={styles.sheetBuilder} aria-label="Six staff ID cards on A4">
+      <h2>4. A4 printing — 6 staff ID cards</h2>
+      <p className={styles.note}>Standard bank-card size (ISO ID-1): 85.60 × 53.98 mm. Six cards on an A4 sheet: 2 columns × 3 rows. All six back positions match the front positions.</p>
+      <div className={styles.sheetButtons}><button type="button" disabled={!saved||dirty||sheetBusy||sheetStaff.length>=STAFF_ID_A4_CAPACITY} onClick={()=>saved&&void addToSheet(saved.token)}>Add current saved employee</button><button type="button" disabled={sheetBusy||sheetStaff.length===0} onClick={()=>setSheetStaff([])}>Clear A4</button></div>
+      <div className={styles.sheetQueue}>{sheetStaff.map((staff,index)=><div key={staff.token} className={styles.sheetQueueRow}><span><b>{index+1}. {staff.name}</b><small>{staff.employeeId} · {staff.branch}</small></span><button type="button" disabled={sheetBusy} onClick={()=>setSheetStaff(current=>current.filter(row=>row.token!==staff.token))}>Remove</button></div>)}</div>
+      <p className={styles.note}>{sheetStaff.length}/{STAFF_ID_A4_CAPACITY} saved staff selected. Select additional employees under Saved staff cards above. You can download each side separately for manual two-sided printing.</p>
+      <label className={styles.check}><input type="checkbox" checked={sheetMirror} onChange={e=>setSheetMirror(e.target.checked)}/>Mirror back columns for long-edge duplex printing</label>
+      <div className={styles.sheetButtons}><button type="button" disabled={!sheetStaff.length||sheetBusy} onClick={()=>void downloadA4('front')}>Download A4 FRONT PDF</button><button type="button" disabled={!sheetStaff.length||sheetBusy} onClick={()=>void downloadA4('back')}>Download A4 BACK PDF</button></div>
+      {sheetMessage&&<p role="status" className={styles.message}>{sheetMessage}</p>}
+      <p className={styles.note}>Print both PDFs on A4 at 100%, with no Fit to page or browser headers/footers. Test front/back alignment on plain paper before printing ID-card material. For separate manual back printing, confirm your printer feed direction and toggle column mirroring if necessary.</p>
+    </section>
     <p className={styles.note}>PDF uses the exact card size shown. Print at Actual size / 100%. Saved staff records and QR links remain in the Hub. Save changes before downloading; the QR stays the same when you update or deactivate this record.</p>{verificationUrl&&<a className={styles.verifyLink} href={verificationUrl} target="_blank" rel="noreferrer">Open staff verification page ↗</a>}{dirty&&saved&&<p className={styles.note}>Unsaved changes. Save before downloading this card.</p>}{message&&<p role="status" className={styles.message}>{message}</p>}
    </form>
    <section className={`${styles.panel} ${styles.previewPanel}`}><div className={styles.previewHeader}><h2>Live preview</h2><span>{size.width} × {size.height} mm</span></div><div className={`${styles.preview} ${orientation==='landscape'?styles.widePreview:''}`}><Artwork brand={brand} orientation={orientation} details={details} photo={photo} zoom={zoom} position={position} verificationUrl={dirty?'':verificationUrl}/></div><p className={styles.note}>Preview is enlarged for editing. Switch layouts without losing the staff details or photo.</p></section>
   </div>
- </div><div ref={exportRef} className={styles.exportStage} style={{width:size.pixelsWide/2,height:size.pixelsHigh/2}} aria-hidden="true"><Artwork brand={brand} orientation={orientation} details={details} photo={photo} zoom={zoom} position={position} verificationUrl={dirty?'':verificationUrl}/></div></main>;
+  <section className={`${styles.panel} ${styles.sheetPreviewPanel}`}><div className={styles.previewHeader}><h2>A4 staff ID print preview</h2><span>210 × 297 mm · {sheetStaff.length}/{STAFF_ID_A4_CAPACITY} cards</span></div><div className={styles.sheetTabs}><button type="button" aria-pressed={sheetSide==='front'} onClick={()=>setSheetSide('front')}>Front</button><button type="button" aria-pressed={sheetSide==='back'} onClick={()=>setSheetSide('back')}>Back</button></div><div className={styles.sheetPreview}><A4Sheet brand={brand} orientation={orientation} staff={sheetStaff} side={sheetSide} mirrorBack={sheetMirror}/></div><p className={styles.note}>Card outlines are cutting guides. The printed PDF retains the exact card dimensions.</p></section>
+ </div><div ref={exportRef} className={styles.exportStage} style={{width:size.pixelsWide/2,height:size.pixelsHigh/2}} aria-hidden="true"><Artwork brand={brand} orientation={orientation} details={details} photo={photo} zoom={zoom} position={position} verificationUrl={dirty?'':verificationUrl}/></div><div ref={sheetExportRef} className={styles.sheetExportStage} aria-hidden="true"><A4Sheet brand={brand} orientation={orientation} staff={sheetStaff} side="front"/><A4Sheet brand={brand} orientation={orientation} staff={sheetStaff} side="back" mirrorBack={sheetMirror}/></div></main>;
 }
