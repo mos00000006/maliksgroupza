@@ -1,0 +1,95 @@
+diff --git a/.github/workflows/deploy.yml b/.github/workflows/deploy.yml
+index 9002be4..1765d47 100644
+--- a/.github/workflows/deploy.yml
++++ b/.github/workflows/deploy.yml
+@@ -53,15 +53,6 @@ jobs:
+         if: ${{ github.event_name != 'workflow_dispatch' || inputs.limit_notice_only != true }}
+         run: npx wrangler d1 migrations apply maliks-group-hub-db --remote --config .deploy/wrangler.jsonc
+ 
+-      - name: Deploy full Hub
++      - name: Deploy full Hub (R2 recovery)
+         shell: bash
+-        run: |
+-          set -euo pipefail
+-          if [ -n "${OPENAI_API_KEY:-}" ]; then
+-            umask 077
+-            printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY" > .deploy/worker-secrets.env
+-            npx wrangler deploy --config dist/server/wrangler.json --secrets-file .deploy/worker-secrets.env
+-            rm -f .deploy/worker-secrets.env
+-          else
+-            npx wrangler deploy --config dist/server/wrangler.json
+-          fi
++        run: bash scripts/deploy-hub-r2-recovery.sh
+diff --git a/scripts/deploy-hub-r2-recovery.sh b/scripts/deploy-hub-r2-recovery.sh
+new file mode 100644
+index 0000000..5c94cd4
+--- /dev/null
++++ b/scripts/deploy-hub-r2-recovery.sh
+@@ -0,0 +1,67 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++# Preserve the private R2 binding. Do not attempt a degraded deployment without it.
++node --input-type=module <<'JS'
++import { readFileSync } from 'node:fs';
++const config = JSON.parse(readFileSync('dist/server/wrangler.json', 'utf8'));
++const matches = (config.r2_buckets || []).filter(item => item.binding === 'BUCKET');
++if (config.name !== 'maliks-group-hub' || matches.length !== 1 ||
++    matches[0].bucket_name !== 'maliks-group-hub-files') {
++  throw new Error('Refusing deployment: expected Hub Worker and original R2 BUCKET binding.');
++}
++console.log('Verified original Hub R2 binding.');
++JS
++
++umask 077
++log_file=$(mktemp)
++secret_file=''
++cleanup() {
++  rm -f -- "$log_file"
++  if [[ -n "$secret_file" ]]; then rm -f -- "$secret_file"; fi
++}
++trap cleanup EXIT
++args=(deploy --config dist/server/wrangler.json)
++if [[ -n "${OPENAI_API_KEY:-}" ]]; then
++  mkdir -p .deploy
++  secret_file=$(mktemp .deploy/hub-secrets.XXXXXX)
++  printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY" > "$secret_file"
++  args+=(--secrets-file "$secret_file")
++fi
++
++# Use locked Wrangler. Retry only the specific transient R2 entitlement error.
++# Migrations are outside this script and are not repeated between attempts.
++for attempt in 1 2 3; do
++  echo "Hub deployment attempt $attempt/3"
++  if npx --no-install wrangler "${args[@]}" 2>&1 | tee "$log_file"; then
++    echo 'Hub deployed successfully with the original R2 binding.'
++    exit 0
++  else
++    status=$?
++  fi
++  if ! grep -Eq 'code:[[:space:]]*10136([^0-9]|$)' "$log_file"; then
++    echo 'Deployment failed for a different reason; not retrying.' >&2
++    exit "$status"
++  fi
++  if [[ "$attempt" == 1 ]]; then
++    echo 'Checking whether the CI account/token can list the existing R2 bucket (read-only)...'
++    # Listing may require additional token permission, so failure is diagnostic only.
++    if buckets=$(npx --no-install wrangler r2 bucket list --config dist/server/wrangler.json 2>&1); then
++      if grep -Fq 'maliks-group-hub-files' <<< "$buckets"; then
++        echo 'R2 bucket is visible to CI; Worker binding entitlement is still being rejected.'
++      else
++        echo 'Bucket not found in CI listing. Verify CLOUDFLARE_ACCOUNT_ID and bucket ownership.' >&2
++      fi
++    else
++      echo 'CI could not list R2 buckets. Verify R2 token access and account activation; listing permissions may differ from deployment permissions.' >&2
++    fi
++  fi
++  if [[ "$attempt" != 3 ]]; then
++    delay=$((attempt * 30))
++    echo "Cloudflare rejected R2 binding (10136). Retrying in ${delay}s."
++    sleep "$delay"
++  fi
++done
++
++echo '::error::Cloudflare still rejects the existing R2 binding (10136). No binding was removed. Verify the GitHub account ID and R2 entitlement with Cloudflare Support.'
++exit "$status"
