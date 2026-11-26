@@ -1,27 +1,29 @@
-POWERBUILD HUB | R2 DEPLOYMENT RECOVERY + CATALOGUE PATCH
-26 November 2026 | repository: mos00000006/maliksgroupza
+POWERBUILD HUB - RECOVERY PATCH V3 | GITHUB DESKTOP EDITION
+Repository: mos00000006/maliksgroupza (main)
 
-1. Extract the ZIP folder inside the maliksgroupza repository.
-2. Double-click APPLY-RECOVERY.bat. Requires Git and Node.js.
-   The installer checks both patches before applying either and skips already installed patches.
-   If a patch conflicts, stop; do not overwrite unrelated project code.
-3. In VS Code terminal at the repository root:
-   npm run check
-   git add app/catalogue.tsx tests/catalogue-photo-print.test.mjs .github/workflows/deploy.yml scripts/deploy-hub-r2-recovery.sh
-   git commit -m "Recover Hub catalogue and R2 deployment"
-   git push origin main
-4. Open GitHub Actions and inspect the NEW deployment run (not an old rerun).
-5. If green, reopen the Hub with Ctrl+Shift+R.
+1. Extract ALL files from this ZIP into any folder, preferably Downloads.
+2. Double-click APPLY-RECOVERY.bat in the extracted folder (not inside ZIP).
+   No separate Git installation or Node.js is needed for the installer.
+   It finds GitHub Desktop's bundled Git and the existing Hub repository.
+   If prompted, select the exact repository folder shown by GitHub Desktop.
+3. When it reports success, return to GitHub Desktop. Review the changes:
+   app/catalogue.tsx
+   tests/catalogue-photo-print.test.mjs
+   .github/workflows/deploy.yml
+   scripts/deploy-hub-r2-recovery.sh
+   Do not commit unrelated files. If there are no changes, the patch may
+   already be committed; inspect History before pushing.
+4. Enter summary: Recover Hub catalogue and R2 deployment
+   Click Commit to main, then Push origin.
+5. Open https://github.com/mos00000006/maliksgroupza/actions and select
+   the NEW deployment. GitHub Actions runs the existing build and tests.
 
-WHAT THIS DOES
-- Catalogue keeps products with registered pictures visible when an image request fails.
-- Deployment verifies that BUCKET still points to maliks-group-hub-files.
-- Retries code 10136 up to twice, after 30 and 60 seconds.
-- Checks whether the CI token can list the R2 bucket; failure is diagnostic only.
-- Other deployment errors fail immediately. Secret file cleaned up on exit.
-- The existing migration workflow is unchanged; retries do not repeat migrations.
-- No storage, product, D1, access control, billing or bucket setting is changed by these patches.
+The patches keep product cards available when registered pictures fail,
+keep the original private R2 bucket, validate the binding, and retry
+Cloudflare error 10136. They do not modify the D1 schema or product data.
+The existing deployment workflow still runs its normal migration step.
 
-LIMITATION
-Cloudflare error 10136 is a server-side R2 binding refusal. The screenshot confirms the bucket exists, not that Workers can bind it. This patch does not enable R2, bypass billing or guarantee deployment. If error 10136 remains, verify the GitHub account ID matches the dashboard account and ask Cloudflare support to restore the account's R2 Workers binding entitlement. Keep the existing private bucket.
-Known upstream report: https://github.com/cloudflare/workers-sdk/issues/15610
+IMPORTANT: Cloudflare can still reject R2 on the account side. This patch
+cannot enable an R2 entitlement or bypass billing. If the new workflow
+still fails with 10136, check account ID and contact Cloudflare Support.
+Do not delete or recreate the bucket or make it public.

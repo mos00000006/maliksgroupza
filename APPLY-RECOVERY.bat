@@ -1,10 +1,13 @@
 @echo off
 setlocal
-node "%~dp0apply-recovery.mjs"
+cd /d "%~dp0"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Apply-Recovery.ps1"
 if errorlevel 1 (
-  echo Recovery patch was not installed. Read the error above.
+  echo.
+  echo PATCH NOT INSTALLED. Read the error above and send a screenshot.
   pause
   exit /b 1
 )
-echo Run npm run check and commit the changed files.
+echo.
+echo SUCCESS. Open GitHub Desktop and review the four changed files.
 pause
