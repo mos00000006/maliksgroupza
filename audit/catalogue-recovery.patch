@@ -1,0 +1,136 @@
+diff --git a/app/catalogue.tsx b/app/catalogue.tsx
+--- a/app/catalogue.tsx
++++ b/app/catalogue.tsx
+@@ -236,10 +236,11 @@
+ export default function Catalogue({ currentUserEmail = "" }: { currentUserEmail?: string }) {
+   const [products, setProducts] = useState<CatalogueProduct[]>([]);
+   const [brokenPhotoIds, setBrokenPhotoIds] = useState<Set<number>>(() => new Set());
+-  // Even a stale R2/external image link must never leave a blank product card.
++  // Exclude unphotographed records, but keep products whose registered photo temporarily fails.
++  const [photoRetry, setPhotoRetry] = useState(0);
+   const visibleProducts = useMemo(
+-    () => products.filter((product) => Boolean(product.image_url?.trim()) && !brokenPhotoIds.has(product.id)),
+-    [products, brokenPhotoIds],
++    () => products.filter((product) => Boolean(product.image_url?.trim())),
++    [products],
+   );
+   const [page, setPage] = useState(1);
+   const [pages, setPages] = useState(1);
+@@ -297,10 +298,16 @@
+       });
+       if (search.trim()) params.set("q", search.trim());
+       if (category && category !== "All Products") params.set("category", category);
+-      const response = await fetch(`/api/catalogue?${params.toString()}`);
++      const response = await fetch(`/api/catalogue?${params.toString()}`, { cache: "no-store" });
+       const result = await apiResult(response);
+       if (id !== requestId.current) return;
+-      setProducts(result.products || []);
++      if (!Array.isArray(result.products) || typeof result.total !== "number" ||
++          typeof result.page !== "number" || typeof result.pages !== "number" ||
++          (result.total > 0 && result.products.length === 0)) {
++        throw new Error("The catalogue returned an incomplete response. Please retry.");
++      }
++      setBrokenPhotoIds(new Set());
++      setProducts(result.products);
+       setPage(result.page || 1);
+       setPages(result.pages || 1);
+       setTotal(result.total || 0);
+@@ -768,21 +775,37 @@
+           <small>The wholesale PDF is built on this device so the Cloudflare Worker is not overloaded.</small>
+         </div>
+       )}
+-      {error && !editorOpen && <div className="catalogueError">{error}</div>}
++      {error && !editorOpen && <div className="catalogueError" role="alert">{error} <button type="button" onClick={() => void load(page, query, categoryFilter)}>Retry catalogue</button></div>}
++      {!loading && brokenPhotoIds.size > 0 && (
++        <div className="catalogueError" role="status">
++          Some registered product pictures could not load. Product records are still available.
++          {" "}<button type="button" onClick={() => {
++            setBrokenPhotoIds(new Set());
++            setPhotoRetry(Date.now());
++          }}>Retry pictures</button>
++        </div>
++      )}
+ 
+       {loading ? (
+         <div className="catalogueLoading">Loading catalogue products…</div>
+       ) : error && products.length === 0 ? (
+         <div className="catalogueEmpty"><h3>Catalogue temporarily unavailable</h3><p>The products could not be loaded. Please follow the message above and try again later.</p></div>
+-      ) : visibleProducts.length === 0 ? (
++      ) : visibleProducts.length === 0 && total === 0 ? (
+         <div className="catalogueEmpty">
+           <i>▧</i>
+           <h3>{query || categoryFilter !== "All Products" ? "No products match this catalogue view" : "The catalogue is ready for products"}</h3>
+           <p>{query || categoryFilter !== "All Products" ? `Try another product name, code or category${categoryFilter !== "All Products" ? `, or add products under ${categoryFilter}.` : "."}` : canManage ? "Add the first product, code, description and picture." : "Only products with working pictures appear in the catalogue."}</p>
+-          {!query && canManage && <button className="primary" onClick={openAdd}>Add first product</button>}
++          {!query && categoryFilter === "All Products" && canManage && <button className="primary" onClick={openAdd}>Add first product</button>}
+         </div>
+       ) : (
+         <>
++          {visibleProducts.length === 0 && (
++            <div className="catalogueEmpty">
++              <h3>Product pictures unavailable on this page</h3>
++              <p>The catalogue contains products. Try another page or reload this page.</p>
++              <button className="primary" type="button" onClick={() => void load(page, query, categoryFilter)}>Reload products</button>
++            </div>
++          )}
+           <div className="catalogueGrid">
+             {visibleProducts.map((product) => {
+               const assorted = isAssortedProduct(product);
+@@ -791,14 +814,18 @@
+               return (
+               <article className={`catalogueCard${assorted ? " catalogueCard--assorted" : ""}${tommyFixVariant ? " catalogueCard--tommy" : ""}`} key={product.id}>
+                 <div className="catalogueImage">
+-                  {/* Photo-only catalogue: never render a no-image placeholder. */}
+-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+-                  <img
+-                    src={product.image_url}
+-                    alt={product.name}
+-                    loading="lazy"
+-                    onError={() => setBrokenPhotoIds((previous) => new Set(previous).add(product.id))}
+-                  />
++                  {brokenPhotoIds.has(product.id) ? (
++                    <div role="status"><small>Registered picture temporarily unavailable</small></div>
++                  ) : (
++                    /* eslint-disable-next-line @next/next/no-img-element */
++                    <img
++                      key={photoRetry}
++                      src={photoRetry ? `${product.image_url}${product.image_url.includes("?") ? "&" : "?"}photo_retry=${photoRetry}` : product.image_url}
++                      alt={product.name}
++                      loading="lazy"
++                      onError={() => setBrokenPhotoIds((previous) => new Set(previous).add(product.id))}
++                    />
++                  )}
+                   {!assorted && <b>{product.code}</b>}
+                 </div>
+                 <div className="catalogueCardBody">
+diff --git a/tests/catalogue-photo-print.test.mjs b/tests/catalogue-photo-print.test.mjs
+--- a/tests/catalogue-photo-print.test.mjs
++++ b/tests/catalogue-photo-print.test.mjs
+@@ -20,13 +20,24 @@
+   assert.doesNotMatch(api, /UPDATE catalogue_products SET active=0/);
+ });
+ 
+-test('existing missing photos do not result in catalogue placeholders', () => {
++test('unphotographed products remain excluded but registered photo failures retain product cards', () => {
+   assert.match(ui, /const visibleProducts = useMemo/);
+-  assert.match(ui, /!brokenPhotoIds\.has\(product\.id\)/);
++  assert.match(ui, /products\.filter\(\(product\) => Boolean\(product\.image_url\?\.trim\(\)\)\)/);
++  assert.doesNotMatch(ui, /!brokenPhotoIds\.has\(product\.id\)/);
+   assert.match(ui, /onError=\{\(\) => setBrokenPhotoIds/);
+-  assert.doesNotMatch(ui, /<small>Product image<\/small>/);
++  assert.match(ui, /Registered picture temporarily unavailable/);
++  assert.match(ui, /Retry pictures/);
++  assert.match(ui, /setBrokenPhotoIds\(new Set\(\)\)/);
+ });
+ 
++test('incomplete catalogue responses cannot report a populated catalogue as empty', () => {
++  assert.match(ui, /!Array\.isArray\(result\.products\)/);
++  assert.match(ui, /result\.total > 0 && result\.products\.length === 0/);
++  assert.match(ui, /visibleProducts\.length === 0 && total === 0/);
++  assert.match(ui, /Product pictures unavailable on this page/);
++  assert.match(ui, /Retry catalogue/);
++});
++
+ test('new catalogue products require photos', () => {
+   assert.match(api, /A product picture is required for the catalogue/);
+   assert.match(ui, /Please select a product picture before adding/);

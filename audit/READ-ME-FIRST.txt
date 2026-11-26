@@ -1,0 +1,60 @@
+POWERBUILD / MALIKS GROUP HUB - CATALOGUE RECOVERY PATCH
+26 November 2026 | Target: mos00000006/maliksgroupza (main)
+
+OBSERVED ISSUE
+The screen reports 3,156 products and 263 pages, but shows "Add first product".
+The current app/catalogue.tsx removes every card whose registered picture fails.
+When all cards disappear the pagination also disappears. This code defect is
+confirmed in the GitHub source; the live cause of picture failures is not yet
+confirmed because the deployed Hub requires Cloudflare Access authentication.
+
+WHAT THIS PATCH CHANGES
+- Retains records that have a registered photo URL even if the image fails.
+- Clearly marks a failed registered photograph, without creating a fake image.
+- Adds Retry pictures (fresh URLs) and Retry catalogue; resets failed-photo state
+  after loading a product page and requests uncached catalogue data.
+- Rejects incomplete catalogue responses; does not offer Add first product when
+  the catalogue has a positive product count. Keeps pagination accessible.
+- Updates the catalogue regression tests.
+- Retains photosOnly filtering and does not change the photo-only PDF or leaflet.
+- Does not alter any product, database migration, R2 object, credentials, access
+  policy, Cloudflare subscription, POS, or other Hub module.
+
+INSTALL (WINDOWS)
+1. Extract this ZIP inside your existing maliksgroupza repository folder.
+2. Double-click APPLY-CATALOGUE-FIX.bat. It verifies the patch before applying it.
+   If it reports a mismatch, stop; do not overwrite your current source files.
+3. Open a terminal in the repository root. Review and validate:
+   git diff -- app/catalogue.tsx tests/catalogue-photo-print.test.mjs
+   npm run check
+4. If the check passes, commit and push ONLY the two changed source files:
+   git add app/catalogue.tsx tests/catalogue-photo-print.test.mjs
+   git commit -m "Fix catalogue loading when registered photos fail"
+   git push origin main
+5. In GitHub Actions confirm Deploy Maliks Group Hub completes successfully.
+6. Reopen the Hub, Ctrl+Shift+R, open Catalogue and test multiple pages/categories.
+   If pictures are unavailable, use Retry pictures.
+
+If you prefer PowerShell instead of the BAT installer, run from the repo root
+(replace the path if you extracted into another subfolder):
+   git apply --check .\catalogue-recovery\catalogue-recovery.patch
+   git apply .\catalogue-recovery\catalogue-recovery.patch
+
+VERIFY IN PRODUCTION
+- All Products: product cards and page controls visible with positive count.
+- Product code and category search works.
+- Products without registered photos remain excluded from the photo-only view.
+- Temporary image failures are clearly marked and recoverable via retry.
+- Wholesale PDF and leaflet still include only decodable photographs.
+- If pictures still fail, open F12 > Network > Img, reload and inspect the first
+  failed request (HTTP status, path and content type). Do not share cookies,
+  authorization headers or access tokens. Check Cloudflare Worker logs and R2
+  binding / static asset availability; check Workers Paid is active.
+
+VALIDATION / LIMITATIONS
+Built against current GitHub source anchors (app/catalogue.tsx blob
+ab6f086edaaacc8fbf3aca297f008f6468fcf375; test blob
+224b2e7434d4b4bff3c9dfc3cf44a66e352889f5). Patch syntax and source anchors checked.
+Full npm run check and authenticated production test have not been run here.
+The patch fixes the confirmed display defect; it cannot reinstate deleted R2
+files or lift Cloudflare account restrictions. No changes pushed or deployed.
